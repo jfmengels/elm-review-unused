@@ -131,7 +131,10 @@ error : VariableInfo -> String -> Error
 error { variableType, under, rangeToRemove } name =
     Rule.error
         { message = variableTypeToString variableType ++ " `" ++ name ++ "` is not used" ++ variableTypeWarning variableType
-        , details = [ "Since it is not being used, I recommend removing it. It should make the code clearer to read for other people." ]
+        , details =
+            [ "You should either use this value somewhere, or remove it at the location I pointed at."
+            , "If you remove it, you may find that other pieces of code are never used, and can themselves be removed too. This could end up simplifying your code a lot."
+            ]
         }
         under
         |> Rule.withFixes [ Fix.removeRange rangeToRemove ]
