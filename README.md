@@ -13,3 +13,19 @@ plugin that provides rules to detect unused functions and types in your Elm file
 Since `elm-lint` only works in the scope of a single file, these rules
 will not report elements that are exposed but not used anywhere in the project.
 If you wish those to be reported, check out [`elm-xref`](https://github.com/zwilias/elm-xref).
+
+## Example configuration
+
+```elm
+module LintConfig exposing (config)
+
+import Lint.Rule exposing (Rule)
+import NoUnused.Variables
+import NoUnused.CustomTypeConstructors
+
+config : List Rule
+config =
+    [ NoUnused.Variables.rule
+    , NoUnused.CustomTypeConstructors.rule
+    ]
+```
