@@ -1,0 +1,28 @@
+{
+  "name": "lint-unused",
+  "version": "1.0.0",
+  "description": "Reporter for elm-init",
+  "main": "index.js",
+  "scripts": {
+    "test": "elm make && elm-format src/ --validate && elm-test && elm-xref"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jfmengels/lint-unused.git"
+  },
+  "keywords": [
+    "elm-lint"
+  ],
+  "author": "Jeroen Engels",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jfmengels/lint-unused/issues"
+  },
+  "homepage": "https://github.com/jfmengels/lint-unused#readme",
+  "dependencies": {
+    "elm": "^0.19.0-no-deps",
+    "elm-format": "^0.8.2",
+    "elm-test": "^0.19.0-rev6",
+    "elm-xref": "^4.0.0"
+  }
+}
