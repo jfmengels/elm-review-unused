@@ -6,7 +6,7 @@ plugin that provides rules to detect unused functions and types in your Elm file
 ## Provided rules
 
 - [`NoUnused.Variables`](./NoUnused-Variables) - Reports unused top-level variables and types, imports and imported variables and types.
-- [`NoUnused.TypeConstructors`](./NoUnused-TypeConstructors) - Reports unused constructors for a custom type.
+- [`NoUnused.CustomTypeConstructors`](./NoUnused-CustomTypeConstructors) - Reports unused constructors for a custom type.
 
 ### Note
 

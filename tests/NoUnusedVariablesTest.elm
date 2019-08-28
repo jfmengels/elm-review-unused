@@ -601,7 +601,7 @@ a = 1"""
 a = 1"""
                     ]
     , test "should not report unused custom type constructors" <|
-        -- This is handled by the `NoUnusedTypeConstructors` rule
+        -- This is handled by the `NoUnused.CustomTypeConstructors` rule
         \() ->
             testRule """module SomeModule exposing (A)
 type A = B | C"""

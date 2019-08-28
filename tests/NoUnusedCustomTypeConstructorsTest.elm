@@ -1,7 +1,7 @@
-module NoUnusedTypeConstructorsTest exposing (all)
+module NoUnusedCustomTypeConstructorsTest exposing (all)
 
 import Lint.Test exposing (LintResult)
-import NoUnused.TypeConstructors exposing (rule)
+import NoUnused.CustomTypeConstructors exposing (rule)
 import Test exposing (Test, describe, test)
 
 
@@ -81,4 +81,4 @@ type Foo = Bar | Baz"""
 
 all : Test
 all =
-    describe "NoUnusedTypeConstructors" tests
+    describe "NoUnusedCustomTypeConstructors" tests

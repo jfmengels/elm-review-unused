@@ -1,4 +1,4 @@
-module NoUnused.TypeConstructors exposing (rule)
+module NoUnused.CustomTypeConstructors exposing (rule)
 
 {-| Forbid having unused custom type constructors in a file.
 
@@ -23,7 +23,7 @@ import Set exposing (Set)
 {-| Forbid having unused custom type constructors in a file.
 
     config =
-        [ NoUnused.TypeConstructors.rule
+        [ NoUnused.CustomTypeConstructors.rule
         ]
 
 Note that this does not report a constructor if it is exposed in the module, even
@@ -72,7 +72,7 @@ in your editor, rather than when running your tests or [elm-xref](https://github
 -}
 rule : Rule
 rule =
-    Rule.newSchema "NoUnused.TypeConstructors"
+    Rule.newSchema "NoUnused.CustomTypeConstructors"
         |> Rule.withInitialContext initialContext
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withDeclarationVisitor declarationVisitor
