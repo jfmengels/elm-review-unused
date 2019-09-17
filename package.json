@@ -1,7 +1,7 @@
 {
   "name": "lint-unused",
   "version": "1.0.0",
-  "description": "Reporter for elm-init",
+  "description": "Provides elm-lint rules to detect unused functions and types in your Elm files",
   "main": "index.js",
   "scripts": {
     "test": "elm make && elm-format src/ --validate && elm-test && elm-lint src/ lint/ && elm-xref"

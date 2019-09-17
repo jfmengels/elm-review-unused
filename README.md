@@ -1,7 +1,6 @@
 # lint-unused
 
-[`elm-lint`](https://package.elm-lang.org/packages/jfmengels/elm-lint/latest)
-plugin that provides rules to detect unused functions and types in your Elm files.
+Provides [`elm-lint`](https://package.elm-lang.org/packages/jfmengels/elm-lint/latest) rules to detect unused functions and types in your Elm files.
 
 ## Provided rules
 
