@@ -497,14 +497,14 @@ declarationVisitor node direction context =
                         |> register
                             { variableType = TopLevelVariable
                             , under = Node.range functionImplementation.name
-                            , rangeToRemove = Node.range node
+                            , rangeToRemove = rangeToRemoveForNodeWithDocumentation node function.documentation
                             }
                             (Node.value functionImplementation.name)
                         |> markUsedTypesAndModules namesUsedInSignature
             in
             ( [], newContext )
 
-        ( Rule.OnEnter, CustomTypeDeclaration { name, constructors } ) ->
+        ( Rule.OnEnter, CustomTypeDeclaration { name, documentation, constructors } ) ->
             let
                 variablesFromConstructorArguments : { types : List String, modules : List String }
                 variablesFromConstructorArguments =
@@ -529,13 +529,13 @@ declarationVisitor node direction context =
                 |> register
                     { variableType = Type
                     , under = Node.range name
-                    , rangeToRemove = Node.range node
+                    , rangeToRemove = rangeToRemoveForNodeWithDocumentation node documentation
                     }
                     (Node.value name)
                 |> markUsedTypesAndModules variablesFromConstructorArguments
             )
 
-        ( Rule.OnEnter, AliasDeclaration { name, typeAnnotation } ) ->
+        ( Rule.OnEnter, AliasDeclaration { name, typeAnnotation, documentation } ) ->
             let
                 namesUsedInTypeAnnotation : { types : List String, modules : List String }
                 namesUsedInTypeAnnotation =
@@ -546,7 +546,7 @@ declarationVisitor node direction context =
                 |> register
                     { variableType = Type
                     , under = Node.range name
-                    , rangeToRemove = Node.range node
+                    , rangeToRemove = rangeToRemoveForNodeWithDocumentation node documentation
                     }
                     (Node.value name)
                 |> markUsedTypesAndModules namesUsedInTypeAnnotation
@@ -589,6 +589,18 @@ markUsedTypesAndModules { types, modules } context =
     context
         |> markAllAsUsed types
         |> markAllModulesAsUsed modules
+
+
+rangeToRemoveForNodeWithDocumentation : Node Declaration -> Maybe (Node a) -> Range
+rangeToRemoveForNodeWithDocumentation (Node nodeRange _) documentation =
+    case documentation of
+        Nothing ->
+            nodeRange
+
+        Just (Node documentationRange _) ->
+            { start = documentationRange.start
+            , end = nodeRange.end
+            }
 
 
 finalEvaluation : Context -> List Error

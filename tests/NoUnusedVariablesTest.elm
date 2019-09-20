@@ -96,6 +96,42 @@ b = 2"""
 
 b = 2"""
                     ]
+    , test "should report unused top-level variables with documentation attached" <|
+        \() ->
+            testRule """module SomeModule exposing (b)
+{-| Documentation
+-}
+unusedVar = 1
+b = 2"""
+                |> Lint.Test.expectErrors
+                    [ Lint.Test.error
+                        { message = "Top-level variable `unusedVar` is not used"
+                        , details = details
+                        , under = "unusedVar"
+                        }
+                        |> Lint.Test.whenFixed """module SomeModule exposing (b)
+
+b = 2"""
+                    ]
+    , test "should report unused top-level variables with documentation attached even if they are annotated" <|
+        \() ->
+            testRule """module SomeModule exposing (b)
+{-| Documentation
+-}
+unusedVar : Int
+unusedVar = 1
+b = 2"""
+                |> Lint.Test.expectErrors
+                    [ Lint.Test.error
+                        { message = "Top-level variable `unusedVar` is not used"
+                        , details = details
+                        , under = "unusedVar"
+                        }
+                        |> Lint.Test.atExactly { start = { row = 5, column = 1 }, end = { row = 5, column = 10 } }
+                        |> Lint.Test.whenFixed """module SomeModule exposing (b)
+
+b = 2"""
+                    ]
     , test "should not report unused top-level variables if everything is exposed" <|
         \() ->
             testRule """module SomeModule exposing (..)
@@ -587,15 +623,30 @@ typeTests =
     [ test "should report unused custom type declarations" <|
         \() ->
             testRule """module SomeModule exposing (a)
-type A = B | C
+type UnusedType = B | C
 a = 1"""
                 |> Lint.Test.expectErrors
                     [ Lint.Test.error
-                        { message = "Type `A` is not used"
+                        { message = "Type `UnusedType` is not used"
                         , details = details
-                        , under = "A"
+                        , under = "UnusedType"
                         }
-                        |> Lint.Test.atExactly { start = { row = 2, column = 6 }, end = { row = 2, column = 7 } }
+                        |> Lint.Test.whenFixed """module SomeModule exposing (a)
+
+a = 1"""
+                    ]
+    , test "should report unused custom type declarations with documentation" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+{-| Documentation -}
+type UnusedType = B | C
+a = 1"""
+                |> Lint.Test.expectErrors
+                    [ Lint.Test.error
+                        { message = "Type `UnusedType` is not used"
+                        , details = details
+                        , under = "UnusedType"
+                        }
                         |> Lint.Test.whenFixed """module SomeModule exposing (a)
 
 a = 1"""
@@ -618,6 +669,22 @@ a = 1"""
                         , under = "A"
                         }
                         |> Lint.Test.atExactly { start = { row = 2, column = 12 }, end = { row = 2, column = 13 } }
+                        |> Lint.Test.whenFixed """module SomeModule exposing (a)
+
+a = 1"""
+                    ]
+    , test "should report unused type aliases declarations with documentation" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+{-| Documentation -}
+type alias UnusedType = { a : B }
+a = 1"""
+                |> Lint.Test.expectErrors
+                    [ Lint.Test.error
+                        { message = "Type `UnusedType` is not used"
+                        , details = details
+                        , under = "UnusedType"
+                        }
                         |> Lint.Test.whenFixed """module SomeModule exposing (a)
 
 a = 1"""
