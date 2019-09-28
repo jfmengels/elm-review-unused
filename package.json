@@ -1,26 +1,26 @@
 {
-  "name": "lint-unused",
+  "name": "review-unused",
   "version": "1.0.0",
-  "description": "Provides elm-lint rules to detect unused functions and types in your Elm files",
+  "description": "Provides elm-review rules to detect unused functions and types in your Elm files",
   "main": "index.js",
   "scripts": {
-    "test": "elm make && elm-format src/ --validate && elm-test && elm-lint src/ tests/ lint/ && elm-xref"
+    "test": "elm make && elm-format src/ --validate && elm-test && elm-review src/ tests/ review/ && elm-xref"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jfmengels/lint-unused.git"
+    "url": "git+https://github.com/jfmengels/review-unused.git"
   },
   "keywords": [
-    "elm-lint"
+    "elm-review"
   ],
   "author": "Jeroen Engels",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/jfmengels/lint-unused/issues"
+    "url": "https://github.com/jfmengels/review-unused/issues"
   },
-  "homepage": "https://github.com/jfmengels/lint-unused#readme",
+  "homepage": "https://github.com/jfmengels/review-unused#readme",
   "dependencies": {
-    "@jfmengels/elm-lint": "^1.0.0-beta.2",
+    "@jfmengels/elm-review": "^1.0.0-beta.2",
     "elm": "^0.19.0-no-deps",
     "elm-format": "^0.8.2",
     "elm-test": "^0.19.0-rev6",

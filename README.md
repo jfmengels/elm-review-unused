@@ -1,6 +1,6 @@
-# lint-unused
+# review-unused
 
-Provides [`elm-lint`](https://package.elm-lang.org/packages/jfmengels/elm-lint/latest/) rules to detect unused functions and types in your Elm files.
+Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-review/latest/) rules to detect unused functions and types in your Elm files.
 
 ## Provided rules
 
@@ -9,7 +9,7 @@ Provides [`elm-lint`](https://package.elm-lang.org/packages/jfmengels/elm-lint/l
 
 ### Note
 
-Since `elm-lint` only works in the scope of a single file, these rules
+Since `elm-review` only works in the scope of a single file, these rules
 will not report elements that are exposed but not used anywhere in the project.
 If you wish those to be reported, check out [`elm-xref`](https://github.com/zwilias/elm-xref).
 

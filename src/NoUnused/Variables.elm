@@ -19,15 +19,15 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation exposing (TypeAnnotation(..))
-import Lint.Fix as Fix
-import Lint.Rule as Rule exposing (Direction, Error, Rule)
 import NonemptyList as Nonempty exposing (Nonempty)
+import Review.Fix as Fix
+import Review.Rule as Rule exposing (Direction, Error, Rule)
 import Set exposing (Set)
 
 
 {-| Report variables or types that are declared or imported but never used.
 
-**NOTE**: Since `elm-lint` only works in the scope of a single file, this rule
+**NOTE**: Since `elm-review` only works in the scope of a single file, this rule
 will not report variables that are exposed but not used anywhere in the project.
 If you wish those to be reported, check out [`elm-xref`](https://github.com/zwilias/elm-xref).
 
