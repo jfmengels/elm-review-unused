@@ -4,7 +4,7 @@
   "description": "Provides elm-review rules to detect unused functions and types in your Elm files",
   "main": "index.js",
   "scripts": {
-    "test": "elm make && elm-format src/ --validate && elm-test && elm-review src/ tests/ review/ && elm-xref"
+    "test": "elm make && elm-format src/ --validate && elm-test && elm-review . && elm-xref"
   },
   "repository": {
     "type": "git",
@@ -20,9 +20,9 @@
   },
   "homepage": "https://github.com/jfmengels/review-unused#readme",
   "dependencies": {
-    "@jfmengels/elm-review": "^1.0.0-beta.2",
     "elm": "^0.19.0-no-deps",
     "elm-format": "^0.8.2",
+    "elm-review": "^1.0.0-beta.1",
     "elm-test": "^0.19.0-rev6",
     "elm-xref": "^4.0.0"
   }
