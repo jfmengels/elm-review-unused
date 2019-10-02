@@ -976,6 +976,32 @@ type alias Baz = { a : String}
 a (Baz value) =
     []"""
                 |> Review.Test.expectNoErrors
+    , test "should not report unused custom type when it is function call in a let" <|
+        \() ->
+            testRule """module SomeModule exposing (outer)
+type Baz = Baz String
+
+outer arg =
+    let
+        inner (Baz range) =
+            []
+    in
+    inner arg
+    """
+                |> Review.Test.expectNoErrors
+    , test "should not report unused type alias when it is function call in a let" <|
+        \() ->
+            testRule """module SomeModule exposing (outer)
+type alias Baz = { a: String }
+
+outer arg =
+    let
+        inner (Baz range) =
+            []
+    in
+    inner arg
+    """
+                |> Review.Test.expectNoErrors
     ]
 
 

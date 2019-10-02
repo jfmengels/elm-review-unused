@@ -307,7 +307,18 @@ expressionVisitor (Node range value) direction context =
                         (\declaration context_ ->
                             case Node.value declaration of
                                 LetFunction function ->
-                                    registerFunction letBlockContext function context_
+                                    let
+                                        namesUsedInArgumentPatterns : { types : List String, modules : List String }
+                                        namesUsedInArgumentPatterns =
+                                            function.declaration
+                                                |> Node.value
+                                                |> .arguments
+                                                |> List.map getUsedVariablesFromPattern
+                                                |> foldUsedTypesAndModules
+                                    in
+                                    context_
+                                        |> registerFunction letBlockContext function
+                                        |> markUsedTypesAndModules namesUsedInArgumentPatterns
 
                                 LetDestructuring pattern _ ->
                                     context_
