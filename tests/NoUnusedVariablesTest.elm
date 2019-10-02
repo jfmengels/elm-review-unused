@@ -206,6 +206,13 @@ a = Html.Styled.Attributes.href"""
 
 a = Html.Styled.Attributes.href"""
                     ]
+    , test "should not report main as unused, even if it's not exposed" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+main = Html.text "hello, world"
+a = ()
+            """
+                |> Review.Test.expectNoErrors
     ]
 
 
