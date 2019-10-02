@@ -317,6 +317,16 @@ expressionVisitor (Node range value) direction context =
             in
             ( [], newContext )
 
+        ( Rule.OnEnter, LambdaExpression { args } ) ->
+            let
+                namesUsedInArgumentPatterns : { types : List String, modules : List String }
+                namesUsedInArgumentPatterns =
+                    args
+                        |> List.map getUsedVariablesFromPattern
+                        |> foldUsedTypesAndModules
+            in
+            ( [], markUsedTypesAndModules namesUsedInArgumentPatterns context )
+
         ( Rule.OnExit, RecordUpdateExpression expr _ ) ->
             ( [], markAsUsed (Node.value expr) context )
 
@@ -491,6 +501,14 @@ declarationVisitor node direction context =
                         |> Maybe.map (Node.value >> .typeAnnotation >> collectNamesFromTypeAnnotation)
                         |> Maybe.withDefault { types = [], modules = [] }
 
+                namesUsedInArgumentPatterns : { types : List String, modules : List String }
+                namesUsedInArgumentPatterns =
+                    function.declaration
+                        |> Node.value
+                        |> .arguments
+                        |> List.map getUsedVariablesFromPattern
+                        |> foldUsedTypesAndModules
+
                 newContext : Context
                 newContext =
                     context
@@ -501,6 +519,7 @@ declarationVisitor node direction context =
                             }
                             (Node.value functionImplementation.name)
                         |> markUsedTypesAndModules namesUsedInSignature
+                        |> markUsedTypesAndModules namesUsedInArgumentPatterns
             in
             ( [], newContext )
 

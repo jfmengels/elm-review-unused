@@ -375,6 +375,30 @@ functionParameterTests =
             testRule """module SomeModule exposing (a)
 a n = 1"""
                 |> Review.Test.expectNoErrors
+    , test "should not report unused import when a type is deconstructed in a function call" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+import Bar
+
+a =
+  \\(Bar.Baz range) -> []"""
+                |> Review.Test.expectNoErrors
+    , test "should not report custom type when it is deconstructed in a function call" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+type Baz = Baz String
+
+a =
+  \\(Baz value) -> []"""
+                |> Review.Test.expectNoErrors
+    , test "should not report type alias when it is deconstructed in a function call" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+type alias Baz = { a : String}
+
+a =
+  \\(Baz value) -> []"""
+                |> Review.Test.expectNoErrors
     ]
 
 
@@ -923,6 +947,22 @@ a str = {c = str}"""
 a : { r | c: A }
 a str = {c = str}"""
                     ]
+    , test "should not report custom type when it is deconstructed in a function call" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+type Baz = Baz String
+
+a (Baz range) =
+    []"""
+                |> Review.Test.expectNoErrors
+    , test "should not report type alias when it is deconstructed in a function call" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+type alias Baz = { a : String}
+
+a (Baz value) =
+    []"""
+                |> Review.Test.expectNoErrors
     ]
 
 
