@@ -669,6 +669,19 @@ a (Bar.Baz range) =
     []
     """
                 |> Review.Test.expectNoErrors
+    , test "should not report unused imports when a type is deconstructed in a function call in a let" <|
+        \() ->
+            testRule """module SomeModule exposing (outer)
+import Bar
+
+outer arg =
+    let
+        inner (Bar.Baz range) =
+            []
+    in
+    inner arg
+    """
+                |> Review.Test.expectNoErrors
     ]
 
 
