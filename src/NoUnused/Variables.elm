@@ -842,7 +842,12 @@ register : VariableInfo -> String -> Context -> Context
 register variableInfo name context =
     case variableInfo.variableType of
         TopLevelVariable ->
-            registerVariable variableInfo name context
+            -- The main function is "exposed" by default
+            if name == "main" then
+                context
+
+            else
+                registerVariable variableInfo name context
 
         LetVariable ->
             registerVariable variableInfo name context

@@ -206,7 +206,7 @@ a = Html.Styled.Attributes.href"""
 
 a = Html.Styled.Attributes.href"""
                     ]
-    , test "should not report main as unused, even if it's not exposed" <|
+    , test "should not report 'main' as unused, even if it's not exposed" <|
         \() ->
             testRule """module SomeModule exposing (a)
 main = Html.text "hello, world"
@@ -282,6 +282,20 @@ a = 2"""
 a = let c = 1
     in c"""
                 |> Review.Test.expectNoErrors
+    , test "should report 'main' as unused, even if it's not an exception for top-level declarations" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+a = let main = 1
+    in 2"""
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "`let in` variable `main` is not used"
+                        , details = details
+                        , under = "main"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+a = 2"""
+                    ]
     ]
 
 
