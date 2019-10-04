@@ -94,7 +94,7 @@ type VariableType
     | LetVariable
     | ImportedModule
     | ImportedItem ImportType
-    | ModuleAlias
+    | ModuleAlias { originalNameOfTheImport : String, exposesSomething : Bool }
     | Type
     | Port
 
@@ -127,17 +127,17 @@ emptyScope =
     }
 
 
-error : VariableInfo -> String -> Error
-error { variableType, under, rangeToRemove } name =
+error : Dict String VariableInfo -> VariableInfo -> String -> Error
+error declaredModules variableInfo name =
     Rule.error
-        { message = variableTypeToString variableType ++ " `" ++ name ++ "` is not used" ++ variableTypeWarning variableType
+        { message = variableTypeToString variableInfo.variableType ++ " `" ++ name ++ "` is not used" ++ variableTypeWarning variableInfo.variableType
         , details =
             [ "You should either use this value somewhere, or remove it at the location I pointed at."
             , "If you remove it, you may find that other pieces of code are never used, and can themselves be removed too. This could end up simplifying your code a lot."
             ]
         }
-        under
-        |> Rule.withFixes [ Fix.removeRange rangeToRemove ]
+        variableInfo.under
+        |> addFix declaredModules variableInfo
 
 
 variableTypeToString : VariableType -> String
@@ -161,7 +161,7 @@ variableTypeToString variableType =
         ImportedItem ImportedOperator ->
             "Imported operator"
 
-        ModuleAlias ->
+        ModuleAlias _ ->
             "Module alias"
 
         Type ->
@@ -186,7 +186,7 @@ variableTypeWarning value =
         ImportedItem _ ->
             ""
 
-        ModuleAlias ->
+        ModuleAlias _ ->
             ""
 
         Type ->
@@ -194,6 +194,41 @@ variableTypeWarning value =
 
         Port ->
             " (Warning: Removing this port may break your application if it is used in the JS code)"
+
+
+addFix : Dict String VariableInfo -> VariableInfo -> Error -> Error
+addFix declaredModules { variableType, rangeToRemove } error_ =
+    let
+        shouldOfferFix : Bool
+        shouldOfferFix =
+            case variableType of
+                TopLevelVariable ->
+                    True
+
+                LetVariable ->
+                    True
+
+                ImportedModule ->
+                    True
+
+                ImportedItem _ ->
+                    True
+
+                ModuleAlias { originalNameOfTheImport, exposesSomething } ->
+                    not exposesSomething
+                        || not (Dict.member originalNameOfTheImport declaredModules)
+
+                Type ->
+                    True
+
+                Port ->
+                    True
+    in
+    if shouldOfferFix then
+        Rule.withFixes [ Fix.removeRange rangeToRemove ] error_
+
+    else
+        error_
 
 
 moduleDefinitionVisitor : Node Module -> Context -> ( List Error, Context )
@@ -234,7 +269,13 @@ importVisitor ((Node range { exposingList, moduleAlias, moduleName }) as importN
                 ( variableType, Node nameNodeRange nameNodeValue, rangeToRemove ) =
                     case moduleAlias of
                         Just moduleAlias_ ->
-                            ( ModuleAlias, moduleAlias_, range )
+                            ( ModuleAlias
+                                { originalNameOfTheImport = getModuleName <| Node.value moduleName
+                                , exposesSomething = False
+                                }
+                            , moduleAlias_
+                            , range
+                            )
 
                         Nothing ->
                             ( ImportedModule, moduleName, range )
@@ -253,7 +294,11 @@ importVisitor ((Node range { exposingList, moduleAlias, moduleName }) as importN
                     case moduleAlias of
                         Just (Node moduleAliasRange_ value) ->
                             register
-                                { variableType = ModuleAlias
+                                { variableType =
+                                    ModuleAlias
+                                        { originalNameOfTheImport = getModuleName <| Node.value moduleName
+                                        , exposesSomething = True
+                                        }
                                 , under = moduleAliasRange_
                                 , rangeToRemove = moduleAliasRange importNode moduleAliasRange_
                                 }
@@ -660,7 +705,7 @@ finalEvaluation context =
                 context.declaredModules
                     |> Dict.filter (\key _ -> not <| Set.member key context.usedModules)
                     |> Dict.toList
-                    |> List.map (\( key, variableInfo ) -> error variableInfo key)
+                    |> List.map (\( key, variableInfo ) -> error context.declaredModules variableInfo key)
         in
         List.concat
             [ newRootScope
@@ -888,7 +933,7 @@ register variableInfo name context =
         ImportedItem _ ->
             registerVariable variableInfo name context
 
-        ModuleAlias ->
+        ModuleAlias _ ->
             registerModule variableInfo name context
 
         Type ->
@@ -963,7 +1008,7 @@ makeReport { declared, used } =
         errors =
             Dict.filter (\key _ -> not <| Set.member key used) declared
                 |> Dict.toList
-                |> List.map (\( key, variableInfo ) -> error variableInfo key)
+                |> List.map (\( key, variableInfo ) -> error Dict.empty variableInfo key)
     in
     ( errors, nonUsedVars )
 

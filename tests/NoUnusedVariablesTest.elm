@@ -615,6 +615,39 @@ import B exposing (C(..))
 a : D
 a = 1"""
                 |> Review.Test.expectNoErrors
+    , test "should report unused import alias but not remove it if another import is aliased as the real name of the reported import and it exposes something" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+import Html as RootHtml exposing (something)
+import Html.Styled as Html
+a : Html.Html msg
+a = something 1"""
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Module alias `RootHtml` is not used"
+                        , details = details
+                        , under = "RootHtml"
+                        }
+                    ]
+    , test "should report unused import alias and remove it if another import is aliased as the real name of the reported import but it doesn't expose anything" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+import Html as RootHtml
+import Html.Styled as Html
+a : Html.Html msg
+a = something 1"""
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Module alias `RootHtml` is not used"
+                        , details = details
+                        , under = "RootHtml"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+
+import Html.Styled as Html
+a : Html.Html msg
+a = something 1"""
+                    ]
     ]
 
 
