@@ -550,7 +550,9 @@ a = Html.href"""
     , test "should report unused import alias" <|
         \() ->
             testRule """module SomeModule exposing (a)
-import Html.Styled.Attributes as Html"""
+import Html.Styled.Attributes as Html
+import Foo
+a= Foo.a"""
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Module alias `Html` is not used"
@@ -559,7 +561,9 @@ import Html.Styled.Attributes as Html"""
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 34 }, end = { row = 2, column = 38 } }
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
-import Html.Styled.Attributes"""
+
+import Foo
+a= Foo.a"""
                     ]
     , test "should report unused import alias even if it exposes a used type" <|
         \() ->

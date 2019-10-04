@@ -234,7 +234,7 @@ importVisitor ((Node range { exposingList, moduleAlias, moduleName }) as importN
                 ( variableType, Node nameNodeRange nameNodeValue, rangeToRemove ) =
                     case moduleAlias of
                         Just moduleAlias_ ->
-                            ( ModuleAlias, moduleAlias_, moduleAliasRange importNode (Node.range moduleAlias_) )
+                            ( ModuleAlias, moduleAlias_, range )
 
                         Nothing ->
                             ( ImportedModule, moduleName, range )
