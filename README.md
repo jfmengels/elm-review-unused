@@ -16,11 +16,12 @@ If you wish those to be reported, check out [`elm-xref`](https://github.com/zwil
 ## Example configuration
 
 ```elm
-module LintConfig exposing (config)
+module ReviewConfig exposing (config)
 
-import Lint.Rule exposing (Rule)
-import NoUnused.Variables
 import NoUnused.CustomTypeConstructors
+import NoUnused.Variables
+import Review.Rule exposing (Rule)
+
 
 config : List Rule
 config =
