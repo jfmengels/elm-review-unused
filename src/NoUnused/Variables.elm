@@ -820,6 +820,7 @@ collectFromExposing exposingNode =
                             TypeExpose { name, open } ->
                                 case open of
                                     Just openRange ->
+                                        -- TODO Change this behavior once we know the contents of the open range, using dependencies or the interfaces of the other modules
                                         Nothing
 
                                     Nothing ->
