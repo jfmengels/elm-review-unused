@@ -262,58 +262,60 @@ moduleDefinitionVisitor (Node _ moduleNode) context =
 
 
 importVisitor : Node Import -> Context -> ( List Error, Context )
-importVisitor ((Node range { exposingList, moduleAlias, moduleName }) as importNode) context =
+importVisitor (((Node range { exposingList, moduleAlias, moduleName }) as node) as importNode) context =
     case exposingList of
         Nothing ->
-            let
-                ( variableType, Node nameNodeRange nameNodeValue, rangeToRemove ) =
-                    case moduleAlias of
-                        Just moduleAlias_ ->
-                            ( ModuleAlias
-                                { originalNameOfTheImport = getModuleName <| Node.value moduleName
-                                , exposesSomething = False
-                                }
-                            , moduleAlias_
-                            , range
-                            )
-
-                        Nothing ->
-                            ( ImportedModule, moduleName, range )
-            in
-            ( []
-            , register
-                { variableType = variableType, under = nameNodeRange, rangeToRemove = rangeToRemove }
-                (getModuleName nameNodeValue)
-                context
-            )
+            ( [], registerModuleNameOrAlias node context )
 
         Just declaredImports ->
-            let
-                contextWithoutImports : Context
-                contextWithoutImports =
-                    case moduleAlias of
-                        Just (Node moduleAliasRange_ value) ->
-                            register
-                                { variableType =
-                                    ModuleAlias
-                                        { originalNameOfTheImport = getModuleName <| Node.value moduleName
-                                        , exposesSomething = True
-                                        }
-                                , under = moduleAliasRange_
-                                , rangeToRemove = moduleAliasRange importNode moduleAliasRange_
-                                }
-                                (getModuleName value)
-                                context
-
-                        Nothing ->
-                            context
-            in
             ( []
             , List.foldl
                 (\( name, variableInfo ) context_ -> register variableInfo name context_)
-                contextWithoutImports
+                (registerModuleAlias node context)
                 (collectFromExposing declaredImports)
             )
+
+
+registerModuleNameOrAlias : Node Import -> Context -> Context
+registerModuleNameOrAlias ((Node range { exposingList, moduleAlias, moduleName }) as node) context =
+    case moduleAlias of
+        Just _ ->
+            registerModuleAlias node context
+
+        Nothing ->
+            register
+                { variableType = ImportedModule
+                , under = Node.range moduleName
+                , rangeToRemove = range
+                }
+                (getModuleName <| Node.value moduleName)
+                context
+
+
+registerModuleAlias : Node Import -> Context -> Context
+registerModuleAlias ((Node range { exposingList, moduleAlias, moduleName }) as node) context =
+    case moduleAlias of
+        Just moduleAlias_ ->
+            register
+                { variableType =
+                    ModuleAlias
+                        { originalNameOfTheImport = getModuleName <| Node.value moduleName
+                        , exposesSomething = exposingList /= Nothing
+                        }
+                , under = Node.range moduleAlias_
+                , rangeToRemove =
+                    case exposingList of
+                        Nothing ->
+                            range
+
+                        Just _ ->
+                            moduleAliasRange node (Node.range moduleAlias_)
+                }
+                (getModuleName <| Node.value moduleAlias_)
+                context
+
+        Nothing ->
+            context
 
 
 moduleAliasRange : Node Import -> Range -> Range
