@@ -19,7 +19,7 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation exposing (TypeAnnotation(..))
-import NonemptyList as Nonempty exposing (Nonempty)
+import NonemptyList exposing (Nonempty)
 import Review.Fix as Fix
 import Review.Rule as Rule exposing (Direction, Error, Rule)
 import Set exposing (Set)
@@ -112,7 +112,7 @@ type ImportType
 
 initialContext : Context
 initialContext =
-    { scopes = Nonempty.fromElement emptyScope
+    { scopes = NonemptyList.fromElement emptyScope
     , exposesEverything = False
     , constructorNameToTypeName = Dict.empty
     , declaredModules = Dict.empty
@@ -370,7 +370,7 @@ expressionVisitor (Node range value) direction context =
                                 LetDestructuring pattern _ ->
                                     context_
                         )
-                        { context | scopes = Nonempty.cons emptyScope context.scopes }
+                        { context | scopes = NonemptyList.cons emptyScope context.scopes }
                         declarations
             in
             ( [], newContext )
@@ -406,10 +406,10 @@ expressionVisitor (Node range value) direction context =
         ( Rule.OnExit, LetExpression _ ) ->
             let
                 ( errors, remainingUsed ) =
-                    makeReport (Nonempty.head context.scopes)
+                    makeReport (NonemptyList.head context.scopes)
 
                 contextWithPoppedScope =
-                    { context | scopes = Nonempty.pop context.scopes }
+                    { context | scopes = NonemptyList.pop context.scopes }
             in
             ( errors
             , markAllAsUsed remainingUsed contextWithPoppedScope
@@ -689,7 +689,7 @@ finalEvaluation context =
         let
             rootScope : Scope
             rootScope =
-                Nonempty.head context.scopes
+                NonemptyList.head context.scopes
 
             namesOfCustomTypesUsedByCallingAConstructor : Set String
             namesOfCustomTypesUsedByCallingAConstructor =
@@ -956,7 +956,7 @@ registerVariable variableInfo name context =
     let
         scopes : Nonempty Scope
         scopes =
-            Nonempty.mapHead
+            NonemptyList.mapHead
                 (\scope ->
                     { scope | declared = Dict.insert name variableInfo scope.declared }
                 )
@@ -975,7 +975,7 @@ markAsUsed name context =
     let
         scopes : Nonempty Scope
         scopes =
-            Nonempty.mapHead
+            NonemptyList.mapHead
                 (\scope ->
                     { scope | used = Set.insert name scope.used }
                 )
