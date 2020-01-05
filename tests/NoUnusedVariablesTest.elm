@@ -681,6 +681,24 @@ import Html.Styled as Html
 a : Html.Html msg
 a = something 1"""
                     ]
+    , test "should report unused import even if a let in variable is named the same way" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+import Html exposing (button, div)
+a = let button = 1
+    in button + div"""
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported variable `button` is not used"
+                        , details = details
+                        , under = "button"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Html exposing (div)
+a = let button = 1
+    in button + div"""
+                    ]
     ]
 
 
