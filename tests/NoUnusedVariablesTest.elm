@@ -21,6 +21,7 @@ all : Test
 all =
     describe "NoUnusedVariables"
         [ describe "Top-level variables" topLevelVariablesTests
+        , describe "Recursive functions" recursiveFunctionsTests
         , describe "let..in" letInTests
         , describe "Top-level variables used inside a let..in" topLevelVariablesUsedInLetInTests
         , describe "Record updates" recordUpdateTests
@@ -32,6 +33,38 @@ all =
         , describe "Operators" operatorTests
         , describe "Ports" portTests
         ]
+
+
+recursiveFunctionsTests : List Test
+recursiveFunctionsTests =
+    [ test "should report recursive functions that are not used elsewhere" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+fib n = fib (n - 1) + fib (n - 2)
+a = 1"""
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Top-level variable `fib` is not used"
+                        , details = details
+                        , under = "fib"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 1 }, end = { row = 2, column = 4 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+
+a = 1"""
+                    ]
+    , test "should not report recursive functions that are used by other functions" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+a = fib 0
+fib n = fib (n - 1) + fib (n - 2)"""
+                |> Review.Test.expectNoErrors
+    , test "should not report recursive functions that are exposed by the module" <|
+        \() ->
+            testRule """module SomeModule exposing (fib)
+fib n = fib (n - 1) + fib (n - 2)"""
+                |> Review.Test.expectNoErrors
+    ]
 
 
 topLevelVariablesTests : List Test

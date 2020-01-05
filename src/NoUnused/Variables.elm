@@ -69,6 +69,7 @@ rule =
 
 type alias Context =
     { scopes : Nonempty Scope
+    , inTheDeclarationOf : Maybe String
     , exposesEverything : Bool
     , constructorNameToTypeName : Dict String String
     , declaredModules : Dict String VariableInfo
@@ -113,6 +114,7 @@ type ImportType
 initialContext : Context
 initialContext =
     { scopes = NonemptyList.fromElement emptyScope
+    , inTheDeclarationOf = Nothing
     , exposesEverything = False
     , constructorNameToTypeName = Dict.empty
     , declaredModules = Dict.empty
@@ -569,7 +571,7 @@ declarationVisitor node direction context =
 
                 newContext : Context
                 newContext =
-                    context
+                    { context | inTheDeclarationOf = Just <| Node.value functionImplementation.name }
                         |> register
                             { variableType = TopLevelVariable
                             , under = Node.range functionImplementation.name
@@ -972,16 +974,20 @@ markAllAsUsed names context =
 
 markAsUsed : String -> Context -> Context
 markAsUsed name context =
-    let
-        scopes : Nonempty Scope
-        scopes =
-            NonemptyList.mapHead
-                (\scope ->
-                    { scope | used = Set.insert name scope.used }
-                )
-                context.scopes
-    in
-    { context | scopes = scopes }
+    if context.inTheDeclarationOf == Just name then
+        context
+
+    else
+        let
+            scopes : Nonempty Scope
+            scopes =
+                NonemptyList.mapHead
+                    (\scope ->
+                        { scope | used = Set.insert name scope.used }
+                    )
+                    context.scopes
+        in
+        { context | scopes = scopes }
 
 
 markAllModulesAsUsed : List String -> Context -> Context
