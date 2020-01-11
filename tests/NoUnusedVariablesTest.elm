@@ -1135,6 +1135,36 @@ a = 1 </> 2"""
 import Parser exposing ((</>))
 a = (</>) 2"""
                 |> Review.Test.expectNoErrors
+    , test "should report unused operator (infix)" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+import Parser exposing (something, (</>))
+a = something"""
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported operator `</>` is not used"
+                        , details = details
+                        , under = "(</>)"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Parser exposing (something)
+a = something"""
+                    ]
+    , test "should report unused operator (prefix)" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+import Parser exposing (something, (</>))
+a = something"""
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported operator `</>` is not used"
+                        , details = details
+                        , under = "(</>)"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Parser exposing (something)
+a = something"""
+                    ]
     ]
 
 
