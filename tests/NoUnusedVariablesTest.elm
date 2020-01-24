@@ -598,6 +598,36 @@ a= Foo.a"""
 import Foo
 a= Foo.a"""
                     ]
+    , test "should report unused import alias but not fix it if another alias is named like the original module name and we can't remove the whole import" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+import Html as CoreHtml exposing (div)
+import Html.Styled.Attributes as Html
+a= Html.a div"""
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Module alias `CoreHtml` is not used"
+                        , details = details
+                        , under = "CoreHtml"
+                        }
+                    ]
+    , test "should report unused import alias but and fix it if another alias is named like the original module name but we can remove the whole import" <|
+        \() ->
+            testRule """module SomeModule exposing (a)
+import Html as CoreHtml
+import Html.Styled.Attributes as Html
+a= Html.a"""
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Module alias `CoreHtml` is not used"
+                        , details = details
+                        , under = "CoreHtml"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+
+import Html.Styled.Attributes as Html
+a= Html.a"""
+                    ]
     , test "should report unused import alias even if it exposes a used type" <|
         \() ->
             testRule """module SomeModule exposing (a)
