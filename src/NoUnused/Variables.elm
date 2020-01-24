@@ -57,14 +57,13 @@ If you wish those to be reported, check out [`elm-xref`](https://github.com/zwil
 -}
 rule : Rule
 rule =
-    Rule.newSchema "NoUnused.Variables"
-        |> Rule.withInitialContext initialContext
+    Rule.newModuleRuleSchema "NoUnused.Variables" initialContext
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withImportVisitor importVisitor
         |> Rule.withExpressionVisitor expressionVisitor
         |> Rule.withDeclarationVisitor declarationVisitor
         |> Rule.withFinalEvaluation finalEvaluation
-        |> Rule.fromSchema
+        |> Rule.fromModuleRuleSchema
 
 
 type alias Context =
@@ -1072,7 +1071,7 @@ then the range won't change.
 
     range : Range
     range =
-        Fix.rangeUpUntil
+        rangeUpUntil
             (Node.range node)
             (node |> Node.value |> .typeAnnotation |> Node.range |> .start)
 
