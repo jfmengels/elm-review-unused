@@ -1,4 +1,4 @@
-module NonemptyList exposing
+module NoUnused.NonemptyList exposing
     ( Nonempty(..)
     , fromElement
     , head

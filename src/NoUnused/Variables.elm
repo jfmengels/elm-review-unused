@@ -19,7 +19,7 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation exposing (TypeAnnotation(..))
-import NonemptyList exposing (Nonempty)
+import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import Review.Fix as Fix
 import Review.Rule as Rule exposing (Direction, Error, Rule)
 import Set exposing (Set)
