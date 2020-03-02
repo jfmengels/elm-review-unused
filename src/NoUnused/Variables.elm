@@ -232,7 +232,7 @@ addFix declaredModules { variableType, rangeToRemove } error_ =
         error_
 
 
-moduleDefinitionVisitor : Node Module -> Context -> ( List Error, Context )
+moduleDefinitionVisitor : Node Module -> Context -> ( List nothing, Context )
 moduleDefinitionVisitor (Node _ moduleNode) context =
     case Module.exposingList moduleNode of
         All _ ->
@@ -545,7 +545,7 @@ getUsedModulesFromPattern patternNode =
             getUsedModulesFromPattern pattern
 
 
-declarationVisitor : Node Declaration -> Direction -> Context -> ( List Error, Context )
+declarationVisitor : Node Declaration -> Direction -> Context -> ( List nothing, Context )
 declarationVisitor node direction context =
     case ( direction, Node.value node ) of
         ( Rule.OnEnter, FunctionDeclaration function ) ->
