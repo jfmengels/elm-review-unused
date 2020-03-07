@@ -594,7 +594,6 @@ a= Foo.a"""
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 34 }, end = { row = 2, column = 38 } }
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
-
 import Foo
 a= Foo.a"""
                     ]
@@ -624,7 +623,6 @@ a= Html.a"""
                         , under = "CoreHtml"
                         }
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
-
 import Html.Styled.Attributes as Html
 a= Html.a"""
                     ]

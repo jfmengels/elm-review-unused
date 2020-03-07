@@ -287,7 +287,7 @@ registerModuleNameOrAlias ((Node range { exposingList, moduleAlias, moduleName }
             register
                 { variableType = ImportedModule
                 , under = Node.range moduleName
-                , rangeToRemove = range
+                , rangeToRemove = { range | end = { row = range.end.row + 1, column = 1 } }
                 }
                 (getModuleName <| Node.value moduleName)
                 context
