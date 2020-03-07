@@ -287,7 +287,7 @@ registerModuleNameOrAlias ((Node range { exposingList, moduleAlias, moduleName }
             register
                 { variableType = ImportedModule
                 , under = Node.range moduleName
-                , rangeToRemove = { range | end = { row = range.end.row + 1, column = 1 } }
+                , rangeToRemove = untilStartOfNextLine range
                 }
                 (getModuleName <| Node.value moduleName)
                 context
@@ -673,12 +673,13 @@ rangeToRemoveForNodeWithDocumentation : Node Declaration -> Maybe (Node a) -> Ra
 rangeToRemoveForNodeWithDocumentation (Node nodeRange _) documentation =
     case documentation of
         Nothing ->
-            nodeRange
+            untilStartOfNextLine nodeRange
 
         Just (Node documentationRange _) ->
-            { start = documentationRange.start
-            , end = nodeRange.end
-            }
+            untilStartOfNextLine
+                { start = documentationRange.start
+                , end = nodeRange.end
+                }
 
 
 finalEvaluation : Context -> List Error
@@ -1023,6 +1024,13 @@ makeReport { declared, used } =
 
 
 -- RANGE MANIPULATION
+
+
+{-| Include everything until the line after the end.
+-}
+untilStartOfNextLine : Range -> Range
+untilStartOfNextLine range =
+    { range | end = { row = range.end.row + 1, column = 1 } }
 
 
 {-| Create a new range that starts at the start of the range that starts first,
