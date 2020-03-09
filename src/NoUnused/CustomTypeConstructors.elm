@@ -10,12 +10,12 @@ module NoUnused.CustomTypeConstructors exposing (rule)
 -}
 
 import Dict exposing (Dict)
-import Elm.Syntax.Declaration exposing (Declaration(..))
-import Elm.Syntax.Exposing exposing (Exposing(..), TopLevelExpose(..))
-import Elm.Syntax.Expression exposing (Expression(..))
-import Elm.Syntax.Module as Module exposing (Module(..))
+import Elm.Syntax.Declaration as Declaration exposing (Declaration)
+import Elm.Syntax.Exposing as Exposing exposing (Exposing, TopLevelExpose)
+import Elm.Syntax.Expression as Expression exposing (Expression)
+import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.Node as Node exposing (Node)
-import Elm.Syntax.TypeAnnotation exposing (TypeAnnotation(..))
+import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Review.Rule as Rule exposing (Direction, Error, Rule)
 import Set exposing (Set)
 
@@ -113,17 +113,17 @@ error node =
 moduleDefinitionVisitor : Node Module -> Context -> ( List nothing, Context )
 moduleDefinitionVisitor moduleNode context =
     case Module.exposingList (Node.value moduleNode) of
-        All _ ->
+        Exposing.All _ ->
             ( [], { context | exposesEverything = True } )
 
-        Explicit list ->
+        Exposing.Explicit list ->
             let
                 names : List String
                 names =
                     List.filterMap
                         (\node ->
                             case Node.value node of
-                                TypeExpose { name, open } ->
+                                Exposing.TypeExpose { name, open } ->
                                     case open of
                                         Just _ ->
                                             Just name
@@ -147,7 +147,7 @@ moduleDefinitionVisitor moduleNode context =
 declarationVisitor : Node Declaration -> Direction -> Context -> ( List nothing, Context )
 declarationVisitor node direction context =
     case ( direction, Node.value node ) of
-        ( Rule.OnEnter, CustomTypeDeclaration { name, constructors } ) ->
+        ( Rule.OnEnter, Declaration.CustomTypeDeclaration { name, constructors } ) ->
             if Set.member (Node.value name) context.exposedCustomTypesWithConstructors then
                 ( [], context )
 
@@ -186,7 +186,7 @@ expressionVisitor node direction context =
 
     else
         case ( direction, Node.value node ) of
-            ( Rule.OnEnter, FunctionOrValue [] name ) ->
+            ( Rule.OnEnter, Expression.FunctionOrValue [] name ) ->
                 ( [], { context | usedFunctionOrValues = Set.insert name context.usedFunctionOrValues } )
 
             _ ->
