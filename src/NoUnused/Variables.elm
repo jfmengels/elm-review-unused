@@ -128,7 +128,7 @@ emptyScope =
     }
 
 
-error : Dict String VariableInfo -> VariableInfo -> String -> Error
+error : Dict String VariableInfo -> VariableInfo -> String -> Error {}
 error declaredModules variableInfo name =
     Rule.error
         { message = variableTypeToString variableInfo.variableType ++ " `" ++ name ++ "` is not used" ++ variableTypeWarning variableInfo.variableType
@@ -197,7 +197,7 @@ variableTypeWarning value =
             " (Warning: Removing this port may break your application if it is used in the JS code)"
 
 
-addFix : Dict String VariableInfo -> VariableInfo -> Error -> Error
+addFix : Dict String VariableInfo -> VariableInfo -> Error {} -> Error {}
 addFix declaredModules { variableType, rangeToRemove } error_ =
     let
         shouldOfferFix : Bool
@@ -262,8 +262,8 @@ moduleDefinitionVisitor (Node _ moduleNode) context =
             ( [], markAllAsUsed names context )
 
 
-importVisitor : Node Import -> Context -> ( List Error, Context )
-importVisitor (((Node range { exposingList, moduleAlias, moduleName }) as node) as importNode) context =
+importVisitor : Node Import -> Context -> ( List (Error {}), Context )
+importVisitor ((Node _ { exposingList, moduleAlias, moduleName }) as node) context =
     case exposingList of
         Nothing ->
             ( [], registerModuleNameOrAlias node context )
@@ -324,7 +324,7 @@ moduleAliasRange (Node _ { moduleName }) range =
     { range | start = (Node.range moduleName).end }
 
 
-expressionVisitor : Node Expression -> Direction -> Context -> ( List Error, Context )
+expressionVisitor : Node Expression -> Direction -> Context -> ( List (Error {}), Context )
 expressionVisitor (Node range value) direction context =
     case ( direction, value ) of
         ( Rule.OnEnter, FunctionOrValue [] name ) ->
@@ -682,7 +682,7 @@ rangeToRemoveForNodeWithDocumentation (Node nodeRange _) documentation =
                 }
 
 
-finalEvaluation : Context -> List Error
+finalEvaluation : Context -> List (Error {})
 finalEvaluation context =
     if context.exposesEverything then
         []
@@ -704,7 +704,7 @@ finalEvaluation context =
             newRootScope =
                 { rootScope | used = Set.union namesOfCustomTypesUsedByCallingAConstructor rootScope.used }
 
-            moduleErrors : List Error
+            moduleErrors : List (Error {})
             moduleErrors =
                 context.declaredModules
                     |> Dict.filter (\key _ -> not <| Set.member key context.usedModules)
@@ -1005,7 +1005,7 @@ getModuleName name =
     String.join "." name
 
 
-makeReport : Scope -> ( List Error, List String )
+makeReport : Scope -> ( List (Error {}), List String )
 makeReport { declared, used } =
     let
         nonUsedVars : List String
@@ -1013,7 +1013,7 @@ makeReport { declared, used } =
             Set.diff used (Set.fromList <| Dict.keys declared)
                 |> Set.toList
 
-        errors : List Error
+        errors : List (Error {})
         errors =
             Dict.filter (\key _ -> not <| Set.member key used) declared
                 |> Dict.toList
