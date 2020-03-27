@@ -307,7 +307,7 @@ registerModuleAlias ((Node range { exposingList, moduleAlias, moduleName }) as n
                 , rangeToRemove =
                     case exposingList of
                         Nothing ->
-                            range
+                            untilStartOfNextLine range
 
                         Just _ ->
                             moduleAliasRange node (Node.range moduleAlias_)
@@ -1030,7 +1030,11 @@ makeReport { declared, used } =
 -}
 untilStartOfNextLine : Range -> Range
 untilStartOfNextLine range =
-    { range | end = { row = range.end.row + 1, column = 1 } }
+    if range.end.column == 1 then
+        range
+
+    else
+        { range | end = { row = range.end.row + 1, column = 1 } }
 
 
 {-| Create a new range that starts at the start of the range that starts first,
