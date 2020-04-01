@@ -8,6 +8,7 @@ Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-revi
 - [`NoUnused.CustomTypeConstructors`](https://package.elm-lang.org/packages/jfmengels/review-unused/latest/NoUnused-CustomTypeConstructors) - Reports unused constructors for a custom type.
 - [`NoUnused.Exports`](https://package.elm-lang.org/packages/jfmengels/review-unused/latest/NoUnused-Exports) - Reports unused exposed elements from a module.
 - [`NoUnused.Modules`](https://package.elm-lang.org/packages/jfmengels/review-unused/latest/NoUnused-Modules) - Reports unused modules in the project.
+- [`NoUnused.Dependencies`](https://package.elm-lang.org/packages/jfmengels/review-unused/latest/NoUnused-Dependencies) - Reports unused dependencies in the project.
 
 ## Example configuration
 
@@ -15,6 +16,7 @@ Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-revi
 module ReviewConfig exposing (config)
 
 import NoUnused.CustomTypeConstructors
+import NoUnused.Dependencies
 import NoUnused.Exports
 import NoUnused.Modules
 import NoUnused.Variables
@@ -24,6 +26,7 @@ import Review.Rule exposing (Rule)
 config : List Rule
 config =
     [ NoUnused.CustomTypeConstructors.rule
+    , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule
     , NoUnused.Modules.rule
     , NoUnused.Variables.rule
