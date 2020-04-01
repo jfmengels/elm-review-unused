@@ -1,7 +1,7 @@
 module NoUnusedVariablesTest exposing (all)
 
-import Review.Rule.NoUnusedVariables exposing (rule)
 import Review.Test exposing (ReviewResult)
+import Rule.NoUnusedVariables exposing (rule)
 import Test exposing (Test, describe, test)
 
 
@@ -13,7 +13,6 @@ testRule =
 details : List String
 details =
     [ "You should either use this value somewhere, or remove it at the location I pointed at."
-    , "If you remove it, you may find that other pieces of code are never used, and can themselves be removed too. This could end up simplifying your code a lot."
     ]
 
 
