@@ -1,7 +1,7 @@
 {
   "name": "review-unused",
   "version": "1.0.0",
-  "description": "Provides elm-review rules to detect unused functions and types in your Elm files",
+  "description": "Provides elm-review rules to detect unused elements in your Elm project",
   "main": "index.js",
   "scripts": {
     "test": "elm make && elm-format src/ --validate && elm-test && elm-review . && elm-xref"
