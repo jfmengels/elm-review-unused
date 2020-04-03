@@ -1,4 +1,4 @@
-module NoUnusedCustomTypeConstructorsTest exposing (all)
+module NoUnused.CustomTypeConstructorsTest exposing (all)
 
 import Elm.Project
 import Json.Decode as Decode

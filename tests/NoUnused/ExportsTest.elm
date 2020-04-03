@@ -1,4 +1,4 @@
-module NoUnusedExportsTest exposing (all)
+module NoUnused.ExportsTest exposing (all)
 
 import Elm.Project
 import Elm.Version

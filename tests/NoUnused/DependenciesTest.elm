@@ -1,4 +1,4 @@
-module NoUnusedDependenciesTest exposing (all)
+module NoUnused.DependenciesTest exposing (all)
 
 import Elm.Docs
 import Elm.Project
