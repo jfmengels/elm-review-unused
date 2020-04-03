@@ -5,8 +5,11 @@
     "license": "BSD-3-Clause",
     "version": "1.0.4",
     "exposed-modules": [
-        "NoUnused.Variables",
-        "NoUnused.CustomTypeConstructors"
+        "NoUnused.CustomTypeConstructors",
+        "NoUnused.Dependencies",
+        "NoUnused.Exports",
+        "NoUnused.Modules",
+        "NoUnused.Variables"
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
     "dependencies": {
