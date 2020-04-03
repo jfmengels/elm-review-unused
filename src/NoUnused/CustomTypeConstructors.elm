@@ -488,7 +488,7 @@ finalProjectEvaluation projectContext =
 
 errorInformation : String -> { message : String, details : List String }
 errorInformation name =
-    { message = "Type constructor `" ++ node ++ "` is not used."
+    { message = "Type constructor `" ++ name ++ "` is not used."
     , details = [ "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created." ]
     }
 
