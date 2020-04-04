@@ -1,7 +1,7 @@
 {
     "type": "package",
     "name": "jfmengels/review-unused",
-    "summary": "Provides elm-review rules to detect unused functions and types",
+    "summary": "Provides elm-review rules to detect unused elements in your Elm project",
     "license": "BSD-3-Clause",
     "version": "1.0.4",
     "exposed-modules": [
