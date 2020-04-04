@@ -11,6 +11,8 @@ when inside the directory containing this file.
 
 -}
 
+import NoDebug.Log
+import NoDebug.TodoOrToString
 import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
 import NoUnused.Exports
@@ -21,7 +23,9 @@ import Review.Rule exposing (Rule)
 
 config : List Rule
 config =
-    [ NoUnused.CustomTypeConstructors.rule []
+    [ NoDebug.Log.rule
+    , NoDebug.TodoOrToString.rule
+    , NoUnused.CustomTypeConstructors.rule []
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule
     , NoUnused.Modules.rule
