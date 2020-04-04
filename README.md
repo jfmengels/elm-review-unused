@@ -32,3 +32,10 @@ config =
     , NoUnused.Variables.rule
     ]
 ```
+
+
+## How this package works
+
+This package works by having several rules that check for different unused elements, and that complement each other.
+
+This allows for fine-grained control over what you want the rules to do. If you add these rules to an existing project, you will likely get a lot of errors, and fixing them will take time. Instead, you can introduce these rules gradually in batches. For cases where the errors are too time-consuming to fix, you can ignore them in the configuration, until you take care of them.
