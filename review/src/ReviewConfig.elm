@@ -14,6 +14,9 @@ when inside the directory containing this file.
 -- import NoDebug.Log
 -- import NoDebug.TodoOrToString
 
+import NoExposingEverything
+import NoImportingEverything
+import NoMissingTypeAnnotation
 import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
 import NoUnused.Exports
@@ -26,7 +29,10 @@ config : List Rule
 config =
     [ -- NoDebug.Log.rule
       -- , NoDebug.TodoOrToString.rule
-      NoUnused.CustomTypeConstructors.rule []
+      NoExposingEverything.rule
+    , NoImportingEverything.rule []
+    , NoMissingTypeAnnotation.rule
+    , NoUnused.CustomTypeConstructors.rule []
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule
     , NoUnused.Modules.rule
