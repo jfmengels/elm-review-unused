@@ -12,6 +12,7 @@
             "elm/project-metadata-utils": "1.0.1",
             "jfmengels/elm-review": "2.0.0",
             "jfmengels/review-common": "1.0.0",
+            "jfmengels/review-debug": "2.0.1",
             "stil4m/elm-syntax": "7.1.1"
         },
         "indirect": {

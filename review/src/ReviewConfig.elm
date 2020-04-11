@@ -11,9 +11,8 @@ when inside the directory containing this file.
 
 -}
 
--- import NoDebug.Log
--- import NoDebug.TodoOrToString
-
+import NoDebug.Log
+import NoDebug.TodoOrToString
 import NoExposingEverything
 import NoImportingEverything
 import NoMissingTypeAnnotation
@@ -22,14 +21,15 @@ import NoUnused.Dependencies
 import NoUnused.Exports
 import NoUnused.Modules
 import NoUnused.Variables
-import Review.Rule exposing (Rule)
+import Review.Rule as Rule exposing (Rule)
 
 
 config : List Rule
 config =
-    [ -- NoDebug.Log.rule
-      -- , NoDebug.TodoOrToString.rule
-      NoExposingEverything.rule
+    [ NoDebug.Log.rule
+    , NoDebug.TodoOrToString.rule
+        |> Rule.ignoreErrorsForDirectories [ "tests/" ]
+    , NoExposingEverything.rule
     , NoImportingEverything.rule []
     , NoMissingTypeAnnotation.rule
     , NoUnused.CustomTypeConstructors.rule []
@@ -38,4 +38,4 @@ config =
     , NoUnused.Modules.rule
     , NoUnused.Variables.rule
     ]
-        |> List.map (Review.Rule.ignoreErrorsForFiles [ "src/Scope.elm" ])
+        |> List.map (Rule.ignoreErrorsForFiles [ "src/Scope.elm" ])
