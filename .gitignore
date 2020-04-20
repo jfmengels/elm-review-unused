@@ -1,3 +1,4 @@
 elm-stuff
 *.log
 node_modules/
+.idea/
