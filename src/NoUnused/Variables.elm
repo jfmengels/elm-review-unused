@@ -27,10 +27,6 @@ import Set exposing (Set)
 
 {-| Report variables or types that are declared or imported but never used.
 
-**NOTE**: Since `elm-review` only works in the scope of a single file, this rule
-will not report variables that are exposed but not used anywhere in the project.
-If you wish those to be reported, check out [`elm-xref`](https://github.com/zwilias/elm-xref).
-
     config =
         [ NoUnused.Variables.rule
         ]
