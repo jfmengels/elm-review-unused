@@ -738,6 +738,23 @@ import Html.Styled exposing (Html)
 a : Html
 a = ()"""
                     ]
+    , test "should report import alias if the name is the same thing as the module name" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Html as Html
+a = Html.div"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Module `Html` is aliased as `Html`"
+                        , details = [ "The alias is the same as the module name, and brings no useful value" ]
+                        , under = "Html"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 16 }, end = { row = 2, column = 20 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Html
+a = Html.div"""
+                    ]
     , test "should not report import that exposes a used exposed type" <|
         \() ->
             """module SomeModule exposing (a)

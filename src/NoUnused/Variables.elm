@@ -11,8 +11,8 @@ module NoUnused.Variables exposing (rule)
 
 import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
-import Elm.Syntax.Exposing as Exposing exposing (Exposing, TopLevelExpose)
-import Elm.Syntax.Expression as Expression exposing (Expression, Function, FunctionImplementation, LetDeclaration)
+import Elm.Syntax.Exposing as Exposing exposing (Exposing)
+import Elm.Syntax.Expression as Expression exposing (Expression, Function, FunctionImplementation)
 import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.Node as Node exposing (Node(..))
@@ -256,13 +256,33 @@ moduleDefinitionVisitor (Node _ moduleNode) context =
 
 
 importVisitor : Node Import -> Context -> ( List (Error {}), Context )
-importVisitor ((Node _ { exposingList, moduleAlias, moduleName }) as node) context =
-    case exposingList of
+importVisitor ((Node _ import_) as node) context =
+    let
+        errors : List (Error {})
+        errors =
+            case import_.moduleAlias of
+                Just moduleAlias ->
+                    if Node.value moduleAlias == Node.value import_.moduleName then
+                        [ Rule.errorWithFix
+                            { message = "Module `Html` is aliased as `Html`"
+                            , details = [ "The alias is the same as the module name, and brings no useful value" ]
+                            }
+                            (Node.range moduleAlias)
+                            [ Fix.removeRange <| moduleAliasRange node (Node.range moduleAlias) ]
+                        ]
+
+                    else
+                        []
+
+                Nothing ->
+                    []
+    in
+    case import_.exposingList of
         Nothing ->
-            ( [], registerModuleNameOrAlias node context )
+            ( errors, registerModuleNameOrAlias node context )
 
         Just declaredImports ->
-            ( []
+            ( errors
             , List.foldl
                 (\( name, variableInfo ) context_ -> register variableInfo name context_)
                 (registerModuleAlias node context)
