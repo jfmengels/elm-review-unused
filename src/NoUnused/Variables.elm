@@ -10,15 +10,15 @@ module NoUnused.Variables exposing (rule)
 -}
 
 import Dict exposing (Dict)
-import Elm.Syntax.Declaration exposing (Declaration(..))
-import Elm.Syntax.Exposing exposing (Exposing(..), TopLevelExpose(..))
-import Elm.Syntax.Expression exposing (Expression(..), Function, FunctionImplementation, LetDeclaration(..))
+import Elm.Syntax.Declaration as Declaration exposing (Declaration)
+import Elm.Syntax.Exposing as Exposing exposing (Exposing, TopLevelExpose)
+import Elm.Syntax.Expression as Expression exposing (Expression, Function, FunctionImplementation, LetDeclaration)
 import Elm.Syntax.Import exposing (Import)
-import Elm.Syntax.Module as Module exposing (Module(..))
+import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
-import Elm.Syntax.TypeAnnotation exposing (TypeAnnotation(..))
+import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import Review.Fix as Fix exposing (Fix)
 import Review.Rule as Rule exposing (Direction, Error, Rule)
@@ -228,25 +228,25 @@ fix declaredModules { variableType, rangeToRemove } =
 moduleDefinitionVisitor : Node Module -> Context -> ( List nothing, Context )
 moduleDefinitionVisitor (Node _ moduleNode) context =
     case Module.exposingList moduleNode of
-        All _ ->
+        Exposing.All _ ->
             ( [], { context | exposesEverything = True } )
 
-        Explicit list ->
+        Exposing.Explicit list ->
             let
                 names =
                     List.filterMap
                         (\(Node _ node) ->
                             case node of
-                                FunctionExpose name ->
+                                Exposing.FunctionExpose name ->
                                     Just name
 
-                                TypeOrAliasExpose name ->
+                                Exposing.TypeOrAliasExpose name ->
                                     Just name
 
-                                TypeExpose { name } ->
+                                Exposing.TypeExpose { name } ->
                                     Just name
 
-                                InfixExpose name ->
+                                Exposing.InfixExpose name ->
                                     -- Just name
                                     Nothing
                         )
@@ -320,19 +320,19 @@ moduleAliasRange (Node _ { moduleName }) range =
 expressionVisitor : Node Expression -> Direction -> Context -> ( List (Error {}), Context )
 expressionVisitor (Node range value) direction context =
     case ( direction, value ) of
-        ( Rule.OnEnter, FunctionOrValue [] name ) ->
+        ( Rule.OnEnter, Expression.FunctionOrValue [] name ) ->
             ( [], markAsUsed name context )
 
-        ( Rule.OnEnter, FunctionOrValue moduleName name ) ->
+        ( Rule.OnEnter, Expression.FunctionOrValue moduleName name ) ->
             ( [], markModuleAsUsed (getModuleName moduleName) context )
 
-        ( Rule.OnEnter, OperatorApplication name _ _ _ ) ->
+        ( Rule.OnEnter, Expression.OperatorApplication name _ _ _ ) ->
             ( [], markAsUsed name context )
 
-        ( Rule.OnEnter, PrefixOperator name ) ->
+        ( Rule.OnEnter, Expression.PrefixOperator name ) ->
             ( [], markAsUsed name context )
 
-        ( Rule.OnEnter, LetExpression { declarations, expression } ) ->
+        ( Rule.OnEnter, Expression.LetExpression { declarations, expression } ) ->
             let
                 letBlockContext : LetBlockContext
                 letBlockContext =
@@ -347,7 +347,7 @@ expressionVisitor (Node range value) direction context =
                     List.foldl
                         (\declaration context_ ->
                             case Node.value declaration of
-                                LetFunction function ->
+                                Expression.LetFunction function ->
                                     let
                                         namesUsedInArgumentPatterns : { types : List String, modules : List String }
                                         namesUsedInArgumentPatterns =
@@ -361,7 +361,7 @@ expressionVisitor (Node range value) direction context =
                                         |> registerFunction letBlockContext function
                                         |> markUsedTypesAndModules namesUsedInArgumentPatterns
 
-                                LetDestructuring pattern _ ->
+                                Expression.LetDestructuring pattern _ ->
                                     context_
                         )
                         { context | scopes = NonemptyList.cons emptyScope context.scopes }
@@ -369,7 +369,7 @@ expressionVisitor (Node range value) direction context =
             in
             ( [], newContext )
 
-        ( Rule.OnEnter, LambdaExpression { args } ) ->
+        ( Rule.OnEnter, Expression.LambdaExpression { args } ) ->
             let
                 namesUsedInArgumentPatterns : { types : List String, modules : List String }
                 namesUsedInArgumentPatterns =
@@ -379,10 +379,10 @@ expressionVisitor (Node range value) direction context =
             in
             ( [], markUsedTypesAndModules namesUsedInArgumentPatterns context )
 
-        ( Rule.OnExit, RecordUpdateExpression expr _ ) ->
+        ( Rule.OnExit, Expression.RecordUpdateExpression expr _ ) ->
             ( [], markAsUsed (Node.value expr) context )
 
-        ( Rule.OnExit, CaseExpression { cases } ) ->
+        ( Rule.OnExit, Expression.CaseExpression { cases } ) ->
             let
                 usedVariables : { types : List String, modules : List String }
                 usedVariables =
@@ -397,7 +397,7 @@ expressionVisitor (Node range value) direction context =
             , markUsedTypesAndModules usedVariables context
             )
 
-        ( Rule.OnExit, LetExpression _ ) ->
+        ( Rule.OnExit, Expression.LetExpression _ ) ->
             let
                 ( errors, remainingUsed ) =
                     makeReport (NonemptyList.head context.scopes)
@@ -541,7 +541,7 @@ getUsedModulesFromPattern patternNode =
 declarationVisitor : Node Declaration -> Direction -> Context -> ( List nothing, Context )
 declarationVisitor node direction context =
     case ( direction, Node.value node ) of
-        ( Rule.OnEnter, FunctionDeclaration function ) ->
+        ( Rule.OnEnter, Declaration.FunctionDeclaration function ) ->
             let
                 functionImplementation : FunctionImplementation
                 functionImplementation =
@@ -575,7 +575,7 @@ declarationVisitor node direction context =
             in
             ( [], newContext )
 
-        ( Rule.OnEnter, CustomTypeDeclaration { name, documentation, constructors } ) ->
+        ( Rule.OnEnter, Declaration.CustomTypeDeclaration { name, documentation, constructors } ) ->
             let
                 variablesFromConstructorArguments : { types : List String, modules : List String }
                 variablesFromConstructorArguments =
@@ -606,7 +606,7 @@ declarationVisitor node direction context =
                 |> markUsedTypesAndModules variablesFromConstructorArguments
             )
 
-        ( Rule.OnEnter, AliasDeclaration { name, typeAnnotation, documentation } ) ->
+        ( Rule.OnEnter, Declaration.AliasDeclaration { name, typeAnnotation, documentation } ) ->
             let
                 namesUsedInTypeAnnotation : { types : List String, modules : List String }
                 namesUsedInTypeAnnotation =
@@ -623,7 +623,7 @@ declarationVisitor node direction context =
                 |> markUsedTypesAndModules namesUsedInTypeAnnotation
             )
 
-        ( Rule.OnEnter, PortDeclaration { name, typeAnnotation } ) ->
+        ( Rule.OnEnter, Declaration.PortDeclaration { name, typeAnnotation } ) ->
             let
                 namesUsedInTypeAnnotation : { types : List String, modules : List String }
                 namesUsedInTypeAnnotation =
@@ -640,10 +640,10 @@ declarationVisitor node direction context =
                     (Node.value name)
             )
 
-        ( Rule.OnEnter, InfixDeclaration _ ) ->
+        ( Rule.OnEnter, Declaration.InfixDeclaration _ ) ->
             ( [], context )
 
-        ( Rule.OnEnter, Destructuring _ _ ) ->
+        ( Rule.OnEnter, Declaration.Destructuring _ _ ) ->
             ( [], context )
 
         ( Rule.OnExit, _ ) ->
@@ -760,10 +760,10 @@ registerFunction letBlockContext function context =
 collectFromExposing : Node Exposing -> List ( String, VariableInfo )
 collectFromExposing exposingNode =
     case Node.value exposingNode of
-        All _ ->
+        Exposing.All _ ->
             []
 
-        Explicit list ->
+        Exposing.Explicit list ->
             let
                 listWithPreviousRange : List (Maybe Range)
                 listWithPreviousRange =
@@ -803,16 +803,16 @@ collectFromExposing exposingNode =
                                             { range | start = previousRange.end }
                         in
                         case value of
-                            FunctionExpose name ->
+                            Exposing.FunctionExpose name ->
                                 Just ( name, { variableType = ImportedItem ImportedVariable, under = range, rangeToRemove = rangeToRemove } )
 
-                            InfixExpose name ->
+                            Exposing.InfixExpose name ->
                                 Just ( name, { variableType = ImportedItem ImportedOperator, under = range, rangeToRemove = rangeToRemove } )
 
-                            TypeOrAliasExpose name ->
+                            Exposing.TypeOrAliasExpose name ->
                                 Just ( name, { variableType = ImportedItem ImportedType, under = range, rangeToRemove = rangeToRemove } )
 
-                            TypeExpose { name, open } ->
+                            Exposing.TypeExpose { name, open } ->
                                 case open of
                                     Just openRange ->
                                         -- TODO Change this behavior once we know the contents of the open range, using dependencies or the interfaces of the other modules
@@ -834,10 +834,10 @@ collectNamesFromTypeAnnotation node =
 collectTypesFromTypeAnnotation : Node TypeAnnotation -> List String
 collectTypesFromTypeAnnotation node =
     case Node.value node of
-        FunctionTypeAnnotation a b ->
+        TypeAnnotation.FunctionTypeAnnotation a b ->
             collectTypesFromTypeAnnotation a ++ collectTypesFromTypeAnnotation b
 
-        Typed nameNode params ->
+        TypeAnnotation.Typed nameNode params ->
             let
                 name : List String
                 name =
@@ -850,34 +850,34 @@ collectTypesFromTypeAnnotation node =
             in
             name ++ List.concatMap collectTypesFromTypeAnnotation params
 
-        Record list ->
+        TypeAnnotation.Record list ->
             list
                 |> List.map (Node.value >> Tuple.second)
                 |> List.concatMap collectTypesFromTypeAnnotation
 
-        GenericRecord name list ->
+        TypeAnnotation.GenericRecord name list ->
             list
                 |> Node.value
                 |> List.map (Node.value >> Tuple.second)
                 |> List.concatMap collectTypesFromTypeAnnotation
 
-        Tupled list ->
+        TypeAnnotation.Tupled list ->
             List.concatMap collectTypesFromTypeAnnotation list
 
-        GenericType _ ->
+        TypeAnnotation.GenericType _ ->
             []
 
-        Unit ->
+        TypeAnnotation.Unit ->
             []
 
 
 collectModuleNamesFromTypeAnnotation : Node TypeAnnotation -> List String
 collectModuleNamesFromTypeAnnotation node =
     case Node.value node of
-        FunctionTypeAnnotation a b ->
+        TypeAnnotation.FunctionTypeAnnotation a b ->
             collectModuleNamesFromTypeAnnotation a ++ collectModuleNamesFromTypeAnnotation b
 
-        Typed nameNode params ->
+        TypeAnnotation.Typed nameNode params ->
             let
                 name : List String
                 name =
@@ -890,24 +890,24 @@ collectModuleNamesFromTypeAnnotation node =
             in
             name ++ List.concatMap collectModuleNamesFromTypeAnnotation params
 
-        Record list ->
+        TypeAnnotation.Record list ->
             list
                 |> List.map (Node.value >> Tuple.second)
                 |> List.concatMap collectModuleNamesFromTypeAnnotation
 
-        GenericRecord name list ->
+        TypeAnnotation.GenericRecord name list ->
             list
                 |> Node.value
                 |> List.map (Node.value >> Tuple.second)
                 |> List.concatMap collectModuleNamesFromTypeAnnotation
 
-        Tupled list ->
+        TypeAnnotation.Tupled list ->
             List.concatMap collectModuleNamesFromTypeAnnotation list
 
-        GenericType _ ->
+        TypeAnnotation.GenericType _ ->
             []
 
-        Unit ->
+        TypeAnnotation.Unit ->
             []
 
 
