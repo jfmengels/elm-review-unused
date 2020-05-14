@@ -555,7 +555,7 @@ import Foo
                     [ Review.Test.error
                         { message = "Imported type `C` is not used"
                         , details = details
-                        , under = "C\n  "
+                        , under = "C"
                         }
                         |> Review.Test.whenFixed """module SomeModule exposing (d)
 import Foo
@@ -590,6 +590,41 @@ import Foo
         ( C
         , a
         )"""
+                    ]
+    , test "should report unused imported functions (multiple imports on several lines, function first)" <|
+        \() ->
+            """module SomeModule exposing (d)
+import Foo
+    exposing
+        ( a
+        , b
+        )
+d = 1"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported variable `a` is not used"
+                        , details = details
+                        , under = "a"
+                        }
+                        |> Review.Test.whenFixed
+                            """module SomeModule exposing (d)
+import Foo
+    exposing
+        ( b
+        )
+d = 1"""
+                    , Review.Test.error
+                        { message = "Imported variable `b` is not used"
+                        , details = details
+                        , under = "b"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (d)
+import Foo
+    exposing
+        ( a
+        )
+d = 1"""
                     ]
     , test "should report unused operator import" <|
         \() ->

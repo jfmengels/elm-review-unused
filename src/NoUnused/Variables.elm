@@ -824,13 +824,31 @@ collectFromExposing exposingNode =
                         in
                         case value of
                             Exposing.FunctionExpose name ->
-                                Just ( name, { variableType = ImportedItem ImportedVariable, under = range, rangeToRemove = rangeToRemove } )
+                                Just
+                                    ( name
+                                    , { variableType = ImportedItem ImportedVariable
+                                      , under = untilEndOfVariable name range
+                                      , rangeToRemove = rangeToRemove
+                                      }
+                                    )
 
                             Exposing.InfixExpose name ->
-                                Just ( name, { variableType = ImportedItem ImportedOperator, under = range, rangeToRemove = rangeToRemove } )
+                                Just
+                                    ( name
+                                    , { variableType = ImportedItem ImportedOperator
+                                      , under = untilEndOfVariable name range
+                                      , rangeToRemove = rangeToRemove
+                                      }
+                                    )
 
                             Exposing.TypeOrAliasExpose name ->
-                                Just ( name, { variableType = ImportedItem ImportedType, under = range, rangeToRemove = rangeToRemove } )
+                                Just
+                                    ( name
+                                    , { variableType = ImportedItem ImportedType
+                                      , under = untilEndOfVariable name range
+                                      , rangeToRemove = rangeToRemove
+                                      }
+                                    )
 
                             Exposing.TypeExpose { name, open } ->
                                 case open of
@@ -839,9 +857,24 @@ collectFromExposing exposingNode =
                                         Nothing
 
                                     Nothing ->
-                                        Just ( name, { variableType = ImportedItem ImportedType, under = range, rangeToRemove = rangeToRemove } )
+                                        Just
+                                            ( name
+                                            , { variableType = ImportedItem ImportedType
+                                              , under = range
+                                              , rangeToRemove = rangeToRemove
+                                              }
+                                            )
                     )
                 |> List.filterMap identity
+
+
+untilEndOfVariable : String -> Range -> Range
+untilEndOfVariable name range =
+    if range.start.row == range.end.row then
+        range
+
+    else
+        { range | end = { row = range.start.row, column = range.start.column + String.length name } }
 
 
 collectNamesFromTypeAnnotation : Node TypeAnnotation -> { types : List String, modules : List String }
