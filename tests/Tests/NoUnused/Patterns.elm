@@ -16,6 +16,7 @@ all =
     describe "NoUnused.Patterns"
         [ describe "in Function arguments" functionArgumentTests
         , describe "in Lambda arguments" lambdaArgumentTests
+        , describe "in Let Function arguments" letFunctionArgumentTests
         ]
 
 
@@ -107,6 +108,61 @@ foo =
     ]
 
 
+letFunctionArgumentTests : List Test
+letFunctionArgumentTests =
+    [ test "should report unused arguments" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        one oneValue =
+            1
+        two twoValue =
+            2
+    in
+    one two 3
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `oneValue` is not used"
+                        , details = details
+                        , under = "oneValue"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        one _ =
+            1
+        two twoValue =
+            2
+    in
+    one two 3
+"""
+                    , Review.Test.error
+                        { message = "Pattern `twoValue` is not used"
+                        , details = details
+                        , under = "twoValue"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        one oneValue =
+            1
+        two _ =
+            2
+    in
+    one two 3
+"""
+                    ]
+    ]
+
+
 
 {- TODO
 
@@ -130,7 +186,7 @@ foo =
    Sources:
      - [x] Declaration.FunctionDeclaration { declaration.arguments }
      - [x] Expression.LambdaExpression { args }
-     - [ ] Expression.LetFunction { declaration.arguments }
+     - [x] Expression.LetFunction { declaration.arguments }
      - [ ] Expression.LetDestructuring pattern _
      - [ ] Expression.Case ( pattern, _ )
 

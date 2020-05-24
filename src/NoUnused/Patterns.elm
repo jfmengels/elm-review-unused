@@ -49,6 +49,12 @@ expressionVisitor (Node _ expression) direction context =
         ( Rule.OnExit, Expression.LambdaExpression { args } ) ->
             errorsForPatternList args context
 
+        ( Rule.OnEnter, Expression.LetExpression { declarations } ) ->
+            ( [], rememberLetDeclarationList declarations context )
+
+        ( Rule.OnExit, Expression.LetExpression { declarations } ) ->
+            errorsForLetDeclarationList declarations context
+
         _ ->
             ( [], context )
 
@@ -65,6 +71,21 @@ valueVisitor (Node _ ( moduleName, value )) context =
 
 
 --- ON ENTER
+
+
+rememberLetDeclarationList : List (Node Expression.LetDeclaration) -> Context -> Context
+rememberLetDeclarationList list context =
+    List.foldl rememberLetDeclaration context list
+
+
+rememberLetDeclaration : Node Expression.LetDeclaration -> Context -> Context
+rememberLetDeclaration (Node range letDeclaration) context =
+    case letDeclaration of
+        Expression.LetFunction { declaration } ->
+            rememberFunctionImplementation declaration context
+
+        _ ->
+            context
 
 
 rememberFunctionImplementation : Node Expression.FunctionImplementation -> Context -> Context
@@ -95,6 +116,33 @@ rememberPattern (Node _ pattern) context =
 --- ON EXIT
 
 
+errorsForLetDeclarationList : List (Node Expression.LetDeclaration) -> Context -> ( List (Rule.Error {}), Context )
+errorsForLetDeclarationList list context =
+    case list of
+        [] ->
+            ( [], context )
+
+        first :: rest ->
+            let
+                ( firstErrors, firstContext ) =
+                    errorsForLetDeclaration first context
+
+                ( restErrors, restContext ) =
+                    errorsForLetDeclarationList rest firstContext
+            in
+            ( firstErrors ++ restErrors, restContext )
+
+
+errorsForLetDeclaration : Node Expression.LetDeclaration -> Context -> ( List (Rule.Error {}), Context )
+errorsForLetDeclaration (Node _ letDeclaration) context =
+    case letDeclaration of
+        Expression.LetFunction { declaration } ->
+            errorsForFunctionImplementation declaration context
+
+        _ ->
+            ( [], context )
+
+
 errorsForFunctionImplementation : Node Expression.FunctionImplementation -> Context -> ( List (Rule.Error {}), Context )
 errorsForFunctionImplementation (Node _ { arguments }) context =
     errorsForPatternList arguments context
@@ -106,15 +154,15 @@ errorsForPatternList list context =
         [] ->
             ( [], context )
 
-        pattern :: rest ->
+        first :: rest ->
             let
-                ( patternErrors, patternContext ) =
-                    errorsForPattern pattern context
+                ( firstErrors, firstContext ) =
+                    errorsForPattern first context
 
                 ( restErrors, restContext ) =
-                    errorsForPatternList rest patternContext
+                    errorsForPatternList rest firstContext
             in
-            ( patternErrors ++ restErrors, restContext )
+            ( firstErrors ++ restErrors, restContext )
 
 
 errorsForPattern : Node Pattern -> Context -> ( List (Rule.Error {}), Context )
