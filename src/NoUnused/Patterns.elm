@@ -12,8 +12,8 @@ import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
-import NameVisitor
-import Review.Fix as Fix exposing (Fix)
+import NoUnused.Patterns.NameVisitor as NameVisitor
+import Review.Fix as Fix
 import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
 
@@ -139,10 +139,6 @@ rememberPattern (Node _ pattern) context =
             rememberPatternList values context
 
         _ ->
-            let
-                _ =
-                    Debug.log "pattern" pattern
-            in
             context
 
 
