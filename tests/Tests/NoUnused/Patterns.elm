@@ -14,11 +14,61 @@ details =
 all : Test
 all =
     describe "NoUnused.Patterns"
-        [ describe "in Function arguments" functionArgumentTests
+        [ describe "in Case branches" caseTests
+        , describe "in Function arguments" functionArgumentTests
         , describe "in Lambda arguments" lambdaArgumentTests
         , describe "in Let destructuring" letDestructuringTests
         , describe "in Let Functions" letFunctionTests
         ]
+
+
+caseTests : List Test
+caseTests =
+    [ test "reports unused values" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case bar of
+        bish ->
+            Nothing
+        bash ->
+            Nothing
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `bish` is not used"
+                        , details = details
+                        , under = "bish"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        _ ->
+            Nothing
+        bash ->
+            Nothing
+"""
+                    , Review.Test.error
+                        { message = "Pattern `bash` is not used"
+                        , details = details
+                        , under = "bash"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        bish ->
+            Nothing
+        _ ->
+            Nothing
+"""
+                    ]
+    ]
 
 
 functionArgumentTests : List Test
@@ -252,6 +302,6 @@ foo =
      - [x] Expression.LambdaExpression { args }
      - [x] Expression.LetFunction { declaration.arguments }
      - [x] Expression.LetDestructuring pattern _
-     - [ ] Expression.Case ( pattern, _ )
+     - [x] Expression.Case ( pattern, _ )
 
 -}

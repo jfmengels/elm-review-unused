@@ -63,13 +63,12 @@ expressionVisitor (Node _ expression) direction context =
         ( Rule.OnExit, Expression.LetExpression { declarations } ) ->
             errorsForLetDeclarationList declarations context
 
-        -- TODO: Delete me
-        -- ( Rule.OnEnter, _ ) ->
-        --     let
-        --         _ =
-        --             Debug.log "expression" expression
-        --     in
-        --     ( [], context )
+        ( Rule.OnEnter, Expression.CaseExpression { cases } ) ->
+            ( [], rememberCaseList cases context )
+
+        ( Rule.OnExit, Expression.CaseExpression { cases } ) ->
+            errorsForCaseList cases context
+
         _ ->
             ( [], context )
 
@@ -86,6 +85,16 @@ valueVisitor (Node _ ( moduleName, value )) context =
 
 
 --- ON ENTER
+
+
+rememberCaseList : List Expression.Case -> Context -> Context
+rememberCaseList list context =
+    List.foldl rememberCase context list
+
+
+rememberCase : Expression.Case -> Context -> Context
+rememberCase ( pattern, _ ) context =
+    rememberPattern pattern context
 
 
 rememberFunctionImplementation : Node Expression.FunctionImplementation -> Context -> Context
@@ -139,6 +148,28 @@ rememberPattern (Node _ pattern) context =
 
 
 --- ON EXIT
+
+
+errorsForCaseList : List Expression.Case -> Context -> ( List (Rule.Error {}), Context )
+errorsForCaseList list context =
+    case list of
+        [] ->
+            ( [], context )
+
+        first :: rest ->
+            let
+                ( firstErrors, firstContext ) =
+                    errorsForCase first context
+
+                ( restErrors, restContext ) =
+                    errorsForCaseList rest firstContext
+            in
+            ( firstErrors ++ restErrors, restContext )
+
+
+errorsForCase : Expression.Case -> Context -> ( List (Rule.Error {}), Context )
+errorsForCase ( pattern, _ ) context =
+    errorsForPattern pattern context
 
 
 errorsForFunctionImplementation : Node Expression.FunctionImplementation -> Context -> ( List (Rule.Error {}), Context )
