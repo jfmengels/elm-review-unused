@@ -14,7 +14,8 @@ details =
 all : Test
 all =
     describe "NoUnused.Patterns"
-        [ describe "Function arguments" functionArgumentTests
+        [ describe "in Function arguments" functionArgumentTests
+        , describe "in Lambda arguments" lambdaArgumentTests
         ]
 
 
@@ -80,6 +81,32 @@ foo _ =
     ]
 
 
+lambdaArgumentTests : List Test
+lambdaArgumentTests =
+    [ test "should report unused arguments" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    List.map (\\value -> Nothing) list
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `value` is not used"
+                        , details = details
+                        , under = "value"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    List.map (\\_ -> Nothing) list
+"""
+                    ]
+    ]
+
+
 
 {- TODO
 
@@ -102,7 +129,7 @@ foo _ =
 
    Sources:
      - [x] Declaration.FunctionDeclaration { declaration.arguments }
-     - [ ] Expression.Lambda { args }
+     - [x] Expression.LambdaExpression { args }
      - [ ] Expression.LetFunction { declaration.arguments }
      - [ ] Expression.LetDestructuring pattern _
      - [ ] Expression.Case ( pattern, _ )

@@ -7,7 +7,7 @@ module NoUnused.Patterns exposing (rule)
 -}
 
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
-import Elm.Syntax.Expression as Expression
+import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
@@ -22,6 +22,7 @@ rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoUnused.Patterns" initialContext
         |> Rule.withDeclarationVisitor declarationVisitor
+        |> Rule.withExpressionVisitor expressionVisitor
         |> NameVisitor.withValueVisitor valueVisitor
         |> Rule.fromModuleRuleSchema
 
@@ -34,6 +35,19 @@ declarationVisitor node direction context =
 
         ( Rule.OnExit, Declaration.FunctionDeclaration { declaration } ) ->
             errorsForFunctionImplementation declaration context
+
+        _ ->
+            ( [], context )
+
+
+expressionVisitor : Node Expression -> Rule.Direction -> Context -> ( List (Rule.Error {}), Context )
+expressionVisitor (Node _ expression) direction context =
+    case ( direction, expression ) of
+        ( Rule.OnEnter, Expression.LambdaExpression { args } ) ->
+            ( [], rememberPatternList args context )
+
+        ( Rule.OnExit, Expression.LambdaExpression { args } ) ->
+            errorsForPatternList args context
 
         _ ->
             ( [], context )
