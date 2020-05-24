@@ -13,6 +13,7 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import NameVisitor
+import Review.Fix as Fix exposing (Fix)
 import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
 
@@ -128,13 +129,14 @@ initialContext =
 errorsForValue : String -> Range -> Context -> ( List (Rule.Error {}), Context )
 errorsForValue value range context =
     if Set.member value context then
-        ( [ Rule.error
+        ( [ Rule.errorWithFix
                 { message = "Pattern `" ++ value ++ "` is not used"
                 , details =
                     [ "You should either use this value somewhere, or remove it at the location I pointed at."
                     ]
                 }
                 range
+                [ Fix.replaceRangeBy range "_" ]
           ]
         , Set.remove value context
         )

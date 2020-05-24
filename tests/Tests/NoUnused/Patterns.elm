@@ -35,11 +35,25 @@ foo one two three =
                         , details = details
                         , under = "one"
                         }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo : Int -> String -> String -> String
+foo _ two three =
+    three
+"""
                     , Review.Test.error
                         { message = "Pattern `two` is not used"
                         , details = details
                         , under = "two"
                         }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo : Int -> String -> String -> String
+foo one _ three =
+    three
+"""
                     ]
     , test "should not consider values from other modules" <|
         \() ->
@@ -56,6 +70,12 @@ foo one =
                         , under = "one"
                         }
                         |> Review.Test.atExactly { start = { row = 3, column = 5 }, end = { row = 3, column = 8 } }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo _ =
+    Bar.one
+"""
                     ]
     ]
 
