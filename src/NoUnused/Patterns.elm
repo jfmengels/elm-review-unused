@@ -11,7 +11,8 @@ import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.Range as Range exposing (Range)
+import Elm.Writer as Writer
 import NoUnused.Patterns.NameVisitor as NameVisitor
 import Review.Fix as Fix
 import Review.Rule as Rule exposing (Rule)
@@ -138,8 +139,16 @@ rememberPattern (Node _ pattern) context =
         Pattern.TuplePattern values ->
             rememberPatternList values context
 
+        Pattern.RecordPattern values ->
+            rememberValueList values context
+
         _ ->
             context
+
+
+rememberValueList : List (Node String) -> Context -> Context
+rememberValueList list context =
+    List.foldl (Node.value >> rememberValue) context list
 
 
 
@@ -238,8 +247,83 @@ errorsForPattern (Node range pattern) context =
         Pattern.TuplePattern values ->
             errorsForPatternList values context
 
+        Pattern.RecordPattern values ->
+            errorsForRecordValueList range values context
+
         _ ->
             ( [], context )
+
+
+errorsForRecordValueList : Range -> List (Node String) -> Context -> ( List (Rule.Error {}), Context )
+errorsForRecordValueList recordRange list context =
+    let
+        ( unused, used ) =
+            List.partition (\(Node _ value) -> Set.member value context) list
+    in
+    case unused of
+        [] ->
+            ( [], context )
+
+        firstNode :: restNodes ->
+            let
+                first =
+                    firstNode |> Node.value |> quote
+
+                rest =
+                    List.map (Node.value >> quote) restNodes
+
+                ( errorRange, fix ) =
+                    case used of
+                        [] ->
+                            ( recordRange, Fix.replaceRangeBy recordRange "_" )
+
+                        _ ->
+                            ( Range.combine (List.map Node.range unused)
+                            , Node Range.emptyRange (Pattern.RecordPattern used)
+                                |> Writer.writePattern
+                                |> Writer.write
+                                |> Fix.replaceRangeBy recordRange
+                            )
+            in
+            ( [ Rule.errorWithFix
+                    { message = listToMessage first rest
+                    , details = listToDetails first rest
+                    }
+                    errorRange
+                    [ fix ]
+              ]
+            , List.foldl forgetNode context unused
+            )
+
+
+listToMessage : String -> List String -> String
+listToMessage first rest =
+    case List.reverse rest of
+        [] ->
+            "Value " ++ first ++ " is not used"
+
+        last :: middle ->
+            "Values " ++ String.join ", " (first :: middle) ++ " and " ++ last ++ " are not used"
+
+
+listToDetails : String -> List String -> List String
+listToDetails _ rest =
+    case rest of
+        [] ->
+            [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+
+        _ ->
+            [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+
+
+quote : String -> String
+quote value =
+    "`" ++ value ++ "`"
+
+
+forgetNode : Node String -> Context -> Context
+forgetNode (Node _ value) context =
+    Set.remove value context
 
 
 

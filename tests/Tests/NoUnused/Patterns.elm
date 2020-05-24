@@ -19,6 +19,7 @@ all =
         , describe "in Lambda arguments" lambdaArgumentTests
         , describe "in Let destructuring" letDestructuringTests
         , describe "in Let Functions" letFunctionTests
+        , describe "with record pattern" recordPatternTests
         ]
 
 
@@ -277,6 +278,98 @@ foo =
     ]
 
 
+recordPatternTests : List Test
+recordPatternTests =
+    [ test "should replace unused record with `_`" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        { bish, bash } =
+            bar
+    in
+    bosh
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Values `bish` and `bash` are not used"
+                        , details = [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+                        , under = "{ bish, bash }"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        _ =
+            bar
+    in
+    bosh
+"""
+                    ]
+    , test "should report unused record values" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        { bish, bash, bosh } =
+            bar
+    in
+    bash
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Values `bish` and `bosh` are not used"
+                        , details = [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+                        , under = "bish, bash, bosh"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        {bash} =
+            bar
+    in
+    bash
+"""
+                    ]
+    , test "should report highlight the least amount of values possible" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        { bish, bash, bosh } =
+            bar
+    in
+    bish
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Values `bash` and `bosh` are not used"
+                        , details = [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+                        , under = "bash, bosh"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        {bish} =
+            bar
+    in
+    bish
+"""
+                    ]
+    ]
+
+
 
 {- TODO
 
@@ -289,7 +382,7 @@ foo =
      - [-] HexPattern Int
      - [-] FloatPattern Float
      - [ ] TuplePattern (List (Node Pattern))
-     - [ ] RecordPattern (List (Node String))
+     - [x] RecordPattern (List (Node String))
      - [ ] UnConsPattern (Node Pattern) (Node Pattern)
      - [ ] ListPattern (List (Node Pattern))
      - [x] VarPattern String
