@@ -21,6 +21,7 @@ all =
         , describe "in Let Functions" letFunctionTests
         , describe "with record pattern" recordPatternTests
         , describe "with tuple pattern" tuplePatternTests
+        , describe "with uncons pattern" unconsPatternTests
         ]
 
 
@@ -460,6 +461,49 @@ foo =
     ]
 
 
+unconsPatternTests : List Test
+unconsPatternTests =
+    [ test "should report unused uncons values" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case list of
+        first :: rest ->
+            list
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `first` is not used"
+                        , details = details
+                        , under = "first"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case list of
+        _ :: rest ->
+            list
+"""
+                    , Review.Test.error
+                        { message = "Pattern `rest` is not used"
+                        , details = details
+                        , under = "rest"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case list of
+        first :: _ ->
+            list
+"""
+                    ]
+    ]
+
+
 
 {- TODO
 
@@ -473,7 +517,7 @@ foo =
      - [-] FloatPattern Float
      - [x] TuplePattern (List (Node Pattern))
      - [x] RecordPattern (List (Node String))
-     - [ ] UnConsPattern (Node Pattern) (Node Pattern)
+     - [x] UnConsPattern (Node Pattern) (Node Pattern)
      - [ ] ListPattern (List (Node Pattern))
      - [x] VarPattern String
      - [ ] NamedPattern QualifiedNameRef (List (Node Pattern))
