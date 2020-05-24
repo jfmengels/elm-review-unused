@@ -55,6 +55,13 @@ expressionVisitor (Node _ expression) direction context =
         ( Rule.OnExit, Expression.LetExpression { declarations } ) ->
             errorsForLetDeclarationList declarations context
 
+        -- TODO: Delete me
+        -- ( Rule.OnEnter, _ ) ->
+        --     let
+        --         _ =
+        --             Debug.log "expression" expression
+        --     in
+        --     ( [], context )
         _ ->
             ( [], context )
 
@@ -73,6 +80,11 @@ valueVisitor (Node _ ( moduleName, value )) context =
 --- ON ENTER
 
 
+rememberFunctionImplementation : Node Expression.FunctionImplementation -> Context -> Context
+rememberFunctionImplementation (Node _ { arguments }) context =
+    rememberPatternList arguments context
+
+
 rememberLetDeclarationList : List (Node Expression.LetDeclaration) -> Context -> Context
 rememberLetDeclarationList list context =
     List.foldl rememberLetDeclaration context list
@@ -82,15 +94,17 @@ rememberLetDeclaration : Node Expression.LetDeclaration -> Context -> Context
 rememberLetDeclaration (Node range letDeclaration) context =
     case letDeclaration of
         Expression.LetFunction { declaration } ->
-            rememberFunctionImplementation declaration context
+            rememberLetFunctionImplementation declaration context
 
         _ ->
             context
 
 
-rememberFunctionImplementation : Node Expression.FunctionImplementation -> Context -> Context
-rememberFunctionImplementation (Node _ { arguments }) context =
-    rememberPatternList arguments context
+rememberLetFunctionImplementation : Node Expression.FunctionImplementation -> Context -> Context
+rememberLetFunctionImplementation (Node _ { arguments, name }) context =
+    context
+        |> rememberValue (Node.value name)
+        |> rememberPatternList arguments
 
 
 rememberPatternList : List (Node Pattern) -> Context -> Context
@@ -116,6 +130,11 @@ rememberPattern (Node _ pattern) context =
 --- ON EXIT
 
 
+errorsForFunctionImplementation : Node Expression.FunctionImplementation -> Context -> ( List (Rule.Error {}), Context )
+errorsForFunctionImplementation (Node _ { arguments }) context =
+    errorsForPatternList arguments context
+
+
 errorsForLetDeclarationList : List (Node Expression.LetDeclaration) -> Context -> ( List (Rule.Error {}), Context )
 errorsForLetDeclarationList list context =
     case list of
@@ -137,15 +156,22 @@ errorsForLetDeclaration : Node Expression.LetDeclaration -> Context -> ( List (R
 errorsForLetDeclaration (Node _ letDeclaration) context =
     case letDeclaration of
         Expression.LetFunction { declaration } ->
-            errorsForFunctionImplementation declaration context
+            errorsForLetFunctionImplementation declaration context
 
         _ ->
             ( [], context )
 
 
-errorsForFunctionImplementation : Node Expression.FunctionImplementation -> Context -> ( List (Rule.Error {}), Context )
-errorsForFunctionImplementation (Node _ { arguments }) context =
-    errorsForPatternList arguments context
+errorsForLetFunctionImplementation : Node Expression.FunctionImplementation -> Context -> ( List (Rule.Error {}), Context )
+errorsForLetFunctionImplementation (Node _ { arguments, name }) context =
+    let
+        ( nameErrors, nameContext ) =
+            errorsForNode name context
+
+        ( argsErrors, argsContext ) =
+            errorsForPatternList arguments nameContext
+    in
+    ( nameErrors ++ argsErrors, argsContext )
 
 
 errorsForPatternList : List (Node Pattern) -> Context -> ( List (Rule.Error {}), Context )
@@ -186,6 +212,11 @@ type alias Context =
 initialContext : Context
 initialContext =
     Set.empty
+
+
+errorsForNode : Node String -> Context -> ( List (Rule.Error {}), Context )
+errorsForNode (Node range value) context =
+    errorsForValue value range context
 
 
 errorsForValue : String -> Range -> Context -> ( List (Rule.Error {}), Context )

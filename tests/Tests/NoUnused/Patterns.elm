@@ -16,7 +16,7 @@ all =
     describe "NoUnused.Patterns"
         [ describe "in Function arguments" functionArgumentTests
         , describe "in Lambda arguments" lambdaArgumentTests
-        , describe "in Let Function arguments" letFunctionArgumentTests
+        , describe "in Let Functions" letFunctionTests
         ]
 
 
@@ -108,8 +108,8 @@ foo =
     ]
 
 
-letFunctionArgumentTests : List Test
-letFunctionArgumentTests =
+letFunctionTests : List Test
+letFunctionTests =
     [ test "should report unused arguments" <|
         \() ->
             """
@@ -158,6 +158,35 @@ foo =
             2
     in
     one two 3
+"""
+                    ]
+    , test "should report unused let functions" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        value =
+            something 5
+    in
+    bar
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `value` is not used"
+                        , details = details
+                        , under = "value"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        _ =
+            something 5
+    in
+    bar
 """
                     ]
     ]
