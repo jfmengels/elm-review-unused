@@ -244,14 +244,62 @@ errorsForPattern (Node range pattern) context =
         Pattern.VarPattern value ->
             errorsForValue value range context
 
-        Pattern.TuplePattern values ->
-            errorsForPatternList values context
-
         Pattern.RecordPattern values ->
             errorsForRecordValueList range values context
 
+        Pattern.TuplePattern patterns ->
+            let
+                values =
+                    valuesForPattern (Node range pattern)
+
+                unused =
+                    List.filter (\value -> not (Set.member value context)) values
+            in
+            case unused of
+                [] ->
+                    unusedTupleError range values context
+
+                _ ->
+                    errorsForPatternList patterns context
+
         _ ->
             ( [], context )
+
+
+valuesForPattern : Node Pattern -> List String
+valuesForPattern (Node range pattern) =
+    case pattern of
+        Pattern.AllPattern ->
+            []
+
+        Pattern.VarPattern value ->
+            [ value ]
+
+        Pattern.RecordPattern values ->
+            List.map Node.value values
+
+        Pattern.TuplePattern patterns ->
+            List.concatMap valuesForPattern patterns
+
+        _ ->
+            -- This branch must return a non-empty list, with an item that won't be found in Context,
+            -- otherwise we may wrongly detect an empty pattern.
+            [ "\u{0000}" ]
+
+
+unusedTupleError : Range -> List String -> Context -> ( List (Rule.Error {}), Context )
+unusedTupleError range unused context =
+    ( [ Rule.errorWithFix
+            { message = "Tuple pattern is not used"
+            , details =
+                [ "You should either use these values somewhere, or remove them at the location I pointed at."
+                ]
+            }
+            range
+            [ Fix.replaceRangeBy range "_" ]
+      ]
+    , List.foldl Set.remove context unused
+    )
 
 
 errorsForRecordValueList : Range -> List (Node String) -> Context -> ( List (Rule.Error {}), Context )

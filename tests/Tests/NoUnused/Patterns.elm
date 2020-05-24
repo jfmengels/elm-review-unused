@@ -20,6 +20,7 @@ all =
         , describe "in Let destructuring" letDestructuringTests
         , describe "in Let Functions" letFunctionTests
         , describe "with record pattern" recordPatternTests
+        , describe "with tuple pattern" tuplePatternTests
         ]
 
 
@@ -370,6 +371,95 @@ foo =
     ]
 
 
+tuplePatternTests : List Test
+tuplePatternTests =
+    [ test "should report unused tuple values" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        ( bish, bash, bosh ) =
+            bar
+    in
+    bash
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `bish` is not used"
+                        , details = details
+                        , under = "bish"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        ( _, bash, bosh ) =
+            bar
+    in
+    bash
+"""
+                    , Review.Test.error
+                        { message = "Pattern `bosh` is not used"
+                        , details = details
+                        , under = "bosh"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        ( bish, bash, _ ) =
+            bar
+    in
+    bash
+"""
+                    ]
+    , test "should replace unused tuple with `_`" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        ( bish, bash, _ ) =
+            bar
+    in
+    1
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Tuple pattern is not used"
+                        , details = [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+                        , under = "( bish, bash, _ )"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        _ =
+            bar
+    in
+    1
+"""
+                    ]
+    , test "should not report a tuple containing an empty list" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case bar of
+        ( [], _ ) ->
+            1
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    ]
+
+
 
 {- TODO
 
@@ -381,7 +471,7 @@ foo =
      - [-] IntPattern Int
      - [-] HexPattern Int
      - [-] FloatPattern Float
-     - [ ] TuplePattern (List (Node Pattern))
+     - [x] TuplePattern (List (Node Pattern))
      - [x] RecordPattern (List (Node String))
      - [ ] UnConsPattern (Node Pattern) (Node Pattern)
      - [ ] ListPattern (List (Node Pattern))
