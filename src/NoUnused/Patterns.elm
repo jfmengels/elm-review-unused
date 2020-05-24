@@ -104,8 +104,8 @@ rememberLetDeclaration (Node range letDeclaration) context =
         Expression.LetFunction { declaration } ->
             rememberLetFunctionImplementation declaration context
 
-        _ ->
-            context
+        Expression.LetDestructuring pattern _ ->
+            rememberPattern pattern context
 
 
 rememberLetFunctionImplementation : Node Expression.FunctionImplementation -> Context -> Context
@@ -125,6 +125,9 @@ rememberPattern (Node _ pattern) context =
     case pattern of
         Pattern.VarPattern value ->
             rememberValue value context
+
+        Pattern.TuplePattern values ->
+            rememberPatternList values context
 
         _ ->
             let
@@ -166,8 +169,8 @@ errorsForLetDeclaration (Node _ letDeclaration) context =
         Expression.LetFunction { declaration } ->
             errorsForLetFunctionImplementation declaration context
 
-        _ ->
-            ( [], context )
+        Expression.LetDestructuring pattern _ ->
+            errorsForPattern pattern context
 
 
 errorsForLetFunctionImplementation : Node Expression.FunctionImplementation -> Context -> ( List (Rule.Error {}), Context )
@@ -204,6 +207,9 @@ errorsForPattern (Node range pattern) context =
     case pattern of
         Pattern.VarPattern value ->
             errorsForValue value range context
+
+        Pattern.TuplePattern values ->
+            errorsForPatternList values context
 
         _ ->
             ( [], context )

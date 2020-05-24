@@ -16,6 +16,7 @@ all =
     describe "NoUnused.Patterns"
         [ describe "in Function arguments" functionArgumentTests
         , describe "in Lambda arguments" lambdaArgumentTests
+        , describe "in Let destructuring" letDestructuringTests
         , describe "in Let Functions" letFunctionTests
         ]
 
@@ -103,6 +104,40 @@ foo =
 module A exposing (..)
 foo =
     List.map (\\_ -> Nothing) list
+"""
+                    ]
+    ]
+
+
+letDestructuringTests : List Test
+letDestructuringTests =
+    [ test "should report unused values" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        ( left, right ) =
+            tupleValue
+    in
+    left
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `right` is not used"
+                        , details = details
+                        , under = "right"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        ( left, _ ) =
+            tupleValue
+    in
+    left
 """
                     ]
     ]
@@ -216,7 +251,7 @@ foo =
      - [x] Declaration.FunctionDeclaration { declaration.arguments }
      - [x] Expression.LambdaExpression { args }
      - [x] Expression.LetFunction { declaration.arguments }
-     - [ ] Expression.LetDestructuring pattern _
+     - [x] Expression.LetDestructuring pattern _
      - [ ] Expression.Case ( pattern, _ )
 
 -}
