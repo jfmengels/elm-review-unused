@@ -18,6 +18,14 @@ import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
 
 
+{-| Forbid unused patterns.
+
+    config : List Rule
+    config =
+        [ NoUnused.Patterns.rule
+        ]
+
+-}
 rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoUnused.Patterns" initialContext
