@@ -828,7 +828,7 @@ foo =
 module A exposing (..)
 foo =
     let
-        ( bish, bash, _ ) =
+        ( _, _ ) =
             bar
     in
     1
@@ -838,7 +838,36 @@ foo =
                     [ Review.Test.error
                         { message = "Tuple pattern is not used"
                         , details = [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
-                        , under = "( bish, bash, _ )"
+                        , under = "( _, _ )"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        _ =
+            bar
+    in
+    1
+"""
+                    ]
+    , test "should replace unused threeple with `_`" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        ( _, _, _ ) =
+            bar
+    in
+    1
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Tuple pattern is not used"
+                        , details = [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+                        , under = "( _, _, _ )"
                         }
                         |> Review.Test.whenFixed
                             """

@@ -266,20 +266,14 @@ errorsForPattern (Node range pattern) context =
         Pattern.RecordPattern values ->
             errorsForRecordValueList range values context
 
+        Pattern.TuplePattern [ Node _ Pattern.AllPattern, Node _ Pattern.AllPattern ] ->
+            unusedTupleError range context
+
+        Pattern.TuplePattern [ Node _ Pattern.AllPattern, Node _ Pattern.AllPattern, Node _ Pattern.AllPattern ] ->
+            unusedTupleError range context
+
         Pattern.TuplePattern patterns ->
-            let
-                values =
-                    valuesForPattern (Node range pattern)
-
-                unused =
-                    List.filter (\value -> not (Set.member value context)) values
-            in
-            case unused of
-                [] ->
-                    unusedTupleError range values context
-
-                _ ->
-                    errorsForPatternList patterns context
+            errorsForPatternList patterns context
 
         Pattern.UnConsPattern first second ->
             errorsForPatternList [ first, second ] context
@@ -300,29 +294,8 @@ errorsForPattern (Node range pattern) context =
             ( [], context )
 
 
-valuesForPattern : Node Pattern -> List String
-valuesForPattern (Node range pattern) =
-    case pattern of
-        Pattern.AllPattern ->
-            []
-
-        Pattern.VarPattern value ->
-            [ value ]
-
-        Pattern.RecordPattern values ->
-            List.map Node.value values
-
-        Pattern.TuplePattern patterns ->
-            List.concatMap valuesForPattern patterns
-
-        _ ->
-            -- This branch must return a non-empty list, with an item that won't be found in Context,
-            -- otherwise we may wrongly detect an empty pattern.
-            [ "\u{0000}" ]
-
-
-unusedTupleError : Range -> List String -> Context -> ( List (Rule.Error {}), Context )
-unusedTupleError range unused context =
+unusedTupleError : Range -> Context -> ( List (Rule.Error {}), Context )
+unusedTupleError range context =
     ( [ Rule.errorWithFix
             { message = "Tuple pattern is not used"
             , details =
@@ -332,7 +305,7 @@ unusedTupleError range unused context =
             range
             [ Fix.replaceRangeBy range "_" ]
       ]
-    , List.foldl Set.remove context unused
+    , context
     )
 
 
