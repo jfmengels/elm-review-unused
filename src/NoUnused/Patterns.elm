@@ -174,6 +174,21 @@ rememberValueList list context =
 --- ON EXIT
 
 
+singularDetails : List String
+singularDetails =
+    [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+
+
+pluralDetails : List String
+pluralDetails =
+    [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+
+
+removeDetails : List String
+removeDetails =
+    [ "You should remove it at the location I pointed at." ]
+
+
 errorsForCaseList : List Expression.Case -> Context -> ( List (Rule.Error {}), Context )
 errorsForCaseList list context =
     case list of
@@ -298,9 +313,7 @@ unusedTupleError : Range -> Context -> ( List (Rule.Error {}), Context )
 unusedTupleError range context =
     ( [ Rule.errorWithFix
             { message = "Tuple pattern is not used"
-            , details =
-                [ "You should either use these values somewhere, or remove them at the location I pointed at."
-                ]
+            , details = removeDetails
             }
             range
             [ Fix.replaceRangeBy range "_" ]
@@ -322,10 +335,10 @@ errorsForRecordValueList recordRange list context =
         firstNode :: restNodes ->
             let
                 first =
-                    firstNode |> Node.value |> quote
+                    firstNode |> Node.value
 
                 rest =
-                    List.map (Node.value >> quote) restNodes
+                    List.map Node.value restNodes
 
                 ( errorRange, fix ) =
                     case used of
@@ -355,20 +368,20 @@ listToMessage : String -> List String -> String
 listToMessage first rest =
     case List.reverse rest of
         [] ->
-            "Value " ++ first ++ " is not used"
+            "Value `" ++ first ++ "` is not used"
 
         last :: middle ->
-            "Values " ++ String.join ", " (first :: middle) ++ " and " ++ last ++ " are not used"
+            "Values `" ++ String.join "`, `" (first :: middle) ++ "` and `" ++ last ++ "` are not used"
 
 
 listToDetails : String -> List String -> List String
 listToDetails _ rest =
     case rest of
         [] ->
-            [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+            singularDetails
 
         _ ->
-            [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+            pluralDetails
 
 
 errorsForAsPattern : Range -> Node Pattern -> Node String -> Context -> ( List (Rule.Error {}), Context )
@@ -388,7 +401,7 @@ errorsForAsPattern patternRange inner (Node range name) context =
         in
         ( Rule.errorWithFix
             { message = "Pattern alias `" ++ name ++ "` is not used"
-            , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+            , details = singularDetails
             }
             range
             fix
@@ -404,7 +417,7 @@ errorsForAsPattern patternRange inner (Node range name) context =
         in
         ( [ Rule.errorWithFix
                 { message = "Pattern `_` is not needed"
-                , details = [ "You should remove it at the location I pointed at." ]
+                , details = removeDetails
                 }
                 (Node.range inner)
                 fix
@@ -424,11 +437,6 @@ isAllPattern (Node _ pattern) =
 
         _ ->
             False
-
-
-quote : String -> String
-quote value =
-    "`" ++ value ++ "`"
 
 
 forgetNode : Node String -> Context -> Context
@@ -459,9 +467,7 @@ errorsForValue value range context =
     if Set.member value context then
         ( [ Rule.errorWithFix
                 { message = "Value `" ++ value ++ "` is not used"
-                , details =
-                    [ "You should either use this value somewhere, or remove it at the location I pointed at."
-                    ]
+                , details = singularDetails
                 }
                 range
                 [ Fix.replaceRangeBy range "_" ]

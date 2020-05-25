@@ -837,7 +837,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Tuple pattern is not used"
-                        , details = [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+                        , details = [ "You should remove it at the location I pointed at." ]
                         , under = "( _, _ )"
                         }
                         |> Review.Test.whenFixed
@@ -866,7 +866,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Tuple pattern is not used"
-                        , details = [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+                        , details = [ "You should remove it at the location I pointed at." ]
                         , under = "( _, _, _ )"
                         }
                         |> Review.Test.whenFixed
