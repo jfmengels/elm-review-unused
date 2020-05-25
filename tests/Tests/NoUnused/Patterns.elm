@@ -19,6 +19,7 @@ all =
         , describe "in Lambda arguments" lambdaArgumentTests
         , describe "in Let destructuring" letDestructuringTests
         , describe "in Let Functions" letFunctionTests
+        , describe "with list pattern" listPatternTests
         , describe "with record pattern" recordPatternTests
         , describe "with tuple pattern" tuplePatternTests
         , describe "with uncons pattern" unconsPatternTests
@@ -280,6 +281,53 @@ foo =
     ]
 
 
+
+--- PATTERN TESTS ------------------------
+
+
+listPatternTests : List Test
+listPatternTests =
+    [ test "should report unused list values" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case bar of
+        [ first, second ] ->
+            another
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `first` is not used"
+                        , details = details
+                        , under = "first"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        [ _, second ] ->
+            another
+"""
+                    , Review.Test.error
+                        { message = "Pattern `second` is not used"
+                        , details = details
+                        , under = "second"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        [ first, _ ] ->
+            another
+"""
+                    ]
+    ]
+
+
 recordPatternTests : List Test
 recordPatternTests =
     [ test "should replace unused record with `_`" <|
@@ -518,7 +566,7 @@ foo =
      - [x] TuplePattern (List (Node Pattern))
      - [x] RecordPattern (List (Node String))
      - [x] UnConsPattern (Node Pattern) (Node Pattern)
-     - [ ] ListPattern (List (Node Pattern))
+     - [x] ListPattern (List (Node Pattern))
      - [x] VarPattern String
      - [ ] NamedPattern QualifiedNameRef (List (Node Pattern))
      - [ ] AsPattern (Node Pattern) (Node String)
@@ -530,5 +578,9 @@ foo =
      - [x] Expression.LetFunction { declaration.arguments }
      - [x] Expression.LetDestructuring pattern _
      - [x] Expression.Case ( pattern, _ )
+
+    Extras:
+     - [ ] Empty patterns in Destructures (Let, Function) can be replaced with _
+     - [ ] All empty patterns in Pattern Matches (Cases) must remain!
 
 -}

@@ -147,6 +147,9 @@ rememberPattern (Node _ pattern) context =
                 |> rememberPattern first
                 |> rememberPattern second
 
+        Pattern.ListPattern values ->
+            rememberPatternList values context
+
         _ ->
             context
 
@@ -269,6 +272,9 @@ errorsForPattern (Node range pattern) context =
 
         Pattern.UnConsPattern first second ->
             errorsForPatternList [ first, second ] context
+
+        Pattern.ListPattern patterns ->
+            errorsForPatternList patterns context
 
         _ ->
             ( [], context )
