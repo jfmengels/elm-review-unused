@@ -459,7 +459,7 @@ errorsForValue : String -> Range -> Context -> ( List (Rule.Error {}), Context )
 errorsForValue value range context =
     if Set.member value context then
         ( [ Rule.errorWithFix
-                { message = "Pattern `" ++ value ++ "` is not used"
+                { message = "Value `" ++ value ++ "` is not used"
                 , details =
                     [ "You should either use this value somewhere, or remove it at the location I pointed at."
                     ]

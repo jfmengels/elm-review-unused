@@ -44,7 +44,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `bish` is not used"
+                        { message = "Value `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -59,7 +59,7 @@ foo =
             Nothing
 """
                     , Review.Test.error
-                        { message = "Pattern `bash` is not used"
+                        { message = "Value `bash` is not used"
                         , details = details
                         , under = "bash"
                         }
@@ -72,6 +72,154 @@ foo =
             Nothing
         _ ->
             Nothing
+"""
+                    ]
+    , test "should not remove all list of unused values" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case bar of
+        [] -> 0
+        [one] -> 1
+        [first, two] -> 2
+        more -> 3
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Value `one` is not used"
+                        , details = details
+                        , under = "one"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        [] -> 0
+        [_] -> 1
+        [first, two] -> 2
+        more -> 3
+"""
+                    , Review.Test.error
+                        { message = "Value `first` is not used"
+                        , details = details
+                        , under = "first"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        [] -> 0
+        [one] -> 1
+        [_, two] -> 2
+        more -> 3
+"""
+                    , Review.Test.error
+                        { message = "Value `two` is not used"
+                        , details = details
+                        , under = "two"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        [] -> 0
+        [one] -> 1
+        [first, _] -> 2
+        more -> 3
+"""
+                    , Review.Test.error
+                        { message = "Value `more` is not used"
+                        , details = details
+                        , under = "more"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        [] -> 0
+        [one] -> 1
+        [first, two] -> 2
+        _ -> 3
+"""
+                    ]
+    , test "should not remove all uncons of unused values" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case bar of
+        [] -> 0
+        one :: [] -> 1
+        first :: two :: [] -> 2
+        _ :: _ :: more -> 3
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Value `one` is not used"
+                        , details = details
+                        , under = "one"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        [] -> 0
+        _ :: [] -> 1
+        first :: two :: [] -> 2
+        _ :: _ :: more -> 3
+"""
+                    , Review.Test.error
+                        { message = "Value `first` is not used"
+                        , details = details
+                        , under = "first"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        [] -> 0
+        one :: [] -> 1
+        _ :: two :: [] -> 2
+        _ :: _ :: more -> 3
+"""
+                    , Review.Test.error
+                        { message = "Value `two` is not used"
+                        , details = details
+                        , under = "two"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        [] -> 0
+        one :: [] -> 1
+        first :: _ :: [] -> 2
+        _ :: _ :: more -> 3
+"""
+                    , Review.Test.error
+                        { message = "Value `more` is not used"
+                        , details = details
+                        , under = "more"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        [] -> 0
+        one :: [] -> 1
+        first :: two :: [] -> 2
+        _ :: _ :: _ -> 3
 """
                     ]
     ]
@@ -90,7 +238,7 @@ foo one two three =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `one` is not used"
+                        { message = "Value `one` is not used"
                         , details = details
                         , under = "one"
                         }
@@ -102,7 +250,7 @@ foo _ two three =
     three
 """
                     , Review.Test.error
-                        { message = "Pattern `two` is not used"
+                        { message = "Value `two` is not used"
                         , details = details
                         , under = "two"
                         }
@@ -124,7 +272,7 @@ foo one =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `one` is not used"
+                        { message = "Value `one` is not used"
                         , details = details
                         , under = "one"
                         }
@@ -151,7 +299,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `value` is not used"
+                        { message = "Value `value` is not used"
                         , details = details
                         , under = "value"
                         }
@@ -181,7 +329,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `right` is not used"
+                        { message = "Value `right` is not used"
                         , details = details
                         , under = "right"
                         }
@@ -217,7 +365,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `oneValue` is not used"
+                        { message = "Value `oneValue` is not used"
                         , details = details
                         , under = "oneValue"
                         }
@@ -234,7 +382,7 @@ foo =
     one two 3
 """
                     , Review.Test.error
-                        { message = "Pattern `twoValue` is not used"
+                        { message = "Value `twoValue` is not used"
                         , details = details
                         , under = "twoValue"
                         }
@@ -265,7 +413,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `value` is not used"
+                        { message = "Value `value` is not used"
                         , details = details
                         , under = "value"
                         }
@@ -394,7 +542,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `first` is not used"
+                        { message = "Value `first` is not used"
                         , details = details
                         , under = "first"
                         }
@@ -407,7 +555,7 @@ foo =
             another
 """
                     , Review.Test.error
-                        { message = "Pattern `second` is not used"
+                        { message = "Value `second` is not used"
                         , details = details
                         , under = "second"
                         }
@@ -439,7 +587,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `bish` is not used"
+                        { message = "Value `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -468,7 +616,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `bish` is not used"
+                        { message = "Value `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -594,7 +742,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `bish` is not used"
+                        { message = "Value `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -609,7 +757,7 @@ foo =
     bash
 """
                     , Review.Test.error
-                        { message = "Pattern `bosh` is not used"
+                        { message = "Value `bosh` is not used"
                         , details = details
                         , under = "bosh"
                         }
@@ -681,7 +829,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `first` is not used"
+                        { message = "Value `first` is not used"
                         , details = details
                         , under = "first"
                         }
@@ -694,7 +842,7 @@ foo =
             list
 """
                     , Review.Test.error
-                        { message = "Pattern `rest` is not used"
+                        { message = "Value `rest` is not used"
                         , details = details
                         , under = "rest"
                         }
@@ -738,7 +886,7 @@ foo =
      - [x] Expression.Case ( pattern, _ )
 
     Extras:
-     - [ ] Empty patterns in Destructures (Let, Function) can be replaced with _
-     - [ ] All empty patterns in Pattern Matches (Cases) must remain!
+     - [ ] Empty patterns in destructures (Let, Function) can be replaced with _
+     - [ ] All empty pattern matches (Cases) must remain!
 
 -}
