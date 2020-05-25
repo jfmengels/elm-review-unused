@@ -19,6 +19,7 @@ all =
         , describe "in Lambda arguments" lambdaArgumentTests
         , describe "in Let destructuring" letDestructuringTests
         , describe "in Let Functions" letFunctionTests
+        , describe "with as pattern" asPatternTests
         , describe "with list pattern" listPatternTests
         , describe "with named pattern" namedPatternTests
         , describe "with record pattern" recordPatternTests
@@ -284,6 +285,99 @@ foo =
 
 
 --- PATTERN TESTS ------------------------
+
+
+asPatternTests : List Test
+asPatternTests =
+    [ test "should report unused pattern aliases" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case bar of
+        ({ bish, bash } as bosh) ->
+            ( bish, bash )
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern alias `bosh` is not used"
+                        , details = details
+                        , under = "bosh"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        ({bish, bash}) ->
+            ( bish, bash )
+"""
+                    ]
+    , test "should report unused patterns in an as pattern" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case bar of
+        ({ bish, bash } as bosh) ->
+            ( bish, bosh )
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Value `bash` is not used"
+                        , details = details
+                        , under = "bash"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        ({bish} as bosh) ->
+            ( bish, bosh )
+"""
+                    ]
+    , test "should report unused patterns and unused aliases" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case bar of
+        ({ bish, bash } as bosh) ->
+            bish
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Value `bash` is not used"
+                        , details = details
+                        , under = "bash"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        ({bish} as bosh) ->
+            bish
+"""
+                    , Review.Test.error
+                        { message = "Pattern alias `bosh` is not used"
+                        , details = details
+                        , under = "bosh"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        ({bish, bash}) ->
+            bish
+"""
+                    ]
+    ]
 
 
 listPatternTests : List Test
@@ -633,7 +727,7 @@ foo =
      - [x] ListPattern (List (Node Pattern))
      - [x] VarPattern String
      - [x] NamedPattern QualifiedNameRef (List (Node Pattern))
-     - [ ] AsPattern (Node Pattern) (Node String)
+     - [x] AsPattern (Node Pattern) (Node String)
      - [x] ParenthesizedPattern (Node Pattern)
 
    Sources:

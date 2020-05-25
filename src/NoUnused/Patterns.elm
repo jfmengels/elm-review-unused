@@ -153,6 +153,11 @@ rememberPattern (Node _ pattern) context =
         Pattern.NamedPattern _ patterns ->
             rememberPatternList patterns context
 
+        Pattern.AsPattern inner name ->
+            context
+                |> rememberPattern inner
+                |> rememberValue (Node.value name)
+
         Pattern.ParenthesizedPattern inner ->
             rememberPattern inner context
 
@@ -285,6 +290,9 @@ errorsForPattern (Node range pattern) context =
         Pattern.NamedPattern _ patterns ->
             errorsForPatternList patterns context
 
+        Pattern.AsPattern inner name ->
+            errorsForAsPattern range inner name context
+
         Pattern.ParenthesizedPattern inner ->
             errorsForPattern inner context
 
@@ -388,6 +396,35 @@ listToDetails _ rest =
 
         _ ->
             [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+
+
+errorsForAsPattern : Range -> Node Pattern -> Node String -> Context -> ( List (Rule.Error {}), Context )
+errorsForAsPattern patternRange inner (Node range name) context =
+    let
+        ( innerErrors, innerContext ) =
+            errorsForPattern inner context
+    in
+    if Set.member name innerContext then
+        let
+            fix =
+                [ inner
+                    |> Writer.writePattern
+                    |> Writer.write
+                    |> Fix.replaceRangeBy patternRange
+                ]
+        in
+        ( Rule.errorWithFix
+            { message = "Pattern alias `" ++ name ++ "` is not used"
+            , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+            }
+            range
+            fix
+            :: innerErrors
+        , Set.remove name innerContext
+        )
+
+    else
+        ( innerErrors, innerContext )
 
 
 quote : String -> String
