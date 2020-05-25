@@ -575,6 +575,35 @@ foo =
         (bar) -> bar
 """
                     ]
+    , test "should report nested unused pattern aliases" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case maybeTupleMaybe of
+        Just ( _, ( Just _ ) as bish ) ->
+            bash
+        _ ->
+            bosh
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern alias `bish` is not used"
+                        , details = details
+                        , under = "bish"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case maybeTupleMaybe of
+        Just ( _, ( Just _ ) ) ->
+            bash
+        _ ->
+            bosh
+"""
+                    ]
     ]
 
 

@@ -133,6 +133,9 @@ rememberPatternList list context =
 rememberPattern : Node Pattern -> Context -> Context
 rememberPattern (Node _ pattern) context =
     case pattern of
+        Pattern.AllPattern ->
+            context
+
         Pattern.VarPattern value ->
             rememberValue value context
 
@@ -280,6 +283,9 @@ errorsForPatternList use list context =
 errorsForPattern : PatternUse -> Node Pattern -> Context -> ( List (Rule.Error {}), Context )
 errorsForPattern use (Node range pattern) context =
     case pattern of
+        Pattern.AllPattern ->
+            ( [], context )
+
         Pattern.VarPattern value ->
             errorsForValue value range context
 
