@@ -56,7 +56,7 @@ expressionVisitor (Node _ expression) direction context =
             ( [], rememberPatternList args context )
 
         ( Rule.OnExit, Expression.LambdaExpression { args } ) ->
-            errorsForPatternList args context
+            errorsForPatternList Destructuring args context
 
         ( Rule.OnEnter, Expression.LetExpression { declarations } ) ->
             ( [], rememberLetDeclarationList declarations context )
@@ -208,12 +208,12 @@ errorsForCaseList list context =
 
 errorsForCase : Expression.Case -> Context -> ( List (Rule.Error {}), Context )
 errorsForCase ( pattern, _ ) context =
-    errorsForPattern pattern context
+    errorsForPattern Matching pattern context
 
 
 errorsForFunctionImplementation : Node Expression.FunctionImplementation -> Context -> ( List (Rule.Error {}), Context )
 errorsForFunctionImplementation (Node _ { arguments }) context =
-    errorsForPatternList arguments context
+    errorsForPatternList Destructuring arguments context
 
 
 errorsForLetDeclarationList : List (Node Expression.LetDeclaration) -> Context -> ( List (Rule.Error {}), Context )
@@ -240,7 +240,7 @@ errorsForLetDeclaration (Node _ letDeclaration) context =
             errorsForLetFunctionImplementation declaration context
 
         Expression.LetDestructuring pattern _ ->
-            errorsForPattern pattern context
+            errorsForPattern Destructuring pattern context
 
 
 errorsForLetFunctionImplementation : Node Expression.FunctionImplementation -> Context -> ( List (Rule.Error {}), Context )
@@ -250,13 +250,18 @@ errorsForLetFunctionImplementation (Node _ { arguments, name }) context =
             errorsForNode name context
 
         ( argsErrors, argsContext ) =
-            errorsForPatternList arguments nameContext
+            errorsForPatternList Destructuring arguments nameContext
     in
     ( nameErrors ++ argsErrors, argsContext )
 
 
-errorsForPatternList : List (Node Pattern) -> Context -> ( List (Rule.Error {}), Context )
-errorsForPatternList list context =
+type PatternUse
+    = Destructuring
+    | Matching
+
+
+errorsForPatternList : PatternUse -> List (Node Pattern) -> Context -> ( List (Rule.Error {}), Context )
+errorsForPatternList use list context =
     case list of
         [] ->
             ( [], context )
@@ -264,16 +269,16 @@ errorsForPatternList list context =
         first :: rest ->
             let
                 ( firstErrors, firstContext ) =
-                    errorsForPattern first context
+                    errorsForPattern use first context
 
                 ( restErrors, restContext ) =
-                    errorsForPatternList rest firstContext
+                    errorsForPatternList use rest firstContext
             in
             ( firstErrors ++ restErrors, restContext )
 
 
-errorsForPattern : Node Pattern -> Context -> ( List (Rule.Error {}), Context )
-errorsForPattern (Node range pattern) context =
+errorsForPattern : PatternUse -> Node Pattern -> Context -> ( List (Rule.Error {}), Context )
+errorsForPattern use (Node range pattern) context =
     case pattern of
         Pattern.VarPattern value ->
             errorsForValue value range context
@@ -288,25 +293,42 @@ errorsForPattern (Node range pattern) context =
             unusedTupleError range context
 
         Pattern.TuplePattern patterns ->
-            errorsForPatternList patterns context
+            errorsForPatternList use patterns context
 
         Pattern.UnConsPattern first second ->
-            errorsForPatternList [ first, second ] context
+            errorsForPatternList use [ first, second ] context
 
         Pattern.ListPattern patterns ->
-            errorsForPatternList patterns context
+            errorsForPatternList use patterns context
 
         Pattern.NamedPattern _ patterns ->
-            errorsForPatternList patterns context
+            if use == Destructuring && List.all isAllPattern patterns then
+                unusedNamedPatternError range context
+
+            else
+                errorsForPatternList use patterns context
 
         Pattern.AsPattern inner name ->
-            errorsForAsPattern range inner name context
+            errorsForAsPattern use range inner name context
 
         Pattern.ParenthesizedPattern inner ->
-            errorsForPattern inner context
+            errorsForPattern use inner context
 
         _ ->
             ( [], context )
+
+
+unusedNamedPatternError : Range -> Context -> ( List (Rule.Error {}), Context )
+unusedNamedPatternError range context =
+    ( [ Rule.errorWithFix
+            { message = "Named pattern is not used"
+            , details = removeDetails
+            }
+            range
+            [ Fix.replaceRangeBy range "_" ]
+      ]
+    , context
+    )
 
 
 unusedTupleError : Range -> Context -> ( List (Rule.Error {}), Context )
@@ -384,11 +406,11 @@ listToDetails _ rest =
             pluralDetails
 
 
-errorsForAsPattern : Range -> Node Pattern -> Node String -> Context -> ( List (Rule.Error {}), Context )
-errorsForAsPattern patternRange inner (Node range name) context =
+errorsForAsPattern : PatternUse -> Range -> Node Pattern -> Node String -> Context -> ( List (Rule.Error {}), Context )
+errorsForAsPattern use patternRange inner (Node range name) context =
     let
         ( innerErrors, innerContext ) =
-            errorsForPattern inner context
+            errorsForPattern use inner context
     in
     if Set.member name innerContext then
         let

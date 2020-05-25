@@ -681,6 +681,106 @@ foo =
             bosh
 """
                     ]
+    , test "should not report unused named patterns in case" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case maybeTupleMaybe of
+        Just ( Just _, (Just _) as bish ) ->
+            bish
+        Just _ ->
+            bash
+        _ ->
+            bosh
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should report unused named patterns in destructuring" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        (Singular _) = bish
+        (Pair _ _) = bash
+    in
+    bosh
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Named pattern is not used"
+                        , details = [ "You should remove it at the location I pointed at." ]
+                        , under = "Singular _"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        (_) = bish
+        (Pair _ _) = bash
+    in
+    bosh
+"""
+                    , Review.Test.error
+                        { message = "Named pattern is not used"
+                        , details = [ "You should remove it at the location I pointed at." ]
+                        , under = "Pair _ _"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        (Singular _) = bish
+        (_) = bash
+    in
+    bosh
+"""
+                    ]
+    , test "should report unused named patterns in destructuring tuples" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        (Singular _, Pair _ _) = bish
+    in
+    bosh
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Named pattern is not used"
+                        , details = [ "You should remove it at the location I pointed at." ]
+                        , under = "Singular _"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        (_, Pair _ _) = bish
+    in
+    bosh
+"""
+                    , Review.Test.error
+                        { message = "Named pattern is not used"
+                        , details = [ "You should remove it at the location I pointed at." ]
+                        , under = "Pair _ _"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        (Singular _, _) = bish
+    in
+    bosh
+"""
+                    ]
     ]
 
 
