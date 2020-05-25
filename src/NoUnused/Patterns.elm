@@ -192,6 +192,18 @@ removeDetails =
     [ "You should remove it at the location I pointed at." ]
 
 
+andThen :
+    (Context -> ( List (Rule.Error {}), Context ))
+    -> ( List (Rule.Error {}), Context )
+    -> ( List (Rule.Error {}), Context )
+andThen function ( errors, context ) =
+    let
+        ( newErrors, newContext ) =
+            function context
+    in
+    ( newErrors ++ errors, newContext )
+
+
 errorsForCaseList : List Expression.Case -> Context -> ( List (Rule.Error {}), Context )
 errorsForCaseList list context =
     case list of
@@ -199,14 +211,9 @@ errorsForCaseList list context =
             ( [], context )
 
         first :: rest ->
-            let
-                ( firstErrors, firstContext ) =
-                    errorsForCase first context
-
-                ( restErrors, restContext ) =
-                    errorsForCaseList rest firstContext
-            in
-            ( firstErrors ++ restErrors, restContext )
+            context
+                |> errorsForCase first
+                |> andThen (errorsForCaseList rest)
 
 
 errorsForCase : Expression.Case -> Context -> ( List (Rule.Error {}), Context )
@@ -226,14 +233,9 @@ errorsForLetDeclarationList list context =
             ( [], context )
 
         first :: rest ->
-            let
-                ( firstErrors, firstContext ) =
-                    errorsForLetDeclaration first context
-
-                ( restErrors, restContext ) =
-                    errorsForLetDeclarationList rest firstContext
-            in
-            ( firstErrors ++ restErrors, restContext )
+            context
+                |> errorsForLetDeclaration first
+                |> andThen (errorsForLetDeclarationList rest)
 
 
 errorsForLetDeclaration : Node Expression.LetDeclaration -> Context -> ( List (Rule.Error {}), Context )
@@ -248,14 +250,9 @@ errorsForLetDeclaration (Node _ letDeclaration) context =
 
 errorsForLetFunctionImplementation : Node Expression.FunctionImplementation -> Context -> ( List (Rule.Error {}), Context )
 errorsForLetFunctionImplementation (Node _ { arguments, name }) context =
-    let
-        ( nameErrors, nameContext ) =
-            errorsForNode name context
-
-        ( argsErrors, argsContext ) =
-            errorsForPatternList Destructuring arguments nameContext
-    in
-    ( nameErrors ++ argsErrors, argsContext )
+    context
+        |> errorsForNode name
+        |> andThen (errorsForPatternList Destructuring arguments)
 
 
 type PatternUse
@@ -270,14 +267,9 @@ errorsForPatternList use list context =
             ( [], context )
 
         first :: rest ->
-            let
-                ( firstErrors, firstContext ) =
-                    errorsForPattern use first context
-
-                ( restErrors, restContext ) =
-                    errorsForPatternList use rest firstContext
-            in
-            ( firstErrors ++ restErrors, restContext )
+            context
+                |> errorsForPattern use first
+                |> andThen (errorsForPatternList use rest)
 
 
 errorsForPattern : PatternUse -> Node Pattern -> Context -> ( List (Rule.Error {}), Context )
@@ -315,7 +307,9 @@ errorsForPattern use (Node range pattern) context =
                 errorsForPatternList use patterns context
 
         Pattern.AsPattern inner name ->
-            errorsForAsPattern use range inner name context
+            context
+                |> errorsForAsPattern range inner name
+                |> andThen (errorsForPattern use inner)
 
         Pattern.ParenthesizedPattern inner ->
             errorsForPattern use inner context
@@ -412,13 +406,9 @@ listToDetails _ rest =
             pluralDetails
 
 
-errorsForAsPattern : PatternUse -> Range -> Node Pattern -> Node String -> Context -> ( List (Rule.Error {}), Context )
-errorsForAsPattern use patternRange inner (Node range name) context =
-    let
-        ( innerErrors, innerContext ) =
-            errorsForPattern use inner context
-    in
-    if Set.member name innerContext then
+errorsForAsPattern : Range -> Node Pattern -> Node String -> Context -> ( List (Rule.Error {}), Context )
+errorsForAsPattern patternRange inner (Node range name) context =
+    if Set.member name context then
         let
             fix =
                 [ inner
@@ -427,14 +417,14 @@ errorsForAsPattern use patternRange inner (Node range name) context =
                     |> Fix.replaceRangeBy patternRange
                 ]
         in
-        ( Rule.errorWithFix
-            { message = "Pattern alias `" ++ name ++ "` is not used"
-            , details = singularDetails
-            }
-            range
-            fix
-            :: innerErrors
-        , Set.remove name innerContext
+        ( [ Rule.errorWithFix
+                { message = "Pattern alias `" ++ name ++ "` is not used"
+                , details = singularDetails
+                }
+                range
+                fix
+          ]
+        , Set.remove name context
         )
 
     else if isAllPattern inner then
@@ -450,11 +440,11 @@ errorsForAsPattern use patternRange inner (Node range name) context =
                 (Node.range inner)
                 fix
           ]
-        , Set.remove name innerContext
+        , Set.remove name context
         )
 
     else
-        ( innerErrors, innerContext )
+        ( [], context )
 
 
 isAllPattern : Node Pattern -> Bool
