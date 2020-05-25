@@ -9,6 +9,7 @@
         "NoUnused.Dependencies",
         "NoUnused.Exports",
         "NoUnused.Modules",
+        "NoUnused.Parameters",
         "NoUnused.Patterns",
         "NoUnused.Variables"
     ],
