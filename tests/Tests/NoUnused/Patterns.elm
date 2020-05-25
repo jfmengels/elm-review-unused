@@ -344,6 +344,33 @@ foo =
     left
 """
                     ]
+    , test "should report unused patterns that are aliased" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        (_ as bar) = 1
+    in
+    bar
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `_` is not needed"
+                        , details = [ "You should remove it at the location I pointed at." ]
+                        , under = "_"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        (bar) = 1
+    in
+    bar
+"""
+                    ]
     ]
 
 
@@ -523,6 +550,29 @@ foo =
     case bar of
         ({bish, bash}) ->
             bish
+"""
+                    ]
+    , test "should report unused patterns that are aliased" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case 1 of
+        (_ as bar) -> bar
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `_` is not needed"
+                        , details = [ "You should remove it at the location I pointed at." ]
+                        , under = "_"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case 1 of
+        (bar) -> bar
 """
                     ]
     ]

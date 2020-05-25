@@ -423,8 +423,34 @@ errorsForAsPattern patternRange inner (Node range name) context =
         , Set.remove name innerContext
         )
 
+    else if isAllPattern inner then
+        let
+            fix =
+                [ Fix.replaceRangeBy patternRange name
+                ]
+        in
+        ( [ Rule.errorWithFix
+                { message = "Pattern `_` is not needed"
+                , details = [ "You should remove it at the location I pointed at." ]
+                }
+                (Node.range inner)
+                fix
+          ]
+        , Set.remove name innerContext
+        )
+
     else
         ( innerErrors, innerContext )
+
+
+isAllPattern : Node Pattern -> Bool
+isAllPattern (Node _ pattern) =
+    case pattern of
+        Pattern.AllPattern ->
+            True
+
+        _ ->
+            False
 
 
 quote : String -> String
