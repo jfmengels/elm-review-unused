@@ -360,6 +360,35 @@ foo =
             bosh
 """
                     ]
+    , test "should report unused parenthesized patterns" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case bar of
+        Just (Bish bish) ->
+            bash
+        Nothing ->
+            bosh
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `bish` is not used"
+                        , details = details
+                        , under = "bish"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        Just (Bish _) ->
+            bash
+        Nothing ->
+            bosh
+"""
+                    ]
     ]
 
 
@@ -605,7 +634,7 @@ foo =
      - [x] VarPattern String
      - [x] NamedPattern QualifiedNameRef (List (Node Pattern))
      - [ ] AsPattern (Node Pattern) (Node String)
-     - [ ] ParenthesizedPattern (Node Pattern)
+     - [x] ParenthesizedPattern (Node Pattern)
 
    Sources:
      - [x] Declaration.FunctionDeclaration { declaration.arguments }

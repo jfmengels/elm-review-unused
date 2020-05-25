@@ -153,6 +153,9 @@ rememberPattern (Node _ pattern) context =
         Pattern.NamedPattern _ patterns ->
             rememberPatternList patterns context
 
+        Pattern.ParenthesizedPattern inner ->
+            rememberPattern inner context
+
         _ ->
             context
 
@@ -281,6 +284,9 @@ errorsForPattern (Node range pattern) context =
 
         Pattern.NamedPattern _ patterns ->
             errorsForPatternList patterns context
+
+        Pattern.ParenthesizedPattern inner ->
+            errorsForPattern inner context
 
         _ ->
             ( [], context )
