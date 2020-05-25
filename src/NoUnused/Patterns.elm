@@ -347,7 +347,7 @@ errorsForPattern use (Node range pattern) context =
 errorsForUselessNamePattern : Range -> Context -> ( List (Rule.Error {}), Context )
 errorsForUselessNamePattern range context =
     ( [ Rule.errorWithFix
-            { message = "Named pattern is not needed"
+            { message = "Named pattern is not needed."
             , details = removeDetails
             }
             range
@@ -360,7 +360,7 @@ errorsForUselessNamePattern range context =
 errorsForUselessTuple : Range -> Context -> ( List (Rule.Error {}), Context )
 errorsForUselessTuple range context =
     ( [ Rule.errorWithFix
-            { message = "Tuple pattern is not needed"
+            { message = "Tuple pattern is not needed."
             , details = removeDetails
             }
             range
@@ -416,10 +416,10 @@ listToMessage : String -> List String -> String
 listToMessage first rest =
     case List.reverse rest of
         [] ->
-            "Value `" ++ first ++ "` is not used"
+            "Value `" ++ first ++ "` is not used."
 
         last :: middle ->
-            "Values `" ++ String.join "`, `" (first :: middle) ++ "` and `" ++ last ++ "` are not used"
+            "Values `" ++ String.join "`, `" (first :: middle) ++ "` and `" ++ last ++ "` are not used."
 
 
 listToDetails : String -> List String -> List String
@@ -444,7 +444,7 @@ errorsForAsPattern patternRange inner (Node range name) context =
                 ]
         in
         ( [ Rule.errorWithFix
-                { message = "Pattern alias `" ++ name ++ "` is not used"
+                { message = "Pattern alias `" ++ name ++ "` is not used."
                 , details = singularDetails
                 }
                 range
@@ -455,7 +455,7 @@ errorsForAsPattern patternRange inner (Node range name) context =
 
     else if isAllPattern inner then
         ( [ Rule.errorWithFix
-                { message = "Pattern `_` is not needed"
+                { message = "Pattern `_` is not needed."
                 , details = removeDetails
                 }
                 (Node.range inner)
@@ -505,7 +505,7 @@ errorsForValue : String -> Range -> Context -> ( List (Rule.Error {}), Context )
 errorsForValue value range context =
     if Set.member value context then
         ( [ Rule.errorWithFix
-                { message = "Value `" ++ value ++ "` is not used"
+                { message = "Value `" ++ value ++ "` is not used."
                 , details = singularDetails
                 }
                 range
