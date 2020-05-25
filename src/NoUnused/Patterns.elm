@@ -327,7 +327,7 @@ errorsForPattern use (Node range pattern) context =
 unusedNamedPatternError : Range -> Context -> ( List (Rule.Error {}), Context )
 unusedNamedPatternError range context =
     ( [ Rule.errorWithFix
-            { message = "Named pattern is not used"
+            { message = "Named pattern is not needed"
             , details = removeDetails
             }
             range
@@ -340,7 +340,7 @@ unusedNamedPatternError range context =
 unusedTupleError : Range -> Context -> ( List (Rule.Error {}), Context )
 unusedTupleError range context =
     ( [ Rule.errorWithFix
-            { message = "Tuple pattern is not used"
+            { message = "Tuple pattern is not needed"
             , details = removeDetails
             }
             range

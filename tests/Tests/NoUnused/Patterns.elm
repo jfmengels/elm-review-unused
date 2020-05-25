@@ -739,7 +739,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Named pattern is not used"
+                        { message = "Named pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "Singular _"
                         }
@@ -754,7 +754,7 @@ foo =
     bosh
 """
                     , Review.Test.error
-                        { message = "Named pattern is not used"
+                        { message = "Named pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "Pair _ _"
                         }
@@ -782,7 +782,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Named pattern is not used"
+                        { message = "Named pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "Singular _"
                         }
@@ -796,7 +796,7 @@ foo =
     bosh
 """
                     , Review.Test.error
-                        { message = "Named pattern is not used"
+                        { message = "Named pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "Pair _ _"
                         }
@@ -965,7 +965,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Tuple pattern is not used"
+                        { message = "Tuple pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "( _, _ )"
                         }
@@ -994,7 +994,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Tuple pattern is not used"
+                        { message = "Tuple pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "( _, _, _ )"
                         }
