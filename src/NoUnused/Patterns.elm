@@ -136,8 +136,8 @@ rememberPattern (Node _ pattern) context =
         Pattern.VarPattern value ->
             rememberValue value context
 
-        Pattern.TuplePattern values ->
-            rememberPatternList values context
+        Pattern.TuplePattern patterns ->
+            rememberPatternList patterns context
 
         Pattern.RecordPattern values ->
             rememberValueList values context
@@ -147,8 +147,11 @@ rememberPattern (Node _ pattern) context =
                 |> rememberPattern first
                 |> rememberPattern second
 
-        Pattern.ListPattern values ->
-            rememberPatternList values context
+        Pattern.ListPattern patterns ->
+            rememberPatternList patterns context
+
+        Pattern.NamedPattern _ patterns ->
+            rememberPatternList patterns context
 
         _ ->
             context
@@ -274,6 +277,9 @@ errorsForPattern (Node range pattern) context =
             errorsForPatternList [ first, second ] context
 
         Pattern.ListPattern patterns ->
+            errorsForPatternList patterns context
+
+        Pattern.NamedPattern _ patterns ->
             errorsForPatternList patterns context
 
         _ ->

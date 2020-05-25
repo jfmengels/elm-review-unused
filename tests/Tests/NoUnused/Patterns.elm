@@ -20,6 +20,7 @@ all =
         , describe "in Let destructuring" letDestructuringTests
         , describe "in Let Functions" letFunctionTests
         , describe "with list pattern" listPatternTests
+        , describe "with named pattern" namedPatternTests
         , describe "with record pattern" recordPatternTests
         , describe "with tuple pattern" tuplePatternTests
         , describe "with uncons pattern" unconsPatternTests
@@ -328,6 +329,40 @@ foo =
     ]
 
 
+namedPatternTests : List Test
+namedPatternTests =
+    [ test "should report unused named patterns" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case bar of
+        Just bish ->
+            bash
+        Nothing ->
+            bosh
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `bish` is not used"
+                        , details = details
+                        , under = "bish"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        Just _ ->
+            bash
+        Nothing ->
+            bosh
+"""
+                    ]
+    ]
+
+
 recordPatternTests : List Test
 recordPatternTests =
     [ test "should replace unused record with `_`" <|
@@ -568,7 +603,7 @@ foo =
      - [x] UnConsPattern (Node Pattern) (Node Pattern)
      - [x] ListPattern (List (Node Pattern))
      - [x] VarPattern String
-     - [ ] NamedPattern QualifiedNameRef (List (Node Pattern))
+     - [x] NamedPattern QualifiedNameRef (List (Node Pattern))
      - [ ] AsPattern (Node Pattern) (Node String)
      - [ ] ParenthesizedPattern (Node Pattern)
 
