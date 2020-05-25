@@ -15,10 +15,14 @@ all : Test
 all =
     describe "NoUnused.Patterns"
         [ describe "in Case branches" caseTests
+        , describe "in Let destructuring" letDestructuringTests
+
+        --- un-tests
         , describe "in Function arguments" functionArgumentTests
         , describe "in Lambda arguments" lambdaArgumentTests
-        , describe "in Let destructuring" letDestructuringTests
         , describe "in Let Functions" letFunctionTests
+
+        --- patterns
         , describe "with as pattern" asPatternTests
         , describe "with list pattern" listPatternTests
         , describe "with named pattern" namedPatternTests
@@ -227,7 +231,7 @@ foo =
 
 functionArgumentTests : List Test
 functionArgumentTests =
-    [ test "should report unused arguments" <|
+    [ test "should not report unused arguments" <|
         \() ->
             """
 module A exposing (..)
@@ -236,60 +240,13 @@ foo one two three =
     three
 """
                 |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Value `one` is not used."
-                        , details = details
-                        , under = "one"
-                        }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
-foo : Int -> String -> String -> String
-foo _ two three =
-    three
-"""
-                    , Review.Test.error
-                        { message = "Value `two` is not used."
-                        , details = details
-                        , under = "two"
-                        }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
-foo : Int -> String -> String -> String
-foo one _ three =
-    three
-"""
-                    ]
-    , test "should not consider values from other modules" <|
-        \() ->
-            """
-module A exposing (..)
-foo one =
-    Bar.one
-"""
-                |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Value `one` is not used."
-                        , details = details
-                        , under = "one"
-                        }
-                        |> Review.Test.atExactly { start = { row = 3, column = 5 }, end = { row = 3, column = 8 } }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
-foo _ =
-    Bar.one
-"""
-                    ]
+                |> Review.Test.expectNoErrors
     ]
 
 
 lambdaArgumentTests : List Test
 lambdaArgumentTests =
-    [ test "should report unused arguments" <|
+    [ test "should not report unused arguments" <|
         \() ->
             """
 module A exposing (..)
@@ -297,19 +254,7 @@ foo =
     List.map (\\value -> Nothing) list
 """
                 |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Value `value` is not used."
-                        , details = details
-                        , under = "value"
-                        }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
-foo =
-    List.map (\\_ -> Nothing) list
-"""
-                    ]
+                |> Review.Test.expectNoErrors
     ]
 
 
@@ -376,7 +321,7 @@ foo =
 
 letFunctionTests : List Test
 letFunctionTests =
-    [ test "should report unused arguments" <|
+    [ test "should not report unused arguments" <|
         \() ->
             """
 module A exposing (..)
@@ -390,71 +335,20 @@ foo =
     one two 3
 """
                 |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Value `oneValue` is not used."
-                        , details = details
-                        , under = "oneValue"
-                        }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
-foo =
-    let
-        one _ =
-            1
-        two twoValue =
-            2
-    in
-    one two 3
-"""
-                    , Review.Test.error
-                        { message = "Value `twoValue` is not used."
-                        , details = details
-                        , under = "twoValue"
-                        }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
-foo =
-    let
-        one oneValue =
-            1
-        two _ =
-            2
-    in
-    one two 3
-"""
-                    ]
-    , test "should report unused let functions" <|
+                |> Review.Test.expectNoErrors
+    , test "should not report unused let functions" <|
         \() ->
             """
 module A exposing (..)
 foo =
     let
-        value =
-            something 5
+        value foo =
+            something foo
     in
     bar
 """
                 |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Value `value` is not used."
-                        , details = details
-                        , under = "value"
-                        }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
-foo =
-    let
-        _ =
-            something 5
-    in
-    bar
-"""
-                    ]
+                |> Review.Test.expectNoErrors
     ]
 
 
