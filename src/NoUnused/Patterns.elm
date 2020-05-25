@@ -1,6 +1,9 @@
 module NoUnused.Patterns exposing (rule)
 
-{-|
+{-| Report useless patterns and pattern values that are not used.
+
+
+# Rule
 
 @docs rule
 
@@ -19,12 +22,33 @@ import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
 
 
-{-| Forbid unused patterns.
+{-| Report useless patterns and pattern values that are not used.
 
-    config : List Rule
     config =
         [ NoUnused.Patterns.rule
         ]
+
+This rule looks within function arguments, let..in blocks and case branches to find any values that are unused. It will report any useless patterns as well as any values that are not used.
+
+## Fail
+
+Value `something` is not used:
+
+    case maybe of
+        Just something ->
+            True
+
+        Nothing ->
+            False
+
+## Success
+
+    case maybe of
+        Just _ ->
+            True
+
+        Nothing ->
+            False
 
 -}
 rule : Rule
