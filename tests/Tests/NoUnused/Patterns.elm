@@ -1064,37 +1064,3 @@ foo =
 """
                     ]
     ]
-
-
-
-{- TODO
-
-   Patterns:
-     - [-] AllPattern
-     - [-] UnitPattern
-     - [-] CharPattern Char
-     - [-] StringPattern String
-     - [-] IntPattern Int
-     - [-] HexPattern Int
-     - [-] FloatPattern Float
-     - [x] TuplePattern (List (Node Pattern))
-     - [x] RecordPattern (List (Node String))
-     - [x] UnConsPattern (Node Pattern) (Node Pattern)
-     - [x] ListPattern (List (Node Pattern))
-     - [x] VarPattern String
-     - [x] NamedPattern QualifiedNameRef (List (Node Pattern))
-     - [x] AsPattern (Node Pattern) (Node String)
-     - [x] ParenthesizedPattern (Node Pattern)
-
-   Sources:
-     - [x] Declaration.FunctionDeclaration { declaration.arguments }
-     - [x] Expression.LambdaExpression { args }
-     - [x] Expression.LetFunction { declaration.arguments }
-     - [x] Expression.LetDestructuring pattern _
-     - [x] Expression.Case ( pattern, _ )
-
-    Extras:
-     - [ ] Empty patterns in destructures (Let, Function) can be replaced with _
-     - [ ] All empty pattern matches (Cases) must remain!
-
--}
