@@ -285,10 +285,10 @@ errorsForPattern use (Node range pattern) context =
             errorsForRecordValueList range values context
 
         Pattern.TuplePattern [ Node _ Pattern.AllPattern, Node _ Pattern.AllPattern ] ->
-            unusedTupleError range context
+            errorsForUselessTuple range context
 
         Pattern.TuplePattern [ Node _ Pattern.AllPattern, Node _ Pattern.AllPattern, Node _ Pattern.AllPattern ] ->
-            unusedTupleError range context
+            errorsForUselessTuple range context
 
         Pattern.TuplePattern patterns ->
             errorsForPatternList use patterns context
@@ -301,7 +301,7 @@ errorsForPattern use (Node range pattern) context =
 
         Pattern.NamedPattern _ patterns ->
             if use == Destructuring && List.all isAllPattern patterns then
-                unusedNamedPatternError range context
+                errorsForUselessNamePattern range context
 
             else
                 errorsForPatternList use patterns context
@@ -318,8 +318,8 @@ errorsForPattern use (Node range pattern) context =
             ( [], context )
 
 
-unusedNamedPatternError : Range -> Context -> ( List (Rule.Error {}), Context )
-unusedNamedPatternError range context =
+errorsForUselessNamePattern : Range -> Context -> ( List (Rule.Error {}), Context )
+errorsForUselessNamePattern range context =
     ( [ Rule.errorWithFix
             { message = "Named pattern is not needed"
             , details = removeDetails
@@ -331,8 +331,8 @@ unusedNamedPatternError range context =
     )
 
 
-unusedTupleError : Range -> Context -> ( List (Rule.Error {}), Context )
-unusedTupleError range context =
+errorsForUselessTuple : Range -> Context -> ( List (Rule.Error {}), Context )
+errorsForUselessTuple range context =
     ( [ Rule.errorWithFix
             { message = "Tuple pattern is not needed"
             , details = removeDetails
@@ -428,17 +428,12 @@ errorsForAsPattern patternRange inner (Node range name) context =
         )
 
     else if isAllPattern inner then
-        let
-            fix =
-                [ Fix.replaceRangeBy patternRange name
-                ]
-        in
         ( [ Rule.errorWithFix
                 { message = "Pattern `_` is not needed"
                 , details = removeDetails
                 }
                 (Node.range inner)
-                fix
+                [ Fix.replaceRangeBy patternRange name ]
           ]
         , Set.remove name context
         )
