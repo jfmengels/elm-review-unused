@@ -30,7 +30,8 @@ import Set exposing (Set)
 
 This rule looks within function arguments, let..in blocks and case branches to find any values that are unused. It will report any useless patterns as well as any values that are not used.
 
-## Fail
+
+## Fail
 
 Value `something` is not used:
 
@@ -41,7 +42,8 @@ Value `something` is not used:
         Nothing ->
             False
 
-## Success
+
+## Success
 
     case maybe of
         Just _ ->
