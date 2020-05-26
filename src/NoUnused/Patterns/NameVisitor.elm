@@ -111,7 +111,7 @@ visitDeclarationList nodes =
 visitDeclaration : Node Declaration -> List Name
 visitDeclaration node =
     case Node.value node of
-        Declaration.FunctionDeclaration { declaration } ->
+        Declaration.FunctionDeclaration { signature, declaration } ->
             visitFunctionImplementation declaration
 
         _ ->
@@ -153,7 +153,7 @@ visitLetDeclarationList list =
 visitLetDeclaration : Node Expression.LetDeclaration -> List Name
 visitLetDeclaration node =
     case Node.value node of
-        Expression.LetFunction { declaration } ->
+        Expression.LetFunction { signature, declaration } ->
             visitFunctionImplementation declaration
 
         Expression.LetDestructuring pattern _ ->

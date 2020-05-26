@@ -319,7 +319,7 @@ moduleDefinitionVisitor moduleNode context =
                     List.filterMap
                         (\node ->
                             case Node.value node of
-                                Exposing.TypeExpose { name } ->
+                                Exposing.TypeExpose { name, open } ->
                                     Just name
 
                                 _ ->

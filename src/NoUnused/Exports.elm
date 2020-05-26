@@ -109,7 +109,7 @@ initialProjectContext =
 
 
 fromProjectToModule : Rule.ModuleKey -> Node ModuleName -> ProjectContext -> ModuleContext
-fromProjectToModule _ _ projectContext =
+fromProjectToModule moduleKey moduleName projectContext =
     { scope = Scope.fromProjectToModule projectContext.scope
     , exposesEverything = False
     , exposed = Dict.empty
@@ -238,7 +238,7 @@ removeExposedPackages projectContext dict =
 
 
 removeApplicationExceptions : ProjectContext -> ModuleName -> Dict String a -> Dict String a
-removeApplicationExceptions projectContext _ dict =
+removeApplicationExceptions projectContext moduleName dict =
     case projectContext.projectType of
         IsApplication ->
             Dict.remove "main" dict

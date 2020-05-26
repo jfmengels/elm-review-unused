@@ -21,7 +21,6 @@ import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
 import NoUnused.Exports
 import NoUnused.Modules
-import NoUnused.Patterns
 import NoUnused.Variables
 import Review.Rule as Rule exposing (Rule)
 
@@ -39,7 +38,6 @@ config =
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule
     , NoUnused.Modules.rule
-    , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
     ]
         |> List.map (Rule.ignoreErrorsForFiles [ "src/Scope.elm" ])

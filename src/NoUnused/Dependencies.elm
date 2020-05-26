@@ -98,7 +98,7 @@ fromProjectToModule _ _ projectContext =
 
 
 fromModuleToProject : Rule.ModuleKey -> Node ModuleName -> ModuleContext -> ProjectContext
-fromModuleToProject _ _ importedModuleNames =
+fromModuleToProject moduleKey moduleName importedModuleNames =
     { moduleNameToDependency = Dict.empty
     , directProjectDependencies = Set.empty
     , importedModuleNames = importedModuleNames

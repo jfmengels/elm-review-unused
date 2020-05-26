@@ -291,7 +291,7 @@ importVisitor ((Node _ import_) as node) context =
 
 
 registerModuleNameOrAlias : Node Import -> Context -> Context
-registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) context =
+registerModuleNameOrAlias ((Node range { exposingList, moduleAlias, moduleName }) as node) context =
     case moduleAlias of
         Just _ ->
             registerModuleAlias node context
@@ -381,7 +381,7 @@ expressionVisitor (Node range value) direction context =
                                         |> registerFunction letBlockContext function
                                         |> markUsedTypesAndModules namesUsedInArgumentPatterns
 
-                                Expression.LetDestructuring _ _ ->
+                                Expression.LetDestructuring pattern _ ->
                                     context_
                         )
                         { context | scopes = NonemptyList.cons emptyScope context.scopes }
@@ -408,7 +408,7 @@ expressionVisitor (Node range value) direction context =
                 usedVariables =
                     cases
                         |> List.map
-                            (\( patternNode, _ ) ->
+                            (\( patternNode, expressionNode ) ->
                                 getUsedVariablesFromPattern patternNode
                             )
                         |> foldUsedTypesAndModules
@@ -487,12 +487,12 @@ getUsedTypesFromPattern patternNode =
                         [] ->
                             [ qualifiedNameRef.name ]
 
-                        _ ->
+                        moduleName ->
                             []
             in
             usedVariable ++ List.concatMap getUsedTypesFromPattern patterns
 
-        Pattern.AsPattern pattern _ ->
+        Pattern.AsPattern pattern alias_ ->
             getUsedTypesFromPattern pattern
 
         Pattern.ParenthesizedPattern pattern ->
@@ -551,7 +551,7 @@ getUsedModulesFromPattern patternNode =
             in
             usedVariable ++ List.concatMap getUsedModulesFromPattern patterns
 
-        Pattern.AsPattern pattern _ ->
+        Pattern.AsPattern pattern alias_ ->
             getUsedModulesFromPattern pattern
 
         Pattern.ParenthesizedPattern pattern ->
@@ -852,7 +852,7 @@ collectFromExposing exposingNode =
 
                             Exposing.TypeExpose { name, open } ->
                                 case open of
-                                    Just _ ->
+                                    Just openRange ->
                                         -- TODO Change this behavior once we know the contents of the open range, using dependencies or the interfaces of the other modules
                                         Nothing
 
@@ -898,7 +898,7 @@ collectTypesFromTypeAnnotation node =
                         ( [], str ) ->
                             [ str ]
 
-                        _ ->
+                        ( moduleName, _ ) ->
                             []
             in
             name ++ List.concatMap collectTypesFromTypeAnnotation params
@@ -935,7 +935,7 @@ collectModuleNamesFromTypeAnnotation node =
                 name : List String
                 name =
                     case Node.value nameNode of
-                        ( [], _ ) ->
+                        ( [], str ) ->
                             []
 
                         ( moduleName, _ ) ->
