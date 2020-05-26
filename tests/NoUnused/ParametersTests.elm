@@ -205,7 +205,7 @@ foo =
                         , under = "twoValue"
                         }
                     ]
-    , test "should report unused let functions" <|
+    , test "should not report unused let functions" <|
         \() ->
             """
 module A exposing (..)
@@ -217,13 +217,7 @@ foo =
     bar
 """
                 |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Parameter `value` is not used."
-                        , details = details
-                        , under = "value"
-                        }
-                    ]
+                |> Review.Test.expectNoErrors
     ]
 
 

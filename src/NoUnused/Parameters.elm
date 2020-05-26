@@ -126,10 +126,8 @@ rememberLetDeclaration (Node _ letDeclaration) context =
 
 
 rememberLetFunctionImplementation : Node Expression.FunctionImplementation -> Context -> Context
-rememberLetFunctionImplementation (Node _ { arguments, name }) context =
-    context
-        |> rememberValue (Node.value name)
-        |> rememberPatternList arguments
+rememberLetFunctionImplementation (Node _ { arguments }) context =
+    rememberPatternList arguments context
 
 
 rememberPatternList : List (Node Pattern) -> Context -> Context
@@ -239,10 +237,8 @@ errorsForLetDeclaration (Node _ letDeclaration) context =
 
 
 errorsForLetFunctionImplementation : Node Expression.FunctionImplementation -> Context -> ( List (Rule.Error {}), Context )
-errorsForLetFunctionImplementation (Node _ { arguments, name }) context =
-    context
-        |> errorsForNode Function name
-        |> andThen (errorsForPatternList Function arguments)
+errorsForLetFunctionImplementation (Node _ { arguments }) context =
+    errorsForPatternList Function arguments context
 
 
 type PatternUse
@@ -486,11 +482,6 @@ type alias Context =
 initialContext : Context
 initialContext =
     Set.empty
-
-
-errorsForNode : PatternUse -> Node String -> Context -> ( List (Rule.Error {}), Context )
-errorsForNode use (Node range value) context =
-    errorsForValue use value range context
 
 
 errorsForValue : PatternUse -> String -> Range -> Context -> ( List (Rule.Error {}), Context )
