@@ -109,7 +109,7 @@ rememberLetDeclarationList list context =
 
 
 rememberLetDeclaration : Node Expression.LetDeclaration -> Context -> Context
-rememberLetDeclaration (Node range letDeclaration) context =
+rememberLetDeclaration (Node _ letDeclaration) context =
     case letDeclaration of
         Expression.LetFunction _ ->
             context

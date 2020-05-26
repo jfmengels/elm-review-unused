@@ -109,7 +109,7 @@ initialProjectContext =
 
 
 fromProjectToModule : Rule.ModuleKey -> Node ModuleName -> ProjectContext -> ModuleContext
-fromProjectToModule moduleKey moduleName projectContext =
+fromProjectToModule _ _ projectContext =
     { scope = Scope.fromProjectToModule projectContext.scope
     , exposesEverything = False
     , exposed = Dict.empty

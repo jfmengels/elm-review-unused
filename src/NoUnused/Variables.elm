@@ -291,7 +291,7 @@ importVisitor ((Node _ import_) as node) context =
 
 
 registerModuleNameOrAlias : Node Import -> Context -> Context
-registerModuleNameOrAlias ((Node range { exposingList, moduleAlias, moduleName }) as node) context =
+registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) context =
     case moduleAlias of
         Just _ ->
             registerModuleAlias node context
