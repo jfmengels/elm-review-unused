@@ -109,7 +109,7 @@ initialProjectContext =
 
 
 fromProjectToModule : Rule.ModuleKey -> Node ModuleName -> ProjectContext -> ModuleContext
-fromProjectToModule moduleKey moduleName projectContext =
+fromProjectToModule _ _ projectContext =
     { scope = Scope.fromProjectToModule projectContext.scope
     , exposesEverything = False
     , exposed = Dict.empty
@@ -198,7 +198,7 @@ finalEvaluationForProject projectContext =
         |> List.concatMap
             (\( moduleName, { moduleKey, exposed } ) ->
                 exposed
-                    |> removeApplicationExceptions projectContext moduleName
+                    |> removeApplicationExceptions projectContext
                     |> removeReviewConfig moduleName
                     |> Dict.filter (\name _ -> not <| Set.member ( moduleName, name ) projectContext.used)
                     |> Dict.toList
@@ -237,8 +237,8 @@ removeExposedPackages projectContext dict =
             Dict.filter (\name _ -> not <| Set.member name exposedModuleNames) dict
 
 
-removeApplicationExceptions : ProjectContext -> ModuleName -> Dict String a -> Dict String a
-removeApplicationExceptions projectContext moduleName dict =
+removeApplicationExceptions : ProjectContext -> Dict String a -> Dict String a
+removeApplicationExceptions projectContext dict =
     case projectContext.projectType of
         IsApplication ->
             Dict.remove "main" dict

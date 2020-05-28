@@ -9,6 +9,8 @@ Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-revi
 - [`NoUnused.Exports`](https://package.elm-lang.org/packages/jfmengels/review-unused/2.0.3/NoUnused-Exports) - Reports unused exposed elements from a module.
 - [`NoUnused.Modules`](https://package.elm-lang.org/packages/jfmengels/review-unused/2.0.3/NoUnused-Modules) - Reports unused modules in the project.
 - [`NoUnused.Dependencies`](https://package.elm-lang.org/packages/jfmengels/review-unused/2.0.3/NoUnused-Dependencies) - Reports unused dependencies in the project.
+- [`NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/review-unused/2.0.3/NoUnused-Dependencies) - Report unused parameters.
+- [`NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/review-unused/2.0.3/NoUnused-Dependencies) - Report useless patterns and pattern values that are not used.
 
 ## Example configuration
 
@@ -19,6 +21,8 @@ import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
 import NoUnused.Exports
 import NoUnused.Modules
+import NoUnused.Parameters
+import NoUnused.Patterns
 import NoUnused.Variables
 import Review.Rule exposing (Rule)
 
@@ -29,6 +33,8 @@ config =
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule
     , NoUnused.Modules.rule
+    , NoUnused.Parameters.rule
+    , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
     ]
 ```

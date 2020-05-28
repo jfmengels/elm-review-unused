@@ -1,5 +1,6 @@
 {
-  "name": "",
+  "license": "BSD-3-Clause",
+  "repository": "https://github.com/jfmengels/review-unused",
   "version": "1.0.0",
   "scripts": {
     "test": "elm make --docs=/tmp/docs.json && elm-format src/ --validate && elm-test && elm-review"
