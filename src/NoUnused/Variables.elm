@@ -56,8 +56,8 @@ rule =
     Rule.newModuleRuleSchema "NoUnused.Variables" initialContext
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withImportVisitor importVisitor
-        |> Rule.withExpressionVisitor expressionVisitor
         |> Rule.withDeclarationVisitor declarationVisitor
+        |> Rule.withExpressionVisitor expressionVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
         |> Rule.fromModuleRuleSchema
 
@@ -264,7 +264,7 @@ importVisitor ((Node _ import_) as node) context =
                 Just moduleAlias ->
                     if Node.value moduleAlias == Node.value import_.moduleName then
                         [ Rule.errorWithFix
-                            { message = "Module `Html` is aliased as `Html`"
+                            { message = "Module `" ++ String.join "." (Node.value moduleAlias) ++ "` is aliased as itself"
                             , details = [ "The alias is the same as the module name, and brings no useful value" ]
                             }
                             (Node.range moduleAlias)
@@ -480,17 +480,12 @@ getUsedTypesFromPattern patternNode =
             []
 
         Pattern.NamedPattern qualifiedNameRef patterns ->
-            let
-                usedVariable : List String
-                usedVariable =
-                    case qualifiedNameRef.moduleName of
-                        [] ->
-                            [ qualifiedNameRef.name ]
+            case qualifiedNameRef.moduleName of
+                [] ->
+                    qualifiedNameRef.name :: List.concatMap getUsedTypesFromPattern patterns
 
-                        _ ->
-                            []
-            in
-            usedVariable ++ List.concatMap getUsedTypesFromPattern patterns
+                _ ->
+                    List.concatMap getUsedTypesFromPattern patterns
 
         Pattern.AsPattern pattern _ ->
             getUsedTypesFromPattern pattern
@@ -539,17 +534,12 @@ getUsedModulesFromPattern patternNode =
             []
 
         Pattern.NamedPattern qualifiedNameRef patterns ->
-            let
-                usedVariable : List String
-                usedVariable =
-                    case qualifiedNameRef.moduleName of
-                        [] ->
-                            []
+            case qualifiedNameRef.moduleName of
+                [] ->
+                    List.concatMap getUsedModulesFromPattern patterns
 
-                        moduleName ->
-                            [ getModuleName moduleName ]
-            in
-            usedVariable ++ List.concatMap getUsedModulesFromPattern patterns
+                moduleName ->
+                    getModuleName moduleName :: List.concatMap getUsedModulesFromPattern patterns
 
         Pattern.AsPattern pattern _ ->
             getUsedModulesFromPattern pattern
@@ -842,6 +832,7 @@ collectFromExposing exposingNode =
                                     )
 
                             Exposing.TypeOrAliasExpose name ->
+                                -- TODO Detect whether it is a custom type or type alias
                                 Just
                                     ( name
                                     , { variableType = ImportedItem ImportedType

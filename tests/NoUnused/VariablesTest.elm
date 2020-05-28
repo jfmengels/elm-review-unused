@@ -781,7 +781,7 @@ a = Html.div"""
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Module `Html` is aliased as `Html`"
+                        { message = "Module `Html` is aliased as itself"
                         , details = [ "The alias is the same as the module name, and brings no useful value" ]
                         , under = "Html"
                         }
