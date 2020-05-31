@@ -183,6 +183,38 @@ main = exposed
                             }
                             |> Review.Test.atExactly { start = { row = 2, column = 20 }, end = { row = 2, column = 27 } }
                         ]
+        , test "should propose a fix for unused exports if there are others exposed elements" <|
+            \() ->
+                """
+module A exposing (exposed1, exposed2)
+exposed1 = 1
+exposed2 = 2
+"""
+                    |> Review.Test.runWithProjectData package_ rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Exposed function or value `exposed1` is never used outside this module."
+                            , details = details
+                            , under = "exposed1"
+                            }
+                            |> Review.Test.atExactly { start = { row = 2, column = 20 }, end = { row = 2, column = 28 } }
+                            |> Review.Test.whenFixed """
+module A exposing (exposed2)
+exposed1 = 1
+exposed2 = 2
+"""
+                        , Review.Test.error
+                            { message = "Exposed function or value `exposed2` is never used outside this module."
+                            , details = details
+                            , under = "exposed2"
+                            }
+                            |> Review.Test.atExactly { start = { row = 2, column = 30 }, end = { row = 2, column = 38 } }
+                            |> Review.Test.whenFixed """
+module A exposing (exposed1)
+exposed1 = 1
+exposed2 = 2
+"""
+                        ]
         , test "should not report anything for modules that expose everything`" <|
             \() ->
                 """
@@ -391,6 +423,11 @@ type alias B = A.OtherType
                                 , under = "MyType"
                                 }
                                 |> Review.Test.atExactly { start = { row = 2, column = 20 }, end = { row = 2, column = 26 } }
+                                |> Review.Test.whenFixed """
+module A exposing (OtherType)
+type MyType = VariantA | VariantB
+type OtherType = Thing MyType
+"""
                             ]
                           )
                         ]
@@ -427,6 +464,11 @@ type alias B = A.OtherType
                                 , under = "MyType"
                                 }
                                 |> Review.Test.atExactly { start = { row = 2, column = 20 }, end = { row = 2, column = 26 } }
+                                |> Review.Test.whenFixed """
+module A exposing (OtherType)
+type MyType = VariantA | VariantB
+type OtherType = OtherThing | SomeThing ((), List MyType)
+"""
                             ]
                           )
                         ]
@@ -566,6 +608,11 @@ type alias B = A.OtherType
                                 , under = "MyType"
                                 }
                                 |> Review.Test.atExactly { start = { row = 2, column = 20 }, end = { row = 2, column = 26 } }
+                                |> Review.Test.whenFixed """
+module A exposing (OtherType)
+type alias MyType = {}
+type OtherType = OtherType MyType
+"""
                             ]
                           )
                         ]
@@ -602,6 +649,11 @@ type alias B = A.OtherType
                                 , under = "MyType"
                                 }
                                 |> Review.Test.atExactly { start = { row = 2, column = 20 }, end = { row = 2, column = 26 } }
+                                |> Review.Test.whenFixed """
+module A exposing (OtherType)
+type alias MyType = {}
+type OtherType = OtherThing | SomeThing ((), List MyType)
+"""
                             ]
                           )
                         ]
@@ -630,6 +682,15 @@ a = A.Card A.init A.toElement
                                 , under = "Link"
                                 }
                                 |> Review.Test.atExactly { start = { row = 3, column = 7 }, end = { row = 3, column = 11 } }
+                                |> Review.Test.whenFixed """module A
+             exposing ( Card
+    , init
+    , toElement
+    )
+type Card = Card
+type Link = Link
+init = 1
+"""
                             ]
                           )
                         ]

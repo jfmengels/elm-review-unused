@@ -23,6 +23,7 @@ import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import Review.Fix as Fix exposing (Fix)
 import Review.Rule as Rule exposing (Error, Rule)
 import Scope
 import Set exposing (Set)
@@ -73,9 +74,16 @@ type alias ProjectContext =
     , modules :
         Dict ModuleName
             { moduleKey : Rule.ModuleKey
-            , exposed : Dict String { range : Range, exposedElement : ExposedElement }
+            , exposed : Dict String ExposedElement
             }
     , used : Set ( ModuleName, String )
+    }
+
+
+type alias ExposedElement =
+    { range : Range
+    , rangeToRemove : Maybe Range
+    , elementType : ExposedElementType
     }
 
 
@@ -84,7 +92,7 @@ type ProjectType
     | IsPackage (Set (List String))
 
 
-type ExposedElement
+type ExposedElementType
     = Function
     | TypeOrTypeAlias
     | ExposedType
@@ -93,7 +101,7 @@ type ExposedElement
 type alias ModuleContext =
     { scope : Scope.ModuleContext
     , exposesEverything : Bool
-    , exposed : Dict String { range : Range, exposedElement : ExposedElement }
+    , exposed : Dict String ExposedElement
     , used : Set ( ModuleName, String )
     , elementsNotToReport : Set String
     }
@@ -203,11 +211,11 @@ finalEvaluationForProject projectContext =
                     |> Dict.filter (\name _ -> not <| Set.member ( moduleName, name ) projectContext.used)
                     |> Dict.toList
                     |> List.concatMap
-                        (\( name, { range, exposedElement } ) ->
+                        (\( name, element ) ->
                             let
                                 what : String
                                 what =
-                                    case exposedElement of
+                                    case element.elementType of
                                         Function ->
                                             "Exposed function or value"
 
@@ -216,12 +224,22 @@ finalEvaluationForProject projectContext =
 
                                         ExposedType ->
                                             "Exposed type"
+
+                                fixes : List Fix
+                                fixes =
+                                    case element.rangeToRemove of
+                                        Just rangeToRemove ->
+                                            [ Fix.removeRange rangeToRemove ]
+
+                                        Nothing ->
+                                            []
                             in
-                            [ Rule.errorForModule moduleKey
+                            [ Rule.errorForModuleWithFix moduleKey
                                 { message = what ++ " `" ++ name ++ "` is never used outside this module."
                                 , details = [ "This exposed element is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
                                 }
-                                range
+                                element.range
+                                fixes
                             ]
                         )
             )
@@ -267,27 +285,81 @@ moduleDefinitionVisitor moduleNode moduleContext =
             ( [], { moduleContext | exposesEverything = True } )
 
         Exposing.Explicit list ->
-            ( [], { moduleContext | exposed = exposedElements list } )
+            ( [], { moduleContext | exposed = collectExposedElements list } )
 
 
-exposedElements : List (Node Exposing.TopLevelExpose) -> Dict String { range : Range, exposedElement : ExposedElement }
-exposedElements nodes =
+collectExposedElements : List (Node Exposing.TopLevelExpose) -> Dict String ExposedElement
+collectExposedElements nodes =
+    let
+        listWithPreviousRange : List (Maybe Range)
+        listWithPreviousRange =
+            Nothing
+                :: (nodes
+                        |> List.map (Node.range >> Just)
+                        |> List.take (List.length nodes - 1)
+                   )
+
+        listWithNextRange : List Range
+        listWithNextRange =
+            (nodes
+                |> List.map Node.range
+                |> List.drop 1
+            )
+                ++ [ { start = { row = 0, column = 0 }, end = { row = 0, column = 0 } } ]
+    in
     nodes
-        |> List.filterMap
-            (\node ->
-                case Node.value node of
+        |> List.map3 (\prev next current -> ( prev, current, next )) listWithPreviousRange listWithNextRange
+        |> List.indexedMap
+            (\index ( maybePreviousRange, Node range value, nextRange ) ->
+                let
+                    rangeToRemove : Maybe Range
+                    rangeToRemove =
+                        if List.length nodes == 1 then
+                            Nothing
+
+                        else if index == 0 then
+                            Just { range | end = nextRange.start }
+
+                        else
+                            case maybePreviousRange of
+                                Nothing ->
+                                    Just range
+
+                                Just previousRange ->
+                                    Just { range | start = previousRange.end }
+                in
+                case value of
                     Exposing.FunctionExpose name ->
-                        Just ( name, { range = untilEndOfVariable name (Node.range node), exposedElement = Function } )
+                        Just
+                            ( name
+                            , { range = untilEndOfVariable name range
+                              , rangeToRemove = rangeToRemove
+                              , elementType = Function
+                              }
+                            )
 
                     Exposing.TypeOrAliasExpose name ->
-                        Just ( name, { range = untilEndOfVariable name (Node.range node), exposedElement = TypeOrTypeAlias } )
+                        Just
+                            ( name
+                            , { range = untilEndOfVariable name range
+                              , rangeToRemove = rangeToRemove
+                              , elementType = TypeOrTypeAlias
+                              }
+                            )
 
                     Exposing.TypeExpose { name } ->
-                        Just ( name, { range = untilEndOfVariable name (Node.range node), exposedElement = ExposedType } )
+                        Just
+                            ( name
+                            , { range = untilEndOfVariable name range
+                              , rangeToRemove = Nothing
+                              , elementType = ExposedType
+                              }
+                            )
 
                     Exposing.InfixExpose _ ->
                         Nothing
             )
+        |> List.filterMap identity
         |> Dict.fromList
 
 
@@ -436,7 +508,7 @@ typesUsedInDeclaration moduleContext declaration =
                 |> List.concatMap (Node.value >> .arguments)
                 |> List.concatMap (collectTypesFromTypeAnnotation moduleContext.scope)
             , not <|
-                case Dict.get (Node.value type_.name) moduleContext.exposed |> Maybe.map .exposedElement of
+                case Dict.get (Node.value type_.name) moduleContext.exposed |> Maybe.map .elementType of
                     Just ExposedType ->
                         True
 
