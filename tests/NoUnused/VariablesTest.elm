@@ -1396,9 +1396,6 @@ port input : (() -> msg) -> Sub msg"""
                         , details = details
                         , under = "input"
                         }
-                        |> Review.Test.whenFixed """port module SomeModule exposing (a)
-a = 1
-"""
                     ]
     , test "should report unused ports (outgoing)" <|
         \() ->
@@ -1412,8 +1409,5 @@ port output : String -> Cmd msg"""
                         , details = details
                         , under = "output"
                         }
-                        |> Review.Test.whenFixed """port module SomeModule exposing (a)
-a = 1
-"""
                     ]
     ]

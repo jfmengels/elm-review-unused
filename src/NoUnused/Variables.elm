@@ -216,7 +216,7 @@ fix declaredModules { variableType, rangeToRemove } =
                     True
 
                 Port ->
-                    True
+                    False
     in
     if shouldOfferFix then
         [ Fix.removeRange rangeToRemove ]
