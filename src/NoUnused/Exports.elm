@@ -18,6 +18,7 @@ import Elm.Project
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression)
+import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
@@ -60,6 +61,7 @@ moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema 
 moduleVisitor schema =
     schema
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
+        |> Rule.withImportVisitor importVisitor
         |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withExpressionVisitor expressionVisitor
 
@@ -370,6 +372,49 @@ untilEndOfVariable name range =
 
     else
         { range | end = { row = range.start.row, column = range.start.column + String.length name } }
+
+
+
+-- IMPORT VISITOR
+
+
+importVisitor : Node Import -> ModuleContext -> ( List nothing, ModuleContext )
+importVisitor node moduleContext =
+    case (Node.value node).exposingList |> Maybe.map Node.value of
+        Just (Exposing.Explicit list) ->
+            let
+                moduleName : ModuleName
+                moduleName =
+                    Node.value (Node.value node).moduleName
+
+                usedElements : List ( ModuleName, String )
+                usedElements =
+                    list
+                        |> List.filterMap
+                            (Node.value
+                                >> (\element ->
+                                        case element of
+                                            Exposing.FunctionExpose name ->
+                                                Just ( moduleName, name )
+
+                                            Exposing.TypeOrAliasExpose name ->
+                                                Just ( moduleName, name )
+
+                                            Exposing.TypeExpose { name } ->
+                                                Just ( moduleName, name )
+
+                                            Exposing.InfixExpose _ ->
+                                                Nothing
+                                   )
+                            )
+            in
+            ( [], registerMultipleAsUsed usedElements moduleContext )
+
+        Just (Exposing.All _) ->
+            ( [], moduleContext )
+
+        Nothing ->
+            ( [], moduleContext )
 
 
 

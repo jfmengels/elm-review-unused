@@ -96,6 +96,7 @@ all =
         , typesTests
         , typeAliasesTests
         , duplicateModuleNameTests
+        , importsTests
 
         -- TODO Add tests that report exposing the type's variants if they are never used.
         ]
@@ -709,6 +710,25 @@ main = X.a X.b
 """, """module A exposing (a)
 a = 1
 """, """module B exposing (b)
+b = 2
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        ]
+
+
+importsTests : Test
+importsTests =
+    describe "Imports"
+        [ test "should not report an export if it is imported by name" <|
+            \() ->
+                [ """module Main exposing (main)
+import B exposing (Type1, Type2(..), TypeAlias, b)
+main = 1
+""", """module B exposing (Type1, Type2(..), TypeAlias, b)
+type Type1 = Type1
+type Type2 = Type2
+type alias TypeAlias = {}
 b = 2
 """ ]
                     |> Review.Test.runOnModulesWithProjectData application rule
