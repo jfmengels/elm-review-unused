@@ -339,7 +339,7 @@ errorsForRecordValueList : PatternUse -> Range -> List (Node String) -> Context 
 errorsForRecordValueList use recordRange list context =
     let
         ( unused, used ) =
-            List.partition (\(Node _ value) -> Set.member value context) list
+            List.partition (isNodeInContext context) list
     in
     case unused of
         [] ->
@@ -380,6 +380,11 @@ errorsForRecordValueList use recordRange list context =
               ]
             , List.foldl forgetNode context unused
             )
+
+
+isNodeInContext : Context -> Node String -> Bool
+isNodeInContext context (Node _ value) =
+    Set.member value context
 
 
 listToMessage : String -> List String -> String
