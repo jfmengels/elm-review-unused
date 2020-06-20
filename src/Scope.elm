@@ -27,7 +27,7 @@ module Scope exposing
 
 {- Copied over from https://github.com/jfmengels/elm-review-scope
 
-   Version: 0.2.1
+   Version: 0.3.0
 
    Copyright (c) 2020, Jeroen Engels
    All rights reserved.
@@ -71,7 +71,6 @@ import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Syntax.Signature exposing (Signature)
 import Elm.Syntax.Type
-import Elm.Syntax.TypeAlias
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Elm.Type
 import Review.Project.Dependency as Dependency exposing (Dependency)
@@ -398,26 +397,49 @@ internalAddModuleVisitors schema =
             (mapInnerModuleContext importVisitor |> pairWithNoErrors)
         |> Rule.withDeclarationListVisitor
             (mapInnerModuleContext declarationListVisitor |> pairWithNoErrors)
-        |> Rule.withDeclarationVisitor
-            (\visitedElement direction outerContext ->
+        |> Rule.withDeclarationEnterVisitor
+            (\visitedElement outerContext ->
                 let
                     innerContext : InnerModuleContext
                     innerContext =
                         outerContext.scope
                             |> unboxModule
-                            |> declarationVisitor visitedElement direction
+                            |> declarationEnterVisitor visitedElement
                 in
                 ( [], { outerContext | scope = ModuleContext innerContext } )
             )
-        |> Rule.withExpressionVisitor
-            (\visitedElement direction outerContext ->
+        |> Rule.withDeclarationExitVisitor
+            (\visitedElement outerContext ->
                 let
                     innerContext : InnerModuleContext
                     innerContext =
                         outerContext.scope
                             |> unboxModule
-                            |> popScope visitedElement direction
-                            |> expressionVisitor visitedElement direction
+                            |> declarationExitVisitor visitedElement
+                in
+                ( [], { outerContext | scope = ModuleContext innerContext } )
+            )
+        |> Rule.withExpressionEnterVisitor
+            (\visitedElement outerContext ->
+                let
+                    innerContext : InnerModuleContext
+                    innerContext =
+                        outerContext.scope
+                            |> unboxModule
+                            |> popScope visitedElement Rule.OnEnter
+                            |> expressionEnterVisitor visitedElement
+                in
+                ( [], { outerContext | scope = ModuleContext innerContext } )
+            )
+        |> Rule.withExpressionExitVisitor
+            (\visitedElement outerContext ->
+                let
+                    innerContext : InnerModuleContext
+                    innerContext =
+                        outerContext.scope
+                            |> unboxModule
+                            |> popScope visitedElement Rule.OnExit
+                            |> expressionExitVisitor visitedElement
                 in
                 ( [], { outerContext | scope = ModuleContext innerContext } )
             )
@@ -615,7 +637,7 @@ registerDeclaration declaration innerContext =
                     { variableType = TopLevelVariable
                     , node = alias_.name
                     }
-                |> registerIfExposed (registerExposedTypeAlias alias_) (Node.value alias_.name)
+                |> registerIfExposed registerExposedTypeAlias (Node.value alias_.name)
 
         Declaration.CustomTypeDeclaration { name, constructors } ->
             List.foldl
@@ -677,7 +699,7 @@ registerExposedValue function name innerContext =
 
                     Nothing ->
                         ""
-            , tipe = convertTypeSignatureToDocsType function.signature
+            , tipe = convertTypeSignatureToDocsType innerContext function.signature
             }
                 :: innerContext.exposedValues
     }
@@ -701,8 +723,8 @@ registerExposedCustomType constructors name innerContext =
     }
 
 
-registerExposedTypeAlias : Elm.Syntax.TypeAlias.TypeAlias -> String -> InnerModuleContext -> InnerModuleContext
-registerExposedTypeAlias alias_ name innerContext =
+registerExposedTypeAlias : String -> InnerModuleContext -> InnerModuleContext
+registerExposedTypeAlias name innerContext =
     { innerContext
         | exposedAliases =
             { name = name
@@ -723,40 +745,57 @@ registerIfExposed registerFn name innerContext =
         innerContext
 
 
-convertTypeSignatureToDocsType : Maybe (Node Signature) -> Elm.Type.Type
-convertTypeSignatureToDocsType maybeSignature =
+convertTypeSignatureToDocsType : InnerModuleContext -> Maybe (Node Signature) -> Elm.Type.Type
+convertTypeSignatureToDocsType innerContext maybeSignature =
     case maybeSignature |> Maybe.map (Node.value >> .typeAnnotation) of
         Just typeAnnotation ->
-            syntaxTypeAnnotationToDocsType typeAnnotation
+            syntaxTypeAnnotationToDocsType innerContext typeAnnotation
 
         Nothing ->
             Elm.Type.Tuple []
 
 
-syntaxTypeAnnotationToDocsType : Node TypeAnnotation -> Elm.Type.Type
-syntaxTypeAnnotationToDocsType (Node _ typeAnnotation) =
+syntaxTypeAnnotationToDocsType : InnerModuleContext -> Node TypeAnnotation -> Elm.Type.Type
+syntaxTypeAnnotationToDocsType innerContext (Node _ typeAnnotation) =
     case typeAnnotation of
         TypeAnnotation.GenericType name ->
             Elm.Type.Var name
 
         TypeAnnotation.Typed (Node _ ( moduleName, typeName )) typeParameters ->
-            -- Elm.Type.Type (String.join "." moduleName ++ "." ++ typeName) (List.map syntaxTypeAnnotationToDocsType typeParameters)
-            Elm.Type.Tuple []
+            let
+                realModuleName : List String
+                realModuleName =
+                    moduleNameForType (ModuleContext innerContext) typeName moduleName
+            in
+            Elm.Type.Type (String.join "." realModuleName ++ "." ++ typeName) (List.map (syntaxTypeAnnotationToDocsType innerContext) typeParameters)
 
         TypeAnnotation.Unit ->
             Elm.Type.Tuple []
 
-        TypeAnnotation.Tupled typeAnnotationTypeAnnotationSyntaxElmNodeNodeSyntaxElmListList ->
-            Elm.Type.Tuple []
+        TypeAnnotation.Tupled list ->
+            Elm.Type.Tuple (List.map (syntaxTypeAnnotationToDocsType innerContext) list)
 
-        TypeAnnotation.Record recordDefinitionTypeAnnotationSyntaxElm ->
-            Elm.Type.Tuple []
+        TypeAnnotation.Record updates ->
+            Elm.Type.Record (recordUpdateToDocsType innerContext updates) Nothing
 
-        TypeAnnotation.GenericRecord stringStringNodeNodeSyntaxElm recordDefinitionTypeAnnotationSyntaxElmNodeNodeSyntaxElm ->
-            Elm.Type.Tuple []
+        TypeAnnotation.GenericRecord (Node _ generic) (Node _ updates) ->
+            Elm.Type.Record (recordUpdateToDocsType innerContext updates) (Just generic)
 
-        TypeAnnotation.FunctionTypeAnnotation typeAnnotationTypeAnnotationSyntaxElmNodeNodeSyntaxElm typeAnnotationTypeAnnotationSyntaxElmNodeNodeSyntaxElm2 ->
-            Elm.Type.Tuple []
+        TypeAnnotation.FunctionTypeAnnotation left right ->
+            Elm.Type.Lambda
+                (syntaxTypeAnnotationToDocsType innerContext left)
+                (syntaxTypeAnnotationToDocsType innerContext right)
+
+
+recordUpdateToDocsType : InnerModuleContext -> List (Node TypeAnnotation.RecordField) -> List ( String, Elm.Type.Type )
+recordUpdateToDocsType innerContext updates =
+    List.map
+        (\(Node _ ( name, typeAnnotation )) ->
+            ( Node.value name
+            , syntaxTypeAnnotationToDocsType innerContext typeAnnotation
+            )
+        )
+        updates
 
 
 registerVariable : VariableInfo -> String -> Nonempty Scope -> Nonempty Scope
@@ -1005,10 +1044,10 @@ type VariableType
     | Port
 
 
-declarationVisitor : Node Declaration -> Rule.Direction -> InnerModuleContext -> InnerModuleContext
-declarationVisitor declaration direction context =
-    case ( direction, Node.value declaration ) of
-        ( Rule.OnEnter, Declaration.FunctionDeclaration function ) ->
+declarationEnterVisitor : Node Declaration -> InnerModuleContext -> InnerModuleContext
+declarationEnterVisitor node context =
+    case Node.value node of
+        Declaration.FunctionDeclaration function ->
             let
                 newScope : Scope
                 newScope =
@@ -1018,7 +1057,14 @@ declarationVisitor declaration direction context =
                 |> nonemptyList_cons newScope
                 |> updateScope context
 
-        ( Rule.OnExit, Declaration.FunctionDeclaration function ) ->
+        _ ->
+            context
+
+
+declarationExitVisitor : Node Declaration -> InnerModuleContext -> InnerModuleContext
+declarationExitVisitor node context =
+    case Node.value node of
+        Declaration.FunctionDeclaration _ ->
             { context | scopes = nonemptyList_pop context.scopes }
 
         _ ->
@@ -1117,10 +1163,10 @@ popScope node direction context =
                 context
 
 
-expressionVisitor : Node Expression -> Direction -> InnerModuleContext -> InnerModuleContext
-expressionVisitor (Node _ value) direction context =
-    case ( direction, value ) of
-        ( Rule.OnEnter, Expression.LetExpression { declarations, expression } ) ->
+expressionEnterVisitor : Node Expression -> InnerModuleContext -> InnerModuleContext
+expressionEnterVisitor node context =
+    case Node.value node of
+        Expression.LetExpression { declarations, expression } ->
             List.foldl
                 (\declaration scopes ->
                     case Node.value declaration of
@@ -1138,17 +1184,14 @@ expressionVisitor (Node _ value) direction context =
                                 (Node.value nameNode)
                                 scopes
 
-                        Expression.LetDestructuring pattern _ ->
+                        Expression.LetDestructuring _ _ ->
                             scopes
                 )
                 (nonemptyList_cons emptyScope context.scopes)
                 declarations
                 |> updateScope context
 
-        ( Rule.OnExit, Expression.LetExpression _ ) ->
-            { context | scopes = nonemptyList_pop context.scopes }
-
-        ( Rule.OnEnter, Expression.CaseExpression caseBlock ) ->
+        Expression.CaseExpression caseBlock ->
             let
                 cases : List ( Node Expression, Dict String VariableInfo )
                 cases =
@@ -1171,7 +1214,17 @@ expressionVisitor (Node _ value) direction context =
             in
             { context | scopes = nonemptyList_mapHead (\scope -> { scope | cases = cases }) context.scopes }
 
-        ( Rule.OnExit, Expression.CaseExpression caseBlock ) ->
+        _ ->
+            context
+
+
+expressionExitVisitor : Node Expression -> InnerModuleContext -> InnerModuleContext
+expressionExitVisitor node context =
+    case Node.value node of
+        Expression.LetExpression _ ->
+            { context | scopes = nonemptyList_pop context.scopes }
+
+        Expression.CaseExpression _ ->
             { context | scopes = nonemptyList_mapHead (\scope -> { scope | cases = [] }) context.scopes }
 
         _ ->
@@ -1204,10 +1257,10 @@ A value can be either a function, a constant, a custom type constructor or a typ
 
 If the element was defined in the current module, then the result will be `[]`.
 
-    expressionVisitor : Node Expression -> Direction -> Context -> ( List (Error {}), Context )
-    expressionVisitor node direction context =
-        case ( direction, Node.value node ) of
-            ( Rule.OnEnter, Expression.FunctionOrValue moduleName "button" ) ->
+    expressionVisitor : Node Expression -> Context -> ( List (Error {}), Context )
+    expressionVisitor node context =
+        case Node.value node of
+            Expression.FunctionOrValue moduleName "button" ->
                 if Scope.moduleNameForValue context.scope "button" moduleName == [ "Html" ] then
                     ( [ createError node ], context )
 
@@ -1434,7 +1487,7 @@ nonemptyList_fromElement x =
 {-| Return the head of the list.
 -}
 nonemptyList_head : Nonempty a -> a
-nonemptyList_head (Nonempty x xs) =
+nonemptyList_head (Nonempty x _) =
     x
 
 
