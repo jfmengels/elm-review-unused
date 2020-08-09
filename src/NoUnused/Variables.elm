@@ -243,6 +243,7 @@ moduleDefinitionVisitor (Node _ moduleNode) context =
 
         Exposing.Explicit list ->
             let
+                names : List String
                 names =
                     List.filterMap
                         (\(Node _ node) ->
@@ -439,6 +440,7 @@ expressionExitVisitor node context =
                 ( errors, remainingUsed ) =
                     makeReport (NonemptyList.head context.scopes)
 
+                contextWithPoppedScope : Context
                 contextWithPoppedScope =
                     { context | scopes = NonemptyList.pop context.scopes }
             in
