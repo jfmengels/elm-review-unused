@@ -49,6 +49,15 @@ Value `something` is not used:
     add1 number =
         number + 1
 
+
+## Try it out
+
+You can try this rule out by running the following command:
+
+```bash
+elm-review --template jfmengels/review-unused/example --rules NoUnused.Parameters
+```
+
 -}
 rule : Rule
 rule =

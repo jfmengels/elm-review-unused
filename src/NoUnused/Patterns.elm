@@ -51,6 +51,15 @@ Value `something` is not used:
         Nothing ->
             False
 
+
+## Try it out
+
+You can try this rule out by running the following command:
+
+```bash
+elm-review --template jfmengels/review-unused/example --rules NoUnused.Patterns
+```
+
 -}
 rule : Rule
 rule =
