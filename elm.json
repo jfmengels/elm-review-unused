@@ -1,9 +1,9 @@
 {
     "type": "package",
-    "name": "jfmengels/review-unused",
+    "name": "jfmengels/elm-review-unused",
     "summary": "Provides elm-review rules to detect unused elements in your Elm project",
     "license": "BSD-3-Clause",
-    "version": "2.1.3",
+    "version": "1.0.0",
     "exposed-modules": [
         "NoUnused.CustomTypeConstructors",
         "NoUnused.Dependencies",

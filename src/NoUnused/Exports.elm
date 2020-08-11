@@ -46,7 +46,7 @@ then nothing will be reported.
 You can try this rule out by running the following command:
 
 ```bash
-elm-review --template jfmengels/review-unused/example --rules NoUnused.Exports
+elm-review --template jfmengels/elm-elm-review-unused/example --rules NoUnused.Exports
 ```
 
 -}
