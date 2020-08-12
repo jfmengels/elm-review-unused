@@ -6,8 +6,10 @@ module NoUnused.CustomTypeConstructorArgs exposing (rule)
 
 -}
 
+import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Node as Node exposing (Node)
+import Elm.Syntax.Range exposing (Range)
 import Review.Rule as Rule exposing (Error, Rule)
 
 
@@ -47,27 +49,50 @@ elm - review --template jfmengels/elm-review-unused/example --rules NoUnused.Cus
 -}
 rule : Rule
 rule =
-    Rule.newModuleRuleSchema "NoUnused.CustomTypeConstructorArgs" ()
-        |> Rule.withSimpleDeclarationVisitor declarationVisitor
+    Rule.newModuleRuleSchema "NoUnused.CustomTypeConstructorArgs" { customTypeArgs = Dict.empty }
+        |> Rule.withDeclarationListVisitor declarationListVisitor
+        |> Rule.withFinalModuleEvaluation finalEvaluation
         |> Rule.fromModuleRuleSchema
 
 
-declarationVisitor : Node Declaration -> List (Error {})
-declarationVisitor node =
+type alias Context =
+    { customTypeArgs : Dict String (List Range)
+    }
+
+
+declarationListVisitor : List (Node Declaration) -> Context -> ( List (Error {}), Context )
+declarationListVisitor nodes context =
+    let
+        customTypeArgs : List ( String, List Range )
+        customTypeArgs =
+            List.concatMap collectCustomType nodes
+    in
+    ( [], { context | customTypeArgs = Dict.fromList customTypeArgs } )
+
+
+collectCustomType : Node Declaration -> List ( String, List Range )
+collectCustomType node =
     case Node.value node of
         Declaration.CustomTypeDeclaration { constructors } ->
             constructors
-                |> List.concatMap (\constructor -> (Node.value constructor).arguments)
-                |> List.map error
+                |> List.map (Node.value >> (\{ name, arguments } -> ( Node.value name, List.map Node.range arguments )))
 
         _ ->
             []
 
 
-error : Node a -> Error {}
-error node =
+finalEvaluation : Context -> List (Error {})
+finalEvaluation context =
+    context.customTypeArgs
+        |> Dict.toList
+        |> List.concatMap Tuple.second
+        |> List.map error
+
+
+error : Range -> Error {}
+error range =
     Rule.error
         { message = "REPLACEME"
         , details = [ "REPLACEME" ]
         }
-        (Node.range node)
+        range
