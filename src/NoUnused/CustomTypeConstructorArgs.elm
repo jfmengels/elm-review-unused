@@ -147,6 +147,7 @@ detectUsedPatterns (Node _ pattern) =
                         |> Set.fromList
             in
             [ ( ( moduleName, name ), usedPositions ) ]
+                ++ List.concatMap detectUsedPatterns args
 
         Pattern.TuplePattern patterns ->
             List.concatMap detectUsedPatterns patterns
