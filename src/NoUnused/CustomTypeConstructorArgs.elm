@@ -77,7 +77,7 @@ initialContext =
 -- DECLARATION VISITOR
 
 
-declarationListVisitor : List (Node Declaration) -> Context -> ( List (Error {}), Context )
+declarationListVisitor : List (Node Declaration) -> Context -> ( List nothing, Context )
 declarationListVisitor nodes context =
     let
         customTypeArgs : List ( String, List Range )
@@ -102,7 +102,7 @@ collectCustomType node =
 -- EXPRESSION VISITOR
 
 
-expressionVisitor : Node Expression -> Context -> ( List (Error {}), Context )
+expressionVisitor : Node Expression -> Context -> ( List nothing, Context )
 expressionVisitor node context =
     case Node.value node of
         Expression.CaseExpression { cases } ->
