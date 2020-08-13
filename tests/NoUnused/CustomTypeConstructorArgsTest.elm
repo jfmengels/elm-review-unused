@@ -38,6 +38,26 @@ something =
                             , under = "B_Data"
                             }
                         ]
+        , test "should report an error when custom type constructor argument is never used, even in parens" <|
+            \() ->
+                """module A exposing (..)
+type CustomType
+  = B B_Data
+
+b = B ()
+
+something =
+  case foo of
+    B (_) -> ()
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = message
+                            , details = details
+                            , under = "B_Data"
+                            }
+                        ]
         , test "should not report an error if custom type constructor argument is used" <|
             \() ->
                 """module A exposing (..)

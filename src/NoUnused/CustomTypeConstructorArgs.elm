@@ -161,6 +161,9 @@ isWildcard node =
         Pattern.AllPattern ->
             True
 
+        Pattern.ParenthesizedPattern pattern ->
+            isWildcard pattern
+
         _ ->
             False
 
