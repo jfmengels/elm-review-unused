@@ -151,6 +151,9 @@ detectUsedPatterns (Node _ pattern) =
         Pattern.TuplePattern patterns ->
             List.concatMap detectUsedPatterns patterns
 
+        Pattern.ListPattern patterns ->
+            List.concatMap detectUsedPatterns patterns
+
         _ ->
             []
 
