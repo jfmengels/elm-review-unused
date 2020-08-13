@@ -134,4 +134,18 @@ something =
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
+        , test "should not report an error for used arguments in nested patterns (parens)" <|
+            \() ->
+                """module A exposing (..)
+type CustomType
+  = Constructor A B
+
+b = Constructor ()
+
+something =
+  case foo of
+    ( Constructor a b ) -> value
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         ]
