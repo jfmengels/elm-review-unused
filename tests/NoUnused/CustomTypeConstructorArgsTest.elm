@@ -176,4 +176,17 @@ something =
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
+        , test "should not report an error for used arguments in argument destructuring" <|
+            \() ->
+                """module A exposing (..)
+type CustomType
+  = Constructor A
+
+b = Constructor ()
+
+something (Constructor a) =
+  a
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         ]

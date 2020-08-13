@@ -55,6 +55,7 @@ rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoUnused.CustomTypeConstructorArgs" initialContext
         |> Rule.withDeclarationListVisitor declarationListVisitor
+        |> Rule.withDeclarationEnterVisitor declarationVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
         |> Rule.fromModuleRuleSchema
@@ -74,7 +75,7 @@ initialContext =
 
 
 
--- DECLARATION VISITOR
+-- DECLARATION LIST VISITOR
 
 
 declarationListVisitor : List (Node Declaration) -> Context -> ( List nothing, Context )
@@ -99,6 +100,26 @@ collectCustomType node =
 
 
 
+-- DECLARATION VISITOR
+
+
+declarationVisitor : Node Declaration -> Context -> ( List nothing, Context )
+declarationVisitor node context =
+    case Node.value node of
+        Declaration.FunctionDeclaration { declaration } ->
+            let
+                usedArguments : List ( ( ModuleName, String ), Set Int )
+                usedArguments =
+                    (Node.value declaration).arguments
+                        |> List.concatMap collectUsedCustomTypeArgs
+            in
+            ( [], { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments } )
+
+        _ ->
+            ( [], context )
+
+
+
 -- EXPRESSION VISITOR
 
 
@@ -107,34 +128,35 @@ expressionVisitor node context =
     case Node.value node of
         Expression.CaseExpression { cases } ->
             let
-                arguments : List ( ( ModuleName, String ), Set Int )
-                arguments =
+                usedArguments : List ( ( ModuleName, String ), Set Int )
+                usedArguments =
                     cases
-                        |> List.concatMap (Tuple.first >> detectUsedPatterns)
-
-                newUsedArguments : Dict ( ModuleName, String ) (Set Int)
-                newUsedArguments =
-                    List.foldl
-                        (\( key, usedPositions ) acc ->
-                            let
-                                previouslyUsedPositions : Set Int
-                                previouslyUsedPositions =
-                                    Dict.get key acc
-                                        |> Maybe.withDefault Set.empty
-                            in
-                            Dict.insert key (Set.union previouslyUsedPositions usedPositions) acc
-                        )
-                        context.usedArguments
-                        arguments
+                        |> List.concatMap (Tuple.first >> collectUsedCustomTypeArgs)
             in
-            ( [], { context | usedArguments = newUsedArguments } )
+            ( [], { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments } )
 
         _ ->
             ( [], context )
 
 
-detectUsedPatterns : Node Pattern -> List ( ( ModuleName, String ), Set Int )
-detectUsedPatterns (Node _ pattern) =
+registerUsedPatterns : List ( ( ModuleName, String ), Set Int ) -> Dict ( ModuleName, String ) (Set Int) -> Dict ( ModuleName, String ) (Set Int)
+registerUsedPatterns newUsedArguments previouslyUsedArguments =
+    List.foldl
+        (\( key, usedPositions ) acc ->
+            let
+                previouslyUsedPositions : Set Int
+                previouslyUsedPositions =
+                    Dict.get key acc
+                        |> Maybe.withDefault Set.empty
+            in
+            Dict.insert key (Set.union previouslyUsedPositions usedPositions) acc
+        )
+        previouslyUsedArguments
+        newUsedArguments
+
+
+collectUsedCustomTypeArgs : Node Pattern -> List ( ( ModuleName, String ), Set Int )
+collectUsedCustomTypeArgs (Node _ pattern) =
     case pattern of
         Pattern.NamedPattern { moduleName, name } args ->
             let
@@ -147,22 +169,22 @@ detectUsedPatterns (Node _ pattern) =
                         |> Set.fromList
             in
             [ ( ( moduleName, name ), usedPositions ) ]
-                ++ List.concatMap detectUsedPatterns args
+                ++ List.concatMap collectUsedCustomTypeArgs args
 
         Pattern.TuplePattern patterns ->
-            List.concatMap detectUsedPatterns patterns
+            List.concatMap collectUsedCustomTypeArgs patterns
 
         Pattern.ListPattern patterns ->
-            List.concatMap detectUsedPatterns patterns
+            List.concatMap collectUsedCustomTypeArgs patterns
 
         Pattern.UnConsPattern left right ->
-            List.concatMap detectUsedPatterns [ left, right ]
+            List.concatMap collectUsedCustomTypeArgs [ left, right ]
 
         Pattern.ParenthesizedPattern subPattern ->
-            detectUsedPatterns subPattern
+            collectUsedCustomTypeArgs subPattern
 
         Pattern.AsPattern subPattern _ ->
-            detectUsedPatterns subPattern
+            collectUsedCustomTypeArgs subPattern
 
         _ ->
             []
