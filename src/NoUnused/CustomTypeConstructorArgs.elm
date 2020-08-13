@@ -8,7 +8,10 @@ module NoUnused.CustomTypeConstructorArgs exposing (rule)
 
 import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
-import Elm.Syntax.Node as Node exposing (Node)
+import Elm.Syntax.Expression as Expression exposing (Expression)
+import Elm.Syntax.ModuleName exposing (ModuleName)
+import Elm.Syntax.Node as Node exposing (Node(..))
+import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -52,24 +55,26 @@ rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoUnused.CustomTypeConstructorArgs" initialContext
         |> Rule.withDeclarationListVisitor declarationListVisitor
+        |> Rule.withExpressionEnterVisitor expressionVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
         |> Rule.fromModuleRuleSchema
 
 
 type alias Context =
     { customTypeArgs : Dict String (List Range)
-    , usedArguments : Dict String (Set Int)
+    , usedArguments : Dict ( ModuleName, String ) (Set Int)
     }
 
 
 initialContext : Context
 initialContext =
     { customTypeArgs = Dict.empty
-    , usedArguments =
-        --Dict.empty
-        -- TODO Mocked
-        Dict.singleton "B" (Set.fromList [ 0 ])
+    , usedArguments = Dict.empty
     }
+
+
+
+-- DECLARATION VISITOR
 
 
 declarationListVisitor : List (Node Declaration) -> Context -> ( List (Error {}), Context )
@@ -93,17 +98,85 @@ collectCustomType node =
             []
 
 
+
+-- EXPRESSION VISITOR
+
+
+expressionVisitor : Node Expression -> Context -> ( List (Error {}), Context )
+expressionVisitor node context =
+    case Node.value node of
+        Expression.CaseExpression { cases } ->
+            let
+                arguments : List ( ( ModuleName, String ), Set Int )
+                arguments =
+                    cases
+                        |> List.concatMap (Tuple.first >> detectUsedPatterns)
+
+                newUsedArguments : Dict ( ModuleName, String ) (Set Int)
+                newUsedArguments =
+                    List.foldl
+                        (\( key, usedPositions ) acc ->
+                            let
+                                previouslyUsedPositions : Set Int
+                                previouslyUsedPositions =
+                                    Dict.get key acc
+                                        |> Maybe.withDefault Set.empty
+                            in
+                            Dict.insert key (Set.union previouslyUsedPositions usedPositions) acc
+                        )
+                        context.usedArguments
+                        arguments
+            in
+            ( [], { context | usedArguments = newUsedArguments } )
+
+        _ ->
+            ( [], context )
+
+
+detectUsedPatterns : Node Pattern -> List ( ( ModuleName, String ), Set Int )
+detectUsedPatterns (Node _ pattern) =
+    case pattern of
+        Pattern.NamedPattern { moduleName, name } args ->
+            let
+                usedPositions : Set Int
+                usedPositions =
+                    args
+                        |> List.indexedMap Tuple.pair
+                        |> List.filter (\( _, subPattern ) -> not <| isWildcard subPattern)
+                        |> List.map Tuple.first
+                        |> Set.fromList
+            in
+            [ ( ( moduleName, name ), usedPositions ) ]
+
+        _ ->
+            []
+
+
+isWildcard : Node Pattern -> Bool
+isWildcard node =
+    case Node.value node of
+        Pattern.AllPattern ->
+            True
+
+        _ ->
+            False
+
+
+
+-- FINAL EVALUATION
+
+
 finalEvaluation : Context -> List (Error {})
 finalEvaluation context =
     context.customTypeArgs
         |> Dict.toList
         |> List.concatMap
             (\( name, arguments ) ->
-                case Dict.get name context.usedArguments of
+                case Dict.get ( [], name ) context.usedArguments of
                     Just usedArgumentPositions ->
                         arguments
                             |> List.indexedMap Tuple.pair
-                            |> List.filter (\( index, _ ) -> Set.member index usedArgumentPositions)
+                            |> List.filter (\( index, _ ) -> not <| Set.member index usedArgumentPositions)
                             |> List.map Tuple.second
 
                     Nothing ->

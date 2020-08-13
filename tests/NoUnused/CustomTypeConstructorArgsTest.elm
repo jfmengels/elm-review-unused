@@ -51,11 +51,25 @@ something =
     B value -> value
 """
                     |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
+        , test "should report an error only for the unused arguments (multiple arguments)" <|
+            \() ->
+                """module A exposing (..)
+type CustomType
+  = Constructor SomeData SomeOtherData
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor _ value -> value
+"""
+                    |> Review.Test.run rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = message
                             , details = details
-                            , under = "B_Data"
+                            , under = "SomeData"
                             }
                         ]
         ]
