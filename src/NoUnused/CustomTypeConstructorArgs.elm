@@ -135,6 +135,23 @@ expressionVisitor node context =
             in
             ( [], { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments } )
 
+        Expression.LetExpression { declarations } ->
+            let
+                usedArguments : List ( ( ModuleName, String ), Set Int )
+                usedArguments =
+                    List.concatMap
+                        (\decl ->
+                            case Node.value decl of
+                                Expression.LetDestructuring pattern _ ->
+                                    collectUsedCustomTypeArgs pattern
+
+                                Expression.LetFunction _ ->
+                                    []
+                        )
+                        declarations
+            in
+            ( [], { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments } )
+
         _ ->
             ( [], context )
 
