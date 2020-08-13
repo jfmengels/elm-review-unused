@@ -120,4 +120,18 @@ something =
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
+        , test "should not report an error for used arguments in nested patterns (uncons)" <|
+            \() ->
+                """module A exposing (..)
+type CustomType
+  = Constructor A B
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor a _ :: [Constructor _ b] -> value
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         ]

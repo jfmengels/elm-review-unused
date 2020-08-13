@@ -154,6 +154,9 @@ detectUsedPatterns (Node _ pattern) =
         Pattern.ListPattern patterns ->
             List.concatMap detectUsedPatterns patterns
 
+        Pattern.UnConsPattern left right ->
+            List.concatMap detectUsedPatterns [ left, right ]
+
         _ ->
             []
 
