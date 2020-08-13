@@ -205,4 +205,18 @@ something =
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
+        , test "should not report an error for used arguments used in a different file" <|
+            \() ->
+                [ """module A exposing (..)
+type CustomType
+  = Constructor A
+""", """module B exposing (..)
+import A
+
+something =
+  case foo of
+    A.Constructor value -> value
+""" ]
+                    |> Review.Test.runOnModules rule
+                    |> Review.Test.expectNoErrors
         ]
