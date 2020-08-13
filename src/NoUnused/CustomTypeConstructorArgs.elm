@@ -148,6 +148,9 @@ detectUsedPatterns (Node _ pattern) =
             in
             [ ( ( moduleName, name ), usedPositions ) ]
 
+        Pattern.TuplePattern patterns ->
+            List.concatMap detectUsedPatterns patterns
+
         _ ->
             []
 

@@ -72,4 +72,18 @@ something =
                             , under = "SomeData"
                             }
                         ]
+        , test "should not report an error for used arguments in nested patterns (tuple)" <|
+            \() ->
+                """module A exposing (..)
+type CustomType
+  = Constructor SomeData
+
+b = Constructor ()
+
+something =
+  case foo of
+    (_, Constructor value) -> value
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         ]
