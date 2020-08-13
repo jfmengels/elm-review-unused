@@ -161,6 +161,9 @@ detectUsedPatterns (Node _ pattern) =
         Pattern.ParenthesizedPattern subPattern ->
             detectUsedPatterns subPattern
 
+        Pattern.AsPattern subPattern _ ->
+            detectUsedPatterns subPattern
+
         _ ->
             []
 
