@@ -27,7 +27,7 @@ module Scope exposing
 
 {- Copied over from https://github.com/jfmengels/elm-review-scope
 
-   Version: 0.3.0
+   Version: 0.3.1
 
    Copyright (c) 2020, Jeroen Engels
    All rights reserved.
@@ -505,7 +505,14 @@ internalDependenciesVisitor dependencies innerContext =
 
 registerPrelude : InnerModuleContext -> InnerModuleContext
 registerPrelude innerContext =
-    List.foldl registerImportExposed innerContext elmCorePrelude
+    List.foldl
+        (\import_ context ->
+            context
+                |> registerImportAlias import_
+                |> registerImportExposed import_
+        )
+        innerContext
+        elmCorePrelude
 
 
 elmCorePrelude : List Import
@@ -587,6 +594,7 @@ elmCorePrelude =
         , exposingList =
             explicit
                 [ Exposing.TypeExpose { name = "Cmd", open = Nothing }
+                , Exposing.FunctionExpose "none"
                 ]
         }
     , createFakeImport
@@ -595,6 +603,7 @@ elmCorePrelude =
         , exposingList =
             explicit
                 [ Exposing.TypeExpose { name = "Sub", open = Nothing }
+                , Exposing.FunctionExpose "batch"
                 ]
         }
     ]
