@@ -176,7 +176,7 @@ something =
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
-        , test "should not report an error for used arguments in argument destructuring" <|
+        , test "should not report an error for used arguments in top-level function argument destructuring" <|
             \() ->
                 """module A exposing (..)
 type CustomType
@@ -185,6 +185,22 @@ type CustomType
 b = Constructor ()
 
 something (Constructor a) =
+  a
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report an error for used arguments in let in function argument destructuring" <|
+            \() ->
+                """module A exposing (..)
+type CustomType
+  = Constructor A
+
+b = Constructor ()
+
+something =
+  let
+    foo (Constructor a) = 1
+  in
   a
 """
                     |> Review.Test.run rule

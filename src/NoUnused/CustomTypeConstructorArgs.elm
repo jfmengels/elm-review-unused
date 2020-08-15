@@ -176,17 +176,24 @@ collectCustomType node =
 declarationVisitor : Node Declaration -> ModuleContext -> ( List nothing, ModuleContext )
 declarationVisitor node context =
     case Node.value node of
-        Declaration.FunctionDeclaration { declaration } ->
-            let
-                usedArguments : List ( ( ModuleName, String ), Set Int )
-                usedArguments =
-                    (Node.value declaration).arguments
-                        |> List.concatMap (collectUsedCustomTypeArgs context.scope)
-            in
-            ( [], { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments } )
+        Declaration.FunctionDeclaration function ->
+            ( []
+            , { context
+                | usedArguments =
+                    registerUsedPatterns
+                        (collectUsedPatternsFromFunctionDeclaration context function)
+                        context.usedArguments
+              }
+            )
 
         _ ->
             ( [], context )
+
+
+collectUsedPatternsFromFunctionDeclaration : ModuleContext -> Expression.Function -> List ( ( ModuleName, String ), Set Int )
+collectUsedPatternsFromFunctionDeclaration context { declaration } =
+    (Node.value declaration).arguments
+        |> List.concatMap (collectUsedCustomTypeArgs context.scope)
 
 
 
@@ -215,8 +222,8 @@ expressionVisitor node context =
                                 Expression.LetDestructuring pattern _ ->
                                     collectUsedCustomTypeArgs context.scope pattern
 
-                                Expression.LetFunction _ ->
-                                    []
+                                Expression.LetFunction function ->
+                                    collectUsedPatternsFromFunctionDeclaration context function
                         )
                         declarations
             in
