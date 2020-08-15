@@ -229,6 +229,16 @@ expressionVisitor node context =
             in
             ( [], { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments } )
 
+        Expression.LambdaExpression { args } ->
+            ( []
+            , { context
+                | usedArguments =
+                    registerUsedPatterns
+                        (List.concatMap (collectUsedCustomTypeArgs context.scope) args)
+                        context.usedArguments
+              }
+            )
+
         _ ->
             ( [], context )
 
