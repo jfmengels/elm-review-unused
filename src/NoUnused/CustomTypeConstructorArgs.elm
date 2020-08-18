@@ -7,8 +7,12 @@ module NoUnused.CustomTypeConstructorArgs exposing (rule)
 -}
 
 import Dict exposing (Dict)
+import Elm.Module
+import Elm.Project
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
+import Elm.Syntax.Exposing as Exposing exposing (Exposing)
 import Elm.Syntax.Expression as Expression exposing (Expression)
+import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
@@ -56,6 +60,7 @@ rule : Rule
 rule =
     Rule.newProjectRuleSchema "NoUnused.CustomTypeConstructorArgs" initialProjectContext
         |> Scope.addProjectVisitors
+        |> Rule.withElmJsonProjectVisitor elmJsonVisitor
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContext
             { fromProjectToModule = fromProjectToModule
@@ -68,13 +73,20 @@ rule =
 
 type alias ProjectContext =
     { scope : Scope.ProjectContext
-    , customTypeArgs : Dict ModuleName { moduleKey : Rule.ModuleKey, args : Dict String (List Range) }
+    , exposedModules : Set ModuleName
+    , customTypeArgs :
+        Dict ModuleName
+            { moduleKey : Rule.ModuleKey
+            , args : Dict String (List Range)
+            }
     , usedArguments : Dict ( ModuleName, String ) (Set Int)
     }
 
 
 type alias ModuleContext =
     { scope : Scope.ModuleContext
+    , isModuleExposed : Bool
+    , exposed : Exposing
     , customTypeArgs : Dict String (List Range)
     , usedArguments : Dict ( ModuleName, String ) (Set Int)
     }
@@ -83,22 +95,52 @@ type alias ModuleContext =
 moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
 moduleVisitor schema =
     schema
+        |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withDeclarationEnterVisitor declarationVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
 
 
+elmJsonVisitor : Maybe { a | project : Elm.Project.Project } -> ProjectContext -> ( List nothing, ProjectContext )
+elmJsonVisitor maybeEProject projectContext =
+    case Maybe.map .project maybeEProject of
+        Just (Elm.Project.Package package) ->
+            let
+                exposedModules : List Elm.Module.Name
+                exposedModules =
+                    case package.exposed of
+                        Elm.Project.ExposedList list ->
+                            list
+
+                        Elm.Project.ExposedDict list ->
+                            List.concatMap Tuple.second list
+
+                exposedNames : Set ModuleName
+                exposedNames =
+                    exposedModules
+                        |> List.map (Elm.Module.toString >> String.split ".")
+                        |> Set.fromList
+            in
+            ( [], { projectContext | exposedModules = exposedNames } )
+
+        _ ->
+            ( [], projectContext )
+
+
 initialProjectContext : ProjectContext
 initialProjectContext =
     { scope = Scope.initialProjectContext
+    , exposedModules = Set.empty
     , customTypeArgs = Dict.empty
     , usedArguments = Dict.empty
     }
 
 
 fromProjectToModule : Rule.ModuleKey -> Node ModuleName -> ProjectContext -> ModuleContext
-fromProjectToModule _ _ projectContext =
+fromProjectToModule _ moduleName projectContext =
     { scope = Scope.fromProjectToModule projectContext.scope
+    , isModuleExposed = Set.member (Node.value moduleName) projectContext.exposedModules
+    , exposed = Exposing.Explicit []
     , customTypeArgs = Dict.empty
     , usedArguments = Dict.empty
     }
@@ -107,10 +149,13 @@ fromProjectToModule _ _ projectContext =
 fromModuleToProject : Rule.ModuleKey -> Node ModuleName -> ModuleContext -> ProjectContext
 fromModuleToProject moduleKey moduleName moduleContext =
     { scope = Scope.fromModuleToProject moduleName moduleContext.scope
+    , exposedModules = Set.empty
     , customTypeArgs =
         Dict.singleton
             (Node.value moduleName)
-            { moduleKey = moduleKey, args = moduleContext.customTypeArgs }
+            { moduleKey = moduleKey
+            , args = getNonExposedCustomTypes moduleContext
+            }
     , usedArguments =
         Dict.foldl
             (\( moduleNameForType, name ) value dict ->
@@ -126,9 +171,45 @@ fromModuleToProject moduleKey moduleName moduleContext =
     }
 
 
+getNonExposedCustomTypes : ModuleContext -> Dict String (List Range)
+getNonExposedCustomTypes moduleContext =
+    if moduleContext.isModuleExposed then
+        case moduleContext.exposed of
+            Exposing.All _ ->
+                Dict.empty
+
+            Exposing.Explicit list ->
+                let
+                    exposedCustomTypes : Set String
+                    exposedCustomTypes =
+                        list
+                            |> List.filterMap
+                                (\exposed ->
+                                    case Node.value exposed of
+                                        Exposing.TypeExpose { name, open } ->
+                                            case open of
+                                                Just _ ->
+                                                    Just name
+
+                                                Nothing ->
+                                                    Nothing
+
+                                        _ ->
+                                            Nothing
+                                )
+                            |> Set.fromList
+                in
+                moduleContext.customTypeArgs
+                    |> Dict.filter (\typeName _ -> not <| Set.member typeName exposedCustomTypes)
+
+    else
+        moduleContext.customTypeArgs
+
+
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
     { scope = Scope.foldProjectContexts newContext.scope previousContext.scope
+    , exposedModules = previousContext.exposedModules
     , customTypeArgs =
         Dict.union
             newContext.customTypeArgs
@@ -142,6 +223,15 @@ foldProjectContexts newContext previousContext =
             previousContext.usedArguments
             Dict.empty
     }
+
+
+
+-- MODULE DEFINITION VISITOR
+
+
+moduleDefinitionVisitor : Node Module -> ModuleContext -> ( List nothing, ModuleContext )
+moduleDefinitionVisitor node moduleContext =
+    ( [], { moduleContext | exposed = Module.exposingList (Node.value node) } )
 
 
 

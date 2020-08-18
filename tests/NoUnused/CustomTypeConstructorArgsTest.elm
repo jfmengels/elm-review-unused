@@ -1,6 +1,9 @@
 module NoUnused.CustomTypeConstructorArgsTest exposing (all)
 
+import Elm.Project
+import Json.Decode as Decode
 import NoUnused.CustomTypeConstructorArgs exposing (rule)
+import Review.Project as Project exposing (Project)
 import Review.Test
 import Test exposing (Test, describe, test)
 
@@ -248,4 +251,137 @@ something =
 """ ]
                     |> Review.Test.runOnModules rule
                     |> Review.Test.expectNoErrors
+        , test "should report errors for non-exposed modules in a package (exposing everything)" <|
+            \() ->
+                """module NotExposed exposing (..)
+type CustomType
+  = Constructor SomeData
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor _ -> 1
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = message
+                            , details = details
+                            , under = "SomeData"
+                            }
+                        ]
+        , test "should report errors for non-exposed modules in a package (exposing explicitly)" <|
+            \() ->
+                """module NotExposed exposing (CustomType(..))
+type CustomType
+  = Constructor SomeData
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor _ -> 1
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = message
+                            , details = details
+                            , under = "SomeData"
+                            }
+                        ]
+        , test "should not report errors for exposed modules that expose everything" <|
+            \() ->
+                """module Exposed exposing (..)
+type CustomType
+  = Constructor SomeData
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor _ -> 1
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectNoErrors
+        , test "should report errors if the type is not exposed outside the module" <|
+            \() ->
+                """module Exposed exposing (b)
+type CustomType
+  = Constructor SomeData
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor _ -> 1
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = message
+                            , details = details
+                            , under = "SomeData"
+                            }
+                        ]
+        , test "should report errors if the type is exposed but not its constructors" <|
+            \() ->
+                """module Exposed exposing (CustomType)
+type CustomType
+  = Constructor SomeData
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor _ -> 1
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = message
+                            , details = details
+                            , under = "SomeData"
+                            }
+                        ]
         ]
+
+
+packageProject : Project
+packageProject =
+    Project.new
+        |> Project.addElmJson (createElmJson packageElmJson)
+
+
+packageElmJson : String
+packageElmJson =
+    """
+{
+    "type": "package",
+    "name": "author/package",
+    "summary": "Summary",
+    "license": "BSD-3-Clause",
+    "version": "1.0.0",
+    "exposed-modules": [
+        "Exposed"
+    ],
+    "elm-version": "0.19.0 <= v < 0.20.0",
+    "dependencies": {
+        "elm/core": "1.0.0 <= v < 2.0.0"
+    },
+    "test-dependencies": {}
+}"""
+
+
+createElmJson : String -> { path : String, raw : String, project : Elm.Project.Project }
+createElmJson rawElmJson =
+    case Decode.decodeString Elm.Project.decoder rawElmJson of
+        Ok elmJson ->
+            { path = "elm.json"
+            , raw = rawElmJson
+            , project = elmJson
+            }
+
+        Err _ ->
+            Debug.todo "Invalid elm.json supplied to test"
