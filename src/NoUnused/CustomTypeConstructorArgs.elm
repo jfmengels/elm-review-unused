@@ -432,7 +432,9 @@ finalEvaluation context =
 error : Rule.ModuleKey -> Range -> Error anywhere
 error moduleKey range =
     Rule.errorForModule moduleKey
-        { message = "REPLACEME"
-        , details = [ "REPLACEME" ]
+        { message = "Argument is never extracted and therefore never used."
+        , details =
+            [ "This argument is never used. You should either use it somewhere, or remove it at the location I pointed at."
+            ]
         }
         range

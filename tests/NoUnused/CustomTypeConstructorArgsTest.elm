@@ -10,12 +10,13 @@ import Test exposing (Test, describe, test)
 
 message : String
 message =
-    "REPLACEME"
+    "Argument is never extracted and therefore never used."
 
 
 details : List String
 details =
-    [ "REPLACEME" ]
+    [ "This argument is never used. You should either use it somewhere, or remove it at the location I pointed at."
+    ]
 
 
 all : Test
