@@ -6,7 +6,7 @@ Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-revi
 
 - [`NoUnused.Variables`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.0.1/NoUnused-Variables) - Reports unused top-level variables and types, imports and imported variables and types inside of a module.
 - [`NoUnused.CustomTypeConstructors`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.0.1/NoUnused-CustomTypeConstructors) - Reports unused constructors for a custom type.
-- [`NoUnused.CustomTypeConstructorArgs`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.0.1/NoUnused-CustomTypeConstructorArgs) - Reports REPLACEME.
+- [`NoUnused.CustomTypeConstructorArgs`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.0.1/NoUnused-CustomTypeConstructorArgs) - Reports arguments of custom type constructors that are never used.
 - [`NoUnused.Exports`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.0.1/NoUnused-Exports) - Reports unused exposed elements from a module.
 - [`NoUnused.Modules`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.0.1/NoUnused-Modules) - Reports unused modules in the project.
 - [`NoUnused.Dependencies`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.0.1/NoUnused-Dependencies) - Reports unused dependencies in the project.

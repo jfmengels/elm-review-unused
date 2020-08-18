@@ -22,29 +22,34 @@ import Scope
 import Set exposing (Set)
 
 
-{-| Reports... REPLACEME
+{-| Reports arguments of custom type constructors that are never used.
 
     config =
         [ NoUnused.CustomTypeConstructorArgs.rule
         ]
 
+Custom type constructors can contain data that is never extracted out of the constructor.
+This rule will warn arguments that are always pattern matched using a wildcard (`_`).
+
+For package projects, custom types whose constructors are exposed as part of the package API are not reported.
+
 
 ## Fail
 
-    a =
-        "REPLACEME example to replace"
+    type CustomType
+      = CustomType Used Unused
+
+    case customType of
+      CustomType value _ -> value
 
 
 ## Success
 
-    a =
-        "REPLACEME example to replace"
+    type CustomType
+      = CustomType Used Unused
 
-
-## When (not) to enable this rule
-
-This rule is useful when REPLACEME.
-This rule is not useful when REPLACEME.
+    case customType of
+      CustomType value maybeUsed -> value
 
 
 ## Try it out
