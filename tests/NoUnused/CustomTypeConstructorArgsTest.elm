@@ -306,6 +306,20 @@ something =
 """
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectNoErrors
+        , test "should not report errors for exposed modules in a package (exposing explicitly)" <|
+            \() ->
+                """module Exposed exposing (CustomType(..))
+type CustomType
+  = Constructor SomeData
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor _ -> 1
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectNoErrors
         , test "should report errors if the type is not exposed outside the module" <|
             \() ->
                 """module Exposed exposing (b)

@@ -92,7 +92,7 @@ type alias ModuleContext =
     { scope : Scope.ModuleContext
     , isModuleExposed : Bool
     , exposed : Exposing
-    , customTypeArgs : Dict String (List Range)
+    , customTypeArgs : Dict String (Dict String (List Range))
     , usedArguments : Dict ( ModuleName, String ) (Set Int)
     }
 
@@ -206,9 +206,13 @@ getNonExposedCustomTypes moduleContext =
                 in
                 moduleContext.customTypeArgs
                     |> Dict.filter (\typeName _ -> not <| Set.member typeName exposedCustomTypes)
+                    |> Dict.values
+                    |> List.foldl Dict.union Dict.empty
 
     else
         moduleContext.customTypeArgs
+            |> Dict.values
+            |> List.foldl Dict.union Dict.empty
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
@@ -246,22 +250,27 @@ moduleDefinitionVisitor node moduleContext =
 declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List nothing, ModuleContext )
 declarationListVisitor nodes context =
     let
-        customTypeArgs : List ( String, List Range )
+        customTypeArgs : List ( String, Dict String (List Range) )
         customTypeArgs =
-            List.concatMap collectCustomType nodes
+            List.filterMap collectCustomType nodes
     in
     ( [], { context | customTypeArgs = Dict.fromList customTypeArgs } )
 
 
-collectCustomType : Node Declaration -> List ( String, List Range )
+collectCustomType : Node Declaration -> Maybe ( String, Dict String (List Range) )
 collectCustomType node =
     case Node.value node of
-        Declaration.CustomTypeDeclaration { constructors } ->
-            constructors
-                |> List.map (Node.value >> (\{ name, arguments } -> ( Node.value name, List.map Node.range arguments )))
+        Declaration.CustomTypeDeclaration typeDeclaration ->
+            let
+                customTypeConstructors : List ( String, List Range )
+                customTypeConstructors =
+                    typeDeclaration.constructors
+                        |> List.map (Node.value >> (\{ name, arguments } -> ( Node.value name, List.map Node.range arguments )))
+            in
+            Just ( Node.value typeDeclaration.name, Dict.fromList customTypeConstructors )
 
         _ ->
-            []
+            Nothing
 
 
 
@@ -270,6 +279,7 @@ collectCustomType node =
 
 declarationVisitor : Node Declaration -> ModuleContext -> ( List nothing, ModuleContext )
 declarationVisitor node context =
+    -- TODO Move to declaration list visitor, or the other way around
     case Node.value node of
         Declaration.FunctionDeclaration function ->
             ( []
