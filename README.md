@@ -49,15 +49,6 @@ This allows for fine-grained control over what you want the rules to do. If you 
 A few of these rules provide automatic fixes using `elm-review --fix` or `elm-review --fix-all`.
 
 
-## Try it out
-
-You can try the example configuration above out by running the following command:
-
-```bash
-elm-review --template jfmengels/elm-review-unused/example
-```
-
-
 ## Thanks
 
 Thanks to @sparksp for writing [`NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.0.0/NoUnused-Dependencies) and [`NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/2.1.2/NoUnused-Dependencies).

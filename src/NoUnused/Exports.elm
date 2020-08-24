@@ -40,15 +40,6 @@ then nothing will be reported.
         [ NoUnused.Exports.rule
         ]
 
-
-## Try it out
-
-You can try this rule out by running the following command:
-
-```bash
-elm-review --template jfmengels/elm-elm-review-unused/example --rules NoUnused.Exports
-```
-
 -}
 rule : Rule
 rule =

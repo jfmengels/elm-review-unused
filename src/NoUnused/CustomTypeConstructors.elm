@@ -103,15 +103,6 @@ I would love help with improving this :)
         | B
         | C
 
-
-## Try it out
-
-You can try this rule out by running the following command:
-
-```bash
-elm-review --template jfmengels/elm-elm-review-unused/example --rules NoUnused.CustomTypeConstructors
-```
-
 -}
 rule : List { moduleName : String, typeName : String, index : Int } -> Rule
 rule phantomTypes =

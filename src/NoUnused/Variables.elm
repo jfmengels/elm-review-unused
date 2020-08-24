@@ -50,15 +50,6 @@ import Set exposing (Set)
     a n =
         n + 1
 
-
-## Try it out
-
-You can try this rule out by running the following command:
-
-```bash
-elm-review --template jfmengels/elm-elm-review-unused/example --rules NoUnused.Variables
-```
-
 -}
 rule : Rule
 rule =
