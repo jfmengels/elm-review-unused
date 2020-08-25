@@ -619,5 +619,12 @@ expressionVisitor node moduleContext =
                 moduleContext
             )
 
+        Expression.RecordUpdateExpression (Node _ name) _ ->
+            ( []
+            , registerAsUsed
+                ( Scope.moduleNameForValue moduleContext.scope name [], name )
+                moduleContext
+            )
+
         _ ->
             ( [], moduleContext )
