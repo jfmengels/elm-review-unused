@@ -57,7 +57,7 @@ For package projects, custom types whose constructors are exposed as part of the
 You can try this rule out by running the following command:
 
 ```bash
-elm - review --template jfmengels/elm-review-unused/example --rules NoUnused.CustomTypeConstructorArgs
+elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.CustomTypeConstructorArgs
 ```
 
 -}
