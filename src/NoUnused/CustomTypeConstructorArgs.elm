@@ -52,6 +52,12 @@ For package projects, custom types whose constructors are exposed as part of the
       CustomType value maybeUsed -> value
 
 
+## When not to enable this rule?
+
+If you like giving names to all arguments when pattern matching, then this rule will not found many problems.
+This rule will work well when enabled along with [`NoUnused.Patterns`](./NoUnused-Patterns).
+
+
 ## Try it out
 
 You can try this rule out by running the following command:
