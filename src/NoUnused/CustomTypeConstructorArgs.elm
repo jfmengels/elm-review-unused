@@ -19,7 +19,6 @@ import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
-import Scope
 import Set exposing (Set)
 
 
@@ -64,14 +63,13 @@ This rule will work well when enabled along with [`NoUnused.Patterns`](./NoUnuse
 You can try this rule out by running the following command:
 
 ```bash
-elm - review --template jfmengels/elm-review-unused/example --rules NoUnused.CustomTypeConstructorArgs
+elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.CustomTypeConstructorArgs
 ```
 
 -}
 rule : Rule
 rule =
     Rule.newProjectRuleSchema "NoUnused.CustomTypeConstructorArgs" initialProjectContext
-        |> Scope.addProjectVisitors
         |> Rule.withElmJsonProjectVisitor elmJsonVisitor
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
@@ -84,8 +82,7 @@ rule =
 
 
 type alias ProjectContext =
-    { scope : Scope.ProjectContext
-    , exposedModules : Set ModuleName
+    { exposedModules : Set ModuleName
     , customTypeArgs :
         Dict ModuleName
             { moduleKey : Rule.ModuleKey
@@ -97,7 +94,6 @@ type alias ProjectContext =
 
 type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
-    , scope : Scope.ModuleContext
     , isModuleExposed : Bool
     , exposed : Exposing
     , customTypeArgs : Dict String (Dict String (List Range))
@@ -142,8 +138,7 @@ elmJsonVisitor maybeEProject projectContext =
 
 initialProjectContext : ProjectContext
 initialProjectContext =
-    { scope = Scope.initialProjectContext
-    , exposedModules = Set.empty
+    { exposedModules = Set.empty
     , customTypeArgs = Dict.empty
     , usedArguments = Dict.empty
     }
@@ -154,7 +149,6 @@ fromProjectToModule =
     Rule.initContextCreator
         (\lookupTable metadata projectContext ->
             { lookupTable = lookupTable
-            , scope = Scope.fromProjectToModule projectContext.scope
             , isModuleExposed = Set.member (Rule.moduleNameFromMetadata metadata) projectContext.exposedModules
             , exposed = Exposing.Explicit []
             , customTypeArgs = Dict.empty
@@ -169,8 +163,7 @@ fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
 fromModuleToProject =
     Rule.initContextCreator
         (\moduleKey metadata moduleContext ->
-            { scope = Scope.fromModuleToProject (Rule.moduleNameNodeFromMetadata metadata) moduleContext.scope
-            , exposedModules = Set.empty
+            { exposedModules = Set.empty
             , customTypeArgs =
                 Dict.singleton
                     (Rule.moduleNameFromMetadata metadata)
@@ -236,8 +229,7 @@ getNonExposedCustomTypes moduleContext =
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
-    { scope = Scope.foldProjectContexts newContext.scope previousContext.scope
-    , exposedModules = previousContext.exposedModules
+    { exposedModules = previousContext.exposedModules
     , customTypeArgs =
         Dict.union
             newContext.customTypeArgs
