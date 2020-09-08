@@ -17,6 +17,7 @@ import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
+import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Scope
 import Set exposing (Set)
@@ -63,7 +64,7 @@ This rule will work well when enabled along with [`NoUnused.Patterns`](./NoUnuse
 You can try this rule out by running the following command:
 
 ```bash
-elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.CustomTypeConstructorArgs
+elm - review --template jfmengels/elm-review-unused/example --rules NoUnused.CustomTypeConstructorArgs
 ```
 
 -}
@@ -73,7 +74,7 @@ rule =
         |> Scope.addProjectVisitors
         |> Rule.withElmJsonProjectVisitor elmJsonVisitor
         |> Rule.withModuleVisitor moduleVisitor
-        |> Rule.withModuleContext
+        |> Rule.withModuleContextUsingContextCreator
             { fromProjectToModule = fromProjectToModule
             , fromModuleToProject = fromModuleToProject
             , foldProjectContexts = foldProjectContexts
@@ -95,7 +96,8 @@ type alias ProjectContext =
 
 
 type alias ModuleContext =
-    { scope : Scope.ModuleContext
+    { lookupTable : ModuleNameLookupTable
+    , scope : Scope.ModuleContext
     , isModuleExposed : Bool
     , exposed : Exposing
     , customTypeArgs : Dict String (Dict String (List Range))
@@ -147,39 +149,50 @@ initialProjectContext =
     }
 
 
-fromProjectToModule : Rule.ModuleKey -> Node ModuleName -> ProjectContext -> ModuleContext
-fromProjectToModule _ moduleName projectContext =
-    { scope = Scope.fromProjectToModule projectContext.scope
-    , isModuleExposed = Set.member (Node.value moduleName) projectContext.exposedModules
-    , exposed = Exposing.Explicit []
-    , customTypeArgs = Dict.empty
-    , usedArguments = Dict.empty
-    }
-
-
-fromModuleToProject : Rule.ModuleKey -> Node ModuleName -> ModuleContext -> ProjectContext
-fromModuleToProject moduleKey moduleName moduleContext =
-    { scope = Scope.fromModuleToProject moduleName moduleContext.scope
-    , exposedModules = Set.empty
-    , customTypeArgs =
-        Dict.singleton
-            (Node.value moduleName)
-            { moduleKey = moduleKey
-            , args = getNonExposedCustomTypes moduleContext
+fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
+fromProjectToModule =
+    Rule.initContextCreator
+        (\lookupTable metadata projectContext ->
+            { lookupTable = lookupTable
+            , scope = Scope.fromProjectToModule projectContext.scope
+            , isModuleExposed = Set.member (Rule.moduleNameFromMetadata metadata) projectContext.exposedModules
+            , exposed = Exposing.Explicit []
+            , customTypeArgs = Dict.empty
+            , usedArguments = Dict.empty
             }
-    , usedArguments =
-        Dict.foldl
-            (\( moduleNameForType, name ) value dict ->
-                case moduleNameForType of
-                    [] ->
-                        Dict.insert ( Node.value moduleName, name ) value dict
+        )
+        |> Rule.withModuleNameLookupTable
+        |> Rule.withMetadata
 
-                    _ ->
-                        Dict.insert ( moduleNameForType, name ) value dict
-            )
-            Dict.empty
-            moduleContext.usedArguments
-    }
+
+fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
+fromModuleToProject =
+    Rule.initContextCreator
+        (\moduleKey metadata moduleContext ->
+            { scope = Scope.fromModuleToProject (Rule.moduleNameNodeFromMetadata metadata) moduleContext.scope
+            , exposedModules = Set.empty
+            , customTypeArgs =
+                Dict.singleton
+                    (Rule.moduleNameFromMetadata metadata)
+                    { moduleKey = moduleKey
+                    , args = getNonExposedCustomTypes moduleContext
+                    }
+            , usedArguments =
+                Dict.foldl
+                    (\( moduleNameForType, name ) value dict ->
+                        case moduleNameForType of
+                            [] ->
+                                Dict.insert ( Rule.moduleNameFromMetadata metadata, name ) value dict
+
+                            _ ->
+                                Dict.insert ( moduleNameForType, name ) value dict
+                    )
+                    Dict.empty
+                    moduleContext.usedArguments
+            }
+        )
+        |> Rule.withModuleKey
+        |> Rule.withMetadata
 
 
 getNonExposedCustomTypes : ModuleContext -> Dict String (List Range)
@@ -304,7 +317,7 @@ declarationVisitor node context =
 collectUsedPatternsFromFunctionDeclaration : ModuleContext -> Expression.Function -> List ( ( ModuleName, String ), Set Int )
 collectUsedPatternsFromFunctionDeclaration context { declaration } =
     (Node.value declaration).arguments
-        |> List.concatMap (collectUsedCustomTypeArgs context.scope)
+        |> List.concatMap (collectUsedCustomTypeArgs context.lookupTable)
 
 
 
@@ -319,7 +332,7 @@ expressionVisitor node context =
                 usedArguments : List ( ( ModuleName, String ), Set Int )
                 usedArguments =
                     cases
-                        |> List.concatMap (Tuple.first >> collectUsedCustomTypeArgs context.scope)
+                        |> List.concatMap (Tuple.first >> collectUsedCustomTypeArgs context.lookupTable)
             in
             ( [], { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments } )
 
@@ -331,7 +344,7 @@ expressionVisitor node context =
                         (\declaration ->
                             case Node.value declaration of
                                 Expression.LetDestructuring pattern _ ->
-                                    collectUsedCustomTypeArgs context.scope pattern
+                                    collectUsedCustomTypeArgs context.lookupTable pattern
 
                                 Expression.LetFunction function ->
                                     collectUsedPatternsFromFunctionDeclaration context function
@@ -345,7 +358,7 @@ expressionVisitor node context =
             , { context
                 | usedArguments =
                     registerUsedPatterns
-                        (List.concatMap (collectUsedCustomTypeArgs context.scope) args)
+                        (List.concatMap (collectUsedCustomTypeArgs context.lookupTable) args)
                         context.usedArguments
               }
             )
@@ -370,10 +383,10 @@ registerUsedPatterns newUsedArguments previouslyUsedArguments =
         newUsedArguments
 
 
-collectUsedCustomTypeArgs : Scope.ModuleContext -> Node Pattern -> List ( ( ModuleName, String ), Set Int )
-collectUsedCustomTypeArgs scope (Node _ pattern) =
+collectUsedCustomTypeArgs : ModuleNameLookupTable -> Node Pattern -> List ( ( ModuleName, String ), Set Int )
+collectUsedCustomTypeArgs lookupTable (Node range pattern) =
     case pattern of
-        Pattern.NamedPattern { moduleName, name } args ->
+        Pattern.NamedPattern { name } args ->
             let
                 usedPositions : Set Int
                 usedPositions =
@@ -382,24 +395,33 @@ collectUsedCustomTypeArgs scope (Node _ pattern) =
                         |> List.filter (\( _, subPattern ) -> not <| isWildcard subPattern)
                         |> List.map Tuple.first
                         |> Set.fromList
+
+                subList : List ( ( ModuleName, String ), Set Int )
+                subList =
+                    List.concatMap (collectUsedCustomTypeArgs lookupTable) args
             in
-            [ ( ( Scope.moduleNameForValue scope name moduleName, name ), usedPositions ) ]
-                ++ List.concatMap (collectUsedCustomTypeArgs scope) args
+            case ModuleNameLookupTable.moduleNameAt lookupTable range of
+                Just moduleName ->
+                    [ ( ( moduleName, name ), usedPositions ) ]
+                        ++ subList
+
+                Nothing ->
+                    subList
 
         Pattern.TuplePattern patterns ->
-            List.concatMap (collectUsedCustomTypeArgs scope) patterns
+            List.concatMap (collectUsedCustomTypeArgs lookupTable) patterns
 
         Pattern.ListPattern patterns ->
-            List.concatMap (collectUsedCustomTypeArgs scope) patterns
+            List.concatMap (collectUsedCustomTypeArgs lookupTable) patterns
 
         Pattern.UnConsPattern left right ->
-            List.concatMap (collectUsedCustomTypeArgs scope) [ left, right ]
+            List.concatMap (collectUsedCustomTypeArgs lookupTable) [ left, right ]
 
         Pattern.ParenthesizedPattern subPattern ->
-            collectUsedCustomTypeArgs scope subPattern
+            collectUsedCustomTypeArgs lookupTable subPattern
 
         Pattern.AsPattern subPattern _ ->
-            collectUsedCustomTypeArgs scope subPattern
+            collectUsedCustomTypeArgs lookupTable subPattern
 
         _ ->
             []
