@@ -33,7 +33,7 @@ This rule will warn arguments that are always pattern matched using a wildcard (
 
 For package projects, custom types whose constructors are exposed as part of the package API are not reported.
 
-Note that this rule may report false positives if you compare custom types with the `==`/`!=` operators (and never destructure the custom type), like when you do `value == Just 0`.
+Note that this rule may report false positives if you compare custom types with the `==`/`/=` operators (and never destructure the custom type), like when you do `value == Just 0`.
 If you have a solution in mind to better handle these cases in a manageable way, please open an issue so we can talk about it.
 
 
