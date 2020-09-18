@@ -40,6 +40,13 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+    
+      - name: Install elm-format 0.8.4-rc1
+        run: |
+          curl https://ipfs.globalupload.io/QmPoDMWqhsnddeb2qRPD6eoYFNhQrMyJhUkiggyMk1zp8h > elm-format.zip
+          unzip elm-format.zip
+          tar zxvf elm-format-0.8.4-rc1-linux-x64.tgz
+          mv elm-format node_modules/.bin/elm-format
 
       # Runs a single command using the runners shell
       - name: Elm Publish
