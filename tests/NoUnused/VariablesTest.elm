@@ -876,6 +876,25 @@ button = div"""
 import Html exposing (div)
 button = div"""
                     ]
+    , test "should report unused variable import when it has been shadowed by a local port" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Html exposing (button, div)
+port button : Json.Encode.Value -> Cmd msg
+a = button div"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported variable `button` is not used"
+                        , details = details
+                        , under = "button"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Html exposing (div)
+port button : Json.Encode.Value -> Cmd msg
+a = button div"""
+                    ]
     , test "should report unused type import when it has been shadowed by a local type alias" <|
         \() ->
             """module SomeModule exposing (a)

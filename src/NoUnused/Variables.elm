@@ -693,8 +693,17 @@ declarationVisitor node context =
                 namesUsedInTypeAnnotation : { types : List String, modules : List String }
                 namesUsedInTypeAnnotation =
                     collectNamesFromTypeAnnotation typeAnnotation
+
+                errors : List (Error {})
+                errors =
+                    case Dict.get (Node.value name) context.importedElements of
+                        Just variableInfo ->
+                            [ error context.declaredModules variableInfo (Node.value name) ]
+
+                        Nothing ->
+                            []
             in
-            ( []
+            ( errors
             , context
                 |> markUsedTypesAndModules namesUsedInTypeAnnotation
                 |> register
