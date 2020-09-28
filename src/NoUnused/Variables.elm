@@ -79,6 +79,7 @@ type alias Context =
     , constructorNameToTypeName : Dict String String
     , declaredModules : Dict String VariableInfo
     , usedModules : Set String
+    , importedElements : Dict String Range
     }
 
 
@@ -124,6 +125,7 @@ initialContext =
     , constructorNameToTypeName = Dict.empty
     , declaredModules = Dict.empty
     , usedModules = Set.empty
+    , importedElements = Dict.empty
     }
 
 
