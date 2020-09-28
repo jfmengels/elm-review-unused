@@ -569,7 +569,7 @@ getUsedModulesFromPattern patternNode =
             getUsedModulesFromPattern pattern
 
 
-declarationVisitor : Node Declaration -> Context -> ( List nothing, Context )
+declarationVisitor : Node Declaration -> Context -> ( List (Error {}), Context )
 declarationVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
