@@ -606,7 +606,12 @@ declarationVisitor node context =
 
                 errors : List (Error {})
                 errors =
-                    []
+                    case Nothing of
+                        Just variableInfo ->
+                            []
+
+                        Nothing ->
+                            []
             in
             ( errors, newContext )
 
