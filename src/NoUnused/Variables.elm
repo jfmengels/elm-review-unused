@@ -604,11 +604,18 @@ declarationVisitor node context =
                         |> markUsedTypesAndModules namesUsedInSignature
                         |> markUsedTypesAndModules namesUsedInArgumentPatterns
 
+                functionName : String
+                functionName =
+                    function.declaration
+                        |> Node.value
+                        |> .name
+                        |> Node.value
+
                 errors : List (Error {})
                 errors =
                     case Nothing of
                         Just variableInfo ->
-                            []
+                            [ error context.declaredModules variableInfo functionName ]
 
                         Nothing ->
                             []
