@@ -859,7 +859,7 @@ import Html exposing (div)
 a = let button = 1
     in button + div"""
                     ]
-    , test "should report unused import when it has been shadowed by a local top-level variable" <|
+    , test "should report unused variable import when it has been shadowed by a local top-level variable" <|
         \() ->
             """module SomeModule exposing (button)
 import Html exposing (button, div)
@@ -875,6 +875,48 @@ button = div"""
                         |> Review.Test.whenFixed """module SomeModule exposing (button)
 import Html exposing (div)
 button = div"""
+                    ]
+    , test "should report unused type import when it has been shadowed by a local type alias" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Html exposing (Html, div)
+type alias Html msg = Int
+a : Html msg
+a = div"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported type `Html` is not used"
+                        , details = details
+                        , under = "Html"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 27 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Html exposing (div)
+type alias Html msg = Int
+a : Html msg
+a = div"""
+                    ]
+    , test "should report unused type import when it has been shadowed by a local custom type" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Html exposing (Html, div)
+type Html msg = Html Msg
+a : Html msg
+a = div"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported type `Html` is not used"
+                        , details = details
+                        , under = "Html"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 27 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Html exposing (div)
+type Html msg = Html Msg
+a : Html msg
+a = div"""
                     ]
     , test "should report unused import when it has been shadowed by a lambda argument" <|
         \() ->
