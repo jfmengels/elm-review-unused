@@ -365,11 +365,7 @@ expressionEnterVisitor : Node Expression -> Context -> ( List (Error {}), Contex
 expressionEnterVisitor (Node range value) context =
     case value of
         Expression.FunctionOrValue [] name ->
-            let
-                _ =
-                    Debug.log "context scope" context.scopes
-            in
-            ( [], markAsUsed (Debug.log "name" name) context )
+            ( [], markAsUsed name context )
 
         Expression.FunctionOrValue moduleName name ->
             ( [], markModuleAsUsed (getModuleName moduleName) context )
@@ -424,8 +420,29 @@ expressionEnterVisitor (Node range value) context =
                     args
                         |> List.map getUsedVariablesFromPattern
                         |> foldUsedTypesAndModules
+
+                newContext : Context
+                newContext =
+                    markUsedTypesAndModules namesUsedInArgumentPatterns context
+
+                argumentsInjectedInScope : Set String
+                argumentsInjectedInScope =
+                    collectNamesFromPatterns args Set.empty
             in
-            ( [], markUsedTypesAndModules namesUsedInArgumentPatterns context )
+            ( []
+            , List.foldl
+                (\name ctx ->
+                    register
+                        { variableType = FunctionArgument
+                        , under = Range.emptyRange
+                        , rangeToRemove = Range.emptyRange
+                        }
+                        name
+                        ctx
+                )
+                { newContext | scopes = NonemptyList.cons emptyScope newContext.scopes }
+                (Set.toList argumentsInjectedInScope)
+            )
 
         _ ->
             ( [], context )
@@ -438,7 +455,6 @@ collectNamesFromPatterns list context =
 
 collectNamesFromPattern : Node Pattern -> Set String -> Set String
 collectNamesFromPattern (Node _ pattern) names =
-    -- TODO Make it not take a set
     case pattern of
         Pattern.AllPattern ->
             names
@@ -497,6 +513,19 @@ expressionExitVisitor node context =
             )
 
         Expression.LetExpression _ ->
+            let
+                ( errors, remainingUsed ) =
+                    makeReport (NonemptyList.head context.scopes)
+
+                contextWithPoppedScope : Context
+                contextWithPoppedScope =
+                    { context | scopes = NonemptyList.pop context.scopes }
+            in
+            ( errors
+            , markAllAsUsed remainingUsed contextWithPoppedScope
+            )
+
+        Expression.LambdaExpression _ ->
             let
                 ( errors, remainingUsed ) =
                     makeReport (NonemptyList.head context.scopes)
@@ -668,7 +697,6 @@ declarationEnterVisitor node context =
                 argumentsInjectedInScope : Set String
                 argumentsInjectedInScope =
                     collectNamesFromPatterns functionImplementation.arguments Set.empty
-                        |> Debug.log "collectNamesFromPatterns"
             in
             ( errorsForShadowingImport context functionName
             , List.foldl
@@ -822,7 +850,6 @@ finalEvaluation context =
             rootScope : Scope
             rootScope =
                 NonemptyList.head context.scopes
-                    |> Debug.log "scope"
 
             namesOfCustomTypesUsedByCallingAConstructor : Set String
             namesOfCustomTypesUsedByCallingAConstructor =
@@ -1150,10 +1177,7 @@ markAsUsed name context =
             scopes : Nonempty Scope
             scopes =
                 NonemptyList.mapHead
-                    (\scope ->
-                        { scope | used = Set.insert name scope.used }
-                            |> Debug.log "markused"
-                    )
+                    (\scope -> { scope | used = Set.insert name scope.used })
                     context.scopes
         in
         { context | scopes = scopes }
