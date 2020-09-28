@@ -354,7 +354,11 @@ expressionEnterVisitor : Node Expression -> Context -> ( List (Error {}), Contex
 expressionEnterVisitor (Node range value) context =
     case value of
         Expression.FunctionOrValue [] name ->
-            ( [], markAsUsed name context )
+            let
+                _ =
+                    Debug.log "context scope" context.scopes
+            in
+            ( [], markAsUsed (Debug.log "name" name) context )
 
         Expression.FunctionOrValue moduleName name ->
             ( [], markModuleAsUsed (getModuleName moduleName) context )
@@ -732,6 +736,7 @@ finalEvaluation context =
             rootScope : Scope
             rootScope =
                 NonemptyList.head context.scopes
+                    |> Debug.log "scope"
 
             namesOfCustomTypesUsedByCallingAConstructor : Set String
             namesOfCustomTypesUsedByCallingAConstructor =
