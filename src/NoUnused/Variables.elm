@@ -610,17 +610,10 @@ declarationVisitor node context =
                         |> Node.value
                         |> .name
                         |> Node.value
-
-                errors : List (Error {})
-                errors =
-                    case Dict.get functionName context.importedElements of
-                        Just variableInfo ->
-                            [ error context.declaredModules variableInfo functionName ]
-
-                        Nothing ->
-                            []
             in
-            ( errors, newContext )
+            ( errorsForShadowingImport context functionName
+            , newContext
+            )
 
         Declaration.CustomTypeDeclaration { name, documentation, constructors } ->
             let
@@ -641,17 +634,8 @@ declarationVisitor node context =
                         |> List.map (Node.value >> .name >> Node.value)
                         |> List.map (\constructorName -> ( constructorName, typeName ))
                         |> Dict.fromList
-
-                errors : List (Error {})
-                errors =
-                    case Dict.get typeName context.importedElements of
-                        Just variableInfo ->
-                            [ error context.declaredModules variableInfo typeName ]
-
-                        Nothing ->
-                            []
             in
-            ( errors
+            ( errorsForShadowingImport context typeName
             , { context | constructorNameToTypeName = Dict.union constructorsForType context.constructorNameToTypeName }
                 |> register
                     { variableType = Type
@@ -667,17 +651,8 @@ declarationVisitor node context =
                 namesUsedInTypeAnnotation : { types : List String, modules : List String }
                 namesUsedInTypeAnnotation =
                     collectNamesFromTypeAnnotation typeAnnotation
-
-                errors : List (Error {})
-                errors =
-                    case Dict.get (Node.value name) context.importedElements of
-                        Just variableInfo ->
-                            [ error context.declaredModules variableInfo (Node.value name) ]
-
-                        Nothing ->
-                            []
             in
-            ( errors
+            ( errorsForShadowingImport context (Node.value name)
             , context
                 |> register
                     { variableType = Type
@@ -693,17 +668,8 @@ declarationVisitor node context =
                 namesUsedInTypeAnnotation : { types : List String, modules : List String }
                 namesUsedInTypeAnnotation =
                     collectNamesFromTypeAnnotation typeAnnotation
-
-                errors : List (Error {})
-                errors =
-                    case Dict.get (Node.value name) context.importedElements of
-                        Just variableInfo ->
-                            [ error context.declaredModules variableInfo (Node.value name) ]
-
-                        Nothing ->
-                            []
             in
-            ( errors
+            ( errorsForShadowingImport context (Node.value name)
             , context
                 |> markUsedTypesAndModules namesUsedInTypeAnnotation
                 |> register
@@ -719,6 +685,16 @@ declarationVisitor node context =
 
         Declaration.Destructuring _ _ ->
             ( [], context )
+
+
+errorsForShadowingImport : Context -> String -> List (Error {})
+errorsForShadowingImport context name =
+    case Dict.get name context.importedElements of
+        Just variableInfo ->
+            [ error context.declaredModules variableInfo name ]
+
+        Nothing ->
+            []
 
 
 foldUsedTypesAndModules : List { types : List String, modules : List String } -> { types : List String, modules : List String }
