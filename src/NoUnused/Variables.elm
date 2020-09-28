@@ -603,8 +603,12 @@ declarationVisitor node context =
                             (Node.value functionImplementation.name)
                         |> markUsedTypesAndModules namesUsedInSignature
                         |> markUsedTypesAndModules namesUsedInArgumentPatterns
+
+                errors : List (Error {})
+                errors =
+                    []
             in
-            ( [], newContext )
+            ( errors, newContext )
 
         Declaration.CustomTypeDeclaration { name, documentation, constructors } ->
             let
