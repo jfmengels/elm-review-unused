@@ -613,7 +613,7 @@ declarationVisitor node context =
 
                 errors : List (Error {})
                 errors =
-                    case Nothing of
+                    case Dict.get functionName context.importedElements of
                         Just variableInfo ->
                             [ error context.declaredModules variableInfo functionName ]
 
