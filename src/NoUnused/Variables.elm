@@ -79,7 +79,7 @@ type alias Context =
     , constructorNameToTypeName : Dict String String
     , declaredModules : Dict String VariableInfo
     , usedModules : Set String
-    , importedElements : Dict String Range
+    , importedElements : Dict String VariableInfo
     }
 
 
@@ -297,7 +297,7 @@ importVisitor ((Node _ import_) as node) context =
         Just declaredImports ->
             ( errors
             , List.foldl
-                (\( name, variableInfo ) context_ -> register variableInfo name context_)
+                (\( name, variableInfo ) context_ -> register variableInfo name { context_ | importedElements = Dict.insert name variableInfo context_.importedElements })
                 (registerModuleAlias node context)
                 (collectFromExposing declaredImports)
             )
