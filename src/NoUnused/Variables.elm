@@ -641,8 +641,17 @@ declarationVisitor node context =
                         |> List.map (Node.value >> .name >> Node.value)
                         |> List.map (\constructorName -> ( constructorName, typeName ))
                         |> Dict.fromList
+
+                errors : List (Error {})
+                errors =
+                    case Dict.get typeName context.importedElements of
+                        Just variableInfo ->
+                            [ error context.declaredModules variableInfo typeName ]
+
+                        Nothing ->
+                            []
             in
-            ( []
+            ( errors
             , { context | constructorNameToTypeName = Dict.union constructorsForType context.constructorNameToTypeName }
                 |> register
                     { variableType = Type
