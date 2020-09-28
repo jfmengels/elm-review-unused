@@ -17,7 +17,7 @@ import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import Review.Fix as Fix exposing (Fix)
@@ -65,7 +65,8 @@ rule =
     Rule.newModuleRuleSchema "NoUnused.Variables" initialContext
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withImportVisitor importVisitor
-        |> Rule.withDeclarationEnterVisitor declarationVisitor
+        |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
+        |> Rule.withDeclarationExitVisitor declarationExitVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
@@ -104,6 +105,7 @@ type VariableType
     | ModuleAlias { originalNameOfTheImport : String, exposesSomething : Bool }
     | Type
     | Port
+    | FunctionArgument
 
 
 type LetBlockContext
@@ -176,6 +178,9 @@ variableTypeToString variableType =
         Port ->
             "Port"
 
+        FunctionArgument ->
+            "Function argument"
+
 
 variableTypeWarning : VariableType -> String
 variableTypeWarning value =
@@ -200,6 +205,9 @@ variableTypeWarning value =
 
         Port ->
             " (Warning: Removing this port may break your application if it is used in the JS code)"
+
+        FunctionArgument ->
+            ""
 
 
 fix : Dict String VariableInfo -> VariableInfo -> List Fix
@@ -228,6 +236,9 @@ fix declaredModules { variableType, rangeToRemove } =
                     True
 
                 Port ->
+                    False
+
+                FunctionArgument ->
                     False
     in
     if shouldOfferFix then
@@ -420,6 +431,50 @@ expressionEnterVisitor (Node range value) context =
             ( [], context )
 
 
+collectNamesFromPatterns : List (Node Pattern) -> Set String -> Set String
+collectNamesFromPatterns list context =
+    List.foldl collectNamesFromPattern context list
+
+
+collectNamesFromPattern : Node Pattern -> Set String -> Set String
+collectNamesFromPattern (Node _ pattern) names =
+    -- TODO Make it not take a set
+    case pattern of
+        Pattern.AllPattern ->
+            names
+
+        Pattern.VarPattern value ->
+            Set.insert value names
+
+        Pattern.TuplePattern patterns ->
+            collectNamesFromPatterns patterns names
+
+        Pattern.RecordPattern values ->
+            List.foldl (Node.value >> Set.insert) names values
+
+        Pattern.UnConsPattern first second ->
+            names
+                |> collectNamesFromPattern first
+                |> collectNamesFromPattern second
+
+        Pattern.ListPattern patterns ->
+            collectNamesFromPatterns patterns names
+
+        Pattern.NamedPattern _ patterns ->
+            collectNamesFromPatterns patterns names
+
+        Pattern.AsPattern inner name ->
+            names
+                |> collectNamesFromPattern inner
+                |> Set.insert (Node.value name)
+
+        Pattern.ParenthesizedPattern inner ->
+            collectNamesFromPattern inner names
+
+        _ ->
+            names
+
+
 expressionExitVisitor : Node Expression -> Context -> ( List (Error {}), Context )
 expressionExitVisitor node context =
     case Node.value node of
@@ -573,8 +628,8 @@ getUsedModulesFromPattern patternNode =
             getUsedModulesFromPattern pattern
 
 
-declarationVisitor : Node Declaration -> Context -> ( List (Error {}), Context )
-declarationVisitor node context =
+declarationEnterVisitor : Node Declaration -> Context -> ( List (Error {}), Context )
+declarationEnterVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
             let
@@ -590,9 +645,7 @@ declarationVisitor node context =
 
                 namesUsedInArgumentPatterns : { types : List String, modules : List String }
                 namesUsedInArgumentPatterns =
-                    function.declaration
-                        |> Node.value
-                        |> .arguments
+                    functionImplementation.arguments
                         |> List.map getUsedVariablesFromPattern
                         |> foldUsedTypesAndModules
 
@@ -610,13 +663,26 @@ declarationVisitor node context =
 
                 functionName : String
                 functionName =
-                    function.declaration
-                        |> Node.value
-                        |> .name
-                        |> Node.value
+                    Node.value functionImplementation.name
+
+                argumentsInjectedInScope : Set String
+                argumentsInjectedInScope =
+                    collectNamesFromPatterns functionImplementation.arguments Set.empty
+                        |> Debug.log "collectNamesFromPatterns"
             in
             ( errorsForShadowingImport context functionName
-            , newContext
+            , List.foldl
+                (\name ctx ->
+                    register
+                        { variableType = FunctionArgument
+                        , under = Range.emptyRange
+                        , rangeToRemove = Range.emptyRange
+                        }
+                        name
+                        ctx
+                )
+                { newContext | scopes = NonemptyList.cons emptyScope newContext.scopes }
+                (Set.toList argumentsInjectedInScope)
             )
 
         Declaration.CustomTypeDeclaration { name, documentation, constructors } ->
@@ -724,6 +790,26 @@ rangeToRemoveForNodeWithDocumentation (Node nodeRange _) documentation =
                 { start = documentationRange.start
                 , end = nodeRange.end
                 }
+
+
+declarationExitVisitor : Node Declaration -> Context -> ( List (Error {}), Context )
+declarationExitVisitor node context =
+    case Node.value node of
+        Declaration.FunctionDeclaration _ ->
+            let
+                ( errors, remainingUsed ) =
+                    makeReport (NonemptyList.head context.scopes)
+
+                contextWithPoppedScope : Context
+                contextWithPoppedScope =
+                    { context | scopes = NonemptyList.pop context.scopes }
+            in
+            ( errors
+            , markAllAsUsed remainingUsed contextWithPoppedScope
+            )
+
+        _ ->
+            ( [], context )
 
 
 finalEvaluation : Context -> List (Error {})
@@ -1026,6 +1112,9 @@ register variableInfo name context =
         Port ->
             registerVariable variableInfo name context
 
+        FunctionArgument ->
+            registerVariable variableInfo name context
+
 
 registerModule : VariableInfo -> String -> Context -> Context
 registerModule variableInfo name context =
@@ -1063,6 +1152,7 @@ markAsUsed name context =
                 NonemptyList.mapHead
                     (\scope ->
                         { scope | used = Set.insert name scope.used }
+                            |> Debug.log "markused"
                     )
                     context.scopes
         in
@@ -1096,7 +1186,15 @@ makeReport { declared, used } =
         errors =
             Dict.filter (\key _ -> not <| Set.member key used) declared
                 |> Dict.toList
-                |> List.map (\( key, variableInfo ) -> error Dict.empty variableInfo key)
+                |> List.filterMap
+                    (\( key, variableInfo ) ->
+                        case variableInfo.variableType of
+                            FunctionArgument ->
+                                Nothing
+
+                            _ ->
+                                Just (error Dict.empty variableInfo key)
+                    )
     in
     ( errors, nonUsedVars )
 

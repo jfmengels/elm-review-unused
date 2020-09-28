@@ -954,24 +954,23 @@ a = \\button -> button div"""
 import Html exposing (div)
 a = \\button -> button div"""
                     ]
-    , Test.only <|
-        test "should report unused import when it has been shadowed by a function argument" <|
-            \() ->
-                """module SomeModule exposing (a)
-import Html exposing (button)
-a button = button 1"""
-                    |> Review.Test.run rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Imported variable `button` is not used"
-                            , details = details
-                            , under = "button"
-                            }
-                            |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
-                            |> Review.Test.whenFixed """module SomeModule exposing (a)
+    , test "should report unused import when it has been shadowed by a function argument" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Html exposing (button, div)
+a button = button div"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported variable `button` is not used"
+                        , details = details
+                        , under = "button"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
 import Html exposing (div)
-a button = button 1"""
-                        ]
+a button = button div"""
+                    ]
     , test "should not report unused import when it has been shadowed by a function argument but also used somewhere else" <|
         \() ->
             """module SomeModule exposing (a, b)
