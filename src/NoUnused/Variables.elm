@@ -425,48 +425,37 @@ expressionEnterVisitor (Node range value) context =
                 newContext =
                     markUsedTypesAndModules namesUsedInArgumentPatterns context
 
-                argumentsInjectedInScope : List String
+                argumentsInjectedInScope : List (Node String)
                 argumentsInjectedInScope =
                     collectNamesFromPatterns args
             in
             ( []
-            , List.foldl
-                (\name ctx ->
-                    register
-                        { variableType = FunctionArgument
-                        , under = Range.emptyRange
-                        , rangeToRemove = Range.emptyRange
-                        }
-                        name
-                        ctx
-                )
-                { newContext | scopes = NonemptyList.cons emptyScope newContext.scopes }
-                argumentsInjectedInScope
+            , injectNewIgnoredVariables FunctionArgument argumentsInjectedInScope newContext
             )
 
         _ ->
             ( [], context )
 
 
-collectNamesFromPatterns : List (Node Pattern) -> List String
+collectNamesFromPatterns : List (Node Pattern) -> List (Node String)
 collectNamesFromPatterns patterns =
     List.concatMap collectNamesFromPattern patterns
 
 
-collectNamesFromPattern : Node Pattern -> List String
-collectNamesFromPattern (Node _ pattern) =
+collectNamesFromPattern : Node Pattern -> List (Node String)
+collectNamesFromPattern (Node range pattern) =
     case pattern of
         Pattern.AllPattern ->
             []
 
         Pattern.VarPattern value ->
-            [ value ]
+            [ Node range value ]
 
         Pattern.TuplePattern patterns ->
             collectNamesFromPatterns patterns
 
         Pattern.RecordPattern values ->
-            List.map Node.value values
+            values
 
         Pattern.UnConsPattern first second ->
             List.concat
@@ -481,7 +470,7 @@ collectNamesFromPattern (Node _ pattern) =
             collectNamesFromPatterns patterns
 
         Pattern.AsPattern inner name ->
-            Node.value name :: collectNamesFromPattern inner
+            name :: collectNamesFromPattern inner
 
         Pattern.ParenthesizedPattern inner ->
             collectNamesFromPattern inner
@@ -693,23 +682,12 @@ declarationEnterVisitor node context =
                 functionName =
                     Node.value functionImplementation.name
 
-                argumentsInjectedInScope : List String
+                argumentsInjectedInScope : List (Node String)
                 argumentsInjectedInScope =
                     collectNamesFromPatterns functionImplementation.arguments
             in
-            ( errorsForShadowingImport context functionName
-            , List.foldl
-                (\name ctx ->
-                    register
-                        { variableType = FunctionArgument
-                        , under = Range.emptyRange
-                        , rangeToRemove = Range.emptyRange
-                        }
-                        name
-                        ctx
-                )
-                { newContext | scopes = NonemptyList.cons emptyScope newContext.scopes }
-                argumentsInjectedInScope
+            ( errorsForShadowingImport newContext functionName
+            , injectNewIgnoredVariables FunctionArgument argumentsInjectedInScope newContext
             )
 
         Declaration.CustomTypeDeclaration { name, documentation, constructors } ->
@@ -792,6 +770,22 @@ errorsForShadowingImport context name =
 
         Nothing ->
             []
+
+
+injectNewIgnoredVariables : VariableType -> List (Node String) -> Context -> Context
+injectNewIgnoredVariables variableType argumentsInjectedInScope context =
+    List.foldl
+        (\(Node range name) ctx ->
+            register
+                { variableType = variableType
+                , under = range
+                , rangeToRemove = range
+                }
+                name
+                ctx
+        )
+        { context | scopes = NonemptyList.cons emptyScope context.scopes }
+        argumentsInjectedInScope
 
 
 foldUsedTypesAndModules : List { types : List String, modules : List String } -> { types : List String, modules : List String }
