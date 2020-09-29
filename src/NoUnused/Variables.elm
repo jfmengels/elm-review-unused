@@ -87,6 +87,8 @@ type alias Context =
 type alias Scope =
     { declared : Dict String VariableInfo
     , used : Set String
+    , cases : List ( Node Expression, Dict String VariableInfo )
+    , caseToExit : Node Expression
     }
 
 
@@ -106,6 +108,7 @@ type VariableType
     | Type
     | Port
     | FunctionArgument
+    | CaseVariable
 
 
 type LetBlockContext
@@ -135,6 +138,8 @@ emptyScope : Scope
 emptyScope =
     { declared = Dict.empty
     , used = Set.empty
+    , cases = []
+    , caseToExit = Node Range.emptyRange (Expression.Literal "root")
     }
 
 
@@ -181,6 +186,9 @@ variableTypeToString variableType =
         FunctionArgument ->
             "Function argument"
 
+        CaseVariable ->
+            "Function argument"
+
 
 variableTypeWarning : VariableType -> String
 variableTypeWarning value =
@@ -207,6 +215,9 @@ variableTypeWarning value =
             " (Warning: Removing this port may break your application if it is used in the JS code)"
 
         FunctionArgument ->
+            ""
+
+        CaseVariable ->
             ""
 
 
@@ -239,6 +250,9 @@ fix declaredModules { variableType, rangeToRemove } =
                     False
 
                 FunctionArgument ->
+                    False
+
+                CaseVariable ->
                     False
     in
     if shouldOfferFix then
@@ -432,6 +446,30 @@ expressionEnterVisitor (Node range value) context =
             ( []
             , injectNewIgnoredVariables FunctionArgument argumentsInjectedInScope newContext
             )
+
+        Expression.CaseExpression caseBlock ->
+            let
+                cases : List ( Node Expression, Dict String VariableInfo )
+                cases =
+                    caseBlock.cases
+                        |> List.map
+                            (\( pattern, expression ) ->
+                                ( expression
+                                , collectNamesFromPattern pattern
+                                    |> List.map
+                                        (\node_ ->
+                                            ( Node.value node_
+                                            , { variableType = CaseVariable
+                                              , under = Node.range node_
+                                              , rangeToRemove = Node.range node_
+                                              }
+                                            )
+                                        )
+                                    |> Dict.fromList
+                                )
+                            )
+            in
+            ( [], { context | scopes = NonemptyList.mapHead (\scope -> { scope | cases = cases }) context.scopes } )
 
         _ ->
             ( [], context )
@@ -1133,6 +1171,9 @@ register variableInfo name context =
             registerVariable variableInfo name context
 
         FunctionArgument ->
+            registerVariable variableInfo name context
+
+        CaseVariable ->
             registerVariable variableInfo name context
 
 
