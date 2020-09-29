@@ -998,6 +998,21 @@ import Html exposing (div)
 a = case () of
   A button -> button div"""
                     ]
+    , test "should not get confused by let expressions inside patterns" <|
+        -- This fixes a false positive caused by not properly popping the scope
+        \() ->
+            """module A exposing (containsCaseOf, exposed)
+
+containsCaseOf =
+   case () of
+       A -> let _ = 1
+            in 1
+       B -> 1
+
+exposed = 1
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     ]
 
 

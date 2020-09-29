@@ -68,7 +68,7 @@ rule =
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withDeclarationExitVisitor declarationExitVisitor
         |> Rule.withExpressionEnterVisitor (\node context -> pushScopeOnCaseExpression node context |> expressionEnterVisitor node)
-        |> Rule.withExpressionExitVisitor (\node context -> popScopeOnCaseExpression node context |> expressionExitVisitor node)
+        |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
         |> Rule.fromModuleRuleSchema
 
@@ -573,53 +573,57 @@ collectNamesFromPattern (Node range pattern) =
 
 expressionExitVisitor : Node Expression -> Context -> ( List (Error {}), Context )
 expressionExitVisitor node context =
-    case Node.value node of
-        Expression.RecordUpdateExpression expr _ ->
-            ( [], markAsUsed (Node.value expr) context )
+    let
+        ( foundErrors, newContext ) =
+            case Node.value node of
+                Expression.RecordUpdateExpression expr _ ->
+                    ( [], markAsUsed (Node.value expr) context )
 
-        Expression.CaseExpression { cases } ->
-            let
-                usedVariables : { types : List String, modules : List String }
-                usedVariables =
-                    cases
-                        |> List.map
-                            (\( patternNode, _ ) ->
-                                getUsedVariablesFromPattern patternNode
-                            )
-                        |> foldUsedTypesAndModules
-            in
-            ( []
-            , markUsedTypesAndModules usedVariables context
-            )
+                Expression.CaseExpression { cases } ->
+                    let
+                        usedVariables : { types : List String, modules : List String }
+                        usedVariables =
+                            cases
+                                |> List.map
+                                    (\( patternNode, _ ) ->
+                                        getUsedVariablesFromPattern patternNode
+                                    )
+                                |> foldUsedTypesAndModules
+                    in
+                    ( []
+                    , markUsedTypesAndModules usedVariables context
+                    )
 
-        Expression.LetExpression _ ->
-            let
-                ( errors, remainingUsed ) =
-                    makeReport (NonemptyList.head context.scopes)
+                Expression.LetExpression _ ->
+                    let
+                        ( errors, remainingUsed ) =
+                            makeReport (NonemptyList.head context.scopes)
 
-                contextWithPoppedScope : Context
-                contextWithPoppedScope =
-                    { context | scopes = NonemptyList.pop context.scopes }
-            in
-            ( errors
-            , markAllAsUsed remainingUsed contextWithPoppedScope
-            )
+                        contextWithPoppedScope : Context
+                        contextWithPoppedScope =
+                            { context | scopes = NonemptyList.pop context.scopes }
+                    in
+                    ( errors
+                    , markAllAsUsed remainingUsed contextWithPoppedScope
+                    )
 
-        Expression.LambdaExpression _ ->
-            let
-                ( errors, remainingUsed ) =
-                    makeReport (NonemptyList.head context.scopes)
+                Expression.LambdaExpression _ ->
+                    let
+                        ( errors, remainingUsed ) =
+                            makeReport (NonemptyList.head context.scopes)
 
-                contextWithPoppedScope : Context
-                contextWithPoppedScope =
-                    { context | scopes = NonemptyList.pop context.scopes }
-            in
-            ( errors
-            , markAllAsUsed remainingUsed contextWithPoppedScope
-            )
+                        contextWithPoppedScope : Context
+                        contextWithPoppedScope =
+                            { context | scopes = NonemptyList.pop context.scopes }
+                    in
+                    ( errors
+                    , markAllAsUsed remainingUsed contextWithPoppedScope
+                    )
 
-        _ ->
-            ( [], context )
+                _ ->
+                    ( [], context )
+    in
+    ( foundErrors, popScopeOnCaseExpression node newContext )
 
 
 getUsedVariablesFromPattern : Node Pattern -> { types : List String, modules : List String }
