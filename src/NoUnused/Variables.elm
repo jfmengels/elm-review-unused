@@ -67,8 +67,8 @@ rule =
         |> Rule.withImportVisitor importVisitor
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withDeclarationExitVisitor declarationExitVisitor
-        |> Rule.withExpressionEnterVisitor expressionEnterVisitor
-        |> Rule.withExpressionExitVisitor expressionExitVisitor
+        |> Rule.withExpressionEnterVisitor (\node context -> pushScopeOnCaseExpression node context |> expressionEnterVisitor node)
+        |> Rule.withExpressionExitVisitor (\node context -> popScopeOnCaseExpression node context |> expressionExitVisitor node)
         |> Rule.withFinalModuleEvaluation finalEvaluation
         |> Rule.fromModuleRuleSchema
 
@@ -473,6 +473,60 @@ expressionEnterVisitor (Node range value) context =
 
         _ ->
             ( [], context )
+
+
+pushScopeOnCaseExpression : Node Expression -> Context -> Context
+pushScopeOnCaseExpression node context =
+    let
+        currentScope : Scope
+        currentScope =
+            NonemptyList.head context.scopes
+    in
+    let
+        caseExpression : Maybe ( Node Expression, Dict String VariableInfo )
+        caseExpression =
+            findInList (\( expressionNode, _ ) -> node == expressionNode) currentScope.cases
+    in
+    case caseExpression of
+        Nothing ->
+            context
+
+        Just ( _, names ) ->
+            { context | scopes = NonemptyList.cons { emptyScope | declared = names, caseToExit = node } context.scopes }
+
+
+popScopeOnCaseExpression : Node Expression -> Context -> Context
+popScopeOnCaseExpression node context =
+    let
+        currentScope : Scope
+        currentScope =
+            NonemptyList.head context.scopes
+    in
+    if node == currentScope.caseToExit then
+        let
+            ( _, remainingUsed ) =
+                makeReport (NonemptyList.head context.scopes)
+        in
+        markAllAsUsed
+            remainingUsed
+            { context | scopes = NonemptyList.pop context.scopes }
+
+    else
+        context
+
+
+findInList : (a -> Bool) -> List a -> Maybe a
+findInList predicate list =
+    case list of
+        [] ->
+            Nothing
+
+        a :: rest ->
+            if predicate a then
+                Just a
+
+            else
+                findInList predicate rest
 
 
 collectNamesFromPatterns : List (Node Pattern) -> List (Node String)
