@@ -425,9 +425,9 @@ expressionEnterVisitor (Node range value) context =
                 newContext =
                     markUsedTypesAndModules namesUsedInArgumentPatterns context
 
-                argumentsInjectedInScope : Set String
+                argumentsInjectedInScope : List String
                 argumentsInjectedInScope =
-                    collectNamesFromPatterns args Set.empty
+                    collectNamesFromPatterns args
             in
             ( []
             , List.foldl
@@ -441,54 +441,53 @@ expressionEnterVisitor (Node range value) context =
                         ctx
                 )
                 { newContext | scopes = NonemptyList.cons emptyScope newContext.scopes }
-                (Set.toList argumentsInjectedInScope)
+                argumentsInjectedInScope
             )
 
         _ ->
             ( [], context )
 
 
-collectNamesFromPatterns : List (Node Pattern) -> Set String -> Set String
-collectNamesFromPatterns list context =
-    List.foldl collectNamesFromPattern context list
+collectNamesFromPatterns : List (Node Pattern) -> List String
+collectNamesFromPatterns patterns =
+    List.concatMap collectNamesFromPattern patterns
 
 
-collectNamesFromPattern : Node Pattern -> Set String -> Set String
-collectNamesFromPattern (Node _ pattern) names =
+collectNamesFromPattern : Node Pattern -> List String
+collectNamesFromPattern (Node _ pattern) =
     case pattern of
         Pattern.AllPattern ->
-            names
+            []
 
         Pattern.VarPattern value ->
-            Set.insert value names
+            [ value ]
 
         Pattern.TuplePattern patterns ->
-            collectNamesFromPatterns patterns names
+            collectNamesFromPatterns patterns
 
         Pattern.RecordPattern values ->
-            List.foldl (Node.value >> Set.insert) names values
+            List.map Node.value values
 
         Pattern.UnConsPattern first second ->
-            names
-                |> collectNamesFromPattern first
-                |> collectNamesFromPattern second
+            List.concat
+                [ collectNamesFromPattern first
+                , collectNamesFromPattern second
+                ]
 
         Pattern.ListPattern patterns ->
-            collectNamesFromPatterns patterns names
+            collectNamesFromPatterns patterns
 
         Pattern.NamedPattern _ patterns ->
-            collectNamesFromPatterns patterns names
+            collectNamesFromPatterns patterns
 
         Pattern.AsPattern inner name ->
-            names
-                |> collectNamesFromPattern inner
-                |> Set.insert (Node.value name)
+            Node.value name :: collectNamesFromPattern inner
 
         Pattern.ParenthesizedPattern inner ->
-            collectNamesFromPattern inner names
+            collectNamesFromPattern inner
 
         _ ->
-            names
+            []
 
 
 expressionExitVisitor : Node Expression -> Context -> ( List (Error {}), Context )
@@ -694,9 +693,9 @@ declarationEnterVisitor node context =
                 functionName =
                     Node.value functionImplementation.name
 
-                argumentsInjectedInScope : Set String
+                argumentsInjectedInScope : List String
                 argumentsInjectedInScope =
-                    collectNamesFromPatterns functionImplementation.arguments Set.empty
+                    collectNamesFromPatterns functionImplementation.arguments
             in
             ( errorsForShadowingImport context functionName
             , List.foldl
@@ -710,7 +709,7 @@ declarationEnterVisitor node context =
                         ctx
                 )
                 { newContext | scopes = NonemptyList.cons emptyScope newContext.scopes }
-                (Set.toList argumentsInjectedInScope)
+                argumentsInjectedInScope
             )
 
         Declaration.CustomTypeDeclaration { name, documentation, constructors } ->
