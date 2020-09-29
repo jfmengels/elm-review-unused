@@ -979,6 +979,25 @@ b = button
 a button = button 1"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should report unused import when it has been shadowed by a case of pattern" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Html exposing (button, div)
+a = case () of
+  A button -> button div"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported variable `button` is not used"
+                        , details = details
+                        , under = "button"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Html exposing (div)
+a = case () of
+  A button -> button div"""
+                    ]
     ]
 
 
