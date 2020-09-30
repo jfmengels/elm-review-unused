@@ -792,12 +792,74 @@ a = Html.div"""
                     ]
     , test "should not report import that exposes a used exposed type" <|
         \() ->
-            """module SomeModule exposing (a)
+            [ """module SomeModule exposing (a)
 import B exposing (C(..))
 a : C
-a = 1"""
-                |> Review.Test.run rule
+a = C
+"""
+            , """module B exposing (C(..))
+type C = C
+"""
+            ]
+                |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
+    , test "should not report import of type when that type is used in annotation" <|
+        \() ->
+            [ """module SomeModule exposing (a)
+import B exposing (C)
+a : C
+a = 1
+"""
+            , """module B exposing (C(..))
+type C = C
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
+    , test "should report import of constructors when they are never used" <|
+        \() ->
+            [ """module SomeModule exposing (a)
+import B exposing (C(..))
+a : C
+a = 1
+"""
+            , """module B exposing (C(..))
+type C = C
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "SomeModule"
+                      , [ Review.Test.error
+                            { message = "Imported constructors of `C` are never used"
+                            , details = details
+                            , under = "(..)"
+                            }
+                        ]
+                      )
+                    ]
+    , test "should report import of constructors when the custom type is opaque" <|
+        \() ->
+            [ """module SomeModule exposing (a)
+import B exposing (C(..))
+a : C
+a = 1
+"""
+            , """module B exposing (C)
+type C = C
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "SomeModule"
+                      , [ Review.Test.error
+                            { message = "The constructors of `C` are hidden"
+                            , details = details
+                            , under = "(..)"
+                            }
+                        ]
+                      )
+                    ]
     , test "should not report import that exposes an unused exposed type (but whose subtype is potentially used)" <|
         \() ->
             """module SomeModule exposing (a)
