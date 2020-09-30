@@ -69,13 +69,33 @@ rule =
 
 rule2 : Rule
 rule2 =
-    Rule.newModuleRuleSchema "NoUnused.Variables" initialContext
-        |> moduleVisitor
-        |> Rule.fromModuleRuleSchema
+    Rule.newProjectRuleSchema "NoUnused.Variables" initialProjectContext
+        |> Rule.withModuleVisitor moduleVisitor
+        |> Rule.withModuleContextUsingContextCreator
+            { fromProjectToModule = fromProjectToModule
+            , fromModuleToProject = fromModuleToProject
+            , foldProjectContexts = foldProjectContexts
+            }
+        |> Rule.fromProjectRuleSchema
 
 
 initialProjectContext : ProjectContext
 initialProjectContext =
+    ()
+
+
+fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
+fromProjectToModule =
+    Rule.initContextCreator (\() -> initialContext)
+
+
+fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
+fromModuleToProject =
+    Rule.initContextCreator (\moduleContext -> ())
+
+
+foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
+foldProjectContexts newContext previousContext =
     ()
 
 
