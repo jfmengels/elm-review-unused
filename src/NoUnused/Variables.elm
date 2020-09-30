@@ -67,6 +67,13 @@ rule =
         |> Rule.fromModuleRuleSchema
 
 
+rule2 : Rule
+rule2 =
+    Rule.newModuleRuleSchema "NoUnused.Variables" initialContext
+        |> moduleVisitor
+        |> Rule.fromModuleRuleSchema
+
+
 moduleVisitor : Rule.ModuleRuleSchema schemaState ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
 moduleVisitor schema =
     schema
