@@ -73,7 +73,7 @@ rule =
         |> Rule.fromModuleRuleSchema
 
 
-type alias Context =
+type alias ModuleContext =
     { scopes : Nonempty Scope
     , inTheDeclarationOf : Maybe String
     , exposesEverything : Bool
@@ -122,7 +122,7 @@ type ImportType
     | ImportedOperator
 
 
-initialContext : Context
+initialContext : ModuleContext
 initialContext =
     { scopes = NonemptyList.fromElement emptyScope
     , inTheDeclarationOf = Nothing
@@ -262,7 +262,7 @@ fix declaredModules { variableType, rangeToRemove } =
         []
 
 
-moduleDefinitionVisitor : Node Module -> Context -> ( List nothing, Context )
+moduleDefinitionVisitor : Node Module -> ModuleContext -> ( List nothing, ModuleContext )
 moduleDefinitionVisitor (Node _ moduleNode) context =
     case Module.exposingList moduleNode of
         Exposing.All _ ->
@@ -293,7 +293,7 @@ moduleDefinitionVisitor (Node _ moduleNode) context =
             ( [], markAllAsUsed names context )
 
 
-importVisitor : Node Import -> Context -> ( List (Error {}), Context )
+importVisitor : Node Import -> ModuleContext -> ( List (Error {}), ModuleContext )
 importVisitor ((Node _ import_) as node) context =
     let
         errors : List (Error {})
@@ -328,7 +328,7 @@ importVisitor ((Node _ import_) as node) context =
             )
 
 
-registerModuleNameOrAlias : Node Import -> Context -> Context
+registerModuleNameOrAlias : Node Import -> ModuleContext -> ModuleContext
 registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) context =
     case moduleAlias of
         Just _ ->
@@ -344,7 +344,7 @@ registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) con
                 context
 
 
-registerModuleAlias : Node Import -> Context -> Context
+registerModuleAlias : Node Import -> ModuleContext -> ModuleContext
 registerModuleAlias ((Node range { exposingList, moduleAlias, moduleName }) as node) context =
     case moduleAlias of
         Just moduleAlias_ ->
@@ -375,7 +375,7 @@ moduleAliasRange (Node _ { moduleName }) range =
     { range | start = (Node.range moduleName).end }
 
 
-expressionEnterVisitor : Node Expression -> Context -> ( List (Error {}), Context )
+expressionEnterVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionEnterVisitor (Node range value) context =
     case value of
         Expression.FunctionOrValue [] name ->
@@ -400,7 +400,7 @@ expressionEnterVisitor (Node range value) context =
                     else
                         HasMultipleDeclarations
 
-                newContext : Context
+                newContext : ModuleContext
                 newContext =
                     List.foldl
                         (\declaration context_ ->
@@ -435,7 +435,7 @@ expressionEnterVisitor (Node range value) context =
                         |> List.map getUsedVariablesFromPattern
                         |> foldUsedTypesAndModules
 
-                newContext : Context
+                newContext : ModuleContext
                 newContext =
                     markUsedTypesAndModules namesUsedInArgumentPatterns context
 
@@ -475,7 +475,7 @@ expressionEnterVisitor (Node range value) context =
             ( [], context )
 
 
-pushScopeOnCaseExpression : Node Expression -> Context -> Context
+pushScopeOnCaseExpression : Node Expression -> ModuleContext -> ModuleContext
 pushScopeOnCaseExpression node context =
     let
         currentScope : Scope
@@ -495,7 +495,7 @@ pushScopeOnCaseExpression node context =
             { context | scopes = NonemptyList.cons { emptyScope | declared = names, caseToExit = node } context.scopes }
 
 
-popScopeOnCaseExpression : Node Expression -> Context -> Context
+popScopeOnCaseExpression : Node Expression -> ModuleContext -> ModuleContext
 popScopeOnCaseExpression node context =
     let
         currentScope : Scope
@@ -571,7 +571,7 @@ collectNamesFromPattern (Node range pattern) =
             []
 
 
-expressionExitVisitor : Node Expression -> Context -> ( List (Error {}), Context )
+expressionExitVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionExitVisitor node context =
     let
         ( foundErrors, newContext ) =
@@ -599,7 +599,7 @@ expressionExitVisitor node context =
                         ( errors, remainingUsed ) =
                             makeReport (NonemptyList.head context.scopes)
 
-                        contextWithPoppedScope : Context
+                        contextWithPoppedScope : ModuleContext
                         contextWithPoppedScope =
                             { context | scopes = NonemptyList.pop context.scopes }
                     in
@@ -612,7 +612,7 @@ expressionExitVisitor node context =
                         ( errors, remainingUsed ) =
                             makeReport (NonemptyList.head context.scopes)
 
-                        contextWithPoppedScope : Context
+                        contextWithPoppedScope : ModuleContext
                         contextWithPoppedScope =
                             { context | scopes = NonemptyList.pop context.scopes }
                     in
@@ -741,7 +741,7 @@ getUsedModulesFromPattern patternNode =
             getUsedModulesFromPattern pattern
 
 
-declarationEnterVisitor : Node Declaration -> Context -> ( List (Error {}), Context )
+declarationEnterVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
 declarationEnterVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
@@ -762,7 +762,7 @@ declarationEnterVisitor node context =
                         |> List.map getUsedVariablesFromPattern
                         |> foldUsedTypesAndModules
 
-                newContext : Context
+                newContext : ModuleContext
                 newContext =
                     { context | inTheDeclarationOf = Just <| Node.value functionImplementation.name }
                         |> register
@@ -858,7 +858,7 @@ declarationEnterVisitor node context =
             ( [], context )
 
 
-errorsForShadowingImport : Context -> String -> List (Error {})
+errorsForShadowingImport : ModuleContext -> String -> List (Error {})
 errorsForShadowingImport context name =
     case Dict.get name context.importedElements of
         Just variableInfo ->
@@ -868,7 +868,7 @@ errorsForShadowingImport context name =
             []
 
 
-injectNewIgnoredVariables : VariableType -> List (Node String) -> Context -> Context
+injectNewIgnoredVariables : VariableType -> List (Node String) -> ModuleContext -> ModuleContext
 injectNewIgnoredVariables variableType argumentsInjectedInScope context =
     List.foldl
         (\(Node range name) ctx ->
@@ -889,7 +889,7 @@ foldUsedTypesAndModules =
     List.foldl (\a b -> { types = a.types ++ b.types, modules = a.modules ++ b.modules }) { types = [], modules = [] }
 
 
-markUsedTypesAndModules : { types : List String, modules : List String } -> Context -> Context
+markUsedTypesAndModules : { types : List String, modules : List String } -> ModuleContext -> ModuleContext
 markUsedTypesAndModules { types, modules } context =
     context
         |> markAllAsUsed types
@@ -909,7 +909,7 @@ rangeToRemoveForNodeWithDocumentation (Node nodeRange _) documentation =
                 }
 
 
-declarationExitVisitor : Node Declaration -> Context -> ( List (Error {}), Context )
+declarationExitVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
 declarationExitVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration _ ->
@@ -917,7 +917,7 @@ declarationExitVisitor node context =
                 ( errors, remainingUsed ) =
                     makeReport (NonemptyList.head context.scopes)
 
-                contextWithPoppedScope : Context
+                contextWithPoppedScope : ModuleContext
                 contextWithPoppedScope =
                     { context | scopes = NonemptyList.pop context.scopes }
             in
@@ -929,7 +929,7 @@ declarationExitVisitor node context =
             ( [], context )
 
 
-finalEvaluation : Context -> List (Error {})
+finalEvaluation : ModuleContext -> List (Error {})
 finalEvaluation context =
     if context.exposesEverything then
         []
@@ -966,7 +966,7 @@ finalEvaluation context =
             ]
 
 
-registerFunction : LetBlockContext -> Function -> Context -> Context
+registerFunction : LetBlockContext -> Function -> ModuleContext -> ModuleContext
 registerFunction letBlockContext function context =
     let
         declaration : FunctionImplementation
@@ -1199,7 +1199,7 @@ collectModuleNamesFromTypeAnnotation node =
             []
 
 
-register : VariableInfo -> String -> Context -> Context
+register : VariableInfo -> String -> ModuleContext -> ModuleContext
 register variableInfo name context =
     case variableInfo.variableType of
         TopLevelVariable ->
@@ -1235,12 +1235,12 @@ register variableInfo name context =
             registerVariable variableInfo name context
 
 
-registerModule : VariableInfo -> String -> Context -> Context
+registerModule : VariableInfo -> String -> ModuleContext -> ModuleContext
 registerModule variableInfo name context =
     { context | declaredModules = Dict.insert name variableInfo context.declaredModules }
 
 
-registerVariable : VariableInfo -> String -> Context -> Context
+registerVariable : VariableInfo -> String -> ModuleContext -> ModuleContext
 registerVariable variableInfo name context =
     let
         scopes : Nonempty Scope
@@ -1254,12 +1254,12 @@ registerVariable variableInfo name context =
     { context | scopes = scopes }
 
 
-markAllAsUsed : List String -> Context -> Context
+markAllAsUsed : List String -> ModuleContext -> ModuleContext
 markAllAsUsed names context =
     List.foldl markAsUsed context names
 
 
-markAsUsed : String -> Context -> Context
+markAsUsed : String -> ModuleContext -> ModuleContext
 markAsUsed name context =
     if context.inTheDeclarationOf == Just name then
         context
@@ -1275,12 +1275,12 @@ markAsUsed name context =
         { context | scopes = scopes }
 
 
-markAllModulesAsUsed : List String -> Context -> Context
+markAllModulesAsUsed : List String -> ModuleContext -> ModuleContext
 markAllModulesAsUsed names context =
     { context | usedModules = Set.union (Set.fromList names) context.usedModules }
 
 
-markModuleAsUsed : String -> Context -> Context
+markModuleAsUsed : String -> ModuleContext -> ModuleContext
 markModuleAsUsed name context =
     { context | usedModules = Set.insert name context.usedModules }
 
