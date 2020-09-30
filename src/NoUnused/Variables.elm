@@ -74,6 +74,11 @@ rule2 =
         |> Rule.fromModuleRuleSchema
 
 
+initialProjectContext : ProjectContext
+initialProjectContext =
+    ()
+
+
 moduleVisitor : Rule.ModuleRuleSchema schemaState ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
 moduleVisitor schema =
     schema
@@ -84,6 +89,10 @@ moduleVisitor schema =
         |> Rule.withExpressionEnterVisitor (\node context -> pushScopeOnCaseExpression node context |> expressionEnterVisitor node)
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
+
+
+type alias ProjectContext =
+    ()
 
 
 type alias ModuleContext =
