@@ -63,6 +63,13 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Varia
 rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoUnused.Variables" initialContext
+        |> moduleVisitor
+        |> Rule.fromModuleRuleSchema
+
+
+moduleVisitor : Rule.ModuleRuleSchema schemaState ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
+moduleVisitor schema =
+    schema
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withImportVisitor importVisitor
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
@@ -70,7 +77,6 @@ rule =
         |> Rule.withExpressionEnterVisitor (\node context -> pushScopeOnCaseExpression node context |> expressionEnterVisitor node)
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
-        |> Rule.fromModuleRuleSchema
 
 
 type alias ModuleContext =
