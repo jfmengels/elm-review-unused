@@ -1013,9 +1013,10 @@ exposed = 1
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
-    , test "should not get confused by let expressions inside patterns 2" <|
-        \() ->
-            """module A exposing (Thing, value)
+    , Test.skip <|
+        test "should not get confused by let expressions inside patterns 2" <|
+            \() ->
+                """module A exposing (Thing, value)
 import Thing exposing (Thing)
 
 type alias Thing =
@@ -1025,8 +1026,8 @@ value =
   Decode.succeed Thing
     |> Decode.at "a" Decode.string
 """
-                |> Review.Test.run rule
-                |> Review.Test.expectNoErrors
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
     ]
 
 
