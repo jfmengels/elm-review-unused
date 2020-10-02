@@ -117,7 +117,7 @@ type LetBlockContext
 type ImportType
     = ImportedVariable
     | ImportedType
-    | ImportedCustomType
+    | ImportedCustomType Range
     | ImportedOperator
 
 
@@ -168,7 +168,7 @@ variableTypeToString variableType =
         ImportedItem ImportedType ->
             "Imported type"
 
-        ImportedItem ImportedCustomType ->
+        ImportedItem (ImportedCustomType _) ->
             "Imported custom type"
 
         ImportedItem ImportedOperator ->
@@ -879,10 +879,10 @@ collectFromExposing context exposingNode =
 
                             Exposing.TypeExpose { name, open } ->
                                 case open of
-                                    Just _ ->
+                                    Just openRange ->
                                         Just
                                             ( name
-                                            , { variableType = ImportedItem ImportedCustomType
+                                            , { variableType = ImportedItem (ImportedCustomType openRange)
                                               , under = range
                                               , rangeToRemove = rangeToRemove
                                               }
