@@ -876,8 +876,13 @@ collectFromExposing context exposingNode =
                             Exposing.TypeExpose { name, open } ->
                                 case open of
                                     Just _ ->
-                                        -- TODO Change this behavior once we know the contents of the open range, using dependencies or the interfaces of the other modules
-                                        Nothing
+                                        Just
+                                            ( name
+                                            , { variableType = ImportedItem ImportedType
+                                              , under = range
+                                              , rangeToRemove = rangeToRemove
+                                              }
+                                            )
 
                                     Nothing ->
                                         Just

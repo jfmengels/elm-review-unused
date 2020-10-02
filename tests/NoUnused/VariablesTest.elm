@@ -805,14 +805,6 @@ a : C
 a = 1"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
-    , test "should not report import that exposes an unused exposed type (but whose subtype is potentially used)" <|
-        \() ->
-            """module SomeModule exposing (a)
-import B exposing (C(..))
-a : D
-a = 1"""
-                |> Review.Test.run rule
-                |> Review.Test.expectNoErrors
     , test "should report unused import alias but not remove it if another import is aliased as the real name of the reported import and it exposes something" <|
         \() ->
             """module SomeModule exposing (a)
