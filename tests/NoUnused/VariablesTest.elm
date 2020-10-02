@@ -1,6 +1,12 @@
 module NoUnused.VariablesTest exposing (all)
 
+import Elm.Docs
+import Elm.Project
+import Elm.Type exposing (Type(..))
+import Json.Decode as Decode
 import NoUnused.Variables exposing (rule)
+import Review.Project as Project exposing (Project)
+import Review.Project.Dependency as Dependency exposing (Dependency)
 import Review.Test
 import Test exposing (Test, describe, test)
 
@@ -21,6 +27,7 @@ all =
         , describe "Record updates" recordUpdateTests
         , describe "Function parameters" functionParameterTests
         , describe "Imports" importTests
+        , describe "Imports from dependencies" importFromDependenciesTests
         , describe "Pattern matching variables" patternMatchingVariablesTests
         , describe "Defined types" typeTests
         , describe "Opaque Types" opaqueTypeTests
@@ -860,6 +867,176 @@ a = let button = 1
     in button + div"""
                     ]
     ]
+
+
+importFromDependenciesTests : List Test
+importFromDependenciesTests =
+    [ test "should not report used import of custom type when one of its constructors is used" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Dependency exposing (CustomType(..))
+a : CustomType
+a = CustomTypeConstructor"""
+                |> Review.Test.runWithProjectData project rule
+                |> Review.Test.expectNoErrors
+    , test "should not report unused import of custom type when the custom type is unknown" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Dependency exposing (UnknownCustomType(..))
+a : UnknownCustomType
+a = UnknownCustomTypeConstructor"""
+                |> Review.Test.runWithProjectData project rule
+                |> Review.Test.expectNoErrors
+    , test "should not report unused import of custom type when we don't have any dependency information about it" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Dependency exposing (UnknownCustomType(..))
+a : UnknownCustomType
+a = UnknownCustomTypeConstructor"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should report unused import of custom type if the constructors are not used" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Dependency exposing (CustomType(..))
+a : CustomType
+a = Dependency.new"""
+                |> Review.Test.runWithProjectData project rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported constructors for `CustomType` are not used"
+                        , details = details
+                        , under = "(..)"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Dependency exposing (CustomType)
+a : CustomType
+a = Dependency.new"""
+                    ]
+    , test "should report unused import of custom type if constructor are used but in a qualified manner" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Dependency exposing (CustomType(..))
+a : CustomType
+a = Dependency.CustomTypeConstructor"""
+                |> Review.Test.runWithProjectData project rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported constructors for `CustomType` are not used"
+                        , details = details
+                        , under = "(..)"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Dependency exposing (CustomType)
+a : CustomType
+a = Dependency.CustomTypeConstructor"""
+                    ]
+    , test "should report and remove the whole unused imported custom type if it's not used in any way" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Dependency exposing (A, CustomType(..))
+a : A
+a = A"""
+                |> Review.Test.runWithProjectData project rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported type `CustomType` is not used"
+                        , details = details
+                        , under = "(..)"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Dependency exposing (A)
+a : CustomType
+a = Dependency.CustomTypeConstructor"""
+                    ]
+    ]
+
+
+project : Project
+project =
+    Project.new
+        |> Project.addDependency packageWithFoo
+
+
+packageWithFoo : Dependency
+packageWithFoo =
+    let
+        modules : List Elm.Docs.Module
+        modules =
+            [ { name = "Dependency"
+              , comment = ""
+              , unions =
+                    [ { name = "CustomType"
+                      , comment = " maybe "
+                      , args = [ "a" ]
+                      , tags = [ ( "CustomTypeConstructor", [] ) ]
+                      }
+                    ]
+              , aliases = []
+              , values = []
+              , binops = []
+              }
+            ]
+
+        elmJson : Elm.Project.Project
+        elmJson =
+            .project <| createElmJson """
+  {
+      "type": "package",
+      "name": "author/package-with-foo",
+      "summary": "Summary",
+      "license": "BSD-3-Clause",
+      "version": "1.0.0",
+      "exposed-modules": [
+          "Foo"
+      ],
+      "elm-version": "0.19.0 <= v < 0.20.0",
+      "dependencies": {
+          "elm/core": "1.0.0 <= v < 2.0.0"
+      },
+      "test-dependencies": {}
+  }"""
+    in
+    Dependency.create
+        "author/package-with-foo"
+        elmJson
+        modules
+
+
+packageElmJson : String
+packageElmJson =
+    """
+{
+    "type": "package",
+    "name": "author/package",
+    "summary": "Summary",
+    "license": "BSD-3-Clause",
+    "version": "1.0.0",
+    "exposed-modules": [
+        "Exposed"
+    ],
+    "elm-version": "0.19.0 <= v < 0.20.0",
+    "dependencies": {
+        "elm/core": "1.0.0 <= v < 2.0.0"
+    },
+    "test-dependencies": {}
+}"""
+
+
+createElmJson : String -> { path : String, raw : String, project : Elm.Project.Project }
+createElmJson rawElmJson =
+    case Decode.decodeString Elm.Project.decoder rawElmJson of
+        Ok elmJson ->
+            { path = "elm.json"
+            , raw = rawElmJson
+            , project = elmJson
+            }
+
+        Err _ ->
+            Debug.todo "Invalid elm.json supplied to test"
 
 
 patternMatchingVariablesTests : List Test
