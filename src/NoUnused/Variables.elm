@@ -117,6 +117,7 @@ type LetBlockContext
 type ImportType
     = ImportedVariable
     | ImportedType
+    | ImportedCustomType
     | ImportedOperator
 
 
@@ -166,6 +167,9 @@ variableTypeToString variableType =
 
         ImportedItem ImportedType ->
             "Imported type"
+
+        ImportedItem ImportedCustomType ->
+            "Imported custom type"
 
         ImportedItem ImportedOperator ->
             "Imported operator"
@@ -878,7 +882,7 @@ collectFromExposing context exposingNode =
                                     Just _ ->
                                         Just
                                             ( name
-                                            , { variableType = ImportedItem ImportedType
+                                            , { variableType = ImportedItem ImportedCustomType
                                               , under = range
                                               , rangeToRemove = rangeToRemove
                                               }

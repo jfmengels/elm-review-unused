@@ -900,7 +900,6 @@ a = Dependency.new"""
                         , details = details
                         , under = "(..)"
                         }
-                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 import Dependency exposing (CustomType)
 a : CustomType
@@ -919,7 +918,6 @@ a = Dependency.CustomTypeConstructor"""
                         , details = details
                         , under = "(..)"
                         }
-                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 import Dependency exposing (CustomType)
 a : CustomType
@@ -930,19 +928,18 @@ a = Dependency.CustomTypeConstructor"""
             """module SomeModule exposing (a)
 import Dependency exposing (A, CustomType(..))
 a : A
-a = A"""
+a = 1"""
                 |> Review.Test.runWithProjectData project rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Imported type `CustomType` is not used"
+                        { message = "Imported custom type `CustomType` is not used"
                         , details = details
-                        , under = "(..)"
+                        , under = "CustomType(..)"
                         }
-                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 import Dependency exposing (A)
-a : CustomType
-a = Dependency.CustomTypeConstructor"""
+a : A
+a = 1"""
                     ]
     ]
 
