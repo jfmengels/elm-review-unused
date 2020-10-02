@@ -313,7 +313,7 @@ importVisitor ((Node _ import_) as node) context =
             , List.foldl
                 (\( name, variableInfo ) context_ -> register variableInfo name context_)
                 (registerModuleAlias node context)
-                (collectFromExposing declaredImports)
+                (collectFromExposing context declaredImports)
             )
 
 
@@ -799,8 +799,8 @@ registerFunction letBlockContext function context =
         |> markUsedTypesAndModules namesUsedInSignature
 
 
-collectFromExposing : Node Exposing -> List ( String, VariableInfo )
-collectFromExposing exposingNode =
+collectFromExposing : Context -> Node Exposing -> List ( String, VariableInfo )
+collectFromExposing context exposingNode =
     case Node.value exposingNode of
         Exposing.All _ ->
             []
