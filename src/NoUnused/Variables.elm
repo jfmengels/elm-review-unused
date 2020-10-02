@@ -15,12 +15,14 @@ import Elm.Syntax.Exposing as Exposing exposing (Exposing)
 import Elm.Syntax.Expression as Expression exposing (Expression, Function, FunctionImplementation)
 import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Module as Module exposing (Module)
+import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import Review.Fix as Fix exposing (Fix)
+import Review.Project.Dependency
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 
@@ -63,6 +65,7 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Varia
 rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoUnused.Variables" initialContext
+        |> Rule.withDependenciesModuleVisitor dependenciesVisitor
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withImportVisitor importVisitor
         |> Rule.withDeclarationEnterVisitor declarationVisitor
@@ -79,6 +82,7 @@ type alias Context =
     , constructorNameToTypeName : Dict String String
     , declaredModules : Dict String VariableInfo
     , usedModules : Set String
+    , dependencies : Dict ModuleName Review.Project.Dependency.Dependency
     }
 
 
@@ -124,6 +128,7 @@ initialContext =
     , constructorNameToTypeName = Dict.empty
     , declaredModules = Dict.empty
     , usedModules = Set.empty
+    , dependencies = Dict.empty
     }
 
 
@@ -233,6 +238,17 @@ fix declaredModules { variableType, rangeToRemove } =
 
     else
         []
+
+
+dependenciesVisitor : Dict String Review.Project.Dependency.Dependency -> Context -> Context
+dependenciesVisitor dependencies context =
+    { context
+        | dependencies =
+            dependencies
+                |> Dict.toList
+                |> List.map (\( key, value ) -> ( String.split "." key, value ))
+                |> Dict.fromList
+    }
 
 
 moduleDefinitionVisitor : Node Module -> Context -> ( List nothing, Context )
