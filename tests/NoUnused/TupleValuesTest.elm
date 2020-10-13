@@ -20,7 +20,7 @@ all =
 
 letDestructuringTests : List Test
 letDestructuringTests =
-    [ test "reports unused values" <|
+    [ test "reports a tuple with one unused values" <|
         \() ->
             """
 module A exposing (foo)
@@ -28,21 +28,70 @@ module A exposing (foo)
 foo : Int
 foo =
     let
-        tuple : (Bool, Int)
-        tuple =
+        twoTuple : (Bool, Int)
+        twoTuple =
             (False, 1)
 
         (_, a) =
-            tuple
+            twoTuple
     in
     a
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Tuple value is never used."
+                        { message = "Value in tuple `twoTuple` is never used."
                         , details = details
                         , under = "Bool"
+                        }
+                    ]
+    , test "does not report when tuple values are used" <|
+        \() ->
+            """
+module A exposing (foo)
+
+foo : Int
+foo =
+    let
+        twoTuple : (Int, Int)
+        twoTuple =
+            (1, 2)
+
+        (a, b) =
+            twoTuple
+    in
+    a + b
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "reports a tuple with two unused values" <|
+        \() ->
+            """
+module A exposing (foo)
+
+foo : Int
+foo =
+    let
+        threeTuple : (Bool, Int, Char)
+        threeTuple =
+            (False, 1, 'h')
+
+        (_, a, _) =
+            threeTuple
+    in
+    a
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Value in tuple `threeTuple` is never used."
+                        , details = details
+                        , under = "Bool"
+                        }
+                    , Review.Test.error
+                        { message = "Value in tuple `threeTuple` is never used."
+                        , details = details
+                        , under = "Char"
                         }
                     ]
     ]

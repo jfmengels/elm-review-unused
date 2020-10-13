@@ -6,10 +6,15 @@ module NoUnused.TupleValues exposing (rule)
 
 -}
 
+import Dict exposing (Dict)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Node as Node exposing (Node)
+import Elm.Syntax.Pattern as Pattern
+import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.Signature exposing (Signature)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation
-import Review.Rule as Rule exposing (Rule)
+import Review.Rule as Rule exposing (Error, Rule)
+import Set exposing (Set)
 
 
 {-| Reports tuple values that are never used.
@@ -67,50 +72,182 @@ elm - review --template jfmengels/elm-review-unused/example --rules NoUnused.Tup
 -}
 rule : Rule
 rule =
-    Rule.newModuleRuleSchema "NoUnused.TupleValues" ()
+    Rule.newModuleRuleSchema "NoUnused.TupleValues" initialContext
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
+        |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.fromModuleRuleSchema
 
 
 type alias Context =
-    ()
+    { scope : Scope }
+
+
+type alias Scope =
+    { declared : Dict String (TupleInfo Range)
+    , used : Set ( String, Int )
+    }
+
+
+type TupleInfo a
+    = TwoTuple ( a, a )
+    | ThreeTuple ( a, a, a )
+
+
+initialContext : Context
+initialContext =
+    { scope = emptyScope }
+
+
+emptyScope : Scope
+emptyScope =
+    { declared = Dict.empty
+    , used = Set.empty
+    }
 
 
 expressionEnterVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
 expressionEnterVisitor node context =
     case Node.value node of
         Expression.LetExpression { declarations } ->
-            case declarations of
-                [] ->
-                    ( [], context )
-
-                first :: _ ->
-                    case Node.value first of
+            ( []
+            , List.foldl
+                (\declaration context_ ->
+                    case Node.value declaration of
                         Expression.LetFunction function ->
-                            case function.signature of
-                                Just signature ->
-                                    case Node.value (Node.value signature).typeAnnotation of
-                                        TypeAnnotation.Tupled (ft :: _) ->
-                                            ( [ Rule.error
-                                                    { message = "Tuple value is never used."
-                                                    , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
-                                                    }
-                                                    (Node.range ft)
-                                              ]
-                                            , context
-                                            )
+                            function.signature
+                                |> Maybe.map (registerTupleSignature context_)
+                                |> Maybe.withDefault context_
 
-                                        _ ->
-                                            ( [], context )
+                        Expression.LetDestructuring patternNode expressionNode ->
+                            case ( Node.value patternNode, Node.value expressionNode ) of
+                                ( Pattern.TuplePattern [ first, second ], Expression.FunctionOrValue [] name ) ->
+                                    context_
+                                        |> markTupleValueAsUsed name 0 (Node.value first)
+                                        |> markTupleValueAsUsed name 1 (Node.value second)
 
-                                Nothing ->
-                                    ( [], context )
+                                ( Pattern.TuplePattern [ first, second, third ], Expression.FunctionOrValue [] name ) ->
+                                    context_
+                                        |> markTupleValueAsUsed name 0 (Node.value first)
+                                        |> markTupleValueAsUsed name 1 (Node.value second)
+                                        |> markTupleValueAsUsed name 2 (Node.value third)
 
-                        _ ->
-                            ( [], context )
-
-        Expression.TupledExpression _ ->
-            ( [], context )
+                                _ ->
+                                    context_
+                )
+                context
+                declarations
+            )
 
         _ ->
             ( [], context )
+
+
+markTupleValueAsUsed : String -> Int -> Pattern.Pattern -> Context -> Context
+markTupleValueAsUsed name index pattern context =
+    let
+        scope =
+            context.scope
+
+        newScope =
+            case pattern of
+                Pattern.VarPattern _ ->
+                    { scope | used = Set.insert ( name, index ) scope.used }
+
+                _ ->
+                    scope
+    in
+    { context | scope = newScope }
+
+
+registerTupleSignature : Context -> Node Signature -> Context
+registerTupleSignature context signatureNode =
+    let
+        signature =
+            Node.value signatureNode
+
+        name =
+            Node.value signature.name
+
+        typeAnnotation =
+            Node.value signature.typeAnnotation
+    in
+    case typeAnnotation of
+        TypeAnnotation.Tupled [ first, second ] ->
+            registerTuple
+                (TwoTuple ( Node.range first, Node.range second ))
+                name
+                context
+
+        TypeAnnotation.Tupled [ first, second, third ] ->
+            registerTuple
+                (ThreeTuple ( Node.range first, Node.range second, Node.range third ))
+                name
+                context
+
+        _ ->
+            context
+
+
+registerTuple : TupleInfo Range -> String -> Context -> Context
+registerTuple tupleInfo name context =
+    let
+        scope =
+            context.scope
+
+        newScope =
+            { scope | declared = Dict.insert name tupleInfo scope.declared }
+    in
+    { context | scope = newScope }
+
+
+expressionExitVisitor : Node Expression -> Context -> ( List (Error {}), Context )
+expressionExitVisitor node context =
+    case Node.value node of
+        Expression.LetExpression _ ->
+            ( makeReport context.scope, context )
+
+        _ ->
+            ( [], context )
+
+
+makeReport : Scope -> List (Error {})
+makeReport { declared, used } =
+    let
+        wasNotUsed name index value =
+            if Set.member ( name, index ) used then
+                Nothing
+
+            else
+                Just value
+    in
+    declared
+        |> Dict.foldl
+            (\tupleName tupleInfo acc ->
+                let
+                    errorRanges =
+                        case tupleInfo of
+                            TwoTuple ( first, second ) ->
+                                List.filterMap identity
+                                    [ wasNotUsed tupleName 0 first
+                                    , wasNotUsed tupleName 1 second
+                                    ]
+
+                            ThreeTuple ( first, second, third ) ->
+                                List.filterMap identity
+                                    [ wasNotUsed tupleName 0 first
+                                    , wasNotUsed tupleName 1 second
+                                    , wasNotUsed tupleName 2 third
+                                    ]
+                in
+                List.map (error tupleName) errorRanges ++ acc
+            )
+            []
+
+
+error : String -> Range -> Error {}
+error name range =
+    Rule.error
+        { message = "Value in tuple `" ++ name ++ "` is never used."
+        , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+        }
+        range
