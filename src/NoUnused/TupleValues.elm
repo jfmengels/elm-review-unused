@@ -10,10 +10,11 @@ import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Node as Node exposing (Node)
-import Elm.Syntax.Pattern as Pattern
+import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Signature exposing (Signature)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import NoUnused.NonemptyList as Nonempty exposing (Nonempty)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 
@@ -77,11 +78,12 @@ rule =
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
         |> Rule.withExpressionExitVisitor expressionExitVisitor
+        |> Rule.withFinalModuleEvaluation finalEvaluation
         |> Rule.fromModuleRuleSchema
 
 
 type alias Context =
-    { scope : Scope }
+    { scopes : Nonempty Scope }
 
 
 type alias Scope =
@@ -97,7 +99,7 @@ type TupleInfo a
 
 initialContext : Context
 initialContext =
-    { scope = emptyScope }
+    { scopes = Nonempty.fromElement emptyScope }
 
 
 emptyScope : Scope
@@ -123,6 +125,16 @@ declarationEnterVisitor node context =
 
 expressionEnterVisitor : Node Expression -> Context -> ( List (Error {}), Context )
 expressionEnterVisitor node context =
+    let
+        markUsed : String -> Int -> Pattern -> Context -> Context
+        markUsed name index pattern c =
+            case pattern of
+                Pattern.VarPattern _ ->
+                    markTupleValueAsUsed ( name, index ) c
+
+                _ ->
+                    c
+    in
     case Node.value node of
         Expression.LetExpression { declarations } ->
             ( []
@@ -138,19 +150,19 @@ expressionEnterVisitor node context =
                             case ( Node.value patternNode, Node.value expressionNode ) of
                                 ( Pattern.TuplePattern [ first, second ], Expression.FunctionOrValue [] name ) ->
                                     context_
-                                        |> markTupleValueAsUsed name 0 (Node.value first)
-                                        |> markTupleValueAsUsed name 1 (Node.value second)
+                                        |> markUsed name 0 (Node.value first)
+                                        |> markUsed name 1 (Node.value second)
 
                                 ( Pattern.TuplePattern [ first, second, third ], Expression.FunctionOrValue [] name ) ->
                                     context_
-                                        |> markTupleValueAsUsed name 0 (Node.value first)
-                                        |> markTupleValueAsUsed name 1 (Node.value second)
-                                        |> markTupleValueAsUsed name 2 (Node.value third)
+                                        |> markUsed name 0 (Node.value first)
+                                        |> markUsed name 1 (Node.value second)
+                                        |> markUsed name 2 (Node.value third)
 
                                 _ ->
                                     context_
                 )
-                context
+                { context | scopes = Nonempty.cons emptyScope context.scopes }
                 declarations
             )
 
@@ -158,23 +170,18 @@ expressionEnterVisitor node context =
             ( [], context )
 
 
-markTupleValueAsUsed : String -> Int -> Pattern.Pattern -> Context -> Context
-markTupleValueAsUsed name index pattern context =
+markTupleValueAsUsed : ( String, Int ) -> Context -> Context
+markTupleValueAsUsed tupleValueKey context =
     let
-        scope : Scope
-        scope =
-            context.scope
-
-        newScope : Scope
-        newScope =
-            case pattern of
-                Pattern.VarPattern _ ->
-                    { scope | used = Set.insert ( name, index ) scope.used }
-
-                _ ->
-                    scope
+        scopes : Nonempty Scope
+        scopes =
+            Nonempty.mapHead
+                (\scope ->
+                    { scope | used = Set.insert tupleValueKey scope.used }
+                )
+                context.scopes
     in
-    { context | scope = newScope }
+    { context | scopes = scopes }
 
 
 registerTupleSignature : Context -> Node Signature -> Context
@@ -212,28 +219,46 @@ registerTupleSignature context signatureNode =
 registerTuple : TupleInfo Range -> String -> Context -> Context
 registerTuple tupleInfo name context =
     let
-        scope : Scope
-        scope =
-            context.scope
-
-        newScope : Scope
-        newScope =
-            { scope | declared = Dict.insert name tupleInfo scope.declared }
+        scopes : Nonempty Scope
+        scopes =
+            Nonempty.mapHead
+                (\scope ->
+                    { scope | declared = Dict.insert name tupleInfo scope.declared }
+                )
+                context.scopes
     in
-    { context | scope = newScope }
+    { context | scopes = scopes }
 
 
 expressionExitVisitor : Node Expression -> Context -> ( List (Error {}), Context )
 expressionExitVisitor node context =
     case Node.value node of
         Expression.LetExpression _ ->
-            ( makeReport context.scope, context )
+            let
+                ( errors, usedButNotDeclared ) =
+                    makeReport (Nonempty.head context.scopes)
+
+                contextWithPoppedScope : Context
+                contextWithPoppedScope =
+                    { context | scopes = Nonempty.pop context.scopes }
+            in
+            ( errors
+            , usedButNotDeclared
+                |> List.foldl markTupleValueAsUsed contextWithPoppedScope
+            )
 
         _ ->
             ( [], context )
 
 
-makeReport : Scope -> List (Error {})
+finalEvaluation : Context -> List (Error {})
+finalEvaluation context =
+    Nonempty.head context.scopes
+        |> makeReport
+        |> Tuple.first
+
+
+makeReport : Scope -> ( List (Error {}), List ( String, Int ) )
 makeReport { declared, used } =
     let
         wasNotUsed : String -> Int -> a -> Maybe a
@@ -243,30 +268,42 @@ makeReport { declared, used } =
 
             else
                 Just value
-    in
-    declared
-        |> Dict.foldl
-            (\tupleName tupleInfo acc ->
-                let
-                    errorRanges : List Range
-                    errorRanges =
-                        case tupleInfo of
-                            TwoTuple ( first, second ) ->
-                                List.filterMap identity
-                                    [ wasNotUsed tupleName 0 first
-                                    , wasNotUsed tupleName 1 second
-                                    ]
 
-                            ThreeTuple ( first, second, third ) ->
-                                List.filterMap identity
-                                    [ wasNotUsed tupleName 0 first
-                                    , wasNotUsed tupleName 1 second
-                                    , wasNotUsed tupleName 2 third
-                                    ]
-                in
-                List.map (error tupleName) errorRanges ++ acc
-            )
-            []
+        errors : List (Error {})
+        errors =
+            Dict.foldl
+                (\tupleName tupleInfo acc ->
+                    let
+                        errorRanges : List Range
+                        errorRanges =
+                            case tupleInfo of
+                                TwoTuple ( first, second ) ->
+                                    List.filterMap identity
+                                        [ wasNotUsed tupleName 0 first
+                                        , wasNotUsed tupleName 1 second
+                                        ]
+
+                                ThreeTuple ( first, second, third ) ->
+                                    List.filterMap identity
+                                        [ wasNotUsed tupleName 0 first
+                                        , wasNotUsed tupleName 1 second
+                                        , wasNotUsed tupleName 2 third
+                                        ]
+                    in
+                    List.map (error tupleName) errorRanges ++ acc
+                )
+                []
+                declared
+
+        usedButNotDeclared : Set ( String, Int )
+        usedButNotDeclared =
+            Set.filter
+                (\( tupleName, _ ) ->
+                    not (Dict.member tupleName declared)
+                )
+                used
+    in
+    ( errors, Set.toList usedButNotDeclared )
 
 
 error : String -> Range -> Error {}

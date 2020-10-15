@@ -95,6 +95,33 @@ foo =
                         , under = "Char"
                         }
                     ]
+    , test "does not report when tuple values are used separately" <|
+        \() ->
+            """
+module A exposing (foo)
+
+twoTuple : (Int, Int)
+twoTuple =
+    (1, 2)
+
+foo : Int
+foo =
+    let
+        (a, _) =
+            twoTuple
+    in
+    a
+
+bar : Int
+bar =
+    let
+        (_, b) =
+            twoTuple
+    in
+    b
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     ]
 
 
@@ -144,6 +171,28 @@ foo =
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "does not report when tuple values are used in multiple destructurings" <|
+        \() ->
+            """
+module A exposing (foo)
+
+foo : Int
+foo =
+    let
+        twoTuple : (Int, Int)
+        twoTuple =
+            (1, 2)
+
+        (a, _) =
+            twoTuple
+
+        (_, b) =
+            twoTuple
+    in
+    a + b
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     , test "reports a tuple with two unused values" <|
         \() ->
             """
@@ -174,4 +223,27 @@ foo =
                         , under = "Char"
                         }
                     ]
+    , test "does not report when tuple values are used in nested let blocks" <|
+        \() ->
+            """
+module A exposing (foo)
+
+foo : Int
+foo =
+    let
+        twoTuple : (Int, Int)
+        twoTuple =
+            (1, 2)
+
+        (a, b) =
+            let
+                (c, d) =
+                    twoTuple
+            in
+            (c, d)
+    in
+    a + b
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     ]
