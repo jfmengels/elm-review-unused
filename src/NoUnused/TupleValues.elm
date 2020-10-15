@@ -12,7 +12,7 @@ import Elm.Syntax.Node as Node exposing (Node)
 import Elm.Syntax.Pattern as Pattern
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Signature exposing (Signature)
-import Elm.Syntax.TypeAnnotation as TypeAnnotation
+import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 
@@ -145,9 +145,11 @@ expressionEnterVisitor node context =
 markTupleValueAsUsed : String -> Int -> Pattern.Pattern -> Context -> Context
 markTupleValueAsUsed name index pattern context =
     let
+        scope : Scope
         scope =
             context.scope
 
+        newScope : Scope
         newScope =
             case pattern of
                 Pattern.VarPattern _ ->
@@ -162,12 +164,15 @@ markTupleValueAsUsed name index pattern context =
 registerTupleSignature : Context -> Node Signature -> Context
 registerTupleSignature context signatureNode =
     let
+        signature : Signature
         signature =
             Node.value signatureNode
 
+        name : String
         name =
             Node.value signature.name
 
+        typeAnnotation : TypeAnnotation
         typeAnnotation =
             Node.value signature.typeAnnotation
     in
@@ -191,9 +196,11 @@ registerTupleSignature context signatureNode =
 registerTuple : TupleInfo Range -> String -> Context -> Context
 registerTuple tupleInfo name context =
     let
+        scope : Scope
         scope =
             context.scope
 
+        newScope : Scope
         newScope =
             { scope | declared = Dict.insert name tupleInfo scope.declared }
     in
@@ -213,6 +220,7 @@ expressionExitVisitor node context =
 makeReport : Scope -> List (Error {})
 makeReport { declared, used } =
     let
+        wasNotUsed : String -> Int -> a -> Maybe a
         wasNotUsed name index value =
             if Set.member ( name, index ) used then
                 Nothing
@@ -224,6 +232,7 @@ makeReport { declared, used } =
         |> Dict.foldl
             (\tupleName tupleInfo acc ->
                 let
+                    errorRanges : List Range
                     errorRanges =
                         case tupleInfo of
                             TwoTuple ( first, second ) ->
