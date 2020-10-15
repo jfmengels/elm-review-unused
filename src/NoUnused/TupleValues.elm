@@ -7,6 +7,7 @@ module NoUnused.TupleValues exposing (rule)
 -}
 
 import Dict exposing (Dict)
+import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Node as Node exposing (Node)
 import Elm.Syntax.Pattern as Pattern
@@ -73,6 +74,7 @@ elm - review --template jfmengels/elm-review-unused/example --rules NoUnused.Tup
 rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoUnused.TupleValues" initialContext
+        |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.fromModuleRuleSchema
@@ -105,7 +107,21 @@ emptyScope =
     }
 
 
-expressionEnterVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
+declarationEnterVisitor : Node Declaration -> Context -> ( List (Error {}), Context )
+declarationEnterVisitor node context =
+    case Node.value node of
+        Declaration.FunctionDeclaration function ->
+            ( []
+            , function.signature
+                |> Maybe.map (registerTupleSignature context)
+                |> Maybe.withDefault context
+            )
+
+        _ ->
+            ( [], context )
+
+
+expressionEnterVisitor : Node Expression -> Context -> ( List (Error {}), Context )
 expressionEnterVisitor node context =
     case Node.value node of
         Expression.LetExpression { declarations } ->
