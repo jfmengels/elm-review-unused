@@ -50,4 +50,4 @@ config =
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
     ]
-        |> List.map (Rule.ignoreErrorsForFiles [ "src/Scope.elm", "src/NoUnused/Patterns/NameVisitor.elm" ])
+        |> List.map (Rule.ignoreErrorsForFiles [ "src/NoUnused/Patterns/NameVisitor.elm" ])
