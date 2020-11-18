@@ -8,21 +8,15 @@ on: [push, pull_request]
 jobs:
   test:
     # The type of runner that the job will run on
-    runs-on: "${{ matrix.os }}"
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+    runs-on: ubuntu-latest
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    - name: Configure environment
-      # Helps make sure that `elm-format` doesn't give different results on Windows and Ubuntu
-      run: git config --global core.autocrlf false
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
 
     - name: Setup Node.js environment
-      uses: actions/setup-node@v1.4.2
+      uses: actions/setup-node@v1
 
     - name: Install dependencies
       run: npm ci
@@ -42,10 +36,13 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Setup Node.js environment
-        uses: actions/setup-node@v1.4.2
+        uses: actions/setup-node@v1
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Check that examples are up to date
+        run: node elm-review-package-tests/check-examples-were-updated.js
 
       # Runs a single command using the runners shell
       - name: Elm Publish
