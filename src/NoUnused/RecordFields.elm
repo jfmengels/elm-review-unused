@@ -87,14 +87,18 @@ expressionVisitor node context =
 
 finalEvaluation : Context -> List (Error {})
 finalEvaluation context =
-    context.declaredFields
-        |> Dict.toList
-        |> List.filter (\( fieldName, _ ) -> not <| Set.member fieldName context.usedFields)
-        |> List.map
-            (\( fieldName, range ) ->
-                Rule.error
-                    { message = "Unused field `" ++ fieldName ++ "`"
-                    , details = [ "REPLACEME" ]
-                    }
-                    range
-            )
+    if True then
+        []
+
+    else
+        context.declaredFields
+            |> Dict.toList
+            |> List.filter (\( fieldName, _ ) -> not <| Set.member fieldName context.usedFields)
+            |> List.map
+                (\( fieldName, range ) ->
+                    Rule.error
+                        { message = "Unused field `" ++ fieldName ++ "`"
+                        , details = [ "REPLACEME" ]
+                        }
+                        range
+                )
