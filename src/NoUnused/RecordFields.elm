@@ -10,8 +10,8 @@ import Dict exposing (Dict)
 import Elm.Syntax.Declaration exposing (Declaration)
 import Elm.Syntax.Expression exposing (Expression)
 import Elm.Syntax.Node exposing (Node)
-import Elm.Syntax.Range exposing (Range)
-import Review.Rule as Rule exposing (Rule)
+import Elm.Syntax.Range as Range exposing (Range)
+import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 
 
@@ -54,6 +54,7 @@ rule =
     Rule.newModuleRuleSchema "NoUnused.RecordFields" initialContext
         |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
+        |> Rule.withFinalModuleEvaluation finalEvaluation
         |> Rule.fromModuleRuleSchema
 
 
@@ -65,8 +66,12 @@ type alias Context =
 
 initialContext : Context
 initialContext =
-    { usedFields = Set.empty
-    , declaredFields = Dict.empty
+    { usedFields = Set.singleton "foo"
+    , declaredFields =
+        Dict.fromList
+            [ ( "foo", Range.emptyRange )
+            , ( "unused", Range.emptyRange )
+            ]
     }
 
 
@@ -78,3 +83,8 @@ declarationListVisitor nodes context =
 expressionVisitor : Node Expression -> Context -> ( List nothing, Context )
 expressionVisitor node context =
     ( [], context )
+
+
+finalEvaluation : Context -> List (Error {})
+finalEvaluation context =
+    []
