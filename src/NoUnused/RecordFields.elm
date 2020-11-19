@@ -74,18 +74,6 @@ initialContext =
     Dict.empty
 
 
-newVariable : Variable
-newVariable =
-    { usedFields = Set.singleton "foo"
-    , declaredFields =
-        Dict.fromList
-            [ ( "foo", Range.emptyRange )
-            , ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
-            ]
-    , wasUsedWithoutFieldAccess = False
-    }
-
-
 declarationListVisitor : List (Node Declaration) -> Context -> ( List nothing, Context )
 declarationListVisitor nodes context =
     let
@@ -100,7 +88,17 @@ registerDeclaration : Node Declaration -> Maybe ( String, Variable )
 registerDeclaration node =
     case Node.value node of
         Declaration.FunctionDeclaration declaration ->
-            Just ( "a", newVariable )
+            Just
+                ( "a"
+                , { usedFields = Set.singleton "foo"
+                  , declaredFields =
+                        Dict.fromList
+                            [ ( "foo", Range.emptyRange )
+                            , ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
+                            ]
+                  , wasUsedWithoutFieldAccess = False
+                  }
+                )
 
         _ ->
             Nothing
