@@ -123,6 +123,7 @@ expressionVisitor node context =
     case Node.value node of
         Expression.RecordAccess (Node functionOrValueRange (Expression.FunctionOrValue [] name)) fieldName ->
             let
+                variables : Dict String Variable
                 variables =
                     Dict.update name
                         (\maybeDeclared ->
@@ -144,6 +145,7 @@ expressionVisitor node context =
 
         Expression.FunctionOrValue [] name ->
             let
+                variables : Dict String Variable
                 variables =
                     Dict.update name
                         (\maybeDeclared ->
