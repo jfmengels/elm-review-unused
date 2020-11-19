@@ -135,9 +135,11 @@ registerDeclaration exposes node =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
             let
+                declaration : Expression.FunctionImplementation
                 declaration =
                     Node.value function.declaration
 
+                name : String
                 name =
                     Node.value declaration.name
             in
