@@ -82,7 +82,7 @@ newVariable =
             [ ( "foo", Range.emptyRange )
             , ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
             ]
-    , wasUsedWithoutFieldAccess = True
+    , wasUsedWithoutFieldAccess = False
     }
 
 
