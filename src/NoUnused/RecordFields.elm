@@ -123,36 +123,50 @@ declarationListVisitor nodes context =
     let
         variables : Dict String Variable
         variables =
-            nodes |> List.filterMap registerDeclaration |> Dict.fromList
+            nodes
+                |> List.filterMap (registerDeclaration context.exposes)
+                |> Dict.fromList
     in
     ( [], { context | variables = Dict.union variables context.variables } )
 
 
-registerDeclaration : Node Declaration -> Maybe ( String, Variable )
-registerDeclaration node =
+registerDeclaration : Exposes -> Node Declaration -> Maybe ( String, Variable )
+registerDeclaration exposes node =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            if function.declaration |> Node.value |> .arguments |> List.isEmpty then
-                case Node.value function.declaration |> .expression |> Node.value of
-                    Expression.RecordExpr fields ->
-                        let
-                            declaredFields : List (Node String)
-                            declaredFields =
-                                List.map (Node.value >> Tuple.first) fields
-                        in
-                        Just
-                            ( function.declaration |> Node.value |> .name |> Node.value
-                            , { usedFields = Set.empty
-                              , declaredFields = declaredFields
-                              , wasUsedWithoutFieldAccess = False
-                              }
-                            )
+            let
+                declaration =
+                    Node.value function.declaration
 
-                    _ ->
+                name =
+                    Node.value declaration.name
+            in
+            case exposes of
+                ExposesEverything ->
+                    Nothing
+
+                ExposesExplicitly exposedNames ->
+                    if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
+                        case Node.value function.declaration |> .expression |> Node.value of
+                            Expression.RecordExpr fields ->
+                                let
+                                    declaredFields : List (Node String)
+                                    declaredFields =
+                                        List.map (Node.value >> Tuple.first) fields
+                                in
+                                Just
+                                    ( name
+                                    , { usedFields = Set.empty
+                                      , declaredFields = declaredFields
+                                      , wasUsedWithoutFieldAccess = False
+                                      }
+                                    )
+
+                            _ ->
+                                Nothing
+
+                    else
                         Nothing
-
-            else
-                Nothing
 
         _ ->
             Nothing
