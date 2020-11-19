@@ -88,7 +88,17 @@ newVariable =
 
 declarationListVisitor : List (Node Declaration) -> Context -> ( List nothing, Context )
 declarationListVisitor nodes context =
-    ( [], context )
+    let
+        variables : Dict String Variable
+        variables =
+            nodes |> List.filterMap registerDeclaration |> Dict.fromList
+    in
+    ( [], Dict.union variables context )
+
+
+registerDeclaration : Node Declaration -> Maybe ( String, Variable )
+registerDeclaration node =
+    Nothing
 
 
 expressionVisitor : Node Expression -> Context -> ( List nothing, Context )
