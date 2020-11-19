@@ -70,7 +70,7 @@ initialContext =
     , declaredFields =
         Dict.fromList
             [ ( "foo", Range.emptyRange )
-            , ( "unused", Range.emptyRange )
+            , ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
             ]
     }
 
@@ -86,17 +86,7 @@ expressionVisitor node context =
 
 
 finalEvaluation : Context -> List (Error {})
-finalEvaluation _ =
-    let
-        context =
-            { usedFields = Set.singleton "foo"
-            , declaredFields =
-                Dict.fromList
-                    [ ( "foo", Range.emptyRange )
-                    , ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
-                    ]
-            }
-    in
+finalEvaluation context =
     context.declaredFields
         |> Dict.toList
         |> List.filter (\( fieldName, _ ) -> not <| Set.member fieldName context.usedFields)
