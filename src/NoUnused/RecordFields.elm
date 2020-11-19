@@ -6,10 +6,13 @@ module NoUnused.RecordFields exposing (rule)
 
 -}
 
+import Dict exposing (Dict)
 import Elm.Syntax.Declaration exposing (Declaration)
 import Elm.Syntax.Expression exposing (Expression)
 import Elm.Syntax.Node exposing (Node)
+import Elm.Syntax.Range exposing (Range)
 import Review.Rule as Rule exposing (Rule)
+import Set exposing (Set)
 
 
 {-| Reports... REPLACEME
@@ -48,14 +51,23 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Recor
 -}
 rule : Rule
 rule =
-    Rule.newModuleRuleSchema "NoUnused.RecordFields" {}
+    Rule.newModuleRuleSchema "NoUnused.RecordFields" initialContext
         |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
         |> Rule.fromModuleRuleSchema
 
 
 type alias Context =
-    {}
+    { usedFields : Set String
+    , declaredFields : Dict String Range
+    }
+
+
+initialContext : Context
+initialContext =
+    { usedFields = Set.empty
+    , declaredFields = Dict.empty
+    }
 
 
 declarationListVisitor : List (Node Declaration) -> Context -> ( List nothing, Context )
