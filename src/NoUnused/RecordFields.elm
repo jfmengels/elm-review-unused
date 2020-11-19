@@ -13,6 +13,7 @@ import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 
@@ -183,6 +184,16 @@ declarationFields exposes function =
 
             else
                 Nothing
+
+
+returnType : Node TypeAnnotation -> TypeAnnotation
+returnType node =
+    case Node.value node of
+        TypeAnnotation.FunctionTypeAnnotation _ output ->
+            returnType output
+
+        typeAnnotation ->
+            typeAnnotation
 
 
 declarationExitVisitor : a -> Context -> ( List nothing, Context )
