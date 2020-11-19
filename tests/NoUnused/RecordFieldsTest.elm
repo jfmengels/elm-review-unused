@@ -11,7 +11,7 @@ all =
         [ Test.skip <|
             test "should not report unused variables" <|
                 \() ->
-                    """module A exposing (..)
+                    """module A exposing (b)
 a = {}
 b = let c = {foo=1}
     in 1
@@ -37,6 +37,22 @@ b = a.foo
                 """module A exposing (b)
 a = {foo=1, unused=2}
 b = thing a
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report if value is exposed as part of the module (exposing (..))" <|
+            \() ->
+                """module A exposing (..)
+a = {foo=1, unused=2}
+b = a.foo
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report if value is exposed as part of the module (exposing explicitly)" <|
+            \() ->
+                """module A exposing (a, b)
+a = {foo=1, unused=2}
+b = a.foo
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
