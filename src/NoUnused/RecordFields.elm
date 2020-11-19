@@ -7,9 +7,9 @@ module NoUnused.RecordFields exposing (rule)
 -}
 
 import Dict exposing (Dict)
-import Elm.Syntax.Declaration exposing (Declaration)
+import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression exposing (Expression)
-import Elm.Syntax.Node exposing (Node)
+import Elm.Syntax.Node as Node exposing (Node)
 import Elm.Syntax.Range as Range exposing (Range)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -98,7 +98,12 @@ declarationListVisitor nodes context =
 
 registerDeclaration : Node Declaration -> Maybe ( String, Variable )
 registerDeclaration node =
-    Just ( "a", newVariable )
+    case Node.value node of
+        Declaration.FunctionDeclaration declaration ->
+            Just ( "a", newVariable )
+
+        _ ->
+            Nothing
 
 
 expressionVisitor : Node Expression -> Context -> ( List nothing, Context )
