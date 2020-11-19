@@ -10,6 +10,7 @@ import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Node as Node exposing (Node(..))
+import Elm.Syntax.Range exposing (Range)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 
@@ -59,6 +60,7 @@ rule =
 
 type alias Context =
     { variables : Dict String Variable
+    , expressionsToIgnore : Set String
     }
 
 
@@ -72,6 +74,7 @@ type alias Variable =
 initialContext : Context
 initialContext =
     { variables = Dict.empty
+    , expressionsToIgnore = Set.empty
     }
 
 
@@ -118,7 +121,7 @@ registerDeclaration node =
 expressionVisitor : Node Expression -> Context -> ( List nothing, Context )
 expressionVisitor node context =
     case Node.value node of
-        Expression.RecordAccess (Node _ (Expression.FunctionOrValue [] name)) fieldName ->
+        Expression.RecordAccess (Node functionOrValueRange (Expression.FunctionOrValue [] name)) fieldName ->
             let
                 variables =
                     Dict.update name
@@ -133,7 +136,10 @@ expressionVisitor node context =
                         context.variables
             in
             ( []
-            , { context | variables = Dict.union variables context.variables }
+            , { context
+                | variables = Dict.union variables context.variables
+                , expressionsToIgnore = Set.insert (stringifyRange functionOrValueRange) context.expressionsToIgnore
+              }
             )
 
         Expression.FunctionOrValue [] name ->
@@ -156,6 +162,17 @@ expressionVisitor node context =
 
         _ ->
             ( [], context )
+
+
+stringifyRange : Range -> String
+stringifyRange range =
+    [ range.start.row
+    , range.start.column
+    , range.end.row
+    , range.end.column
+    ]
+        |> List.map String.fromInt
+        |> String.join "-"
 
 
 finalEvaluation : Context -> List (Error {})
