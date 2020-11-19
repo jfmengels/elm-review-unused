@@ -88,23 +88,27 @@ registerDeclaration : Node Declaration -> Maybe ( String, Variable )
 registerDeclaration node =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            case Node.value function.declaration |> .expression |> Node.value of
-                Expression.RecordExpr fields ->
-                    let
-                        declaredFields : List (Node String)
-                        declaredFields =
-                            List.map (Node.value >> Tuple.first) fields
-                    in
-                    Just
-                        ( function.declaration |> Node.value |> .name |> Node.value
-                        , { usedFields = Set.singleton "foo"
-                          , declaredFields = declaredFields
-                          , wasUsedWithoutFieldAccess = False
-                          }
-                        )
+            if function.declaration |> Node.value |> .arguments |> List.isEmpty then
+                case Node.value function.declaration |> .expression |> Node.value of
+                    Expression.RecordExpr fields ->
+                        let
+                            declaredFields : List (Node String)
+                            declaredFields =
+                                List.map (Node.value >> Tuple.first) fields
+                        in
+                        Just
+                            ( function.declaration |> Node.value |> .name |> Node.value
+                            , { usedFields = Set.singleton "foo"
+                              , declaredFields = declaredFields
+                              , wasUsedWithoutFieldAccess = False
+                              }
+                            )
 
-                _ ->
-                    Nothing
+                    _ ->
+                        Nothing
+
+            else
+                Nothing
 
         _ ->
             Nothing
