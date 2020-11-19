@@ -57,6 +57,16 @@ b = a.foo
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
+        , test "TODO should not check when value is a type alias" <|
+            \() ->
+                """module A exposing (b, TypeAlias)
+type alias TypeAlias = {foo:Int,bar:Int}
+a : TypeAlias
+a = {foo=1, bar=2}
+b = a.foo
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         , test "TODO should not report if record is hidden behind a function" <|
             \() ->
                 """module A exposing (b)
