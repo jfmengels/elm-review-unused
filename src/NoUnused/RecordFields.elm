@@ -61,6 +61,7 @@ rule =
 type alias Context =
     { usedFields : Set String
     , declaredFields : Dict String Range
+    , wasUsedWithoutFieldAccess : Bool
     }
 
 
@@ -72,6 +73,7 @@ initialContext =
             [ ( "foo", Range.emptyRange )
             , ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
             ]
+    , wasUsedWithoutFieldAccess = True
     }
 
 
@@ -87,7 +89,7 @@ expressionVisitor node context =
 
 finalEvaluation : Context -> List (Error {})
 finalEvaluation context =
-    if True then
+    if context.wasUsedWithoutFieldAccess then
         []
 
     else
