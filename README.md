@@ -11,7 +11,7 @@ Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-revi
 - [🔧 `NoUnused.Dependencies`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.29/NoUnused-Dependencies/ "Provides automatic fixes") - Reports unused dependencies in the project.
 - [🔧 `NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.29/NoUnused-Parameters/ "Provides automatic fixes") - Report unused parameters.
 - [🔧 `NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.29/NoUnused-Patterns/ "Provides automatic fixes") - Report useless patterns and pattern values that are not used.
-
+- [🔧 `NoUnused.RecordFields`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.29/NoUnused-RecordFields) - Reports REPLACEME.
 
 - **(DEPRECATED)** [`NoUnused.Modules`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.29/NoUnused-Modules/ "Provides automatic fixes") - Reports unused modules in the project.
 
@@ -26,6 +26,7 @@ import NoUnused.Dependencies
 import NoUnused.Exports
 import NoUnused.Parameters
 import NoUnused.Patterns
+import NoUnused.RecordFields
 import NoUnused.Variables
 import Review.Rule exposing (Rule)
 
@@ -33,6 +34,7 @@ import Review.Rule exposing (Rule)
 config : List Rule
 config =
     [ NoUnused.CustomTypeConstructors.rule []
+    , NoUnused.RecordFields.rule
     , NoUnused.CustomTypeConstructorArgs.rule
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule
