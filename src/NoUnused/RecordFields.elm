@@ -48,14 +48,14 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Recor
 -}
 rule : Rule
 rule =
-    Rule.newModuleRuleSchema "NoUnused.RecordFields" ()
+    Rule.newModuleRuleSchema "NoUnused.RecordFields" {}
         |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
         |> Rule.fromModuleRuleSchema
 
 
 type alias Context =
-    ()
+    {}
 
 
 declarationListVisitor : List (Node Declaration) -> Context -> ( List nothing, Context )
