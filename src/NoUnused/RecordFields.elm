@@ -136,7 +136,7 @@ registerDeclaration : Exposes -> Node Declaration -> Maybe ( String, Variable )
 registerDeclaration exposes node =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            declarationFields exposes (Node.value function.declaration)
+            declarationFields exposes function
                 |> Maybe.map
                     (\( name, declaredFields ) ->
                         ( name
@@ -152,14 +152,18 @@ registerDeclaration exposes node =
             Nothing
 
 
-declarationFields : Exposes -> Expression.FunctionImplementation -> Maybe ( String, List (Node String) )
-declarationFields exposes declaration =
+declarationFields : Exposes -> Expression.Function -> Maybe ( String, List (Node String) )
+declarationFields exposes function =
     case exposes of
         ExposesEverything ->
             Nothing
 
         ExposesExplicitly exposedNames ->
             let
+                declaration : Expression.FunctionImplementation
+                declaration =
+                    Node.value function.declaration
+
                 name : String
                 name =
                     Node.value declaration.name
