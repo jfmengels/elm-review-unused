@@ -58,7 +58,8 @@ rule =
 
 
 type alias Context =
-    Dict String Variable
+    { variables : Dict String Variable
+    }
 
 
 type alias Variable =
@@ -70,7 +71,8 @@ type alias Variable =
 
 initialContext : Context
 initialContext =
-    Dict.empty
+    { variables = Dict.empty
+    }
 
 
 declarationListVisitor : List (Node Declaration) -> Context -> ( List nothing, Context )
@@ -80,7 +82,7 @@ declarationListVisitor nodes context =
         variables =
             nodes |> List.filterMap registerDeclaration |> Dict.fromList
     in
-    ( [], Dict.union variables context )
+    ( [], { context | variables = Dict.union variables context.variables } )
 
 
 registerDeclaration : Node Declaration -> Maybe ( String, Variable )
@@ -117,31 +119,39 @@ expressionVisitor : Node Expression -> Context -> ( List nothing, Context )
 expressionVisitor node context =
     case Node.value node of
         Expression.RecordAccess (Node _ (Expression.FunctionOrValue [] name)) fieldName ->
-            ( []
-            , Dict.update name
-                (\maybeDeclared ->
-                    case maybeDeclared of
-                        Just declared ->
-                            Just { declared | usedFields = Set.insert (Node.value fieldName) declared.usedFields }
+            let
+                variables =
+                    Dict.update name
+                        (\maybeDeclared ->
+                            case maybeDeclared of
+                                Just declared ->
+                                    Just { declared | usedFields = Set.insert (Node.value fieldName) declared.usedFields }
 
-                        Nothing ->
-                            Nothing
-                )
-                context
+                                Nothing ->
+                                    Nothing
+                        )
+                        context.variables
+            in
+            ( []
+            , { context | variables = Dict.union variables context.variables }
             )
 
         Expression.FunctionOrValue [] name ->
-            ( []
-            , Dict.update name
-                (\maybeDeclared ->
-                    case maybeDeclared of
-                        Just declared ->
-                            Just { declared | wasUsedWithoutFieldAccess = True }
+            let
+                variables =
+                    Dict.update name
+                        (\maybeDeclared ->
+                            case maybeDeclared of
+                                Just declared ->
+                                    Just { declared | wasUsedWithoutFieldAccess = True }
 
-                        Nothing ->
-                            Nothing
-                )
-                context
+                                Nothing ->
+                                    Nothing
+                        )
+                        context.variables
+            in
+            ( []
+            , { context | variables = Dict.union variables context.variables }
             )
 
         _ ->
@@ -150,7 +160,7 @@ expressionVisitor node context =
 
 finalEvaluation : Context -> List (Error {})
 finalEvaluation context =
-    context
+    context.variables
         |> Dict.toList
         |> List.concatMap (Tuple.second >> finalEvaluationForVariable)
 
