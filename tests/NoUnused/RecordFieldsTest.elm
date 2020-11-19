@@ -20,6 +20,7 @@ b = let c = {foo=1}
         , test "should report an unused field" <|
             \() ->
                 """module A exposing (b)
+a : {foo:Int,unused:Int}
 a = {foo=1, unused=2}
 b = a.foo
 """
@@ -30,6 +31,7 @@ b = a.foo
                             , details = [ "REPLACEME" ]
                             , under = "unused"
                             }
+                            |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
                         ]
         , test "should not report if value is used without a field accessor" <|
             \() ->
