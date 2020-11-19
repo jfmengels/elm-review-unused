@@ -91,16 +91,16 @@ registerDeclaration node =
             case Node.value function.declaration |> .expression |> Node.value of
                 Expression.RecordExpr fields ->
                     let
+                        declaredFields : List ( String, Range )
                         declaredFields =
-                            Dict.fromList
-                                [ ( "foo", Range.emptyRange )
-                                , ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
-                                ]
+                            [ ( "foo", Range.emptyRange )
+                            , ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
+                            ]
                     in
                     Just
                         ( function.declaration |> Node.value |> .name |> Node.value
                         , { usedFields = Set.singleton "foo"
-                          , declaredFields = declaredFields
+                          , declaredFields = Dict.fromList declaredFields
                           , wasUsedWithoutFieldAccess = False
                           }
                         )
