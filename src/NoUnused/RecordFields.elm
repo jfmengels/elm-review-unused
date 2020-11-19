@@ -56,6 +56,7 @@ rule =
     Rule.newModuleRuleSchema "NoUnused.RecordFields" initialContext
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withDeclarationListVisitor declarationListVisitor
+        |> Rule.withDeclarationExitVisitor declarationExitVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
         |> Rule.fromModuleRuleSchema
@@ -178,6 +179,11 @@ declarationFields exposes declaration =
 
             else
                 Nothing
+
+
+declarationExitVisitor : a -> Context -> ( List nothing, Context )
+declarationExitVisitor _ context =
+    ( [], { context | expressionsToIgnore = Set.empty } )
 
 
 updateVariable : String -> (Variable -> Variable) -> Dict String Variable -> Dict String Variable
