@@ -41,4 +41,12 @@ b = thing a
 """
                         |> Review.Test.run rule
                         |> Review.Test.expectNoErrors
+        , test "TODO should not report if record is hidden behind a function" <|
+            \() ->
+                """module A exposing (b)
+a argument = {foo=1, unused=2}
+b = a.foo
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         ]
