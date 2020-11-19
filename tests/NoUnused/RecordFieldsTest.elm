@@ -8,17 +8,13 @@ import Test exposing (Test, describe, test)
 all : Test
 all =
     describe "NoUnused.RecordFields"
-        [ test "should report an error when REPLACEME" <|
+        [ test "should not report unused variables" <|
             \() ->
                 """module A exposing (..)
-a = 1
+a = {}
+b = let c = {foo=1}
+    in 1
 """
                     |> Review.Test.run rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "REPLACEME"
-                            , details = [ "REPLACEME" ]
-                            , under = "REPLACEME"
-                            }
-                        ]
+                    |> Review.Test.expectNoErrors
         ]
