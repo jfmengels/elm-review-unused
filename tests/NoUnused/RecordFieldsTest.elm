@@ -8,16 +8,15 @@ import Test exposing (Test, describe, test)
 all : Test
 all =
     describe "NoUnused.RecordFields"
-        [ Test.skip <|
-            test "should not report unused variables" <|
-                \() ->
-                    """module A exposing (b)
-a = {}
+        [ test "should not report unused variables" <|
+            \() ->
+                """module A exposing (b)
+a = {foo=1, unused=2}
 b = let c = {foo=1}
     in 1
 """
-                        |> Review.Test.run rule
-                        |> Review.Test.expectNoErrors
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         , test "should report an unused field" <|
             \() ->
                 """module A exposing (b)
