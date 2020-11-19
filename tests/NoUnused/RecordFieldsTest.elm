@@ -32,15 +32,14 @@ b = a.foo
                             , under = "unused"
                             }
                         ]
-        , Test.skip <|
-            test "should not report if value is used without a field accessor" <|
-                \() ->
-                    """module A exposing (b)
+        , test "should not report if value is used without a field accessor" <|
+            \() ->
+                """module A exposing (b)
 a = {foo=1, unused=2}
 b = thing a
 """
-                        |> Review.Test.run rule
-                        |> Review.Test.expectNoErrors
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         , test "TODO should not report if record is hidden behind a function" <|
             \() ->
                 """module A exposing (b)
