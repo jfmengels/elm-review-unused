@@ -64,7 +64,7 @@ type alias Context =
 
 type alias Variable =
     { usedFields : Set String
-    , declaredFields : Dict String Range
+    , declaredFields : List (Node String)
     , wasUsedWithoutFieldAccess : Bool
     }
 
@@ -91,17 +91,18 @@ registerDeclaration node =
             case Node.value function.declaration |> .expression |> Node.value of
                 Expression.RecordExpr fields ->
                     let
-                        declaredFields : List ( String, Range )
+                        declaredFields : List (Node String)
                         declaredFields =
                             --List.map (Node.value >> Tuple.first) fields
-                            [ ( "foo", Range.emptyRange )
-                            , ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
-                            ]
+                            --[ ( "foo", Range.emptyRange )
+                            --, ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
+                            --]
+                            []
                     in
                     Just
                         ( function.declaration |> Node.value |> .name |> Node.value
                         , { usedFields = Set.singleton "foo"
-                          , declaredFields = Dict.fromList declaredFields
+                          , declaredFields = declaredFields
                           , wasUsedWithoutFieldAccess = False
                           }
                         )
@@ -132,13 +133,12 @@ finalEvaluationForVariable variable =
 
     else
         variable.declaredFields
-            |> Dict.toList
-            |> List.filter (\( fieldName, _ ) -> not <| Set.member fieldName variable.usedFields)
+            |> List.filter (\node -> not <| Set.member (Node.value node) variable.usedFields)
             |> List.map
-                (\( fieldName, range ) ->
+                (\node ->
                     Rule.error
-                        { message = "Unused field `" ++ fieldName ++ "`"
+                        { message = "Unused field `" ++ Node.value node ++ "`"
                         , details = [ "REPLACEME" ]
                         }
-                        range
+                        (Node.range node)
                 )
