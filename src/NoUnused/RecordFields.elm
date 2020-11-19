@@ -8,7 +8,9 @@ module NoUnused.RecordFields exposing (rule)
 
 import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
+import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression)
+import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Range exposing (Range)
 import Review.Rule as Rule exposing (Error, Rule)
@@ -52,6 +54,7 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Recor
 rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoUnused.RecordFields" initialContext
+        |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
@@ -61,6 +64,7 @@ rule =
 type alias Context =
     { variables : Dict String Variable
     , expressionsToIgnore : Set String
+    , exposes : Exposes
     }
 
 
@@ -75,7 +79,43 @@ initialContext : Context
 initialContext =
     { variables = Dict.empty
     , expressionsToIgnore = Set.empty
+    , exposes = ExposesEverything
     }
+
+
+type Exposes
+    = ExposesEverything
+    | ExposesExplicitly (Set String)
+
+
+moduleDefinitionVisitor : Node Module -> Context -> ( List nothing, Context )
+moduleDefinitionVisitor moduleNode moduleContext =
+    case Module.exposingList (Node.value moduleNode) of
+        Exposing.All _ ->
+            ( [], { moduleContext | exposes = ExposesEverything } )
+
+        Exposing.Explicit list ->
+            let
+                names : List String
+                names =
+                    List.map
+                        (\(Node _ node) ->
+                            case node of
+                                Exposing.FunctionExpose name ->
+                                    name
+
+                                Exposing.TypeOrAliasExpose name ->
+                                    name
+
+                                Exposing.TypeExpose { name } ->
+                                    name
+
+                                Exposing.InfixExpose name ->
+                                    name
+                        )
+                        list
+            in
+            ( [], { moduleContext | exposes = ExposesExplicitly (Set.fromList names) } )
 
 
 declarationListVisitor : List (Node Declaration) -> Context -> ( List nothing, Context )
