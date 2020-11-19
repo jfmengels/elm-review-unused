@@ -144,23 +144,27 @@ expressionVisitor node context =
             )
 
         Expression.FunctionOrValue [] name ->
-            let
-                variables : Dict String Variable
-                variables =
-                    Dict.update name
-                        (\maybeDeclared ->
-                            case maybeDeclared of
-                                Just declared ->
-                                    Just { declared | wasUsedWithoutFieldAccess = True }
+            if Set.member (stringifyRange (Node.range node)) context.expressionsToIgnore then
+                ( [], context )
 
-                                Nothing ->
-                                    Nothing
-                        )
-                        context.variables
-            in
-            ( []
-            , { context | variables = Dict.union variables context.variables }
-            )
+            else
+                let
+                    variables : Dict String Variable
+                    variables =
+                        Dict.update name
+                            (\maybeDeclared ->
+                                case maybeDeclared of
+                                    Just declared ->
+                                        Just { declared | wasUsedWithoutFieldAccess = True }
+
+                                    Nothing ->
+                                        Nothing
+                            )
+                            context.variables
+                in
+                ( []
+                , { context | variables = Dict.union variables context.variables }
+                )
 
         _ ->
             ( [], context )
