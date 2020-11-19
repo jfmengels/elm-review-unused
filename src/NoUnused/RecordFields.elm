@@ -130,6 +130,20 @@ expressionVisitor node context =
                 context
             )
 
+        Expression.FunctionOrValue [] name ->
+            ( []
+            , Dict.update name
+                (\maybeDeclared ->
+                    case maybeDeclared of
+                        Just declared ->
+                            Just { declared | wasUsedWithoutFieldAccess = True }
+
+                        Nothing ->
+                            Nothing
+                )
+                context
+            )
+
         _ ->
             ( [], context )
 
