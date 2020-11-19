@@ -31,4 +31,12 @@ b = a.foo
                             , under = "unused"
                             }
                         ]
+        , test "should not report if value is used without a field accessor" <|
+            \() ->
+                """module A exposing (b)
+a = {foo=1, unused=2}
+b = thing a
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         ]
