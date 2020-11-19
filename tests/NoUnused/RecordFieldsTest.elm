@@ -28,7 +28,7 @@ b = a.foo
                         [ Review.Test.error
                             { message = "Unused field `unused`"
                             , details = [ "REPLACEME" ]
-                            , under = "REPLACEME"
+                            , under = "unused"
                             }
                         ]
         ]

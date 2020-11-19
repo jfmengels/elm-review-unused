@@ -93,8 +93,18 @@ finalEvaluation _ =
             , declaredFields =
                 Dict.fromList
                     [ ( "foo", Range.emptyRange )
-                    , ( "unused", Range.emptyRange )
+                    , ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
                     ]
             }
     in
-    []
+    context.declaredFields
+        |> Dict.toList
+        |> List.filter (\( fieldName, _ ) -> not <| Set.member fieldName context.usedFields)
+        |> List.map
+            (\( fieldName, range ) ->
+                Rule.error
+                    { message = "Unused field `" ++ fieldName ++ "`"
+                    , details = [ "REPLACEME" ]
+                    }
+                    range
+            )
