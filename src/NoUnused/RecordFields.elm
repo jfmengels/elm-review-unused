@@ -93,11 +93,7 @@ registerDeclaration node =
                     let
                         declaredFields : List (Node String)
                         declaredFields =
-                            --List.map (Node.value >> Tuple.first) fields
-                            --[ ( "foo", Range.emptyRange )
-                            --, ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
-                            --]
-                            []
+                            List.map (Node.value >> Tuple.first) fields
                     in
                     Just
                         ( function.declaration |> Node.value |> .name |> Node.value
