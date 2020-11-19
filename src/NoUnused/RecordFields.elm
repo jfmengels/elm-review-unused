@@ -59,7 +59,7 @@ rule =
 
 
 type alias Context =
-    List Variable
+    Dict String Variable
 
 
 type alias Variable =
@@ -71,7 +71,7 @@ type alias Variable =
 
 initialContext : Context
 initialContext =
-    [ newVariable ]
+    Dict.singleton "a" newVariable
 
 
 newVariable : Variable
@@ -98,7 +98,9 @@ expressionVisitor node context =
 
 finalEvaluation : Context -> List (Error {})
 finalEvaluation context =
-    List.concatMap finalEvaluationForVariable context
+    context
+        |> Dict.toList
+        |> List.concatMap (Tuple.second >> finalEvaluationForVariable)
 
 
 finalEvaluationForVariable : Variable -> List (Error {})
