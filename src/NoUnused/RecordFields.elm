@@ -71,7 +71,7 @@ type alias Variable =
 
 initialContext : Context
 initialContext =
-    Dict.singleton "a" newVariable
+    Dict.empty
 
 
 newVariable : Variable
@@ -98,7 +98,7 @@ declarationListVisitor nodes context =
 
 registerDeclaration : Node Declaration -> Maybe ( String, Variable )
 registerDeclaration node =
-    Nothing
+    Just ( "a", newVariable )
 
 
 expressionVisitor : Node Expression -> Context -> ( List nothing, Context )
