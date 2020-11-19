@@ -71,6 +71,7 @@ type alias Context =
 type alias Variable =
     { usedFields : Set String
     , declaredFields : List (Node String)
+    , wasUsed : Bool
     , wasUsedWithoutFieldAccess : Bool
     }
 
@@ -140,6 +141,7 @@ registerDeclaration exposes node =
                         ( name
                         , { usedFields = Set.empty
                           , declaredFields = declaredFields
+                          , wasUsed = False
                           , wasUsedWithoutFieldAccess = False
                           }
                         )
@@ -189,7 +191,7 @@ expressionVisitor node context =
                         (\maybeDeclared ->
                             case maybeDeclared of
                                 Just declared ->
-                                    Just { declared | usedFields = Set.insert (Node.value fieldName) declared.usedFields }
+                                    Just { declared | wasUsed = True, usedFields = Set.insert (Node.value fieldName) declared.usedFields }
 
                                 Nothing ->
                                     Nothing
@@ -205,7 +207,23 @@ expressionVisitor node context =
 
         Expression.FunctionOrValue [] name ->
             if Set.member (stringifyRange (Node.range node)) context.expressionsToIgnore then
-                ( [], context )
+                let
+                    variables : Dict String Variable
+                    variables =
+                        Dict.update name
+                            (\maybeDeclared ->
+                                case maybeDeclared of
+                                    Just declared ->
+                                        Just { declared | wasUsed = True }
+
+                                    Nothing ->
+                                        Nothing
+                            )
+                            context.variables
+                in
+                ( []
+                , { context | variables = Dict.union variables context.variables }
+                )
 
             else
                 let
@@ -215,7 +233,7 @@ expressionVisitor node context =
                             (\maybeDeclared ->
                                 case maybeDeclared of
                                     Just declared ->
-                                        Just { declared | wasUsedWithoutFieldAccess = True }
+                                        Just { declared | wasUsed = True, wasUsedWithoutFieldAccess = True }
 
                                     Nothing ->
                                         Nothing
@@ -250,7 +268,7 @@ finalEvaluation context =
 
 finalEvaluationForVariable : Variable -> List (Error {})
 finalEvaluationForVariable variable =
-    if variable.wasUsedWithoutFieldAccess then
+    if variable.wasUsedWithoutFieldAccess || not variable.wasUsed then
         []
 
     else
