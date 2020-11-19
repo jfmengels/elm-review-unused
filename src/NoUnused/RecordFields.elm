@@ -9,8 +9,7 @@ module NoUnused.RecordFields exposing (rule)
 import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
-import Elm.Syntax.Node as Node exposing (Node)
-import Elm.Syntax.Range as Range exposing (Range)
+import Elm.Syntax.Node as Node exposing (Node(..))
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 
@@ -98,7 +97,7 @@ registerDeclaration node =
                         in
                         Just
                             ( function.declaration |> Node.value |> .name |> Node.value
-                            , { usedFields = Set.singleton "foo"
+                            , { usedFields = Set.empty
                               , declaredFields = declaredFields
                               , wasUsedWithoutFieldAccess = False
                               }
@@ -116,7 +115,23 @@ registerDeclaration node =
 
 expressionVisitor : Node Expression -> Context -> ( List nothing, Context )
 expressionVisitor node context =
-    ( [], context )
+    case Node.value node of
+        Expression.RecordAccess (Node _ (Expression.FunctionOrValue [] name)) fieldName ->
+            ( []
+            , Dict.update name
+                (\maybeDeclared ->
+                    case maybeDeclared of
+                        Just declared ->
+                            Just { declared | usedFields = Set.insert (Node.value fieldName) declared.usedFields }
+
+                        Nothing ->
+                            Nothing
+                )
+                context
+            )
+
+        _ ->
+            ( [], context )
 
 
 finalEvaluation : Context -> List (Error {})
