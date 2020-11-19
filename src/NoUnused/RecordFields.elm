@@ -93,6 +93,7 @@ registerDeclaration node =
                     let
                         declaredFields : List ( String, Range )
                         declaredFields =
+                            --List.map (Node.value >> Tuple.first) fields
                             [ ( "foo", Range.emptyRange )
                             , ( "unused", { start = { row = 2, column = 13 }, end = { row = 2, column = 19 } } )
                             ]
