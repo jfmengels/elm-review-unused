@@ -59,6 +59,10 @@ rule =
 
 
 type alias Context =
+    List Variable
+
+
+type alias Variable =
     { usedFields : Set String
     , declaredFields : Dict String Range
     , wasUsedWithoutFieldAccess : Bool
@@ -67,6 +71,11 @@ type alias Context =
 
 initialContext : Context
 initialContext =
+    [ newVariable ]
+
+
+newVariable : Variable
+newVariable =
     { usedFields = Set.singleton "foo"
     , declaredFields =
         Dict.fromList
@@ -89,13 +98,18 @@ expressionVisitor node context =
 
 finalEvaluation : Context -> List (Error {})
 finalEvaluation context =
-    if context.wasUsedWithoutFieldAccess then
+    List.concatMap finalEvaluationForVariable context
+
+
+finalEvaluationForVariable : Variable -> List (Error {})
+finalEvaluationForVariable variable =
+    if variable.wasUsedWithoutFieldAccess then
         []
 
     else
-        context.declaredFields
+        variable.declaredFields
             |> Dict.toList
-            |> List.filter (\( fieldName, _ ) -> not <| Set.member fieldName context.usedFields)
+            |> List.filter (\( fieldName, _ ) -> not <| Set.member fieldName variable.usedFields)
             |> List.map
                 (\( fieldName, range ) ->
                     Rule.error
