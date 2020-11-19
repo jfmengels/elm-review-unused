@@ -180,6 +180,11 @@ declarationFields exposes declaration =
                 Nothing
 
 
+updateVariable : String -> (Variable -> Variable) -> Dict String Variable -> Dict String Variable
+updateVariable name function variables =
+    Dict.update name (Maybe.map function) variables
+
+
 expressionVisitor : Node Expression -> Context -> ( List nothing, Context )
 expressionVisitor node context =
     case Node.value node of
@@ -187,20 +192,18 @@ expressionVisitor node context =
             let
                 variables : Dict String Variable
                 variables =
-                    Dict.update name
-                        (\maybeDeclared ->
-                            case maybeDeclared of
-                                Just declared ->
-                                    Just { declared | wasUsed = True, usedFields = Set.insert (Node.value fieldName) declared.usedFields }
-
-                                Nothing ->
-                                    Nothing
+                    updateVariable name
+                        (\declared ->
+                            { declared
+                                | wasUsed = True
+                                , usedFields = Set.insert (Node.value fieldName) declared.usedFields
+                            }
                         )
                         context.variables
             in
             ( []
             , { context
-                | variables = Dict.union variables context.variables
+                | variables = variables
                 , expressionsToIgnore = Set.insert (stringifyRange functionOrValueRange) context.expressionsToIgnore
               }
             )
@@ -210,39 +213,21 @@ expressionVisitor node context =
                 let
                     variables : Dict String Variable
                     variables =
-                        Dict.update name
-                            (\maybeDeclared ->
-                                case maybeDeclared of
-                                    Just declared ->
-                                        Just { declared | wasUsed = True }
-
-                                    Nothing ->
-                                        Nothing
-                            )
+                        updateVariable name
+                            (\declared -> { declared | wasUsed = True })
                             context.variables
                 in
-                ( []
-                , { context | variables = Dict.union variables context.variables }
-                )
+                ( [], { context | variables = variables } )
 
             else
                 let
                     variables : Dict String Variable
                     variables =
-                        Dict.update name
-                            (\maybeDeclared ->
-                                case maybeDeclared of
-                                    Just declared ->
-                                        Just { declared | wasUsed = True, wasUsedWithoutFieldAccess = True }
-
-                                    Nothing ->
-                                        Nothing
-                            )
+                        updateVariable name
+                            (\declared -> { declared | wasUsed = True, wasUsedWithoutFieldAccess = True })
                             context.variables
                 in
-                ( []
-                , { context | variables = Dict.union variables context.variables }
-                )
+                ( [], { context | variables = variables } )
 
         _ ->
             ( [], context )
