@@ -86,5 +86,15 @@ expressionVisitor node context =
 
 
 finalEvaluation : Context -> List (Error {})
-finalEvaluation context =
+finalEvaluation _ =
+    let
+        context =
+            { usedFields = Set.singleton "foo"
+            , declaredFields =
+                Dict.fromList
+                    [ ( "foo", Range.emptyRange )
+                    , ( "unused", Range.emptyRange )
+                    ]
+            }
+    in
     []
