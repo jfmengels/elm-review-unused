@@ -17,4 +17,18 @@ b = let c = {foo=1}
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
+        , test "should report an unused field" <|
+            \() ->
+                """module A exposing (b)
+a = {foo=1, unused=2}
+b = a.foo
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Unused field `unused`"
+                            , details = [ "REPLACEME" ]
+                            , under = "REPLACEME"
+                            }
+                        ]
         ]
