@@ -134,44 +134,48 @@ registerDeclaration : Exposes -> Node Declaration -> Maybe ( String, Variable )
 registerDeclaration exposes node =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            let
-                declaration : Expression.FunctionImplementation
-                declaration =
-                    Node.value function.declaration
+            declarationFields exposes (Node.value function.declaration)
+                |> Maybe.map
+                    (\( name, declaredFields ) ->
+                        ( name
+                        , { usedFields = Set.empty
+                          , declaredFields = declaredFields
+                          , wasUsedWithoutFieldAccess = False
+                          }
+                        )
+                    )
 
+        _ ->
+            Nothing
+
+
+declarationFields : Exposes -> Expression.FunctionImplementation -> Maybe ( String, List (Node String) )
+declarationFields exposes declaration =
+    case exposes of
+        ExposesEverything ->
+            Nothing
+
+        ExposesExplicitly exposedNames ->
+            let
                 name : String
                 name =
                     Node.value declaration.name
             in
-            case exposes of
-                ExposesEverything ->
-                    Nothing
+            if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
+                case Node.value declaration.expression of
+                    Expression.RecordExpr fields ->
+                        let
+                            declaredFields : List (Node String)
+                            declaredFields =
+                                List.map (Node.value >> Tuple.first) fields
+                        in
+                        Just ( name, declaredFields )
 
-                ExposesExplicitly exposedNames ->
-                    if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
-                        case Node.value function.declaration |> .expression |> Node.value of
-                            Expression.RecordExpr fields ->
-                                let
-                                    declaredFields : List (Node String)
-                                    declaredFields =
-                                        List.map (Node.value >> Tuple.first) fields
-                                in
-                                Just
-                                    ( name
-                                    , { usedFields = Set.empty
-                                      , declaredFields = declaredFields
-                                      , wasUsedWithoutFieldAccess = False
-                                      }
-                                    )
-
-                            _ ->
-                                Nothing
-
-                    else
+                    _ ->
                         Nothing
 
-        _ ->
-            Nothing
+            else
+                Nothing
 
 
 expressionVisitor : Node Expression -> Context -> ( List nothing, Context )
