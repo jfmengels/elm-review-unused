@@ -235,28 +235,42 @@ declarationExitVisitor node context =
                         recordArguments =
                             recordDefinitionsFromTypeAnnotation typeAnnotation
 
-                        _ =
-                            Debug.log "recordDefinitionsFromTypeAnnotation" recordArguments
-
                         arguments : List (Node Pattern)
                         arguments =
                             (Node.value declaration).arguments
 
-                        _ =
+                        rawVariables : List (Maybe ( String, Variable ))
+                        rawVariables =
                             List.map2
                                 (\recordArgument argument ->
                                     case ( recordArgument, Node.value argument ) of
-                                        ( Just (field :: fields), Pattern.VarPattern name ) ->
-                                            Nothing
+                                        ( Just ((_ :: _) as declaredFields), Pattern.VarPattern name ) ->
+                                            Just
+                                                ( name
+                                                , { usedFields = Set.empty
+                                                  , declaredFields = declaredFields
+                                                  , wasUsed = False
+                                                  , wasUsedWithoutFieldAccess = False
+                                                  }
+                                                )
 
                                         _ ->
                                             Nothing
                                 )
                                 recordArguments
                                 arguments
-                                |> Debug.log "yeah"
+
+                        variables : Dict String Variable
+                        variables =
+                            List.filterMap identity rawVariables
+                                |> Dict.fromList
                     in
-                    ( [], { context | expressionsToIgnore = Set.empty } )
+                    ( []
+                    , { context
+                        | variables = Dict.union variables context.variables
+                        , expressionsToIgnore = Set.empty
+                      }
+                    )
 
                 Nothing ->
                     ( [], { context | expressionsToIgnore = Set.empty } )
