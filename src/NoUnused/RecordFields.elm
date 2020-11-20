@@ -338,15 +338,16 @@ createVariable declaredFields argument =
                 )
 
         Pattern.RecordPattern nodes ->
-            --Just
-            --    ( name
-            --    , { usedFields = Set.fromList (fieldsFromPattern pattern)
-            --      , declaredFields = declaredFields
-            --      , wasUsed = False
-            --      , wasUsedWithoutFieldAccess = False
-            --      }
-            --    )
-            Nothing
+            let
+                destructuredNames : Set String
+                destructuredNames =
+                    List.map Node.value nodes
+                        |> Set.fromList
+            in
+            declaredFields
+                |> List.filter (\node -> not (Set.member (Node.value node) destructuredNames))
+                |> VariableOrError_Errors
+                |> Just
 
         _ ->
             Nothing
