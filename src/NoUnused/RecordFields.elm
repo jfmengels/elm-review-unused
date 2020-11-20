@@ -282,10 +282,10 @@ createVariable declaredFields argument =
         Pattern.ParenthesizedPattern pattern ->
             createVariable declaredFields pattern
 
-        Pattern.AsPattern _ name ->
+        Pattern.AsPattern pattern name ->
             Just
                 ( Node.value name
-                , { usedFields = Set.empty
+                , { usedFields = Set.fromList (fieldsFromPattern pattern)
                   , declaredFields = declaredFields
                   , wasUsed = False
                   , wasUsedWithoutFieldAccess = False
@@ -294,6 +294,59 @@ createVariable declaredFields argument =
 
         _ ->
             Nothing
+
+
+fieldsFromPattern : Node Pattern -> List String
+fieldsFromPattern node =
+    case Node.value node of
+        Pattern.AllPattern ->
+            []
+
+        Pattern.UnitPattern ->
+            []
+
+        Pattern.CharPattern _ ->
+            []
+
+        Pattern.StringPattern _ ->
+            []
+
+        Pattern.IntPattern _ ->
+            []
+
+        Pattern.HexPattern _ ->
+            []
+
+        Pattern.FloatPattern _ ->
+            []
+
+        Pattern.TuplePattern _ ->
+            -- TODO
+            []
+
+        Pattern.RecordPattern nodes ->
+            -- TODO
+            []
+
+        Pattern.UnConsPattern _ _ ->
+            -- TODO
+            []
+
+        Pattern.ListPattern _ ->
+            -- TODO
+            []
+
+        Pattern.VarPattern _ ->
+            []
+
+        Pattern.NamedPattern _ _ ->
+            []
+
+        Pattern.AsPattern _ _ ->
+            []
+
+        Pattern.ParenthesizedPattern _ ->
+            []
 
 
 recordDefinitionsFromTypeAnnotation : Node TypeAnnotation -> List (Maybe (List (Node String)))

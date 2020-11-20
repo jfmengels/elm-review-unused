@@ -117,6 +117,20 @@ a (_ as arg) = arg.foo
                             , under = "unused"
                             }
                         ]
+        , test "should report unused fields of argument (with as pattern when using the left pattern)" <|
+            \() ->
+                """module A exposing (a)
+a : {foo:Int, bar:Int,unused:Int} -> Int
+a ({bar} as arg) = arg.foo
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Unused field `unused`"
+                            , details = [ "REPLACEME" ]
+                            , under = "unused"
+                            }
+                        ]
         , test "should report unused fields of argument when argument is generic" <|
             \() ->
                 """module A exposing (a)
