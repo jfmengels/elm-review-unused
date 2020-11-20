@@ -239,7 +239,7 @@ declarationEnterVisitor node context =
                                 (\recordArgument argument ->
                                     case recordArgument of
                                         Just ((_ :: _) as declaredFields) ->
-                                            createVariable declaredFields argument
+                                            createVariableOrErrors declaredFields argument
 
                                         _ ->
                                             Nothing
@@ -307,8 +307,8 @@ type VariableOrError
     | VariableOrError_Errors (List (Node String))
 
 
-createVariable : List (Node String) -> Node Pattern -> Maybe VariableOrError
-createVariable declaredFields argument =
+createVariableOrErrors : List (Node String) -> Node Pattern -> Maybe VariableOrError
+createVariableOrErrors declaredFields argument =
     case Node.value argument of
         Pattern.VarPattern name ->
             Just
@@ -323,7 +323,7 @@ createVariable declaredFields argument =
                 )
 
         Pattern.ParenthesizedPattern pattern ->
-            createVariable declaredFields pattern
+            createVariableOrErrors declaredFields pattern
 
         Pattern.AsPattern pattern name ->
             Just
