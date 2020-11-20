@@ -292,6 +292,17 @@ createVariable declaredFields argument =
                   }
                 )
 
+        Pattern.RecordPattern nodes ->
+            --Just
+            --    ( name
+            --    , { usedFields = Set.fromList (fieldsFromPattern pattern)
+            --      , declaredFields = declaredFields
+            --      , wasUsed = False
+            --      , wasUsedWithoutFieldAccess = False
+            --      }
+            --    )
+            Nothing
+
         _ ->
             Nothing
 
