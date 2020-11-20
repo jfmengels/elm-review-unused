@@ -12,6 +12,7 @@ import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.Node as Node exposing (Node(..))
+import Elm.Syntax.Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Review.Rule as Rule exposing (Error, Rule)
@@ -226,7 +227,12 @@ declarationEnterVisitor node context =
 declarationExitVisitor : Node Declaration -> Context -> ( List nothing, Context )
 declarationExitVisitor node context =
     case Node.value node of
-        Declaration.FunctionDeclaration _ ->
+        Declaration.FunctionDeclaration { declaration } ->
+            let
+                arguments : List (Node Pattern)
+                arguments =
+                    (Node.value declaration).arguments
+            in
             ( [], { context | expressionsToIgnore = Set.empty } )
 
         _ ->
