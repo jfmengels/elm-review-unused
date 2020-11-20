@@ -160,45 +160,61 @@ declarationFields exposes function =
             Nothing
 
         ExposesExplicitly exposedNames ->
-            case True of
-                True ->
-                    let
-                        declaration : Expression.FunctionImplementation
-                        declaration =
-                            Node.value function.declaration
+            let
+                declaration : Expression.FunctionImplementation
+                declaration =
+                    Node.value function.declaration
 
-                        name : String
-                        name =
-                            Node.value declaration.name
-                    in
-                    if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
-                        case Node.value declaration.expression of
-                            Expression.RecordExpr fields ->
-                                let
-                                    declaredFields : List (Node String)
-                                    declaredFields =
-                                        List.map (Node.value >> Tuple.first) fields
-                                in
-                                Just ( name, declaredFields )
-
-                            _ ->
-                                Nothing
-
-                    else
+                name : String
+                name =
+                    Node.value declaration.name
+            in
+            if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
+                case Maybe.map (Node.value >> .typeAnnotation >> returnType) function.signature of
+                    Just NoActionableReturnType ->
                         Nothing
 
-                False ->
-                    Nothing
+                    Nothing ->
+                        findDeclarationFields name declaration.expression
+
+                    Just LiteralRecord ->
+                        findDeclarationFields name declaration.expression
+
+            else
+                Nothing
 
 
-returnType : Node TypeAnnotation -> TypeAnnotation
+findDeclarationFields : String -> Node Expression -> Maybe ( String, List (Node String) )
+findDeclarationFields name expression =
+    case Node.value expression of
+        Expression.RecordExpr fields ->
+            let
+                declaredFields : List (Node String)
+                declaredFields =
+                    List.map (Node.value >> Tuple.first) fields
+            in
+            Just ( name, declaredFields )
+
+        _ ->
+            Nothing
+
+
+type ReturnType
+    = NoActionableReturnType
+    | LiteralRecord
+
+
+returnType : Node TypeAnnotation -> ReturnType
 returnType node =
     case Node.value node of
         TypeAnnotation.FunctionTypeAnnotation _ output ->
             returnType output
 
-        typeAnnotation ->
-            typeAnnotation
+        TypeAnnotation.Record _ ->
+            LiteralRecord
+
+        _ ->
+            NoActionableReturnType
 
 
 declarationExitVisitor : a -> Context -> ( List nothing, Context )
