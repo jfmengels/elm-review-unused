@@ -224,8 +224,13 @@ declarationEnterVisitor node context =
 
 
 declarationExitVisitor : Node Declaration -> Context -> ( List nothing, Context )
-declarationExitVisitor declaration context =
-    ( [], { context | expressionsToIgnore = Set.empty } )
+declarationExitVisitor node context =
+    case Node.value node of
+        Declaration.FunctionDeclaration _ ->
+            ( [], { context | expressionsToIgnore = Set.empty } )
+
+        _ ->
+            ( [], { context | expressionsToIgnore = Set.empty } )
 
 
 updateVariable : String -> (Variable -> Variable) -> Dict String Variable -> Dict String Variable
