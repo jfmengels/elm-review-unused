@@ -255,7 +255,7 @@ declarationEnterVisitor node context =
                                         Just (VariableOrError_Variable variable) ->
                                             Just variable
 
-                                        Just (Errors errors) ->
+                                        Just (VariableOrError_Errors errors) ->
                                             Nothing
 
                                         Nothing ->
@@ -270,7 +270,7 @@ declarationEnterVisitor node context =
                                 |> List.concatMap
                                     (\variableOrError ->
                                         case variableOrError of
-                                            Just (Errors errors) ->
+                                            Just (VariableOrError_Errors errors) ->
                                                 errors
 
                                             Just (VariableOrError_Variable _) ->
@@ -304,7 +304,7 @@ declarationEnterVisitor node context =
 
 type VariableOrError
     = VariableOrError_Variable ( String, Variable )
-    | Errors (List (Node String))
+    | VariableOrError_Errors (List (Node String))
 
 
 createVariable : List (Node String) -> Node Pattern -> Maybe VariableOrError
