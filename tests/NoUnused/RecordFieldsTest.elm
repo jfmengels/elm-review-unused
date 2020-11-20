@@ -75,20 +75,21 @@ b = a.foo
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
-        , test "should report unused fields of argument (using record access)" <|
-            \() ->
-                """module A exposing (a)
+        , Test.only <|
+            test "should report unused fields of argument (using record access)" <|
+                \() ->
+                    """module A exposing (a)
 a : {foo:Int, unused:Int} -> Int
 a arg = arg.foo
 """
-                    |> Review.Test.run rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
-                        ]
+                        |> Review.Test.run rule
+                        |> Review.Test.expectErrors
+                            [ Review.Test.error
+                                { message = "Unused field `unused`"
+                                , details = [ "REPLACEME" ]
+                                , under = "unused"
+                                }
+                            ]
         , Test.skip <|
             test "should report unused fields of argument (using destructuring)" <|
                 \() ->
