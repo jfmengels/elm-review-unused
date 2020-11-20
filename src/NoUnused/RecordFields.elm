@@ -223,8 +223,8 @@ declarationEnterVisitor node context =
     ( [], context )
 
 
-declarationExitVisitor : a -> Context -> ( List nothing, Context )
-declarationExitVisitor _ context =
+declarationExitVisitor : Node Declaration -> Context -> ( List nothing, Context )
+declarationExitVisitor declaration context =
     ( [], { context | expressionsToIgnore = Set.empty } )
 
 
