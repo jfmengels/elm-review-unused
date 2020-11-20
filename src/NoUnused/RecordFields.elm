@@ -231,6 +231,9 @@ declarationExitVisitor node context =
             case Maybe.map (Node.value >> .typeAnnotation) signature of
                 Just typeAnnotation ->
                     let
+                        _ =
+                            Debug.log "recordDefinitionsFromTypeAnnotation" (recordDefinitionsFromTypeAnnotation typeAnnotation)
+
                         arguments : List (Node Pattern)
                         arguments =
                             (Node.value declaration).arguments
@@ -242,6 +245,29 @@ declarationExitVisitor node context =
 
         _ ->
             ( [], { context | expressionsToIgnore = Set.empty } )
+
+
+recordDefinitionsFromTypeAnnotation : Node TypeAnnotation -> List (Maybe TypeAnnotation.RecordDefinition)
+recordDefinitionsFromTypeAnnotation typeAnnotation =
+    case Node.value typeAnnotation of
+        TypeAnnotation.FunctionTypeAnnotation input output ->
+            extractRecordDefinition input :: recordDefinitionsFromTypeAnnotation output
+
+        TypeAnnotation.Record recordDefinition ->
+            [ Just recordDefinition ]
+
+        _ ->
+            []
+
+
+extractRecordDefinition : Node TypeAnnotation -> Maybe TypeAnnotation.RecordDefinition
+extractRecordDefinition typeAnnotation =
+    case Node.value typeAnnotation of
+        TypeAnnotation.Record recordDefinition ->
+            Just recordDefinition
+
+        _ ->
+            Nothing
 
 
 updateVariable : String -> (Variable -> Variable) -> Dict String Variable -> Dict String Variable
