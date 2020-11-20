@@ -227,13 +227,18 @@ declarationEnterVisitor node context =
 declarationExitVisitor : Node Declaration -> Context -> ( List nothing, Context )
 declarationExitVisitor node context =
     case Node.value node of
-        Declaration.FunctionDeclaration { declaration } ->
-            let
-                arguments : List (Node Pattern)
-                arguments =
-                    (Node.value declaration).arguments
-            in
-            ( [], { context | expressionsToIgnore = Set.empty } )
+        Declaration.FunctionDeclaration { signature, declaration } ->
+            case Maybe.map (Node.value >> .typeAnnotation) signature of
+                Just typeAnnotation ->
+                    let
+                        arguments : List (Node Pattern)
+                        arguments =
+                            (Node.value declaration).arguments
+                    in
+                    ( [], { context | expressionsToIgnore = Set.empty } )
+
+                Nothing ->
+                    ( [], { context | expressionsToIgnore = Set.empty } )
 
         _ ->
             ( [], { context | expressionsToIgnore = Set.empty } )
