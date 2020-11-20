@@ -57,6 +57,7 @@ rule =
     Rule.newModuleRuleSchema "NoUnused.RecordFields" initialContext
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withDeclarationListVisitor declarationListVisitor
+        |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withDeclarationExitVisitor declarationExitVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
@@ -215,6 +216,11 @@ returnType node =
 
         _ ->
             NoActionableReturnType
+
+
+declarationEnterVisitor : Node Declaration -> Context -> ( List nothing, Context )
+declarationEnterVisitor node context =
+    ( [], context )
 
 
 declarationExitVisitor : a -> Context -> ( List nothing, Context )
