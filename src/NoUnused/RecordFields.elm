@@ -325,8 +325,7 @@ fieldsFromPattern node =
             []
 
         Pattern.RecordPattern nodes ->
-            -- TODO
-            []
+            List.map Node.value nodes
 
         Pattern.UnConsPattern _ _ ->
             -- TODO
