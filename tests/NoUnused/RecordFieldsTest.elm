@@ -89,6 +89,20 @@ a arg = arg.foo
                             , under = "unused"
                             }
                         ]
+        , test "should report unused fields of argument when argument is generic" <|
+            \() ->
+                """module A exposing (a)
+a : {var|foo:Int, unused:Int} -> Int
+a arg = arg.foo
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Unused field `unused`"
+                            , details = [ "REPLACEME" ]
+                            , under = "unused"
+                            }
+                        ]
         , Test.skip <|
             test "should report unused fields of argument (using destructuring)" <|
                 \() ->

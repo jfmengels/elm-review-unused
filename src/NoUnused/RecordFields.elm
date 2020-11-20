@@ -289,6 +289,9 @@ extractRecordDefinition typeAnnotation =
         TypeAnnotation.Record recordDefinition ->
             Just (List.map (Node.value >> Tuple.first) recordDefinition)
 
+        TypeAnnotation.GenericRecord _ recordDefinition ->
+            Just (List.map (Node.value >> Tuple.first) (Node.value recordDefinition))
+
         _ ->
             Nothing
 
