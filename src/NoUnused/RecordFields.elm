@@ -239,19 +239,7 @@ declarationEnterVisitor node context =
                                 (\recordArgument argument ->
                                     case recordArgument of
                                         Just ((_ :: _) as declaredFields) ->
-                                            case Node.value argument of
-                                                Pattern.VarPattern name ->
-                                                    Just
-                                                        ( name
-                                                        , { usedFields = Set.empty
-                                                          , declaredFields = declaredFields
-                                                          , wasUsed = False
-                                                          , wasUsedWithoutFieldAccess = False
-                                                          }
-                                                        )
-
-                                                _ ->
-                                                    Nothing
+                                            createVariable declaredFields argument
 
                                         _ ->
                                             Nothing
@@ -276,6 +264,23 @@ declarationEnterVisitor node context =
 
         _ ->
             ( [], { context | expressionsToIgnore = Set.empty } )
+
+
+createVariable : List (Node String) -> Node Pattern -> Maybe ( String, Variable )
+createVariable declaredFields argument =
+    case Node.value argument of
+        Pattern.VarPattern name ->
+            Just
+                ( name
+                , { usedFields = Set.empty
+                  , declaredFields = declaredFields
+                  , wasUsed = False
+                  , wasUsedWithoutFieldAccess = False
+                  }
+                )
+
+        _ ->
+            Nothing
 
 
 recordDefinitionsFromTypeAnnotation : Node TypeAnnotation -> List (Maybe (List (Node String)))
