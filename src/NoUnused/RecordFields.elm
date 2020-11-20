@@ -247,24 +247,21 @@ declarationExitVisitor node context =
             ( [], { context | expressionsToIgnore = Set.empty } )
 
 
-recordDefinitionsFromTypeAnnotation : Node TypeAnnotation -> List (Maybe TypeAnnotation.RecordDefinition)
+recordDefinitionsFromTypeAnnotation : Node TypeAnnotation -> List (Maybe (List String))
 recordDefinitionsFromTypeAnnotation typeAnnotation =
     case Node.value typeAnnotation of
         TypeAnnotation.FunctionTypeAnnotation input output ->
             extractRecordDefinition input :: recordDefinitionsFromTypeAnnotation output
 
-        TypeAnnotation.Record recordDefinition ->
-            [ Just recordDefinition ]
-
         _ ->
             []
 
 
-extractRecordDefinition : Node TypeAnnotation -> Maybe TypeAnnotation.RecordDefinition
+extractRecordDefinition : Node TypeAnnotation -> Maybe (List String)
 extractRecordDefinition typeAnnotation =
     case Node.value typeAnnotation of
         TypeAnnotation.Record recordDefinition ->
-            Just recordDefinition
+            Just (List.map (Node.value >> Tuple.first >> Node.value) recordDefinition)
 
         _ ->
             Nothing
