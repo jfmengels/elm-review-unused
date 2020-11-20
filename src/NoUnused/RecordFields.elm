@@ -160,30 +160,35 @@ declarationFields exposes function =
             Nothing
 
         ExposesExplicitly exposedNames ->
-            let
-                declaration : Expression.FunctionImplementation
-                declaration =
-                    Node.value function.declaration
+            case True of
+                True ->
+                    let
+                        declaration : Expression.FunctionImplementation
+                        declaration =
+                            Node.value function.declaration
 
-                name : String
-                name =
-                    Node.value declaration.name
-            in
-            if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
-                case Node.value declaration.expression of
-                    Expression.RecordExpr fields ->
-                        let
-                            declaredFields : List (Node String)
-                            declaredFields =
-                                List.map (Node.value >> Tuple.first) fields
-                        in
-                        Just ( name, declaredFields )
+                        name : String
+                        name =
+                            Node.value declaration.name
+                    in
+                    if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
+                        case Node.value declaration.expression of
+                            Expression.RecordExpr fields ->
+                                let
+                                    declaredFields : List (Node String)
+                                    declaredFields =
+                                        List.map (Node.value >> Tuple.first) fields
+                                in
+                                Just ( name, declaredFields )
 
-                    _ ->
+                            _ ->
+                                Nothing
+
+                    else
                         Nothing
 
-            else
-                Nothing
+                False ->
+                    Nothing
 
 
 returnType : Node TypeAnnotation -> TypeAnnotation
