@@ -255,6 +255,9 @@ declarationEnterVisitor node context =
                                         Just (VariableOrError_Variable variable) ->
                                             Just variable
 
+                                        Just (Errors errors) ->
+                                            Nothing
+
                                         Nothing ->
                                             Nothing
                                 )
@@ -277,6 +280,7 @@ declarationEnterVisitor node context =
 
 type VariableOrError
     = VariableOrError_Variable ( String, Variable )
+    | Errors (List (Node String))
 
 
 createVariable : List (Node String) -> Node Pattern -> Maybe VariableOrError
