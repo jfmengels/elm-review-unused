@@ -12,7 +12,7 @@ import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.Node as Node exposing (Node(..))
-import Elm.Syntax.Pattern exposing (Pattern)
+import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Review.Rule as Rule exposing (Error, Rule)
@@ -231,12 +231,30 @@ declarationExitVisitor node context =
             case Maybe.map (Node.value >> .typeAnnotation) signature of
                 Just typeAnnotation ->
                     let
+                        recordArguments : List (Maybe (List (Node String)))
+                        recordArguments =
+                            recordDefinitionsFromTypeAnnotation typeAnnotation
+
                         _ =
-                            Debug.log "recordDefinitionsFromTypeAnnotation" (recordDefinitionsFromTypeAnnotation typeAnnotation)
+                            Debug.log "recordDefinitionsFromTypeAnnotation" recordArguments
 
                         arguments : List (Node Pattern)
                         arguments =
                             (Node.value declaration).arguments
+
+                        _ =
+                            List.map2
+                                (\recordArgument argument ->
+                                    case ( recordArgument, Node.value argument ) of
+                                        ( Just (field :: fields), Pattern.VarPattern name ) ->
+                                            Nothing
+
+                                        _ ->
+                                            Nothing
+                                )
+                                recordArguments
+                                arguments
+                                |> Debug.log "yeah"
                     in
                     ( [], { context | expressionsToIgnore = Set.empty } )
 
