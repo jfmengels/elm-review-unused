@@ -233,8 +233,8 @@ declarationEnterVisitor node context =
                         arguments =
                             (Node.value declaration).arguments
 
-                        rawVariables : List (Maybe ( String, Variable ))
-                        rawVariables =
+                        variableOrErrors : List (Maybe VariableOrError)
+                        variableOrErrors =
                             List.map2
                                 (\recordArgument argument ->
                                     case recordArgument of
@@ -249,7 +249,16 @@ declarationEnterVisitor node context =
 
                         variables : Dict String Variable
                         variables =
-                            List.filterMap identity rawVariables
+                            List.filterMap
+                                (\variableOrError ->
+                                    case variableOrError of
+                                        Just (VariableOrError_Variable variable) ->
+                                            Just variable
+
+                                        Nothing ->
+                                            Nothing
+                                )
+                                variableOrErrors
                                 |> Dict.fromList
                     in
                     ( []
@@ -266,17 +275,23 @@ declarationEnterVisitor node context =
             ( [], { context | expressionsToIgnore = Set.empty } )
 
 
-createVariable : List (Node String) -> Node Pattern -> Maybe ( String, Variable )
+type VariableOrError
+    = VariableOrError_Variable ( String, Variable )
+
+
+createVariable : List (Node String) -> Node Pattern -> Maybe VariableOrError
 createVariable declaredFields argument =
     case Node.value argument of
         Pattern.VarPattern name ->
             Just
-                ( name
-                , { usedFields = Set.empty
-                  , declaredFields = declaredFields
-                  , wasUsed = False
-                  , wasUsedWithoutFieldAccess = False
-                  }
+                (VariableOrError_Variable
+                    ( name
+                    , { usedFields = Set.empty
+                      , declaredFields = declaredFields
+                      , wasUsed = False
+                      , wasUsedWithoutFieldAccess = False
+                      }
+                    )
                 )
 
         Pattern.ParenthesizedPattern pattern ->
@@ -284,12 +299,14 @@ createVariable declaredFields argument =
 
         Pattern.AsPattern pattern name ->
             Just
-                ( Node.value name
-                , { usedFields = Set.fromList (fieldsFromPattern pattern)
-                  , declaredFields = declaredFields
-                  , wasUsed = False
-                  , wasUsedWithoutFieldAccess = False
-                  }
+                (VariableOrError_Variable
+                    ( Node.value name
+                    , { usedFields = Set.fromList (fieldsFromPattern pattern)
+                      , declaredFields = declaredFields
+                      , wasUsed = False
+                      , wasUsedWithoutFieldAccess = False
+                      }
+                    )
                 )
 
         Pattern.RecordPattern nodes ->
