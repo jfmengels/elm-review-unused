@@ -159,4 +159,15 @@ a {foo} = arg.foo
                             , under = "unused"
                             }
                         ]
+        , test "should not report when a generic record input type is found again in the output type" <|
+            \() ->
+                -- TODO Should fail but doesn't?!
+                """module A exposing (b)
+b = 1
+a : { a | thing : Bool } -> { a | thing : Bool }
+a value =
+    { value | thing = True }
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         ]
