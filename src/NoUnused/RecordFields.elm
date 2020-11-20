@@ -282,6 +282,16 @@ createVariable declaredFields argument =
         Pattern.ParenthesizedPattern pattern ->
             createVariable declaredFields pattern
 
+        Pattern.AsPattern _ name ->
+            Just
+                ( Node.value name
+                , { usedFields = Set.empty
+                  , declaredFields = declaredFields
+                  , wasUsed = False
+                  , wasUsedWithoutFieldAccess = False
+                  }
+                )
+
         _ ->
             Nothing
 
