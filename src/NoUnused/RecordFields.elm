@@ -279,6 +279,9 @@ createVariable declaredFields argument =
                   }
                 )
 
+        Pattern.ParenthesizedPattern pattern ->
+            createVariable declaredFields pattern
+
         _ ->
             Nothing
 
