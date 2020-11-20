@@ -237,16 +237,21 @@ declarationEnterVisitor node context =
                         rawVariables =
                             List.map2
                                 (\recordArgument argument ->
-                                    case ( recordArgument, Node.value argument ) of
-                                        ( Just ((_ :: _) as declaredFields), Pattern.VarPattern name ) ->
-                                            Just
-                                                ( name
-                                                , { usedFields = Set.empty
-                                                  , declaredFields = declaredFields
-                                                  , wasUsed = False
-                                                  , wasUsedWithoutFieldAccess = False
-                                                  }
-                                                )
+                                    case recordArgument of
+                                        Just ((_ :: _) as declaredFields) ->
+                                            case Node.value argument of
+                                                Pattern.VarPattern name ->
+                                                    Just
+                                                        ( name
+                                                        , { usedFields = Set.empty
+                                                          , declaredFields = declaredFields
+                                                          , wasUsed = False
+                                                          , wasUsedWithoutFieldAccess = False
+                                                          }
+                                                        )
+
+                                                _ ->
+                                                    Nothing
 
                                         _ ->
                                             Nothing
