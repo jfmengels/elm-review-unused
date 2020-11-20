@@ -218,7 +218,7 @@ returnType node =
             NoActionableReturnType
 
 
-declarationEnterVisitor : Node Declaration -> Context -> ( List nothing, Context )
+declarationEnterVisitor : Node Declaration -> Context -> ( List (Error {}), Context )
 declarationEnterVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration { signature, declaration } ->
@@ -263,8 +263,32 @@ declarationEnterVisitor node context =
                                 )
                                 variableOrErrors
                                 |> Dict.fromList
+
+                        errorsToReport : List (Error {})
+                        errorsToReport =
+                            variableOrErrors
+                                |> List.concatMap
+                                    (\variableOrError ->
+                                        case variableOrError of
+                                            Just (Errors errors) ->
+                                                errors
+
+                                            Just (VariableOrError_Variable _) ->
+                                                []
+
+                                            Nothing ->
+                                                []
+                                    )
+                                |> List.map
+                                    (\unusedFieldNode ->
+                                        Rule.error
+                                            { message = "Unused field `" ++ Node.value unusedFieldNode ++ "`"
+                                            , details = [ "REPLACEME" ]
+                                            }
+                                            (Node.range unusedFieldNode)
+                                    )
                     in
-                    ( []
+                    ( errorsToReport
                     , { context
                         | variables = Dict.union variables context.variables
                         , expressionsToIgnore = Set.empty
