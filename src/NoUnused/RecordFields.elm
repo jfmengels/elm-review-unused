@@ -59,7 +59,6 @@ rule =
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
-        |> Rule.withDeclarationExitVisitor declarationExitVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
         |> Rule.fromModuleRuleSchema
@@ -221,11 +220,6 @@ returnType node =
 
 declarationEnterVisitor : Node Declaration -> Context -> ( List nothing, Context )
 declarationEnterVisitor node context =
-    ( [], context )
-
-
-declarationExitVisitor : Node Declaration -> Context -> ( List nothing, Context )
-declarationExitVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration { signature, declaration } ->
             case Maybe.map (Node.value >> .typeAnnotation) signature of
@@ -272,7 +266,7 @@ declarationExitVisitor node context =
                       }
                     )
 
-                Nothing ->
+                _ ->
                     ( [], { context | expressionsToIgnore = Set.empty } )
 
         _ ->
