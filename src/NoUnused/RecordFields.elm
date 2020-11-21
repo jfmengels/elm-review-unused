@@ -188,17 +188,19 @@ declarationFields exposes function =
                         Nothing
 
                     Nothing ->
-                        findDeclarationFields name declaration.expression
+                        findDeclarationFields declaration.expression
+                            |> Maybe.map (\declaredFields -> ( name, declaredFields ))
 
                     Just LiteralRecord ->
-                        findDeclarationFields name declaration.expression
+                        findDeclarationFields declaration.expression
+                            |> Maybe.map (\declaredFields -> ( name, declaredFields ))
 
             else
                 Nothing
 
 
-findDeclarationFields : String -> Node Expression -> Maybe ( String, List (Node String) )
-findDeclarationFields name expression =
+findDeclarationFields : Node Expression -> Maybe (List (Node String))
+findDeclarationFields expression =
     case Node.value expression of
         Expression.RecordExpr fields ->
             let
@@ -206,7 +208,7 @@ findDeclarationFields name expression =
                 declaredFields =
                     List.map (Node.value >> Tuple.first) fields
             in
-            Just ( name, declaredFields )
+            Just declaredFields
 
         _ ->
             Nothing
@@ -516,6 +518,7 @@ expressionVisitor node context =
                                         registerFunction context.exposes function
 
                                     Expression.LetDestructuring _ _ ->
+                                        --registerFunction context.exposes {signature=Nothing, }
                                         Nothing
                             )
                         |> Dict.fromList
