@@ -151,12 +151,12 @@ registerFunction :
     -> Maybe ( String, Variable )
 registerFunction exposes function =
     declarationFields exposes function
-        |> Maybe.map (\( name, declaredFields ) -> ( name, createVariable declaredFields ))
+        |> Maybe.map (\( name, declaredFields ) -> ( name, createVariable declaredFields Set.empty ))
 
 
-createVariable : List (Node String) -> Variable
-createVariable declaredFields =
-    { usedFields = Set.empty
+createVariable : List (Node String) -> Set String -> Variable
+createVariable declaredFields usedFields =
+    { usedFields = usedFields
     , declaredFields = declaredFields
     , wasUsed = False
     , wasUsedWithoutFieldAccess = False
@@ -330,7 +330,7 @@ createVariableOrErrors : List (Node String) -> Node Pattern -> Maybe VariableOrE
 createVariableOrErrors declaredFields argument =
     case Node.value argument of
         Pattern.VarPattern name ->
-            Just (VariableOrError_Variable ( name, createVariable declaredFields ))
+            Just (VariableOrError_Variable ( name, createVariable declaredFields Set.empty ))
 
         Pattern.ParenthesizedPattern pattern ->
             createVariableOrErrors declaredFields pattern
