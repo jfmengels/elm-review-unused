@@ -419,7 +419,7 @@ updateVariable name function variables =
     Dict.update name (Maybe.map function) variables
 
 
-expressionVisitor : Node Expression -> Context -> ( List nothing, Context )
+expressionVisitor : Node Expression -> Context -> ( List (Error {}), Context )
 expressionVisitor node context =
     case Node.value node of
         Expression.RecordAccess (Node functionOrValueRange (Expression.FunctionOrValue [] name)) fieldName ->
@@ -474,25 +474,28 @@ expressionVisitor node context =
             ( [], { context | variables = variables } )
 
         Expression.LetExpression letBlock ->
-            --let
-            --    variableOrErrors : List (Maybe VariableOrError)
-            --    variableOrErrors =
-            --        letBlock.declarations
-            --            |> List.filterMap
-            --                (\declaration ->
-            --                    case Node.value declaration of
-            --                        Expression.LetFunction function ->
-            --                            declarationFields context.exposes function
-            --                                |> Maybe.map (\( name, declaredFields ) -> VariableOrError_Variable ( name, createVariable declaredFields Set.empty ))
-            --
-            --                        Expression.LetDestructuring pattern expression ->
-            --                            Nothing
-            --                 --createVariableOrErrors
-            --                )
-            --            |> Dict.fromList
-            --in
-            --( [], { context | variables = Dict.union variables context.variables } )
-            ( [], context )
+            let
+                variableOrErrors : List (Maybe VariableOrError)
+                variableOrErrors =
+                    letBlock.declarations
+                        |> List.map
+                            (\declaration ->
+                                case Node.value declaration of
+                                    Expression.LetFunction function ->
+                                        declarationFields context.exposes function
+                                            |> Maybe.map (\( name, declaredFields ) -> VariableOrError_Variable ( name, createVariable declaredFields Set.empty ))
+
+                                    Expression.LetDestructuring pattern expression ->
+                                        Nothing
+                             --createVariableOrErrors
+                            )
+
+                ( errorsToReport, variables ) =
+                    getErrorsAndVariables variableOrErrors
+            in
+            ( errorsToReport
+            , { context | variables = Dict.union (Dict.fromList variables) context.variables }
+            )
 
         _ ->
             ( [], context )
