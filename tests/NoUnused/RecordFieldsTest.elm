@@ -172,12 +172,12 @@ a value =
                     |> Review.Test.expectNoErrors
         , test "should report an unused field in a let expression" <|
             \() ->
-                """module A exposing (b)
+                """module A exposing (a)
 a =
   let
     b : {foo:Int,unused:Int}
     b = {foo=1, unused=2}
-  in b
+  in b.foo
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectErrors
