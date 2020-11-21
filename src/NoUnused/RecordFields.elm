@@ -336,16 +336,7 @@ createVariableOrErrors declaredFields argument =
             createVariableOrErrors declaredFields pattern
 
         Pattern.AsPattern pattern name ->
-            Just
-                (VariableOrError_Variable
-                    ( Node.value name
-                    , { usedFields = Set.fromList (fieldsFromPattern pattern)
-                      , declaredFields = declaredFields
-                      , wasUsed = False
-                      , wasUsedWithoutFieldAccess = False
-                      }
-                    )
-                )
+            Just (VariableOrError_Variable ( Node.value name, createVariable declaredFields (Set.fromList (fieldsFromPattern pattern)) ))
 
         Pattern.RecordPattern nodes ->
             let
