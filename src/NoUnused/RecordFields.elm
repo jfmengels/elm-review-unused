@@ -138,20 +138,25 @@ registerDeclaration : Exposes -> Node Declaration -> Maybe ( String, Variable )
 registerDeclaration exposes node =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            declarationFields exposes function
-                |> Maybe.map
-                    (\( name, declaredFields ) ->
-                        ( name
-                        , { usedFields = Set.empty
-                          , declaredFields = declaredFields
-                          , wasUsed = False
-                          , wasUsedWithoutFieldAccess = False
-                          }
-                        )
-                    )
+            registerFunction exposes function
 
         _ ->
             Nothing
+
+
+registerFunction : Exposes -> Expression.Function -> Maybe ( String, Variable )
+registerFunction exposes function =
+    declarationFields exposes function
+        |> Maybe.map
+            (\( name, declaredFields ) ->
+                ( name
+                , { usedFields = Set.empty
+                  , declaredFields = declaredFields
+                  , wasUsed = False
+                  , wasUsedWithoutFieldAccess = False
+                  }
+                )
+            )
 
 
 declarationFields : Exposes -> Expression.Function -> Maybe ( String, List (Node String) )
@@ -493,12 +498,30 @@ expressionVisitor node context =
             ( [], { context | variables = variables } )
 
         Expression.LetExpression letblock ->
+            --let
+            --    variables : Dict String Variable
+            --    variables =
+            --        context.variables
+            --in
+            --( [], { context | variables = variables } )
+            --declarationListVisitor : List (Node Declaration) -> Context -> ( List nothing, Context )
+            --declarationListVisitor nodes context =
             let
                 variables : Dict String Variable
                 variables =
-                    context.variables
+                    letblock.declarations
+                        |> List.filterMap
+                            (\declaration ->
+                                case Node.value declaration of
+                                    Expression.LetFunction function ->
+                                        registerFunction context.exposes function
+
+                                    Expression.LetDestructuring _ _ ->
+                                        Nothing
+                            )
+                        |> Dict.fromList
             in
-            ( [], { context | variables = variables } )
+            ( [], { context | variables = Dict.union variables context.variables } )
 
         _ ->
             ( [], context )
