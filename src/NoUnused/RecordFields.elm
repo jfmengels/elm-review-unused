@@ -330,16 +330,7 @@ createVariableOrErrors : List (Node String) -> Node Pattern -> Maybe VariableOrE
 createVariableOrErrors declaredFields argument =
     case Node.value argument of
         Pattern.VarPattern name ->
-            Just
-                (VariableOrError_Variable
-                    ( name
-                    , { usedFields = Set.empty
-                      , declaredFields = declaredFields
-                      , wasUsed = False
-                      , wasUsedWithoutFieldAccess = False
-                      }
-                    )
-                )
+            Just (VariableOrError_Variable ( name, createVariable declaredFields ))
 
         Pattern.ParenthesizedPattern pattern ->
             createVariableOrErrors declaredFields pattern
