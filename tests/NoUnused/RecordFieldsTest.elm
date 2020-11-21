@@ -161,9 +161,9 @@ a {foo} = arg.foo
                         ]
         , test "should not report when a generic record input type is found again in the output type" <|
             \() ->
-                -- TODO Should fail but doesn't?!
-                """module A exposing (b)
-b = 1
+                -- NOTE: I was never able to make this test fail, but I could find this kind of error
+                -- being reported in real codebases
+                """module A exposing (a)
 a : { a | thing : Bool } -> { a | thing : Bool }
 a value =
     { value | thing = True }

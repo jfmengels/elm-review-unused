@@ -477,6 +477,16 @@ expressionVisitor node context =
                 in
                 ( [], { context | variables = variables } )
 
+        Expression.RecordUpdateExpression name _ ->
+            let
+                variables : Dict String Variable
+                variables =
+                    updateVariable (Node.value name)
+                        (\declared -> { declared | wasUsed = True, wasUsedWithoutFieldAccess = True })
+                        context.variables
+            in
+            ( [], { context | variables = variables } )
+
         _ ->
             ( [], context )
 
