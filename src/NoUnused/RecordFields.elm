@@ -151,16 +151,16 @@ registerFunction :
     -> Maybe ( String, Variable )
 registerFunction exposes function =
     declarationFields exposes function
-        |> Maybe.map
-            (\( name, declaredFields ) ->
-                ( name
-                , { usedFields = Set.empty
-                  , declaredFields = declaredFields
-                  , wasUsed = False
-                  , wasUsedWithoutFieldAccess = False
-                  }
-                )
-            )
+        |> Maybe.map (\( name, declaredFields ) -> ( name, createVariable declaredFields ))
+
+
+createVariable : List (Node String) -> Variable
+createVariable declaredFields =
+    { usedFields = Set.empty
+    , declaredFields = declaredFields
+    , wasUsed = False
+    , wasUsedWithoutFieldAccess = False
+    }
 
 
 declarationFields :
