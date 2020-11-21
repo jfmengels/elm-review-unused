@@ -203,6 +203,6 @@ a =
                             , details = [ "REPLACEME" ]
                             , under = "unused"
                             }
-                            |> Review.Test.atExactly { start = { row = 5, column = 17 }, end = { row = 5, column = 23 } }
+                            |> Review.Test.atExactly { start = { row = 4, column = 21 }, end = { row = 4, column = 27 } }
                         ]
         ]
