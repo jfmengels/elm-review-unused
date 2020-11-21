@@ -497,11 +497,11 @@ expressionVisitor node context =
             in
             ( [], { context | variables = variables } )
 
-        Expression.LetExpression letblock ->
+        Expression.LetExpression letBlock ->
             let
                 variables : Dict String Variable
                 variables =
-                    letblock.declarations
+                    letBlock.declarations
                         |> List.filterMap
                             (\declaration ->
                                 case Node.value declaration of
