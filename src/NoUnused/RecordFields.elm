@@ -261,56 +261,49 @@ handleDeclaration context { signature, declaration } =
                         recordArguments
                         arguments
 
-                variables : Dict String Variable
-                variables =
-                    List.filterMap
-                        (\variableOrError ->
-                            case variableOrError of
-                                Just (VariableOrError_Variable variable) ->
-                                    Just variable
-
-                                Just (VariableOrError_Errors _) ->
-                                    Nothing
-
-                                Nothing ->
-                                    Nothing
-                        )
-                        variableOrErrors
-                        |> Dict.fromList
-
-                errorsToReport : List (Error {})
-                errorsToReport =
-                    variableOrErrors
-                        |> List.concatMap
-                            (\variableOrError ->
-                                case variableOrError of
-                                    Just (VariableOrError_Errors errors) ->
-                                        errors
-
-                                    Just (VariableOrError_Variable _) ->
-                                        []
-
-                                    Nothing ->
-                                        []
-                            )
-                        |> List.map
-                            (\unusedFieldNode ->
-                                Rule.error
-                                    { message = "Unused field `" ++ Node.value unusedFieldNode ++ "`"
-                                    , details = [ "REPLACEME" ]
-                                    }
-                                    (Node.range unusedFieldNode)
-                            )
+                ( errorsToReport, variables ) =
+                    getErrorsAndVariables variableOrErrors
             in
             ( errorsToReport
             , { context
-                | variables = Dict.union variables context.variables
+                | variables = Dict.union (Dict.fromList variables) context.variables
                 , expressionsToIgnore = Set.empty
               }
             )
 
         _ ->
             ( [], { context | expressionsToIgnore = Set.empty } )
+
+
+getErrorsAndVariables : List (Maybe VariableOrError) -> ( List (Error {}), List ( String, Variable ) )
+getErrorsAndVariables variableOrErrors =
+    List.foldl
+        (\variableOrError (( errors, variables ) as acc) ->
+            case variableOrError of
+                Just (VariableOrError_Variable variable) ->
+                    ( errors, variable :: variables )
+
+                Just (VariableOrError_Errors unusedFieldNodes) ->
+                    let
+                        newErrors : List (Error {})
+                        newErrors =
+                            List.map
+                                (\unusedFieldNode ->
+                                    Rule.error
+                                        { message = "Unused field `" ++ Node.value unusedFieldNode ++ "`"
+                                        , details = [ "REPLACEME" ]
+                                        }
+                                        (Node.range unusedFieldNode)
+                                )
+                                unusedFieldNodes
+                    in
+                    ( newErrors ++ errors, variables )
+
+                Nothing ->
+                    acc
+        )
+        ( [], [] )
+        variableOrErrors
 
 
 type VariableOrError
@@ -481,24 +474,25 @@ expressionVisitor node context =
             ( [], { context | variables = variables } )
 
         Expression.LetExpression letBlock ->
-            let
-                variables : Dict String Variable
-                variables =
-                    letBlock.declarations
-                        |> List.filterMap
-                            (\declaration ->
-                                case Node.value declaration of
-                                    Expression.LetFunction function ->
-                                        declarationFields context.exposes function
-                                            |> Maybe.map (\( name, declaredFields ) -> ( name, createVariable declaredFields Set.empty ))
-
-                                    Expression.LetDestructuring _ _ ->
-                                        --registerFunction context.exposes {signature=Nothing, }
-                                        Nothing
-                            )
-                        |> Dict.fromList
-            in
-            ( [], { context | variables = Dict.union variables context.variables } )
+            --let
+            --    variableOrErrors : List (Maybe VariableOrError)
+            --    variableOrErrors =
+            --        letBlock.declarations
+            --            |> List.filterMap
+            --                (\declaration ->
+            --                    case Node.value declaration of
+            --                        Expression.LetFunction function ->
+            --                            declarationFields context.exposes function
+            --                                |> Maybe.map (\( name, declaredFields ) -> VariableOrError_Variable ( name, createVariable declaredFields Set.empty ))
+            --
+            --                        Expression.LetDestructuring pattern expression ->
+            --                            Nothing
+            --                 --createVariableOrErrors
+            --                )
+            --            |> Dict.fromList
+            --in
+            --( [], { context | variables = Dict.union variables context.variables } )
+            ( [], context )
 
         _ ->
             ( [], context )
