@@ -170,7 +170,7 @@ a value =
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
-        , test "should report an unused field in a let expression" <|
+        , test "should report an unused field in a let function" <|
             \() ->
                 """module A exposing (a)
 a =
@@ -178,6 +178,23 @@ a =
     b : {foo:Int,unused:Int}
     b = {foo=1, unused=2}
   in b.foo
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Unused field `unused`"
+                            , details = [ "REPLACEME" ]
+                            , under = "unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 5, column = 17 }, end = { row = 5, column = 23 } }
+                        ]
+        , test "should report an unused field in a let destructuration" <|
+            \() ->
+                """module A exposing (a)
+a =
+  let
+    {foo} = {foo=1, unused=2}
+  in foo
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectErrors
