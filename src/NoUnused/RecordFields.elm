@@ -255,7 +255,7 @@ declarationEnterVisitor node context =
                                         Just (VariableOrError_Variable variable) ->
                                             Just variable
 
-                                        Just (VariableOrError_Errors errors) ->
+                                        Just (VariableOrError_Errors _) ->
                                             Nothing
 
                                         Nothing ->
