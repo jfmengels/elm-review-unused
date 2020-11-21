@@ -139,19 +139,11 @@ registerDeclaration : Exposes -> Node Declaration -> Maybe ( String, Variable )
 registerDeclaration exposes node =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            registerFunction exposes function
+            declarationFields exposes function
+                |> Maybe.map (\( name, declaredFields ) -> ( name, createVariable declaredFields Set.empty ))
 
         _ ->
             Nothing
-
-
-registerFunction :
-    Exposes
-    -> { a | signature : Maybe (Node Signature), declaration : Node Expression.FunctionImplementation }
-    -> Maybe ( String, Variable )
-registerFunction exposes function =
-    declarationFields exposes function
-        |> Maybe.map (\( name, declaredFields ) -> ( name, createVariable declaredFields Set.empty ))
 
 
 createVariable : List (Node String) -> Set String -> Variable
@@ -497,7 +489,8 @@ expressionVisitor node context =
                             (\declaration ->
                                 case Node.value declaration of
                                     Expression.LetFunction function ->
-                                        registerFunction context.exposes function
+                                        declarationFields context.exposes function
+                                            |> Maybe.map (\( name, declaredFields ) -> ( name, createVariable declaredFields Set.empty ))
 
                                     Expression.LetDestructuring _ _ ->
                                         --registerFunction context.exposes {signature=Nothing, }
