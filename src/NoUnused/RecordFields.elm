@@ -486,8 +486,23 @@ expressionVisitor node context =
                                             |> Maybe.map (\( name, declaredFields ) -> VariableOrError_Variable ( name, createVariable declaredFields Set.empty ))
 
                                     Expression.LetDestructuring pattern expression ->
-                                        Nothing
-                             --createVariableOrErrors
+                                        case Node.value pattern of
+                                            Pattern.RecordPattern fields ->
+                                                let
+                                                    usedFields : Set String
+                                                    usedFields =
+                                                        List.map Node.value fields
+                                                            |> Set.fromList
+                                                in
+                                                findDeclarationFields expression
+                                                    |> Maybe.map
+                                                        (\declaredFields ->
+                                                            List.filter (\declaredField -> not (Set.member (Node.value declaredField) usedFields)) declaredFields
+                                                        )
+                                                    |> Maybe.map VariableOrError_Errors
+
+                                            _ ->
+                                                Nothing
                             )
 
                 ( errorsToReport, variables ) =
