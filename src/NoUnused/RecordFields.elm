@@ -221,82 +221,87 @@ returnType node =
 declarationEnterVisitor : Node Declaration -> Context -> ( List (Error {}), Context )
 declarationEnterVisitor node context =
     case Node.value node of
-        Declaration.FunctionDeclaration { signature, declaration } ->
-            case Maybe.map (Node.value >> .typeAnnotation) signature of
-                Just typeAnnotation ->
-                    let
-                        recordArguments : List (Maybe (List (Node String)))
-                        recordArguments =
-                            recordDefinitionsFromTypeAnnotation typeAnnotation
+        Declaration.FunctionDeclaration function ->
+            handleDeclaration context function
 
-                        arguments : List (Node Pattern)
-                        arguments =
-                            (Node.value declaration).arguments
+        _ ->
+            ( [], { context | expressionsToIgnore = Set.empty } )
 
-                        variableOrErrors : List (Maybe VariableOrError)
-                        variableOrErrors =
-                            List.map2
-                                (\recordArgument argument ->
-                                    case recordArgument of
-                                        Just ((_ :: _) as declaredFields) ->
-                                            createVariableOrErrors declaredFields argument
 
-                                        _ ->
-                                            Nothing
-                                )
-                                recordArguments
-                                arguments
+handleDeclaration : Context -> Expression.Function -> ( List (Error {}), Context )
+handleDeclaration context { signature, declaration } =
+    case Maybe.map (Node.value >> .typeAnnotation) signature of
+        Just typeAnnotation ->
+            let
+                recordArguments : List (Maybe (List (Node String)))
+                recordArguments =
+                    recordDefinitionsFromTypeAnnotation typeAnnotation
 
-                        variables : Dict String Variable
-                        variables =
-                            List.filterMap
-                                (\variableOrError ->
-                                    case variableOrError of
-                                        Just (VariableOrError_Variable variable) ->
-                                            Just variable
+                arguments : List (Node Pattern)
+                arguments =
+                    (Node.value declaration).arguments
 
-                                        Just (VariableOrError_Errors _) ->
-                                            Nothing
+                variableOrErrors : List (Maybe VariableOrError)
+                variableOrErrors =
+                    List.map2
+                        (\recordArgument argument ->
+                            case recordArgument of
+                                Just ((_ :: _) as declaredFields) ->
+                                    createVariableOrErrors declaredFields argument
 
-                                        Nothing ->
-                                            Nothing
-                                )
-                                variableOrErrors
-                                |> Dict.fromList
+                                _ ->
+                                    Nothing
+                        )
+                        recordArguments
+                        arguments
 
-                        errorsToReport : List (Error {})
-                        errorsToReport =
-                            variableOrErrors
-                                |> List.concatMap
-                                    (\variableOrError ->
-                                        case variableOrError of
-                                            Just (VariableOrError_Errors errors) ->
-                                                errors
+                variables : Dict String Variable
+                variables =
+                    List.filterMap
+                        (\variableOrError ->
+                            case variableOrError of
+                                Just (VariableOrError_Variable variable) ->
+                                    Just variable
 
-                                            Just (VariableOrError_Variable _) ->
-                                                []
+                                Just (VariableOrError_Errors _) ->
+                                    Nothing
 
-                                            Nothing ->
-                                                []
-                                    )
-                                |> List.map
-                                    (\unusedFieldNode ->
-                                        Rule.error
-                                            { message = "Unused field `" ++ Node.value unusedFieldNode ++ "`"
-                                            , details = [ "REPLACEME" ]
-                                            }
-                                            (Node.range unusedFieldNode)
-                                    )
-                    in
-                    ( errorsToReport
-                    , { context
-                        | variables = Dict.union variables context.variables
-                        , expressionsToIgnore = Set.empty
-                      }
-                    )
+                                Nothing ->
+                                    Nothing
+                        )
+                        variableOrErrors
+                        |> Dict.fromList
 
-                _ ->
-                    ( [], { context | expressionsToIgnore = Set.empty } )
+                errorsToReport : List (Error {})
+                errorsToReport =
+                    variableOrErrors
+                        |> List.concatMap
+                            (\variableOrError ->
+                                case variableOrError of
+                                    Just (VariableOrError_Errors errors) ->
+                                        errors
+
+                                    Just (VariableOrError_Variable _) ->
+                                        []
+
+                                    Nothing ->
+                                        []
+                            )
+                        |> List.map
+                            (\unusedFieldNode ->
+                                Rule.error
+                                    { message = "Unused field `" ++ Node.value unusedFieldNode ++ "`"
+                                    , details = [ "REPLACEME" ]
+                                    }
+                                    (Node.range unusedFieldNode)
+                            )
+            in
+            ( errorsToReport
+            , { context
+                | variables = Dict.union variables context.variables
+                , expressionsToIgnore = Set.empty
+              }
+            )
 
         _ ->
             ( [], { context | expressionsToIgnore = Set.empty } )
