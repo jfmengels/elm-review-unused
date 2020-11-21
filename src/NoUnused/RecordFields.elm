@@ -14,6 +14,7 @@ import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.Signature exposing (Signature)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -144,7 +145,10 @@ registerDeclaration exposes node =
             Nothing
 
 
-registerFunction : Exposes -> Expression.Function -> Maybe ( String, Variable )
+registerFunction :
+    Exposes
+    -> { a | signature : Maybe (Node Signature), declaration : Node Expression.FunctionImplementation }
+    -> Maybe ( String, Variable )
 registerFunction exposes function =
     declarationFields exposes function
         |> Maybe.map
@@ -159,7 +163,10 @@ registerFunction exposes function =
             )
 
 
-declarationFields : Exposes -> Expression.Function -> Maybe ( String, List (Node String) )
+declarationFields :
+    Exposes
+    -> { a | signature : Maybe (Node Signature), declaration : Node Expression.FunctionImplementation }
+    -> Maybe ( String, List (Node String) )
 declarationFields exposes function =
     case exposes of
         ExposesEverything ->
