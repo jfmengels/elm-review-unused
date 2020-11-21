@@ -487,6 +487,14 @@ expressionVisitor node context =
             in
             ( [], { context | variables = variables } )
 
+        Expression.LetExpression letblock ->
+            let
+                variables : Dict String Variable
+                variables =
+                    context.variables
+            in
+            ( [], { context | variables = variables } )
+
         _ ->
             ( [], context )
 
