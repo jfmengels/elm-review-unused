@@ -217,6 +217,32 @@ c =
                             }
                             |> Review.Test.atExactly { start = { row = 10, column = 10 }, end = { row = 10, column = 13 } }
                         ]
+        , test "should not report unused field if it is used in a let expression below" <|
+            \() ->
+                """module A exposing (a)
+a : {foo:Int,bar:Int} -> Int
+a b =
+  let c = b.foo
+  in
+  let d = b.bar
+  in
+  b + d
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Unused field `bar`"
+                            , details = [ "REPLACEME" ]
+                            , under = "bar"
+                            }
+                            |> Review.Test.atExactly { start = { row = 5, column = 17 }, end = { row = 5, column = 20 } }
+                        , Review.Test.error
+                            { message = "Unused field `foo`"
+                            , details = [ "REPLACEME" ]
+                            , under = "foo"
+                            }
+                            |> Review.Test.atExactly { start = { row = 10, column = 10 }, end = { row = 10, column = 13 } }
+                        ]
         , test "should report an unused field in a let destructuration" <|
             \() ->
                 """module A exposing (a)
