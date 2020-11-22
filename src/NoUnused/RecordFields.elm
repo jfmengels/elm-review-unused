@@ -468,6 +468,7 @@ extractRecordDefinition typeAnnotation =
 
 type Foo
     = Foo_Variable ( String, List String, Range )
+    | Foo_Errors (List (Node String))
 
 
 extractOutOfFoo : List Foo -> ( List (Error {}), List ( String, List String, Range ) )
@@ -477,8 +478,9 @@ extractOutOfFoo foos =
             case foo of
                 Foo_Variable variable ->
                     ( errors, variable :: variables )
-         --VariableOrError_Errors unusedFieldNodes ->
-         --    ( List.map createError unusedFieldNodes ++ errors, variables )
+
+                Foo_Errors unusedFieldNodes ->
+                    ( List.map createError unusedFieldNodes ++ errors, variables )
         )
         ( [], [] )
         foos
