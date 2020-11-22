@@ -472,12 +472,7 @@ expressionVisitor node context =
                 variableRegister : Variable.Register
                 variableRegister =
                     Variable.updateVariable name
-                        (\declared ->
-                            { declared
-                                | wasUsed = True
-                                , usedFields = Set.insert (Node.value fieldName) declared.usedFields
-                            }
-                        )
+                        (Variable.markFieldAsUsed (Node.value fieldName))
                         context.variableRegister
             in
             ( []
