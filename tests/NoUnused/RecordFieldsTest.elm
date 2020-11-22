@@ -295,4 +295,24 @@ getFoo data =
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
                         ]
+        , test "should not report a field when used with a function that uses only a select number of fields, not as the first argument" <|
+            \() ->
+                """module A exposing (b)
+a : {foo:Int,unused:Int}
+a = {foo=1, unused=2}
+b = getFoo a
+
+getFoo : Int -> Int -> { var | foo : Int } -> Int
+getFoo _ _ data =
+    data.foo
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Unused field `unused`"
+                            , details = [ "REPLACEME" ]
+                            , under = "unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
+                        ]
         ]

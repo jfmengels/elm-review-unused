@@ -20,7 +20,7 @@ import Review.ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 import TypeInference
-import TypeInference.Type as Type
+import TypeInference.Type as Type exposing (Type)
 import TypeInference.TypeByNameLookup as TypeByNameLookup exposing (TypeByNameLookup)
 
 
@@ -483,6 +483,15 @@ expressionEnterVisitor node context =
             case TypeInference.inferType context function of
                 Just (Type.Function (Type.Record { fields }) _) ->
                     let
+                        getArgumentsFromType : Type -> List Type
+                        getArgumentsFromType type_ =
+                            case type_ of
+                                Type.Function input output ->
+                                    input :: getArgumentsFromType output
+
+                                _ ->
+                                    [ type_ ]
+
                         newContext : ModuleContext
                         newContext =
                             updateRegister name (Variable.markFieldsAsUsed (List.map Tuple.first fields)) context
