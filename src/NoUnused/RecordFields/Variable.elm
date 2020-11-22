@@ -1,4 +1,4 @@
-module NoUnused.RecordFields.Variable exposing (Register, Variable, addVariables, declaredFields, emptyRegister, markAsUsed, markAsUsedInAnUnknownManner, markFieldAsUsed, newVariable, unusedDeclaredFields, updateVariable, usedFields, wasUsed, wasUsedInAnUnknownManner)
+module NoUnused.RecordFields.Variable exposing (Register, Variable, addVariables, declaredFields, emptyRegister, markAsUsed, markAsUsedInAnUnknownManner, markFieldAsUsed, newVariable, unusedDeclaredFieldsForScope, updateVariable, usedFields, wasUsed, wasUsedInAnUnknownManner)
 
 import Dict exposing (Dict)
 import Elm.Syntax.Node as Node exposing (Node)
@@ -98,8 +98,8 @@ updateVariable name function (Register register stack) =
         stack
 
 
-unusedDeclaredFields : Register -> List (Node String)
-unusedDeclaredFields (Register register _) =
+unusedDeclaredFieldsForScope : Register -> List (Node String)
+unusedDeclaredFieldsForScope (Register register _) =
     register
         |> Dict.values
         |> List.concatMap unusedDeclaredFieldsForVariable

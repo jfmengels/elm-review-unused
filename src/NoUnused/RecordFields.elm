@@ -551,7 +551,7 @@ stringifyRange range =
 
 finalEvaluation : ModuleContext -> List (Error {})
 finalEvaluation context =
-    Variable.unusedDeclaredFields context.variableRegister
+    Variable.unusedDeclaredFieldsForScope context.variableRegister
         |> List.map createError
 
 
