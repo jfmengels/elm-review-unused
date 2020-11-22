@@ -11,6 +11,7 @@ import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Module as Module exposing (Module)
+import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
@@ -56,13 +57,28 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Recor
 -}
 rule : Rule
 rule =
-    Rule.newModuleRuleSchema "NoUnused.RecordFields" initialContext
+    Rule.newProjectRuleSchema "NoUnused.RecordFields" initialContext
+        |> Rule.withModuleVisitor moduleVisitor
+        |> Rule.withModuleContext
+            { fromProjectToModule = fromProjectToModule
+            , fromModuleToProject = fromModuleToProject
+            , foldProjectContexts = foldProjectContexts
+            }
+        |> Rule.fromProjectRuleSchema
+
+
+moduleVisitor : Rule.ModuleRuleSchema schemaState ModuleContext -> Rule.ModuleRuleSchema { schemaState | hasAtLeastOneVisitor : () } ModuleContext
+moduleVisitor schema =
+    schema
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
-        |> Rule.fromModuleRuleSchema
+
+
+type alias ProjectContext =
+    {}
 
 
 type alias ModuleContext =
@@ -80,12 +96,27 @@ type alias Variable =
     }
 
 
-initialContext : ModuleContext
+initialContext : ProjectContext
 initialContext =
+    {}
+
+
+fromProjectToModule : Rule.ModuleKey -> Node ModuleName -> ProjectContext -> ModuleContext
+fromProjectToModule _ _ _ =
     { variables = Dict.empty
     , expressionsToIgnore = Set.empty
     , exposes = ExposesEverything
     }
+
+
+fromModuleToProject : Rule.ModuleKey -> Node ModuleName -> ModuleContext -> ProjectContext
+fromModuleToProject moduleKey moduleName moduleContext =
+    {}
+
+
+foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
+foldProjectContexts newContext previousContext =
+    previousContext
 
 
 type Exposes
