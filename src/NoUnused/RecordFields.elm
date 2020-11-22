@@ -478,6 +478,16 @@ expressionEnterVisitor node context =
             , { newContext | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore }
             )
 
+        Expression.Application ((Node _ (Expression.RecordAccessFunction fieldName)) :: (Node functionOrValueRange (Expression.FunctionOrValue [] name)) :: _) ->
+            let
+                newContext : ModuleContext
+                newContext =
+                    updateRegister name (Variable.markFieldAsUsed (String.dropLeft 1 fieldName)) context
+            in
+            ( []
+            , { newContext | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore }
+            )
+
         Expression.FunctionOrValue [] name ->
             if Set.member (stringifyRange (Node.range node)) context.directAccessesToIgnore then
                 ( [], updateRegister name Variable.markAsUsed context )
