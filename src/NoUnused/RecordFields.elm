@@ -281,6 +281,11 @@ declarationEnterVisitor node moduleContext =
             ( [], { moduleContext | directAccessesToIgnore = Set.empty } )
 
 
+type VariableOrError
+    = VariableOrError_Variable ( String, Variable )
+    | VariableOrError_Errors (List (Node String))
+
+
 handleDeclaration : ModuleContext -> Expression.Function -> ( List (Error {}), ModuleContext )
 handleDeclaration moduleContext { signature, declaration } =
     case Maybe.map (Node.value >> .typeAnnotation) signature of
@@ -338,11 +343,6 @@ getErrorsAndVariables variableOrErrors =
         )
         ( [], [] )
         variableOrErrors
-
-
-type VariableOrError
-    = VariableOrError_Variable ( String, Variable )
-    | VariableOrError_Errors (List (Node String))
 
 
 createVariableOrErrors : List (Node String) -> Node Pattern -> Maybe VariableOrError
