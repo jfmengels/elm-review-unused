@@ -203,22 +203,13 @@ registerDeclaration exposedNames node =
             in
             if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
                 declarationFields function
-                    |> Maybe.map (\( name_, declaredFields ) -> ( name_, createVariable declaredFields Set.empty ))
+                    |> Maybe.map (\( name_, declaredFields ) -> ( name_, Variable.newVariable declaredFields Set.empty ))
 
             else
                 Nothing
 
         _ ->
             Nothing
-
-
-createVariable : List (Node String) -> Set String -> Variable
-createVariable declaredFields usedFields =
-    { usedFields = usedFields
-    , declaredFields = declaredFields
-    , wasUsed = False
-    , wasUsedInAnUnknownManner = False
-    }
 
 
 declarationFields :
@@ -371,13 +362,13 @@ createVariableOrErrors : List (Node String) -> Node Pattern -> Maybe VariableOrE
 createVariableOrErrors declaredFields argument =
     case Node.value argument of
         Pattern.VarPattern name ->
-            Just (VariableOrError_Variable ( name, createVariable declaredFields Set.empty ))
+            Just (VariableOrError_Variable ( name, Variable.newVariable declaredFields Set.empty ))
 
         Pattern.ParenthesizedPattern pattern ->
             createVariableOrErrors declaredFields pattern
 
         Pattern.AsPattern pattern name ->
-            Just (VariableOrError_Variable ( Node.value name, createVariable declaredFields (Set.fromList (fieldsFromPattern pattern)) ))
+            Just (VariableOrError_Variable ( Node.value name, Variable.newVariable declaredFields (Set.fromList (fieldsFromPattern pattern)) ))
 
         Pattern.RecordPattern nodes ->
             let
@@ -539,7 +530,7 @@ expressionVisitor node context =
                                 case Node.value declaration of
                                     Expression.LetFunction function ->
                                         declarationFields function
-                                            |> Maybe.map (\( name, declaredFields ) -> VariableOrError_Variable ( name, createVariable declaredFields Set.empty ))
+                                            |> Maybe.map (\( name, declaredFields ) -> VariableOrError_Variable ( name, Variable.newVariable declaredFields Set.empty ))
 
                                     Expression.LetDestructuring pattern expression ->
                                         case Node.value pattern of
