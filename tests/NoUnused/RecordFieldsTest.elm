@@ -188,6 +188,35 @@ a =
                             }
                             |> Review.Test.atExactly { start = { row = 5, column = 17 }, end = { row = 5, column = 23 } }
                         ]
+        , test "should not mix two let declarations that are in different locations" <|
+            \() ->
+                """module A exposing (a)
+a =
+  let
+    b : {foo:Int,bar:Int}
+    b = {foo=1, bar=2}
+  in b.foo
+c =
+  let
+    b : {foo:Int,bar:Int}
+    b = {foo=1, bar=2}
+  in b.bar
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Unused field `bar`"
+                            , details = [ "REPLACEME" ]
+                            , under = "bar"
+                            }
+                            |> Review.Test.atExactly { start = { row = 5, column = 17 }, end = { row = 5, column = 20 } }
+                        , Review.Test.error
+                            { message = "Unused field `foo`"
+                            , details = [ "REPLACEME" ]
+                            , under = "foo"
+                            }
+                            |> Review.Test.atExactly { start = { row = 7, column = 10 }, end = { row = 7, column = 13 } }
+                        ]
         , test "should report an unused field in a let destructuration" <|
             \() ->
                 """module A exposing (a)
