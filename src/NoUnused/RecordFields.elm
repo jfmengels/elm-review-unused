@@ -11,12 +11,12 @@ import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Module as Module exposing (Module)
-import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Signature exposing (Signature)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import NoUnused.RecordFields.Variable as Variable exposing (Variable)
 import Review.ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -90,17 +90,9 @@ type alias ModuleContext =
     { moduleNameLookupTable : ModuleNameLookupTable
     , typeByNameLookup : TypeByNameLookup
     , typeInference : TypeInference.ModuleContext
-    , variables : Dict String Variable
+    , variableRegister : Variable.Register
     , directAccessesToIgnore : Set String
     , exposes : Exposes
-    }
-
-
-type alias Variable =
-    { usedFields : Set String
-    , declaredFields : List (Node String)
-    , wasUsed : Bool
-    , wasUsedInAnUnknownManner : Bool
     }
 
 
@@ -116,7 +108,7 @@ fromProjectToModule =
         (\moduleNameLookupTable projectContext ->
             { typeInference = TypeInference.fromProjectToModule projectContext
             , moduleNameLookupTable = moduleNameLookupTable
-            , variables = Dict.empty
+            , variableRegister = Dict.empty
             , directAccessesToIgnore = Set.empty
             , exposes = ExposesEverything
             , typeByNameLookup = TypeByNameLookup.empty
@@ -187,13 +179,13 @@ declarationListVisitor nodes context =
 
         ExposesExplicitly exposedNames ->
             let
-                variables : Dict String Variable
-                variables =
+                variableRegister : Variable.Register
+                variableRegister =
                     nodes
                         |> List.filterMap (registerDeclaration exposedNames)
                         |> Dict.fromList
             in
-            ( [], { context | variables = Dict.union variables context.variables } )
+            ( [], { context | variableRegister = Dict.union variableRegister context.variableRegister } )
 
 
 registerDeclaration : Set String -> Node Declaration -> Maybe ( String, Variable )
@@ -330,7 +322,7 @@ handleDeclaration moduleContext { signature, declaration } =
             in
             ( errorsToReport
             , { moduleContext
-                | variables = Dict.union (Dict.fromList variables) moduleContext.variables
+                | variableRegister = Dict.union (Dict.fromList variables) moduleContext.variableRegister
                 , directAccessesToIgnore = Set.empty
               }
             )
@@ -478,7 +470,7 @@ extractRecordDefinition typeAnnotation =
             Nothing
 
 
-updateVariable : String -> (Variable -> Variable) -> Dict String Variable -> Dict String Variable
+updateVariable : String -> (Variable -> Variable) -> Variable.Register -> Variable.Register
 updateVariable name function variables =
     Dict.update name (Maybe.map function) variables
 
@@ -488,8 +480,8 @@ expressionVisitor node context =
     case Node.value node of
         Expression.RecordAccess (Node functionOrValueRange (Expression.FunctionOrValue [] name)) fieldName ->
             let
-                variables : Dict String Variable
-                variables =
+                variableRegister : Variable.Register
+                variableRegister =
                     updateVariable name
                         (\declared ->
                             { declared
@@ -497,11 +489,11 @@ expressionVisitor node context =
                                 , usedFields = Set.insert (Node.value fieldName) declared.usedFields
                             }
                         )
-                        context.variables
+                        context.variableRegister
             in
             ( []
             , { context
-                | variables = variables
+                | variableRegister = variableRegister
                 , directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore
               }
             )
@@ -509,33 +501,33 @@ expressionVisitor node context =
         Expression.FunctionOrValue [] name ->
             if Set.member (stringifyRange (Node.range node)) context.directAccessesToIgnore then
                 let
-                    variables : Dict String Variable
-                    variables =
+                    variableRegister : Variable.Register
+                    variableRegister =
                         updateVariable name
                             (\declared -> { declared | wasUsed = True })
-                            context.variables
+                            context.variableRegister
                 in
-                ( [], { context | variables = variables } )
+                ( [], { context | variableRegister = variableRegister } )
 
             else
                 let
-                    variables : Dict String Variable
-                    variables =
+                    variableRegister : Variable.Register
+                    variableRegister =
                         updateVariable name
                             (\declared -> { declared | wasUsed = True, wasUsedInAnUnknownManner = True })
-                            context.variables
+                            context.variableRegister
                 in
-                ( [], { context | variables = variables } )
+                ( [], { context | variableRegister = variableRegister } )
 
         Expression.RecordUpdateExpression name _ ->
             let
-                variables : Dict String Variable
-                variables =
+                variableRegister : Variable.Register
+                variableRegister =
                     updateVariable (Node.value name)
                         (\declared -> { declared | wasUsed = True, wasUsedInAnUnknownManner = True })
-                        context.variables
+                        context.variableRegister
             in
-            ( [], { context | variables = variables } )
+            ( [], { context | variableRegister = variableRegister } )
 
         Expression.LetExpression letBlock ->
             let
@@ -573,7 +565,7 @@ expressionVisitor node context =
                     getErrorsAndVariables variableOrErrors
             in
             ( errorsToReport
-            , { context | variables = Dict.union (Dict.fromList variables) context.variables }
+            , { context | variableRegister = Dict.union (Dict.fromList variables) context.variableRegister }
             )
 
         _ ->
@@ -593,7 +585,7 @@ stringifyRange range =
 
 finalEvaluation : ModuleContext -> List (Error {})
 finalEvaluation context =
-    context.variables
+    context.variableRegister
         |> Dict.toList
         |> List.concatMap (Tuple.second >> finalEvaluationForVariable)
 
