@@ -65,7 +65,7 @@ rule =
         |> Rule.fromModuleRuleSchema
 
 
-type alias Context =
+type alias ModuleContext =
     { variables : Dict String Variable
     , expressionsToIgnore : Set String
     , exposes : Exposes
@@ -80,7 +80,7 @@ type alias Variable =
     }
 
 
-initialContext : Context
+initialContext : ModuleContext
 initialContext =
     { variables = Dict.empty
     , expressionsToIgnore = Set.empty
@@ -93,7 +93,7 @@ type Exposes
     | ExposesExplicitly (Set String)
 
 
-moduleDefinitionVisitor : Node Module -> Context -> ( List nothing, Context )
+moduleDefinitionVisitor : Node Module -> ModuleContext -> ( List nothing, ModuleContext )
 moduleDefinitionVisitor moduleNode moduleContext =
     case Module.exposingList (Node.value moduleNode) of
         Exposing.All _ ->
@@ -123,7 +123,7 @@ moduleDefinitionVisitor moduleNode moduleContext =
             ( [], { moduleContext | exposes = ExposesExplicitly (Set.fromList names) } )
 
 
-declarationListVisitor : List (Node Declaration) -> Context -> ( List nothing, Context )
+declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List nothing, ModuleContext )
 declarationListVisitor nodes context =
     let
         variables : Dict String Variable
@@ -224,7 +224,7 @@ returnType node =
             NoActionableReturnType
 
 
-declarationEnterVisitor : Node Declaration -> Context -> ( List (Error {}), Context )
+declarationEnterVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
 declarationEnterVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
@@ -234,7 +234,7 @@ declarationEnterVisitor node context =
             ( [], { context | expressionsToIgnore = Set.empty } )
 
 
-handleDeclaration : Context -> Expression.Function -> ( List (Error {}), Context )
+handleDeclaration : ModuleContext -> Expression.Function -> ( List (Error {}), ModuleContext )
 handleDeclaration context { signature, declaration } =
     case Maybe.map (Node.value >> .typeAnnotation) signature of
         Just typeAnnotation ->
@@ -419,7 +419,7 @@ updateVariable name function variables =
     Dict.update name (Maybe.map function) variables
 
 
-expressionVisitor : Node Expression -> Context -> ( List (Error {}), Context )
+expressionVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionVisitor node context =
     case Node.value node of
         Expression.RecordAccess (Node functionOrValueRange (Expression.FunctionOrValue [] name)) fieldName ->
@@ -527,7 +527,7 @@ stringifyRange range =
         |> String.join "-"
 
 
-finalEvaluation : Context -> List (Error {})
+finalEvaluation : ModuleContext -> List (Error {})
 finalEvaluation context =
     context.variables
         |> Dict.toList
