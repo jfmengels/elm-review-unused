@@ -17,8 +17,11 @@ import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Signature exposing (Signature)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import Review.ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
+import TypeInference
+import TypeInference.TypeByNameLookup as TypeByNameLookup exposing (TypeByNameLookup)
 
 
 {-| Reports... REPLACEME
@@ -58,8 +61,9 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Recor
 rule : Rule
 rule =
     Rule.newProjectRuleSchema "NoUnused.RecordFields" initialContext
+        |> TypeInference.addProjectVisitors
         |> Rule.withModuleVisitor moduleVisitor
-        |> Rule.withModuleContext
+        |> Rule.withModuleContextUsingContextCreator
             { fromProjectToModule = fromProjectToModule
             , fromModuleToProject = fromModuleToProject
             , foldProjectContexts = foldProjectContexts
@@ -78,11 +82,15 @@ moduleVisitor schema =
 
 
 type alias ProjectContext =
-    {}
+    { typeInference : TypeInference.ProjectContext
+    }
 
 
 type alias ModuleContext =
-    { variables : Dict String Variable
+    { moduleNameLookupTable : ModuleNameLookupTable
+    , typeByNameLookup : TypeByNameLookup
+    , typeInference : TypeInference.ModuleContext
+    , variables : Dict String Variable
     , expressionsToIgnore : Set String
     , exposes : Exposes
     }
@@ -98,25 +106,42 @@ type alias Variable =
 
 initialContext : ProjectContext
 initialContext =
-    {}
-
-
-fromProjectToModule : Rule.ModuleKey -> Node ModuleName -> ProjectContext -> ModuleContext
-fromProjectToModule _ _ _ =
-    { variables = Dict.empty
-    , expressionsToIgnore = Set.empty
-    , exposes = ExposesEverything
+    { typeInference = TypeInference.initialProjectContext
     }
 
 
-fromModuleToProject : Rule.ModuleKey -> Node ModuleName -> ModuleContext -> ProjectContext
-fromModuleToProject moduleKey moduleName moduleContext =
-    {}
+fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
+fromProjectToModule =
+    Rule.initContextCreator
+        (\moduleNameLookupTable projectContext ->
+            { typeInference = TypeInference.fromProjectToModule projectContext
+            , moduleNameLookupTable = moduleNameLookupTable
+            , variables = Dict.empty
+            , expressionsToIgnore = Set.empty
+            , exposes = ExposesEverything
+            , typeByNameLookup = TypeByNameLookup.empty
+            }
+        )
+        |> Rule.withModuleNameLookupTable
+
+
+fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
+fromModuleToProject =
+    Rule.initContextCreator
+        (\metadata moduleContext ->
+            { typeInference =
+                TypeInference.fromModuleToProject
+                    (Rule.moduleNameFromMetadata metadata)
+                    moduleContext.typeInference
+            }
+        )
+        |> Rule.withMetadata
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
-    previousContext
+    { typeInference = TypeInference.foldProjectContexts newContext.typeInference previousContext.typeInference
+    }
 
 
 type Exposes
