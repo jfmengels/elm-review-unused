@@ -229,20 +229,19 @@ a b =
   b + d
 """
                     |> Review.Test.run rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `bar`"
-                            , details = [ "REPLACEME" ]
-                            , under = "bar"
-                            }
-                            |> Review.Test.atExactly { start = { row = 5, column = 17 }, end = { row = 5, column = 20 } }
-                        , Review.Test.error
-                            { message = "Unused field `foo`"
-                            , details = [ "REPLACEME" ]
-                            , under = "foo"
-                            }
-                            |> Review.Test.atExactly { start = { row = 10, column = 10 }, end = { row = 10, column = 13 } }
-                        ]
+                    |> Review.Test.expectNoErrors
+        , test "should not report unused field if it is used in a let expression below 2" <|
+            \() ->
+                """module A exposing (a)
+foo : { used : Bool, thing : Thing } -> Bool
+foo params =
+    case params.thing of
+        _ ->
+            let _ = 1
+            in params.used
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         , test "should report an unused field in a let destructuration" <|
             \() ->
                 """module A exposing (a)
