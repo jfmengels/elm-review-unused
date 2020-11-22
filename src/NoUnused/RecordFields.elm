@@ -546,6 +546,10 @@ stringifyRange range =
         |> String.join "-"
 
 
+
+-- FINAL EVALUATION
+
+
 finalEvaluation : ModuleContext -> List (Error {})
 finalEvaluation context =
     Variable.unusedDeclaredFields context.variableRegister
