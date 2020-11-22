@@ -469,49 +469,23 @@ expressionVisitor node context =
     case Node.value node of
         Expression.RecordAccess (Node functionOrValueRange (Expression.FunctionOrValue [] name)) fieldName ->
             let
-                variableRegister : Variable.Register
-                variableRegister =
-                    Variable.updateVariable name
-                        (Variable.markFieldAsUsed (Node.value fieldName))
-                        context.variableRegister
+                newContext : ModuleContext
+                newContext =
+                    updateRegister name (Variable.markFieldAsUsed (Node.value fieldName)) context
             in
             ( []
-            , { context
-                | variableRegister = variableRegister
-                , directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore
-              }
+            , { newContext | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore }
             )
 
         Expression.FunctionOrValue [] name ->
             if Set.member (stringifyRange (Node.range node)) context.directAccessesToIgnore then
-                let
-                    variableRegister : Variable.Register
-                    variableRegister =
-                        Variable.updateVariable name
-                            Variable.markAsUsed
-                            context.variableRegister
-                in
-                ( [], { context | variableRegister = variableRegister } )
+                ( [], updateRegister name Variable.markAsUsed context )
 
             else
-                let
-                    variableRegister : Variable.Register
-                    variableRegister =
-                        Variable.updateVariable name
-                            Variable.markAsUsedInAnUnknownManner
-                            context.variableRegister
-                in
-                ( [], { context | variableRegister = variableRegister } )
+                ( [], updateRegister name Variable.markAsUsedInAnUnknownManner context )
 
         Expression.RecordUpdateExpression name _ ->
-            let
-                variableRegister : Variable.Register
-                variableRegister =
-                    Variable.updateVariable (Node.value name)
-                        Variable.markAsUsedInAnUnknownManner
-                        context.variableRegister
-            in
-            ( [], { context | variableRegister = variableRegister } )
+            ( [], updateRegister (Node.value name) Variable.markAsUsedInAnUnknownManner context )
 
         Expression.LetExpression letBlock ->
             let
@@ -554,6 +528,11 @@ expressionVisitor node context =
 
         _ ->
             ( [], context )
+
+
+updateRegister : String -> (Variable -> Variable) -> ModuleContext -> ModuleContext
+updateRegister name func context =
+    { context | variableRegister = Variable.updateVariable name func context.variableRegister }
 
 
 stringifyRange : Range -> String
