@@ -98,9 +98,18 @@ addVariablesInNewScope list (Register register stack) =
 
 updateVariable : String -> (Variable -> Variable) -> Register -> Register
 updateVariable name function (Register register stack) =
-    Register
-        (Dict.update name (Maybe.map function) register)
-        stack
+    let
+        ( newRegister, newStack ) =
+            updateVariableInternal name function register stack
+    in
+    Register newRegister newStack
+
+
+updateVariableInternal : String -> (Variable -> Variable) -> Dict String Variable -> List (Dict String Variable) -> ( Dict String Variable, List (Dict String Variable) )
+updateVariableInternal name function register stack =
+    ( Dict.update name (Maybe.map function) register
+    , stack
+    )
 
 
 unusedDeclaredFieldsForScope : Register -> ( List (Node String), Register )
