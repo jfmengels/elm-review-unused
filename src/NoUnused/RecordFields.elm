@@ -488,7 +488,7 @@ expressionVisitor node context =
                     variableRegister : Variable.Register
                     variableRegister =
                         Variable.updateVariable name
-                            (\declared -> { declared | wasUsed = True })
+                            Variable.markAsUsed
                             context.variableRegister
                 in
                 ( [], { context | variableRegister = variableRegister } )
