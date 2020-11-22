@@ -466,6 +466,10 @@ extractRecordDefinition typeAnnotation =
 -- EXPRESSION ENTER VISITOR
 
 
+type Foo
+    = Foo_Variable ( String, List String, Range )
+
+
 expressionEnterVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionEnterVisitor node context =
     case Node.value node of
@@ -492,13 +496,13 @@ expressionEnterVisitor node context =
                                 _ ->
                                     []
 
-                        foundUsedFields : List ( String, List String, Range )
+                        foundUsedFields : List Foo
                         foundUsedFields =
                             List.map2
                                 (\type_ argument ->
                                     case ( type_, argument ) of
                                         ( Type.Record { fields }, Node functionOrValueRange (Expression.FunctionOrValue [] name) ) ->
-                                            Just ( name, List.map Tuple.first fields, functionOrValueRange )
+                                            Just (Foo_Variable ( name, List.map Tuple.first fields, functionOrValueRange ))
 
                                         --( Type.Record { fields }, Node _ (Expression.RecordExpr recordSetters) ) ->
                                         --    Just ( name, List.map Tuple.first fields, functionOrValueRange )
@@ -512,9 +516,11 @@ expressionEnterVisitor node context =
                         newContext : ModuleContext
                         newContext =
                             List.foldl
-                                (\( name, fields, functionOrValueRange ) ctx ->
-                                    { ctx | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) ctx.directAccessesToIgnore }
-                                        |> updateRegister name (Variable.markFieldsAsUsed fields)
+                                (\foo ctx ->
+                                    case foo of
+                                        Foo_Variable ( name, fields, functionOrValueRange ) ->
+                                            { ctx | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) ctx.directAccessesToIgnore }
+                                                |> updateRegister name (Variable.markFieldsAsUsed fields)
                                 )
                                 context
                                 foundUsedFields
