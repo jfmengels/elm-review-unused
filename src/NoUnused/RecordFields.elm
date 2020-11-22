@@ -91,7 +91,7 @@ type alias ModuleContext =
     , typeByNameLookup : TypeByNameLookup
     , typeInference : TypeInference.ModuleContext
     , variables : Dict String Variable
-    , expressionsToIgnore : Set String
+    , directAccessesToIgnore : Set String
     , exposes : Exposes
     }
 
@@ -117,7 +117,7 @@ fromProjectToModule =
             { typeInference = TypeInference.fromProjectToModule projectContext
             , moduleNameLookupTable = moduleNameLookupTable
             , variables = Dict.empty
-            , expressionsToIgnore = Set.empty
+            , directAccessesToIgnore = Set.empty
             , exposes = ExposesEverything
             , typeByNameLookup = TypeByNameLookup.empty
             }
@@ -287,7 +287,7 @@ declarationEnterVisitor node moduleContext =
             handleDeclaration moduleContext function
 
         _ ->
-            ( [], { moduleContext | expressionsToIgnore = Set.empty } )
+            ( [], { moduleContext | directAccessesToIgnore = Set.empty } )
 
 
 handleDeclaration : ModuleContext -> Expression.Function -> ( List (Error {}), ModuleContext )
@@ -323,12 +323,12 @@ handleDeclaration moduleContext { signature, declaration } =
             ( errorsToReport
             , { moduleContext
                 | variables = Dict.union (Dict.fromList variables) moduleContext.variables
-                , expressionsToIgnore = Set.empty
+                , directAccessesToIgnore = Set.empty
               }
             )
 
         _ ->
-            ( [], { moduleContext | expressionsToIgnore = Set.empty } )
+            ( [], { moduleContext | directAccessesToIgnore = Set.empty } )
 
 
 getErrorsAndVariables : List (Maybe VariableOrError) -> ( List (Error {}), List ( String, Variable ) )
@@ -494,12 +494,12 @@ expressionVisitor node context =
             ( []
             , { context
                 | variables = variables
-                , expressionsToIgnore = Set.insert (stringifyRange functionOrValueRange) context.expressionsToIgnore
+                , directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore
               }
             )
 
         Expression.FunctionOrValue [] name ->
-            if Set.member (stringifyRange (Node.range node)) context.expressionsToIgnore then
+            if Set.member (stringifyRange (Node.range node)) context.directAccessesToIgnore then
                 let
                     variables : Dict String Variable
                     variables =
