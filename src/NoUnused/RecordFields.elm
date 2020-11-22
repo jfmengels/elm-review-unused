@@ -520,8 +520,20 @@ expressionEnterVisitor node context =
                                         ( Type.Record { fields }, Node functionOrValueRange (Expression.FunctionOrValue [] name) ) ->
                                             Just (Foo_Variable ( name, List.map Tuple.first fields, functionOrValueRange ))
 
-                                        --( Type.Record { fields }, Node _ (Expression.RecordExpr recordSetters) ) ->
-                                        --    Just ( name, List.map Tuple.first fields, functionOrValueRange )
+                                        ( Type.Record { fields }, Node _ (Expression.RecordExpr recordSetters) ) ->
+                                            let
+                                                usedFields : Set String
+                                                usedFields =
+                                                    List.map Tuple.first fields
+                                                        |> Set.fromList
+                                            in
+                                            recordSetters
+                                                |> List.map Node.value
+                                                |> List.map Tuple.first
+                                                |> List.filter (\declaredField -> not (Set.member (Node.value declaredField) usedFields))
+                                                |> Foo_Errors
+                                                |> Just
+
                                         _ ->
                                             Nothing
                                 )
