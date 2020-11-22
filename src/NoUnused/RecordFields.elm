@@ -76,7 +76,7 @@ type alias Variable =
     { usedFields : Set String
     , declaredFields : List (Node String)
     , wasUsed : Bool
-    , wasUsedWithoutFieldAccess : Bool
+    , wasUsedInAnUnknownManner : Bool
     }
 
 
@@ -151,7 +151,7 @@ createVariable declaredFields usedFields =
     { usedFields = usedFields
     , declaredFields = declaredFields
     , wasUsed = False
-    , wasUsedWithoutFieldAccess = False
+    , wasUsedInAnUnknownManner = False
     }
 
 
@@ -458,7 +458,7 @@ expressionVisitor node context =
                     variables : Dict String Variable
                     variables =
                         updateVariable name
-                            (\declared -> { declared | wasUsed = True, wasUsedWithoutFieldAccess = True })
+                            (\declared -> { declared | wasUsed = True, wasUsedInAnUnknownManner = True })
                             context.variables
                 in
                 ( [], { context | variables = variables } )
@@ -468,7 +468,7 @@ expressionVisitor node context =
                 variables : Dict String Variable
                 variables =
                     updateVariable (Node.value name)
-                        (\declared -> { declared | wasUsed = True, wasUsedWithoutFieldAccess = True })
+                        (\declared -> { declared | wasUsed = True, wasUsedInAnUnknownManner = True })
                         context.variables
             in
             ( [], { context | variables = variables } )
@@ -536,7 +536,7 @@ finalEvaluation context =
 
 finalEvaluationForVariable : Variable -> List (Error {})
 finalEvaluationForVariable variable =
-    if variable.wasUsedWithoutFieldAccess || not variable.wasUsed then
+    if variable.wasUsedInAnUnknownManner || not variable.wasUsed then
         []
 
     else
