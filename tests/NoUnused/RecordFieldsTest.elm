@@ -230,10 +230,9 @@ a b =
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
-        , Test.only <|
-            test "should not report unused field if it is used in a let expression below 2" <|
-                \() ->
-                    """module A exposing (a)
+        , test "should not report unused field if it is used in a let expression below 2" <|
+            \() ->
+                """module A exposing (a)
 foo : { used : Bool, thing : Thing } -> Bool
 foo params =
     case params.thing of
@@ -241,8 +240,8 @@ foo params =
             let _ = 1
             in params.used
 """
-                        |> Review.Test.run rule
-                        |> Review.Test.expectNoErrors
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         , test "should report an unused field in a let destructuration" <|
             \() ->
                 """module A exposing (a)

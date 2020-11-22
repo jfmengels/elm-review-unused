@@ -107,9 +107,21 @@ updateVariable name function (Register register stack) =
 
 updateVariableInternal : String -> (Variable -> Variable) -> Dict String Variable -> List (Dict String Variable) -> ( Dict String Variable, List (Dict String Variable) )
 updateVariableInternal name function register stack =
-    ( Dict.update name (Maybe.map function) register
-    , stack
-    )
+    case Dict.get name register of
+        Just variable ->
+            ( Dict.insert name (function variable) register, stack )
+
+        Nothing ->
+            case stack of
+                [] ->
+                    ( register, stack )
+
+                x :: xs ->
+                    let
+                        ( newRegister, newStack ) =
+                            updateVariableInternal name function x xs
+                    in
+                    ( register, newRegister :: newStack )
 
 
 unusedDeclaredFieldsForScope : Register -> ( List (Node String), Register )
