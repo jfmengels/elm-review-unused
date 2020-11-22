@@ -98,11 +98,25 @@ updateVariable name function (Register register stack) =
         stack
 
 
-unusedDeclaredFieldsForScope : Register -> List (Node String)
-unusedDeclaredFieldsForScope (Register register _) =
-    register
-        |> Dict.values
-        |> List.concatMap unusedDeclaredFieldsForVariable
+unusedDeclaredFieldsForScope : Register -> ( List (Node String), Register )
+unusedDeclaredFieldsForScope (Register register stack) =
+    let
+        unusedFields : List (Node String)
+        unusedFields =
+            register
+                |> Dict.values
+                |> List.concatMap unusedDeclaredFieldsForVariable
+
+        newRegister : Register
+        newRegister =
+            case stack of
+                head :: rest ->
+                    Register head rest
+
+                [] ->
+                    Register Dict.empty []
+    in
+    ( unusedFields, newRegister )
 
 
 unusedDeclaredFieldsForVariable : Variable -> List (Node String)
