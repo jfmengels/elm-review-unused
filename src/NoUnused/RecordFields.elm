@@ -461,11 +461,6 @@ extractRecordDefinition typeAnnotation =
             Nothing
 
 
-updateVariable : String -> (Variable -> Variable) -> Variable.Register -> Variable.Register
-updateVariable name function variables =
-    Dict.update name (Maybe.map function) variables
-
-
 expressionVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionVisitor node context =
     case Node.value node of
@@ -473,7 +468,7 @@ expressionVisitor node context =
             let
                 variableRegister : Variable.Register
                 variableRegister =
-                    updateVariable name
+                    Variable.updateVariable name
                         (\declared ->
                             { declared
                                 | wasUsed = True
@@ -494,7 +489,7 @@ expressionVisitor node context =
                 let
                     variableRegister : Variable.Register
                     variableRegister =
-                        updateVariable name
+                        Variable.updateVariable name
                             (\declared -> { declared | wasUsed = True })
                             context.variableRegister
                 in
@@ -504,7 +499,7 @@ expressionVisitor node context =
                 let
                     variableRegister : Variable.Register
                     variableRegister =
-                        updateVariable name
+                        Variable.updateVariable name
                             (\declared -> { declared | wasUsed = True, wasUsedInAnUnknownManner = True })
                             context.variableRegister
                 in
@@ -514,7 +509,7 @@ expressionVisitor node context =
             let
                 variableRegister : Variable.Register
                 variableRegister =
-                    updateVariable (Node.value name)
+                    Variable.updateVariable (Node.value name)
                         (\declared -> { declared | wasUsed = True, wasUsedInAnUnknownManner = True })
                         context.variableRegister
             in
