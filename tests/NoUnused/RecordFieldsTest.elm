@@ -350,4 +350,17 @@ getFoo data =
                             , under = "unused"
                             }
                         ]
+        , test "should report an unused field when going through a binary operation" <|
+            \() ->
+                """module A exposing (b)
+b = {foo=1, unused=2} |> .foo
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Unused field `unused`"
+                            , details = [ "REPLACEME" ]
+                            , under = "unused"
+                            }
+                        ]
         ]
