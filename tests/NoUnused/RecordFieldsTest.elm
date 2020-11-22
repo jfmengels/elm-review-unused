@@ -333,4 +333,21 @@ c = a.foo
                                 }
                                 |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
                             ]
+        , test "should report an unused field from a literal record passed to a function directly" <|
+            \() ->
+                """module A exposing (b)
+b = getFoo {foo=1, unused=2}
+
+getFoo : { var | foo : Int } -> Int
+getFoo data =
+    data.foo
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Unused field `unused`"
+                            , details = [ "REPLACEME" ]
+                            , under = "unused"
+                            }
+                        ]
         ]
