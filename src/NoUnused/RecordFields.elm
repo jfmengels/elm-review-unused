@@ -6,7 +6,6 @@ module NoUnused.RecordFields exposing (rule)
 
 -}
 
-import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression)
@@ -77,7 +76,8 @@ moduleVisitor schema =
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
-        |> Rule.withExpressionEnterVisitor expressionVisitor
+        |> Rule.withExpressionEnterVisitor expressionEnterVisitor
+        |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
 
 
@@ -460,11 +460,11 @@ extractRecordDefinition typeAnnotation =
 
 
 
--- EXPRESSION VISITOR
+-- EXPRESSION ENTER VISITOR
 
 
-expressionVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
-expressionVisitor node context =
+expressionEnterVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
+expressionEnterVisitor node context =
     case Node.value node of
         Expression.RecordAccess (Node functionOrValueRange (Expression.FunctionOrValue [] name)) fieldName ->
             let
@@ -522,8 +522,26 @@ expressionVisitor node context =
                     getErrorsAndVariables variableOrErrors
             in
             ( errorsToReport
-            , { context | variableRegister = Variable.addVariables variables context.variableRegister }
+            , { context | variableRegister = Variable.addVariablesInNewScope variables context.variableRegister }
             )
+
+        _ ->
+            ( [], context )
+
+
+
+-- EXPRESSION EXIT VISITOR
+
+
+expressionExitVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
+expressionExitVisitor node context =
+    case Node.value node of
+        Expression.LetExpression _ ->
+            let
+                ( unusedDeclaredFields, variableRegister ) =
+                    Variable.unusedDeclaredFieldsForScope context.variableRegister
+            in
+            ( List.map createError unusedDeclaredFields, { context | variableRegister = variableRegister } )
 
         _ ->
             ( [], context )

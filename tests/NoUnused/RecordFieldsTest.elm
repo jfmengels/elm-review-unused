@@ -215,7 +215,7 @@ c =
                             , details = [ "REPLACEME" ]
                             , under = "foo"
                             }
-                            |> Review.Test.atExactly { start = { row = 7, column = 10 }, end = { row = 7, column = 13 } }
+                            |> Review.Test.atExactly { start = { row = 10, column = 10 }, end = { row = 10, column = 13 } }
                         ]
         , test "should report an unused field in a let destructuration" <|
             \() ->
