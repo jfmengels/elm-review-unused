@@ -72,31 +72,34 @@ wasUsedInAnUnknownManner (Variable v) =
 
 
 type Register
-    = Register (Dict String Variable)
+    = Register (Dict String Variable) (List (Dict String Variable))
 
 
 emptyRegister : Register
 emptyRegister =
-    Register Dict.empty
+    Register Dict.empty []
 
 
 addVariables : List ( String, Variable ) -> Register -> Register
-addVariables list (Register register) =
+addVariables list (Register register stack) =
     Register
         (List.foldl
             (\( name, variable ) dict -> Dict.insert name variable dict)
             register
             list
         )
+        stack
 
 
 updateVariable : String -> (Variable -> Variable) -> Register -> Register
-updateVariable name function (Register register) =
-    Register (Dict.update name (Maybe.map function) register)
+updateVariable name function (Register register stack) =
+    Register
+        (Dict.update name (Maybe.map function) register)
+        stack
 
 
 unusedDeclaredFields : Register -> List (Node String)
-unusedDeclaredFields (Register register) =
+unusedDeclaredFields (Register register _) =
     register
         |> Dict.values
         |> List.concatMap unusedDeclaredFieldsForVariable
