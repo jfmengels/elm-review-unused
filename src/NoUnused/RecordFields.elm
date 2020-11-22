@@ -331,20 +331,7 @@ getErrorsAndVariables variableOrErrors =
                     ( errors, variable :: variables )
 
                 Just (VariableOrError_Errors unusedFieldNodes) ->
-                    let
-                        newErrors : List (Error {})
-                        newErrors =
-                            List.map
-                                (\unusedFieldNode ->
-                                    Rule.error
-                                        { message = "Unused field `" ++ Node.value unusedFieldNode ++ "`"
-                                        , details = [ "REPLACEME" ]
-                                        }
-                                        (Node.range unusedFieldNode)
-                                )
-                                unusedFieldNodes
-                    in
-                    ( newErrors ++ errors, variables )
+                    ( List.map createError unusedFieldNodes ++ errors, variables )
 
                 Nothing ->
                     acc
@@ -584,11 +571,13 @@ finalEvaluationForVariable variable =
     else
         variable.declaredFields
             |> List.filter (\node -> not <| Set.member (Node.value node) variable.usedFields)
-            |> List.map
-                (\node ->
-                    Rule.error
-                        { message = "Unused field `" ++ Node.value node ++ "`"
-                        , details = [ "REPLACEME" ]
-                        }
-                        (Node.range node)
-                )
+            |> List.map createError
+
+
+createError : Node String -> Error {}
+createError unusedFieldNode =
+    Rule.error
+        { message = "Unused field `" ++ Node.value unusedFieldNode ++ "`"
+        , details = [ "REPLACEME" ]
+        }
+        (Node.range unusedFieldNode)
