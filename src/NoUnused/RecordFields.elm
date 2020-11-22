@@ -181,40 +181,40 @@ moduleDefinitionVisitor moduleNode moduleContext =
 
 declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List nothing, ModuleContext )
 declarationListVisitor nodes context =
-    let
-        variables : Dict String Variable
-        variables =
-            nodes
-                |> List.filterMap (registerDeclaration context.exposes)
-                |> Dict.fromList
-    in
-    ( [], { context | variables = Dict.union variables context.variables } )
+    case context.exposes of
+        ExposesEverything ->
+            ( [], context )
+
+        ExposesExplicitly exposedNames ->
+            let
+                variables : Dict String Variable
+                variables =
+                    nodes
+                        |> List.filterMap (registerDeclaration exposedNames)
+                        |> Dict.fromList
+            in
+            ( [], { context | variables = Dict.union variables context.variables } )
 
 
-registerDeclaration : Exposes -> Node Declaration -> Maybe ( String, Variable )
-registerDeclaration exposes node =
+registerDeclaration : Set String -> Node Declaration -> Maybe ( String, Variable )
+registerDeclaration exposedNames node =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            case exposes of
-                ExposesEverything ->
-                    Nothing
+            let
+                declaration : Expression.FunctionImplementation
+                declaration =
+                    Node.value function.declaration
 
-                ExposesExplicitly exposedNames ->
-                    let
-                        declaration : Expression.FunctionImplementation
-                        declaration =
-                            Node.value function.declaration
+                name : String
+                name =
+                    Node.value declaration.name
+            in
+            if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
+                declarationFields function
+                    |> Maybe.map (\( name_, declaredFields ) -> ( name_, createVariable declaredFields Set.empty ))
 
-                        name : String
-                        name =
-                            Node.value declaration.name
-                    in
-                    if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
-                        declarationFields function
-                            |> Maybe.map (\( name_, declaredFields ) -> ( name_, createVariable declaredFields Set.empty ))
-
-                    else
-                        Nothing
+            else
+                Nothing
 
         _ ->
             Nothing
