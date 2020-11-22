@@ -210,7 +210,7 @@ registerDeclaration exposes node =
                             Node.value declaration.name
                     in
                     if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
-                        declarationFields exposes function
+                        declarationFields function
                             |> Maybe.map (\( name_, declaredFields ) -> ( name_, createVariable declaredFields Set.empty ))
 
                     else
@@ -230,39 +230,29 @@ createVariable declaredFields usedFields =
 
 
 declarationFields :
-    Exposes
-    -> { a | signature : Maybe (Node Signature), declaration : Node Expression.FunctionImplementation }
+    { a | signature : Maybe (Node Signature), declaration : Node Expression.FunctionImplementation }
     -> Maybe ( String, List (Node String) )
-declarationFields exposes function =
-    case exposes of
-        ExposesEverything ->
+declarationFields function =
+    let
+        declaration : Expression.FunctionImplementation
+        declaration =
+            Node.value function.declaration
+
+        name : String
+        name =
+            Node.value declaration.name
+    in
+    case Maybe.map (Node.value >> .typeAnnotation >> returnType) function.signature of
+        Just NoActionableReturnType ->
             Nothing
 
-        ExposesExplicitly exposedNames ->
-            let
-                declaration : Expression.FunctionImplementation
-                declaration =
-                    Node.value function.declaration
+        Nothing ->
+            findDeclarationFields declaration.expression
+                |> Maybe.map (\declaredFields -> ( name, declaredFields ))
 
-                name : String
-                name =
-                    Node.value declaration.name
-            in
-            if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
-                case Maybe.map (Node.value >> .typeAnnotation >> returnType) function.signature of
-                    Just NoActionableReturnType ->
-                        Nothing
-
-                    Nothing ->
-                        findDeclarationFields declaration.expression
-                            |> Maybe.map (\declaredFields -> ( name, declaredFields ))
-
-                    Just LiteralRecord ->
-                        findDeclarationFields declaration.expression
-                            |> Maybe.map (\declaredFields -> ( name, declaredFields ))
-
-            else
-                Nothing
+        Just LiteralRecord ->
+            findDeclarationFields declaration.expression
+                |> Maybe.map (\declaredFields -> ( name, declaredFields ))
 
 
 findDeclarationFields : Node Expression -> Maybe (List (Node String))
@@ -556,7 +546,7 @@ expressionVisitor node context =
                             (\declaration ->
                                 case Node.value declaration of
                                     Expression.LetFunction function ->
-                                        declarationFields context.exposes function
+                                        declarationFields function
                                             |> Maybe.map (\( name, declaredFields ) -> VariableOrError_Variable ( name, createVariable declaredFields Set.empty ))
 
                                     Expression.LetDestructuring pattern expression ->
