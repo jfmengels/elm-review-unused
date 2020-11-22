@@ -300,7 +300,7 @@ getFoo data =
                 """module A exposing (b)
 a : {foo:Int,unused:Int}
 a = {foo=1, unused=2}
-b = getFoo a
+b = getFoo 1 2 a
 
 getFoo : Int -> Int -> { var | foo : Int } -> Int
 getFoo _ _ data =

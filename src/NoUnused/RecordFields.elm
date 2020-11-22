@@ -479,9 +479,9 @@ expressionEnterVisitor node context =
             , { newContext | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore }
             )
 
-        Expression.Application (function :: (Node functionOrValueRange (Expression.FunctionOrValue [] name)) :: _) ->
+        Expression.Application (function :: arguments) ->
             case TypeInference.inferType context function of
-                Just (Type.Function (Type.Record { fields }) _) ->
+                Just ((Type.Function _ _) as functionType) ->
                     let
                         getArgumentsFromType : Type -> List Type
                         getArgumentsFromType type_ =
@@ -490,15 +490,34 @@ expressionEnterVisitor node context =
                                     input :: getArgumentsFromType output
 
                                 _ ->
-                                    [ type_ ]
+                                    []
+
+                        foundUsedFields : List ( String, List String, Range )
+                        foundUsedFields =
+                            List.map2
+                                (\type_ argument ->
+                                    case ( type_, argument ) of
+                                        ( Type.Record { fields }, Node functionOrValueRange (Expression.FunctionOrValue [] name) ) ->
+                                            Just ( name, List.map Tuple.first fields, functionOrValueRange )
+
+                                        _ ->
+                                            Nothing
+                                )
+                                (getArgumentsFromType functionType)
+                                arguments
+                                |> List.filterMap identity
 
                         newContext : ModuleContext
                         newContext =
-                            updateRegister name (Variable.markFieldsAsUsed (List.map Tuple.first fields)) context
+                            List.foldl
+                                (\( name, fields, functionOrValueRange ) ctx ->
+                                    { ctx | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) ctx.directAccessesToIgnore }
+                                        |> updateRegister name (Variable.markFieldsAsUsed fields)
+                                )
+                                context
+                                foundUsedFields
                     in
-                    ( []
-                    , { newContext | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore }
-                    )
+                    ( [], newContext )
 
                 _ ->
                     ( [], context )
