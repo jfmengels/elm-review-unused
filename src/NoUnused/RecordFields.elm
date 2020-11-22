@@ -530,7 +530,7 @@ expressionEnterVisitor node context =
                 ( [], updateRegister name Variable.markAsUsedInAnUnknownManner context )
 
         Expression.RecordUpdateExpression name _ ->
-            ( [], updateRegister (Node.value name) Variable.markAsUsedInAnUnknownManner context )
+            ( [], updateRegister (Node.value name) Variable.markAsUsed context )
 
         Expression.LetExpression letBlock ->
             let
