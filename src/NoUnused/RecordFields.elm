@@ -20,6 +20,7 @@ import Review.ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 import TypeInference
+import TypeInference.Type as Type
 import TypeInference.TypeByNameLookup as TypeByNameLookup exposing (TypeByNameLookup)
 
 
@@ -478,15 +479,20 @@ expressionEnterVisitor node context =
             , { newContext | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore }
             )
 
-        Expression.Application ((Node _ (Expression.RecordAccessFunction fieldName)) :: (Node functionOrValueRange (Expression.FunctionOrValue [] name)) :: _) ->
-            let
-                newContext : ModuleContext
-                newContext =
-                    updateRegister name (Variable.markFieldAsUsed (String.dropLeft 1 fieldName)) context
-            in
-            ( []
-            , { newContext | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore }
-            )
+        Expression.Application (function :: (Node functionOrValueRange (Expression.FunctionOrValue [] name)) :: _) ->
+            case TypeInference.inferType context function of
+                Just (Type.Function (Type.Record { fields }) _) ->
+                    let
+                        newContext : ModuleContext
+                        newContext =
+                            updateRegister name (Variable.markFieldsAsUsed (List.map Tuple.first fields)) context
+                    in
+                    ( []
+                    , { newContext | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore }
+                    )
+
+                _ ->
+                    ( [], context )
 
         Expression.FunctionOrValue [] name ->
             if Set.member (stringifyRange (Node.range node)) context.directAccessesToIgnore then

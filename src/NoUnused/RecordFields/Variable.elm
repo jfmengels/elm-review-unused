@@ -1,4 +1,21 @@
-module NoUnused.RecordFields.Variable exposing (Register, Variable, addVariables, addVariablesInNewScope, declaredFields, emptyRegister, markAsUsed, markAsUsedInAnUnknownManner, markFieldAsUsed, newVariable, unusedDeclaredFieldsForScope, updateVariable, usedFields, wasUsed, wasUsedInAnUnknownManner)
+module NoUnused.RecordFields.Variable exposing
+    ( Register
+    , Variable
+    , addVariables
+    , addVariablesInNewScope
+    , declaredFields
+    , emptyRegister
+    , markAsUsed
+    , markAsUsedInAnUnknownManner
+    , markFieldAsUsed
+    , markFieldsAsUsed
+    , newVariable
+    , unusedDeclaredFieldsForScope
+    , updateVariable
+    , usedFields
+    , wasUsed
+    , wasUsedInAnUnknownManner
+    )
 
 import Dict exposing (Dict)
 import Elm.Syntax.Node as Node exposing (Node)
@@ -34,6 +51,15 @@ markFieldAsUsed field (Variable variable) =
         { variable
             | wasUsed = True
             , usedFields = Set.insert field variable.usedFields
+        }
+
+
+markFieldsAsUsed : List String -> Variable -> Variable
+markFieldsAsUsed fields (Variable variable) =
+    Variable
+        { variable
+            | wasUsed = True
+            , usedFields = Set.union (Set.fromList fields) variable.usedFields
         }
 
 
