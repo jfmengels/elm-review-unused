@@ -315,21 +315,22 @@ getFoo _ _ data =
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
                         ]
-        , test "should report a field when only used in the context of re-assigning it to itself" <|
-            \() ->
-                """module A exposing (b)
+        , Test.skip <|
+            test "should report a field when only used in the context of re-assigning it to itself" <|
+                \() ->
+                    """module A exposing (b)
 a : {foo:Int,unused:Int}
 a = {foo=1, unused=2}
 b = { a | unused = unused + 1 }
 c = a.foo
 """
-                    |> Review.Test.run rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
-                            |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
-                        ]
+                        |> Review.Test.run rule
+                        |> Review.Test.expectErrors
+                            [ Review.Test.error
+                                { message = "Unused field `unused`"
+                                , details = [ "REPLACEME" ]
+                                , under = "unused"
+                                }
+                                |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
+                            ]
         ]
