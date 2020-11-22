@@ -195,8 +195,26 @@ registerDeclaration : Exposes -> Node Declaration -> Maybe ( String, Variable )
 registerDeclaration exposes node =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            declarationFields exposes function
-                |> Maybe.map (\( name, declaredFields ) -> ( name, createVariable declaredFields Set.empty ))
+            case exposes of
+                ExposesEverything ->
+                    Nothing
+
+                ExposesExplicitly exposedNames ->
+                    let
+                        declaration : Expression.FunctionImplementation
+                        declaration =
+                            Node.value function.declaration
+
+                        name : String
+                        name =
+                            Node.value declaration.name
+                    in
+                    if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
+                        declarationFields exposes function
+                            |> Maybe.map (\( name_, declaredFields ) -> ( name_, createVariable declaredFields Set.empty ))
+
+                    else
+                        Nothing
 
         _ ->
             Nothing
