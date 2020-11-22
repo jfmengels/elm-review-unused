@@ -232,15 +232,17 @@ declarationFields function =
         name =
             Node.value declaration.name
     in
-    case Maybe.map (Node.value >> .typeAnnotation >> returnType) function.signature of
-        Just NoActionableReturnType ->
-            Nothing
+    case Maybe.map (Node.value >> .typeAnnotation) function.signature of
+        Just typeAnnotation ->
+            case returnType typeAnnotation of
+                NoActionableReturnType ->
+                    Nothing
+
+                LiteralRecord ->
+                    findDeclarationFields declaration.expression
+                        |> Maybe.map (\declaredFields -> ( name, declaredFields ))
 
         Nothing ->
-            findDeclarationFields declaration.expression
-                |> Maybe.map (\declaredFields -> ( name, declaredFields ))
-
-        Just LiteralRecord ->
             findDeclarationFields declaration.expression
                 |> Maybe.map (\declaredFields -> ( name, declaredFields ))
 
