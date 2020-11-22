@@ -569,20 +569,8 @@ stringifyRange range =
 
 finalEvaluation : ModuleContext -> List (Error {})
 finalEvaluation context =
-    context.variableRegister
-        |> Dict.toList
-        |> List.concatMap (Tuple.second >> finalEvaluationForVariable)
-
-
-finalEvaluationForVariable : Variable -> List (Error {})
-finalEvaluationForVariable variable =
-    if variable.wasUsedInAnUnknownManner || not variable.wasUsed then
-        []
-
-    else
-        variable.declaredFields
-            |> List.filter (\node -> not <| Set.member (Node.value node) variable.usedFields)
-            |> List.map createError
+    Variable.unusedDeclaredFields context.variableRegister
+        |> List.map createError
 
 
 createError : Node String -> Error {}
