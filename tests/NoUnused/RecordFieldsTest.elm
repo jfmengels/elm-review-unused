@@ -205,4 +205,20 @@ a =
                             }
                             |> Review.Test.atExactly { start = { row = 4, column = 21 }, end = { row = 4, column = 27 } }
                         ]
+        , test "should not report a field when used with a `.field` accessor function" <|
+            \() ->
+                """module A exposing (b)
+a : {foo:Int,unused:Int}
+a = {foo=1, unused=2}
+b = .foo a
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Unused field `unused`"
+                            , details = [ "REPLACEME" ]
+                            , under = "unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
+                        ]
         ]
