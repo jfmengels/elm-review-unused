@@ -500,6 +500,8 @@ expressionEnterVisitor node context =
                                         ( Type.Record { fields }, Node functionOrValueRange (Expression.FunctionOrValue [] name) ) ->
                                             Just ( name, List.map Tuple.first fields, functionOrValueRange )
 
+                                        --( Type.Record { fields }, Node _ (Expression.RecordExpr recordSetters) ) ->
+                                        --    Just ( name, List.map Tuple.first fields, functionOrValueRange )
                                         _ ->
                                             Nothing
                                 )
