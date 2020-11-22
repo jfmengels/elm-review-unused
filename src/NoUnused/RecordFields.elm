@@ -141,6 +141,10 @@ type Exposes
     | ExposesExplicitly (Set String)
 
 
+
+-- MODULE DEFINITION VISITOR
+
+
 moduleDefinitionVisitor : Node Module -> ModuleContext -> ( List nothing, ModuleContext )
 moduleDefinitionVisitor moduleNode moduleContext =
     case Module.exposingList (Node.value moduleNode) of
@@ -169,6 +173,10 @@ moduleDefinitionVisitor moduleNode moduleContext =
                         list
             in
             ( [], { moduleContext | exposes = ExposesExplicitly (Set.fromList names) } )
+
+
+
+-- DECLARATION LIST VISITOR
 
 
 declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List nothing, ModuleContext )
@@ -269,6 +277,10 @@ returnType node =
 
         _ ->
             NoActionableReturnType
+
+
+
+-- DECLARATION VISITOR
 
 
 declarationEnterVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
@@ -446,6 +458,10 @@ extractRecordDefinition typeAnnotation =
 
         _ ->
             Nothing
+
+
+
+-- EXPRESSION VISITOR
 
 
 expressionVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
