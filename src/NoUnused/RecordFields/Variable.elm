@@ -1,4 +1,4 @@
-module NoUnused.RecordFields.Variable exposing (Register, Variable, declaredFields, markAsUsed, markAsUsedInAnUnknownManner, markFieldAsUsed, newVariable, unusedDeclaredFields, updateVariable, usedFields, wasUsed, wasUsedInAnUnknownManner)
+module NoUnused.RecordFields.Variable exposing (Register, Variable, addVariables, declaredFields, emptyRegister, markAsUsed, markAsUsedInAnUnknownManner, markFieldAsUsed, newVariable, unusedDeclaredFields, updateVariable, usedFields, wasUsed, wasUsedInAnUnknownManner)
 
 import Dict exposing (Dict)
 import Elm.Syntax.Node as Node exposing (Node)
@@ -71,17 +71,32 @@ wasUsedInAnUnknownManner (Variable v) =
 -- REGISTER
 
 
-type alias Register =
-    Dict String Variable
+type Register
+    = Register (Dict String Variable)
+
+
+emptyRegister : Register
+emptyRegister =
+    Register Dict.empty
+
+
+addVariables : List ( String, Variable ) -> Register -> Register
+addVariables list (Register register) =
+    Register
+        (List.foldl
+            (\( name, variable ) dict -> Dict.insert name variable dict)
+            register
+            list
+        )
 
 
 updateVariable : String -> (Variable -> Variable) -> Register -> Register
-updateVariable name function variables =
-    Dict.update name (Maybe.map function) variables
+updateVariable name function (Register register) =
+    Register (Dict.update name (Maybe.map function) register)
 
 
 unusedDeclaredFields : Register -> List (Node String)
-unusedDeclaredFields register =
+unusedDeclaredFields (Register register) =
     register
         |> Dict.values
         |> List.concatMap unusedDeclaredFieldsForVariable

@@ -108,7 +108,7 @@ fromProjectToModule =
         (\moduleNameLookupTable projectContext ->
             { typeInference = TypeInference.fromProjectToModule projectContext
             , moduleNameLookupTable = moduleNameLookupTable
-            , variableRegister = Dict.empty
+            , variableRegister = Variable.emptyRegister
             , directAccessesToIgnore = Set.empty
             , exposes = ExposesEverything
             , typeByNameLookup = TypeByNameLookup.empty
@@ -187,13 +187,12 @@ declarationListVisitor nodes context =
 
         ExposesExplicitly exposedNames ->
             let
-                variableRegister : Variable.Register
-                variableRegister =
+                variables : List ( String, Variable )
+                variables =
                     nodes
                         |> List.filterMap (registerDeclaration exposedNames)
-                        |> Dict.fromList
             in
-            ( [], { context | variableRegister = Dict.union variableRegister context.variableRegister } )
+            ( [], { context | variableRegister = Variable.addVariables variables context.variableRegister } )
 
 
 registerDeclaration : Set String -> Node Declaration -> Maybe ( String, Variable )
@@ -330,7 +329,7 @@ handleDeclaration moduleContext { signature, declaration } =
             in
             ( errorsToReport
             , { moduleContext
-                | variableRegister = Dict.union (Dict.fromList variables) moduleContext.variableRegister
+                | variableRegister = Variable.addVariables variables moduleContext.variableRegister
                 , directAccessesToIgnore = Set.empty
               }
             )
@@ -523,7 +522,7 @@ expressionVisitor node context =
                     getErrorsAndVariables variableOrErrors
             in
             ( errorsToReport
-            , { context | variableRegister = Dict.union (Dict.fromList variables) context.variableRegister }
+            , { context | variableRegister = Variable.addVariables variables context.variableRegister }
             )
 
         _ ->
