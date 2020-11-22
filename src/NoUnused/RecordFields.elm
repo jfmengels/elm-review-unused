@@ -225,17 +225,17 @@ returnType node =
 
 
 declarationEnterVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
-declarationEnterVisitor node context =
+declarationEnterVisitor node moduleContext =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            handleDeclaration context function
+            handleDeclaration moduleContext function
 
         _ ->
-            ( [], { context | expressionsToIgnore = Set.empty } )
+            ( [], { moduleContext | expressionsToIgnore = Set.empty } )
 
 
 handleDeclaration : ModuleContext -> Expression.Function -> ( List (Error {}), ModuleContext )
-handleDeclaration context { signature, declaration } =
+handleDeclaration moduleContext { signature, declaration } =
     case Maybe.map (Node.value >> .typeAnnotation) signature of
         Just typeAnnotation ->
             let
@@ -265,14 +265,14 @@ handleDeclaration context { signature, declaration } =
                     getErrorsAndVariables variableOrErrors
             in
             ( errorsToReport
-            , { context
-                | variables = Dict.union (Dict.fromList variables) context.variables
+            , { moduleContext
+                | variables = Dict.union (Dict.fromList variables) moduleContext.variables
                 , expressionsToIgnore = Set.empty
               }
             )
 
         _ ->
-            ( [], { context | expressionsToIgnore = Set.empty } )
+            ( [], { moduleContext | expressionsToIgnore = Set.empty } )
 
 
 getErrorsAndVariables : List (Maybe VariableOrError) -> ( List (Error {}), List ( String, Variable ) )
