@@ -471,8 +471,8 @@ type ArgumentMatchResult
     | ArgumentMatch_ReportErrors (List (Node String))
 
 
-extractOutOfFoo : List ArgumentMatchResult -> ( List (Error {}), List { variableName : String, declaredFields : List String, variableExpressionToIgnore : Range } )
-extractOutOfFoo foos =
+extractOutOfArgumentMatchResults : List ArgumentMatchResult -> ( List (Error {}), List { variableName : String, declaredFields : List String, variableExpressionToIgnore : Range } )
+extractOutOfArgumentMatchResults argumentMatchResults =
     List.foldl
         (\foo ( errors, variables ) ->
             case foo of
@@ -483,7 +483,7 @@ extractOutOfFoo foos =
                     ( List.map createError unusedFieldNodes ++ errors, variables )
         )
         ( [], [] )
-        foos
+        argumentMatchResults
 
 
 expressionEnterVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
@@ -503,8 +503,8 @@ expressionEnterVisitor node context =
             case TypeInference.inferType context function of
                 Just (Type.Function input output) ->
                     let
-                        foos : List ArgumentMatchResult
-                        foos =
+                        argumentMatchResults : List ArgumentMatchResult
+                        argumentMatchResults =
                             List.map2
                                 (\type_ argument ->
                                     case type_ of
@@ -519,7 +519,7 @@ expressionEnterVisitor node context =
                                 |> List.filterMap identity
 
                         ( errors, foundUsedFields ) =
-                            extractOutOfFoo foos
+                            extractOutOfArgumentMatchResults argumentMatchResults
 
                         newContext : ModuleContext
                         newContext =
@@ -549,8 +549,8 @@ expressionEnterVisitor node context =
             --                    _ ->
             --                        []
             --
-            --            foos : List Foo
-            --            foos =
+            --            argumentMatchResults : List Foo
+            --            argumentMatchResults =
             --                List.map2
             --                    (\type_ argument ->
             --                        case ( type_, argument ) of
@@ -579,7 +579,7 @@ expressionEnterVisitor node context =
             --                    |> List.filterMap identity
             --
             --            ( errors, foundUsedFields ) =
-            --                extractOutOfFoo foos
+            --                extractOutOfArgumentMatchResults argumentMatchResults
             --
             --            newContext : ModuleContext
             --            newContext =
