@@ -509,7 +509,7 @@ expressionEnterVisitor node context =
                                 (\type_ argument ->
                                     case type_ of
                                         Type.Record { fields } ->
-                                            bar fields argument
+                                            matchRecordWithArgument fields argument
 
                                         _ ->
                                             Nothing
@@ -659,8 +659,8 @@ getListOfArgumentTypes type_ =
             []
 
 
-bar : List ( String, a ) -> Node Expression -> Maybe Foo
-bar fields node =
+matchRecordWithArgument : List ( String, a ) -> Node Expression -> Maybe Foo
+matchRecordWithArgument fields node =
     case Node.value node of
         Expression.FunctionOrValue [] name ->
             Just
@@ -686,7 +686,7 @@ bar fields node =
                 |> Just
 
         Expression.ParenthesizedExpression expr ->
-            bar fields expr
+            matchRecordWithArgument fields expr
 
         _ ->
             Nothing
