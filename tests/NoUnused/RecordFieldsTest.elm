@@ -35,7 +35,7 @@ b = a.foo
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
                         ]
-        , test "should not report if value is used without a field accessor" <|
+        , test "should not report if value is used with an unknown function" <|
             \() ->
                 """module A exposing (b)
 a = {foo=1, unused=2}
@@ -374,6 +374,22 @@ getFoo data =
                 \() ->
                     """module A exposing (b)
 b = {foo=1, unused=2} |> .foo
+"""
+                        |> Review.Test.runWithProjectData project rule
+                        |> Review.Test.expectErrors
+                            [ Review.Test.error
+                                { message = "Unused field `unused`"
+                                , details = [ "REPLACEME" ]
+                                , under = "unused"
+                                }
+                            ]
+        , Test.only <|
+            test "should report an unused field when the value corresponds to a generic argument of the function that uses it" <|
+                \() ->
+                    """module A exposing (b)
+a = {foo=1, unused=2}
+b = a.foo
+c = identity a
 """
                         |> Review.Test.runWithProjectData project rule
                         |> Review.Test.expectErrors
