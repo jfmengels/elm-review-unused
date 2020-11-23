@@ -511,6 +511,9 @@ expressionEnterVisitor node context =
                                         Type.Record { fields } ->
                                             matchRecordWithArgument fields argument
 
+                                        Type.Generic _ ->
+                                            Nothing
+
                                         _ ->
                                             Nothing
                                 )
