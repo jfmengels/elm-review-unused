@@ -663,7 +663,13 @@ bar : List ( String, a ) -> Node Expression -> Maybe Foo
 bar fields argument =
     case argument of
         Node functionOrValueRange (Expression.FunctionOrValue [] name) ->
-            Just (Foo_Variable { variableName = name, declaredFields = List.map Tuple.first fields, variableExpressionToIgnore = functionOrValueRange })
+            Just
+                (Foo_Variable
+                    { variableName = name
+                    , declaredFields = List.map Tuple.first fields
+                    , variableExpressionToIgnore = functionOrValueRange
+                    }
+                )
 
         Node _ (Expression.RecordExpr recordSetters) ->
             let
