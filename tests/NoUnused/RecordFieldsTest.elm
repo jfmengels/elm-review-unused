@@ -352,6 +352,23 @@ getFoo data =
                             , under = "unused"
                             }
                         ]
+        , test "should report an unused field from a literal record passed to a function through parens" <|
+            \() ->
+                """module A exposing (b)
+b = getFoo ({foo=1, unused=2})
+
+getFoo : { var | foo : Int } -> Int
+getFoo data =
+    data.foo
+"""
+                    |> Review.Test.runWithProjectData project rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Unused field `unused`"
+                            , details = [ "REPLACEME" ]
+                            , under = "unused"
+                            }
+                        ]
         , Test.skip <|
             test "should report an unused field when going through a binary operation" <|
                 \() ->
