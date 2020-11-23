@@ -560,64 +560,64 @@ expressionEnterVisitor node context =
                     ( [], context )
 
         Expression.OperatorApplication operator _ left right ->
-            case TypeInference.inferOperatorType context operator of
-                Just ((Type.Function _ _) as functionType) ->
-                    let
-                        getArgumentsFromType : Type -> List Type
-                        getArgumentsFromType type_ =
-                            case type_ of
-                                Type.Function input output ->
-                                    input :: getArgumentsFromType output
-
-                                _ ->
-                                    []
-
-                        foos : List Foo
-                        foos =
-                            List.map2
-                                (\type_ argument ->
-                                    case ( type_, argument ) of
-                                        ( Type.Record { fields }, Node functionOrValueRange (Expression.FunctionOrValue [] name) ) ->
-                                            Just (Foo_Variable { variableName = name, declaredFields = List.map Tuple.first fields, variableExpressionToIgnore = functionOrValueRange })
-
-                                        ( Type.Record { fields }, Node _ (Expression.RecordExpr recordSetters) ) ->
-                                            let
-                                                usedFields : Set String
-                                                usedFields =
-                                                    List.map Tuple.first fields
-                                                        |> Set.fromList
-                                            in
-                                            recordSetters
-                                                |> List.map Node.value
-                                                |> List.map Tuple.first
-                                                |> List.filter (\declaredField -> not (Set.member (Node.value declaredField) usedFields))
-                                                |> Foo_Errors
-                                                |> Just
-
-                                        _ ->
-                                            Nothing
-                                )
-                                (getArgumentsFromType functionType)
-                                [ left, right ]
-                                |> List.filterMap identity
-
-                        ( errors, foundUsedFields ) =
-                            extractOutOfFoo foos
-
-                        newContext : ModuleContext
-                        newContext =
-                            List.foldl
-                                (\{ variableName, declaredFields, variableExpressionToIgnore } ctx ->
-                                    { ctx | directAccessesToIgnore = Set.insert (stringifyRange variableExpressionToIgnore) ctx.directAccessesToIgnore }
-                                        |> updateRegister variableName (Variable.markFieldsAsUsed declaredFields)
-                                )
-                                context
-                                foundUsedFields
-                    in
-                    ( errors, newContext )
-
-                _ ->
-                    ( [], context )
+            --case TypeInference.inferOperatorType context operator of
+            --    Just ((Type.Function _ _) as functionType) ->
+            --        let
+            --            getArgumentsFromType : Type -> List Type
+            --            getArgumentsFromType type_ =
+            --                case type_ of
+            --                    Type.Function input output ->
+            --                        input :: getArgumentsFromType output
+            --
+            --                    _ ->
+            --                        []
+            --
+            --            foos : List Foo
+            --            foos =
+            --                List.map2
+            --                    (\type_ argument ->
+            --                        case ( type_, argument ) of
+            --                            ( Type.Record { fields }, Node functionOrValueRange (Expression.FunctionOrValue [] name) ) ->
+            --                                Just (Foo_Variable { variableName = name, declaredFields = List.map Tuple.first fields, variableExpressionToIgnore = functionOrValueRange })
+            --
+            --                            ( Type.Record { fields }, Node _ (Expression.RecordExpr recordSetters) ) ->
+            --                                let
+            --                                    usedFields : Set String
+            --                                    usedFields =
+            --                                        List.map Tuple.first fields
+            --                                            |> Set.fromList
+            --                                in
+            --                                recordSetters
+            --                                    |> List.map Node.value
+            --                                    |> List.map Tuple.first
+            --                                    |> List.filter (\declaredField -> not (Set.member (Node.value declaredField) usedFields))
+            --                                    |> Foo_Errors
+            --                                    |> Just
+            --
+            --                            _ ->
+            --                                Nothing
+            --                    )
+            --                    (getArgumentsFromType functionType)
+            --                    [ left, right ]
+            --                    |> List.filterMap identity
+            --
+            --            ( errors, foundUsedFields ) =
+            --                extractOutOfFoo foos
+            --
+            --            newContext : ModuleContext
+            --            newContext =
+            --                List.foldl
+            --                    (\{ variableName, declaredFields, variableExpressionToIgnore } ctx ->
+            --                        { ctx | directAccessesToIgnore = Set.insert (stringifyRange variableExpressionToIgnore) ctx.directAccessesToIgnore }
+            --                            |> updateRegister variableName (Variable.markFieldsAsUsed declaredFields)
+            --                    )
+            --                    context
+            --                    foundUsedFields
+            --        in
+            --        ( errors, newContext )
+            --
+            --    _ ->
+            ( [], context )
 
         Expression.FunctionOrValue [] name ->
             if Set.member (stringifyRange (Node.range node)) context.directAccessesToIgnore then
