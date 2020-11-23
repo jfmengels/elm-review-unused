@@ -468,6 +468,7 @@ extractRecordDefinition typeAnnotation =
 
 type ArgumentMatchResult
     = ArgumentMatch_RegisterVariable { variableName : String, declaredFields : List String, variableExpressionToIgnore : Range }
+    | ArgumentMatch_VariableExpressionToIgnore Range
     | ArgumentMatch_ReportErrors (List (Node String))
 
 
@@ -481,6 +482,9 @@ extractOutOfArgumentMatchResults argumentMatchResults =
                         | variables = { variableName = variableName, declaredFields = declaredFields } :: acc.variables
                         , variableExpressionToIgnore = variableExpressionToIgnore :: acc.variableExpressionToIgnore
                     }
+
+                ArgumentMatch_VariableExpressionToIgnore range ->
+                    { acc | variableExpressionToIgnore = range :: acc.variableExpressionToIgnore }
 
                 ArgumentMatch_ReportErrors unusedFieldNodes ->
                     { acc | errors = List.map createError unusedFieldNodes ++ acc.errors }
