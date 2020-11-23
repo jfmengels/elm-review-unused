@@ -6,6 +6,7 @@ module NoUnused.RecordFields exposing (rule)
 
 -}
 
+import Array exposing (Array)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression)
@@ -510,22 +511,51 @@ expressionEnterVisitor node context =
             case TypeInference.inferType context function of
                 Just (Type.Function input output) ->
                     let
+                        isGenericUsed : String -> Type -> Bool
+                        isGenericUsed genericToFind type_ =
+                            case type_ of
+                                Type.Generic generic ->
+                                    genericToFind == generic
+
+                                _ ->
+                                    False
+
+                        argumentTypes : List Type
+                        argumentTypes =
+                            input :: getListOfArgumentTypes output
+
+                        allElements : Array Type
+                        allElements =
+                            input
+                                :: argumentsAndReturnType output
+                                |> Array.fromList
+
+                        removeAt : Int -> Array a -> List a
+                        removeAt index array =
+                            Array.append
+                                (Array.slice 0 index array)
+                                (Array.slice (index + 1) (Array.length array) array)
+                                |> Array.toList
+
                         argumentMatchResults : List ArgumentMatchResult
                         argumentMatchResults =
-                            List.map2
-                                (\type_ argument ->
-                                    case type_ of
-                                        Type.Record { fields } ->
-                                            matchRecordWithArgument fields argument
+                            List.map2 Tuple.pair argumentTypes arguments
+                                |> List.indexedMap
+                                    (\index ( type_, argument ) ->
+                                        case type_ of
+                                            Type.Record { fields } ->
+                                                matchRecordWithArgument fields argument
 
-                                        Type.Generic _ ->
-                                            Just (ArgumentMatch_VariableExpressionToIgnore (Node.range argument))
+                                            Type.Generic generic ->
+                                                if List.any (isGenericUsed generic) (removeAt index allElements) then
+                                                    Nothing
 
-                                        _ ->
-                                            Nothing
-                                )
-                                (input :: getListOfArgumentTypes output)
-                                arguments
+                                                else
+                                                    Just (ArgumentMatch_VariableExpressionToIgnore (Node.range argument))
+
+                                            _ ->
+                                                Nothing
+                                    )
                                 |> List.filterMap identity
 
                         summarizedArgumentMatchResults :
@@ -675,6 +705,16 @@ getListOfArgumentTypes type_ =
 
         _ ->
             []
+
+
+argumentsAndReturnType : Type -> List Type
+argumentsAndReturnType type_ =
+    case type_ of
+        Type.Function input output ->
+            input :: argumentsAndReturnType output
+
+        _ ->
+            [ type_ ]
 
 
 matchRecordWithArgument : List ( String, a ) -> Node Expression -> Maybe ArgumentMatchResult
