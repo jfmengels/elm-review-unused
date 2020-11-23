@@ -694,7 +694,19 @@ isGenericUsed genericToFind type_ =
         Type.Generic generic ->
             genericToFind == generic
 
-        _ ->
+        Type.Unknown ->
+            False
+
+        Type.Function input output ->
+            False
+
+        Type.Tuple types ->
+            False
+
+        Type.Type moduleName string types ->
+            False
+
+        Type.Record record ->
             False
 
 
