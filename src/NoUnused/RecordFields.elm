@@ -660,18 +660,18 @@ getListOfArgumentTypes type_ =
 
 
 bar : List ( String, a ) -> Node Expression -> Maybe Foo
-bar fields argument =
-    case argument of
-        Node functionOrValueRange (Expression.FunctionOrValue [] name) ->
+bar fields node =
+    case Node.value node of
+        Expression.FunctionOrValue [] name ->
             Just
                 (Foo_Variable
                     { variableName = name
                     , declaredFields = List.map Tuple.first fields
-                    , variableExpressionToIgnore = functionOrValueRange
+                    , variableExpressionToIgnore = Node.range node
                     }
                 )
 
-        Node _ (Expression.RecordExpr recordSetters) ->
+        Expression.RecordExpr recordSetters ->
             let
                 usedFields : Set String
                 usedFields =
