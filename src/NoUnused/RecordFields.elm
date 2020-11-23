@@ -471,18 +471,21 @@ type ArgumentMatchResult
     | ArgumentMatch_ReportErrors (List (Node String))
 
 
-extractOutOfArgumentMatchResults : List ArgumentMatchResult -> ( List (Error {}), List { variableName : String, declaredFields : List String, variableExpressionToIgnore : Range } )
+extractOutOfArgumentMatchResults : List ArgumentMatchResult -> { errors : List (Error {}), variables : List { variableName : String, declaredFields : List String }, variableExpressionToIgnore : List Range }
 extractOutOfArgumentMatchResults argumentMatchResults =
     List.foldl
-        (\foo ( errors, variables ) ->
+        (\foo acc ->
             case foo of
-                ArgumentMatch_RegisterVariable variable ->
-                    ( errors, variable :: variables )
+                ArgumentMatch_RegisterVariable { variableName, declaredFields, variableExpressionToIgnore } ->
+                    { acc
+                        | variables = { variableName = variableName, declaredFields = declaredFields } :: acc.variables
+                        , variableExpressionToIgnore = variableExpressionToIgnore :: acc.variableExpressionToIgnore
+                    }
 
                 ArgumentMatch_ReportErrors unusedFieldNodes ->
-                    ( List.map createError unusedFieldNodes ++ errors, variables )
+                    { acc | errors = List.map createError unusedFieldNodes ++ acc.errors }
         )
-        ( [], [] )
+        { errors = [], variables = [], variableExpressionToIgnore = [] }
         argumentMatchResults
 
 
@@ -521,20 +524,28 @@ expressionEnterVisitor node context =
                                 arguments
                                 |> List.filterMap identity
 
-                        ( errors, foundUsedFields ) =
+                        summarizedArgumentMatchResults :
+                            { errors : List (Error {})
+                            , variables : List { variableName : String, declaredFields : List String }
+                            , variableExpressionToIgnore : List Range
+                            }
+                        summarizedArgumentMatchResults =
                             extractOutOfArgumentMatchResults argumentMatchResults
+
+                        variableExpressionToIgnore =
+                            List.map stringifyRange summarizedArgumentMatchResults.variableExpressionToIgnore
+                                |> Set.fromList
 
                         newContext : ModuleContext
                         newContext =
                             List.foldl
-                                (\{ variableName, declaredFields, variableExpressionToIgnore } ctx ->
-                                    { ctx | directAccessesToIgnore = Set.insert (stringifyRange variableExpressionToIgnore) ctx.directAccessesToIgnore }
-                                        |> updateRegister variableName (Variable.markFieldsAsUsed declaredFields)
+                                (\{ variableName, declaredFields } ctx ->
+                                    updateRegister variableName (Variable.markFieldsAsUsed declaredFields) ctx
                                 )
-                                context
-                                foundUsedFields
+                                { context | directAccessesToIgnore = Set.union variableExpressionToIgnore context.directAccessesToIgnore }
+                                summarizedArgumentMatchResults.variables
                     in
-                    ( errors, newContext )
+                    ( summarizedArgumentMatchResults.errors, newContext )
 
                 _ ->
                     ( [], context )
