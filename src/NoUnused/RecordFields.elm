@@ -519,7 +519,7 @@ expressionEnterVisitor node context =
                                             matchRecordWithArgument fields argument
 
                                         Type.Generic _ ->
-                                            Nothing
+                                            Just (ArgumentMatch_VariableExpressionToIgnore (Node.range argument))
 
                                         _ ->
                                             Nothing
