@@ -503,46 +503,18 @@ expressionEnterVisitor node context =
             case TypeInference.inferType context function of
                 Just ((Type.Function _ _) as functionType) ->
                     let
-                        getArgumentsFromType : Type -> List Type
-                        getArgumentsFromType type_ =
-                            case type_ of
-                                Type.Function input output ->
-                                    input :: getArgumentsFromType output
-
-                                _ ->
-                                    []
-
                         foos : List Foo
                         foos =
                             List.map2
                                 (\type_ argument ->
                                     case type_ of
                                         Type.Record { fields } ->
-                                            case argument of
-                                                Node functionOrValueRange (Expression.FunctionOrValue [] name) ->
-                                                    Just (Foo_Variable { variableName = name, declaredFields = List.map Tuple.first fields, variableExpressionToIgnore = functionOrValueRange })
-
-                                                Node _ (Expression.RecordExpr recordSetters) ->
-                                                    let
-                                                        usedFields : Set String
-                                                        usedFields =
-                                                            List.map Tuple.first fields
-                                                                |> Set.fromList
-                                                    in
-                                                    recordSetters
-                                                        |> List.map Node.value
-                                                        |> List.map Tuple.first
-                                                        |> List.filter (\declaredField -> not (Set.member (Node.value declaredField) usedFields))
-                                                        |> Foo_Errors
-                                                        |> Just
-
-                                                _ ->
-                                                    Nothing
+                                            bar fields argument
 
                                         _ ->
                                             Nothing
                                 )
-                                (getArgumentsFromType functionType)
+                                (getListOfArgumentTypes functionType)
                                 arguments
                                 |> List.filterMap identity
 
@@ -675,6 +647,40 @@ expressionEnterVisitor node context =
 
         _ ->
             ( [], context )
+
+
+getListOfArgumentTypes : Type -> List Type
+getListOfArgumentTypes type_ =
+    case type_ of
+        Type.Function input output ->
+            input :: getListOfArgumentTypes output
+
+        _ ->
+            []
+
+
+bar : List ( String, a ) -> Node Expression -> Maybe Foo
+bar fields argument =
+    case argument of
+        Node functionOrValueRange (Expression.FunctionOrValue [] name) ->
+            Just (Foo_Variable { variableName = name, declaredFields = List.map Tuple.first fields, variableExpressionToIgnore = functionOrValueRange })
+
+        Node _ (Expression.RecordExpr recordSetters) ->
+            let
+                usedFields : Set String
+                usedFields =
+                    List.map Tuple.first fields
+                        |> Set.fromList
+            in
+            recordSetters
+                |> List.map Node.value
+                |> List.map Tuple.first
+                |> List.filter (\declaredField -> not (Set.member (Node.value declaredField) usedFields))
+                |> Foo_Errors
+                |> Just
+
+        _ ->
+            Nothing
 
 
 
