@@ -390,7 +390,7 @@ a = {foo=1, unused=2}
 b = a.foo
 c = foo a
 
-foo : a -> Int
+foo : var -> Int
 foo _ = 1
 """
                     |> Review.Test.runWithProjectData project rule
