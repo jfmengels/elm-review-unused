@@ -501,7 +501,7 @@ expressionEnterVisitor node context =
 
         Expression.Application (function :: arguments) ->
             case TypeInference.inferType context function of
-                Just ((Type.Function _ _) as functionType) ->
+                Just (Type.Function input output) ->
                     let
                         foos : List Foo
                         foos =
@@ -514,7 +514,7 @@ expressionEnterVisitor node context =
                                         _ ->
                                             Nothing
                                 )
-                                (getListOfArgumentTypes functionType)
+                                (input :: getListOfArgumentTypes output)
                                 arguments
                                 |> List.filterMap identity
 
