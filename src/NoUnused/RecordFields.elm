@@ -511,15 +511,6 @@ expressionEnterVisitor node context =
             case TypeInference.inferType context function of
                 Just (Type.Function input output) ->
                     let
-                        isGenericUsed : String -> Type -> Bool
-                        isGenericUsed genericToFind type_ =
-                            case type_ of
-                                Type.Generic generic ->
-                                    genericToFind == generic
-
-                                _ ->
-                                    False
-
                         argumentTypes : List Type
                         argumentTypes =
                             input :: getListOfArgumentTypes output
@@ -695,6 +686,16 @@ expressionEnterVisitor node context =
 
         _ ->
             ( [], context )
+
+
+isGenericUsed : String -> Type -> Bool
+isGenericUsed genericToFind type_ =
+    case type_ of
+        Type.Generic generic ->
+            genericToFind == generic
+
+        _ ->
+            False
 
 
 getListOfArgumentTypes : Type -> List Type
