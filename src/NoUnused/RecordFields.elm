@@ -685,6 +685,9 @@ bar fields node =
                 |> Foo_Errors
                 |> Just
 
+        Expression.ParenthesizedExpression expr ->
+            bar fields expr
+
         _ ->
             Nothing
 
