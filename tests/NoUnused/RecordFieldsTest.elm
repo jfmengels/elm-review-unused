@@ -383,12 +383,15 @@ b = {foo=1, unused=2} |> .foo
                                 , under = "unused"
                                 }
                             ]
-        , test "should report an unused field when the value corresponds to a generic argument of the function that uses it" <|
+        , test "should report an unused field when the value corresponds to an unused generic argument of the function that uses it" <|
             \() ->
                 """module A exposing (b)
 a = {foo=1, unused=2}
 b = a.foo
-c = identity a
+c = foo a
+
+foo : a -> Int
+foo _ = 1
 """
                     |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
