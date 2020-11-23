@@ -383,22 +383,21 @@ b = {foo=1, unused=2} |> .foo
                                 , under = "unused"
                                 }
                             ]
-        , Test.only <|
-            test "should report an unused field when the value corresponds to a generic argument of the function that uses it" <|
-                \() ->
-                    """module A exposing (b)
+        , test "should report an unused field when the value corresponds to a generic argument of the function that uses it" <|
+            \() ->
+                """module A exposing (b)
 a = {foo=1, unused=2}
 b = a.foo
 c = identity a
 """
-                        |> Review.Test.runWithProjectData project rule
-                        |> Review.Test.expectErrors
-                            [ Review.Test.error
-                                { message = "Unused field `unused`"
-                                , details = [ "REPLACEME" ]
-                                , under = "unused"
-                                }
-                            ]
+                    |> Review.Test.runWithProjectData project rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Unused field `unused`"
+                            , details = [ "REPLACEME" ]
+                            , under = "unused"
+                            }
+                        ]
         ]
 
 
