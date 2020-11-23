@@ -7,6 +7,15 @@ import Review.Test
 import Test exposing (Test, describe, test)
 
 
+unusedError : Review.Test.ExpectedError
+unusedError =
+    Review.Test.error
+        { message = "Unused field `unused`"
+        , details = [ "REPLACEME" ]
+        , under = "unused"
+        }
+
+
 all : Test
 all =
     describe "NoUnused.RecordFields"
@@ -84,13 +93,7 @@ a : {foo:Int, unused:Int} -> Int
 a arg = arg.foo
 """
                     |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
-                        ]
+                    |> Review.Test.expectErrors [ unusedError ]
         , test "should report unused fields of argument (with parens)" <|
             \() ->
                 """module A exposing (a)
@@ -98,13 +101,7 @@ a : {foo:Int, unused:Int} -> Int
 a (arg) = arg.foo
 """
                     |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
-                        ]
+                    |> Review.Test.expectErrors [ unusedError ]
         , test "should report unused fields of argument (with as pattern)" <|
             \() ->
                 """module A exposing (a)
@@ -112,13 +109,7 @@ a : {foo:Int, unused:Int} -> Int
 a (_ as arg) = arg.foo
 """
                     |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
-                        ]
+                    |> Review.Test.expectErrors [ unusedError ]
         , test "should report unused fields of argument (with as pattern when using the left pattern)" <|
             \() ->
                 """module A exposing (a)
@@ -126,13 +117,7 @@ a : {foo:Int, bar:Int,unused:Int} -> Int
 a ({bar} as arg) = arg.foo
 """
                     |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
-                        ]
+                    |> Review.Test.expectErrors [ unusedError ]
         , test "should report unused fields of argument when argument is generic" <|
             \() ->
                 """module A exposing (a)
@@ -140,13 +125,7 @@ a : {var|foo:Int, unused:Int} -> Int
 a arg = arg.foo
 """
                     |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
-                        ]
+                    |> Review.Test.expectErrors [ unusedError ]
         , test "should report unused fields of argument (using destructuring)" <|
             \() ->
                 """module A exposing (a)
@@ -154,13 +133,7 @@ a : {foo:Int, unused:Int} -> Int
 a {foo} = arg.foo
 """
                     |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
-                        ]
+                    |> Review.Test.expectErrors [ unusedError ]
         , test "should not report when a generic record input type is found again in the output type" <|
             \() ->
                 -- NOTE: I was never able to make this test fail, but I could find this kind of error
@@ -345,13 +318,7 @@ getFoo data =
     data.foo
 """
                     |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
-                        ]
+                    |> Review.Test.expectErrors [ unusedError ]
         , test "should report an unused field from a literal record passed to a function through parens" <|
             \() ->
                 """module A exposing (b)
@@ -362,13 +329,7 @@ getFoo data =
     data.foo
 """
                     |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
-                        ]
+                    |> Review.Test.expectErrors [ unusedError ]
         , Test.skip <|
             test "should report an unused field when going through a binary operation" <|
                 \() ->
@@ -394,13 +355,7 @@ foo : var -> Int
 foo _ = 1
 """
                     |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
-                        ]
+                    |> Review.Test.expectErrors [ unusedError ]
         , test "should report an unused field when the value corresponds to a generic argument of the function that uses it that can be found again" <|
             \() ->
                 """module A exposing (b)
