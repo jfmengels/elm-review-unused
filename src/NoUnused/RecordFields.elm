@@ -467,11 +467,11 @@ extractRecordDefinition typeAnnotation =
 
 
 type Foo
-    = Foo_Variable ( String, List String, Range )
+    = Foo_Variable { variableName : String, declaredFields : List String, variableExpressionToIgnore : Range }
     | Foo_Errors (List (Node String))
 
 
-extractOutOfFoo : List Foo -> ( List (Error {}), List ( String, List String, Range ) )
+extractOutOfFoo : List Foo -> ( List (Error {}), List { variableName : String, declaredFields : List String, variableExpressionToIgnore : Range } )
 extractOutOfFoo foos =
     List.foldl
         (\foo ( errors, variables ) ->
@@ -518,7 +518,7 @@ expressionEnterVisitor node context =
                                 (\type_ argument ->
                                     case ( type_, argument ) of
                                         ( Type.Record { fields }, Node functionOrValueRange (Expression.FunctionOrValue [] name) ) ->
-                                            Just (Foo_Variable ( name, List.map Tuple.first fields, functionOrValueRange ))
+                                            Just (Foo_Variable { variableName = name, declaredFields = List.map Tuple.first fields, variableExpressionToIgnore = functionOrValueRange })
 
                                         ( Type.Record { fields }, Node _ (Expression.RecordExpr recordSetters) ) ->
                                             let
@@ -547,9 +547,9 @@ expressionEnterVisitor node context =
                         newContext : ModuleContext
                         newContext =
                             List.foldl
-                                (\( name, fields, functionOrValueRange ) ctx ->
-                                    { ctx | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) ctx.directAccessesToIgnore }
-                                        |> updateRegister name (Variable.markFieldsAsUsed fields)
+                                (\{ variableName, declaredFields, variableExpressionToIgnore } ctx ->
+                                    { ctx | directAccessesToIgnore = Set.insert (stringifyRange variableExpressionToIgnore) ctx.directAccessesToIgnore }
+                                        |> updateRegister variableName (Variable.markFieldsAsUsed declaredFields)
                                 )
                                 context
                                 foundUsedFields
