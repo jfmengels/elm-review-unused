@@ -466,20 +466,20 @@ extractRecordDefinition typeAnnotation =
 -- EXPRESSION ENTER VISITOR
 
 
-type Foo
-    = Foo_Variable { variableName : String, declaredFields : List String, variableExpressionToIgnore : Range }
-    | Foo_Errors (List (Node String))
+type ArgumentMatchResult
+    = ArgumentMatch_RegisterVariable { variableName : String, declaredFields : List String, variableExpressionToIgnore : Range }
+    | ArgumentMatch_ReportErrors (List (Node String))
 
 
-extractOutOfFoo : List Foo -> ( List (Error {}), List { variableName : String, declaredFields : List String, variableExpressionToIgnore : Range } )
+extractOutOfFoo : List ArgumentMatchResult -> ( List (Error {}), List { variableName : String, declaredFields : List String, variableExpressionToIgnore : Range } )
 extractOutOfFoo foos =
     List.foldl
         (\foo ( errors, variables ) ->
             case foo of
-                Foo_Variable variable ->
+                ArgumentMatch_RegisterVariable variable ->
                     ( errors, variable :: variables )
 
-                Foo_Errors unusedFieldNodes ->
+                ArgumentMatch_ReportErrors unusedFieldNodes ->
                     ( List.map createError unusedFieldNodes ++ errors, variables )
         )
         ( [], [] )
@@ -503,7 +503,7 @@ expressionEnterVisitor node context =
             case TypeInference.inferType context function of
                 Just (Type.Function input output) ->
                     let
-                        foos : List Foo
+                        foos : List ArgumentMatchResult
                         foos =
                             List.map2
                                 (\type_ argument ->
@@ -659,12 +659,12 @@ getListOfArgumentTypes type_ =
             []
 
 
-matchRecordWithArgument : List ( String, a ) -> Node Expression -> Maybe Foo
+matchRecordWithArgument : List ( String, a ) -> Node Expression -> Maybe ArgumentMatchResult
 matchRecordWithArgument fields node =
     case Node.value node of
         Expression.FunctionOrValue [] name ->
             Just
-                (Foo_Variable
+                (ArgumentMatch_RegisterVariable
                     { variableName = name
                     , declaredFields = List.map Tuple.first fields
                     , variableExpressionToIgnore = Node.range node
@@ -682,7 +682,7 @@ matchRecordWithArgument fields node =
                 |> List.map Node.value
                 |> List.map Tuple.first
                 |> List.filter (\declaredField -> not (Set.member (Node.value declaredField) usedFields))
-                |> Foo_Errors
+                |> ArgumentMatch_ReportErrors
                 |> Just
 
         Expression.ParenthesizedExpression expr ->
