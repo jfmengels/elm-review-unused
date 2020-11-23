@@ -1,6 +1,8 @@
 module NoUnused.RecordFieldsTest exposing (all)
 
+import Dependencies.ElmCore
 import NoUnused.RecordFields exposing (rule)
+import Review.Project as Project exposing (Project)
 import Review.Test
 import Test exposing (Test, describe, test)
 
@@ -15,7 +17,7 @@ a = {foo=1, unused=2}
 b = let c = {foo=1}
     in 1
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
         , test "should report an unused field" <|
             \() ->
@@ -24,7 +26,7 @@ a : {foo:Int,unused:Int}
 a = {foo=1, unused=2}
 b = a.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -39,7 +41,7 @@ b = a.foo
 a = {foo=1, unused=2}
 b = thing a
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
         , test "should not report if value is exposed as part of the module (exposing (..))" <|
             \() ->
@@ -47,7 +49,7 @@ b = thing a
 a = {foo=1, unused=2}
 b = a.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
         , test "should not report if value is exposed as part of the module (exposing explicitly)" <|
             \() ->
@@ -55,7 +57,7 @@ b = a.foo
 a = {foo=1, unused=2}
 b = a.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
         , test "TODO should not check when value is a type alias" <|
             \() ->
@@ -65,7 +67,7 @@ a : TypeAlias
 a = {foo=1, bar=2}
 b = a.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
         , test "TODO should not report if record is hidden behind a function" <|
             \() ->
@@ -73,7 +75,7 @@ b = a.foo
 a argument = {foo=1, unused=2}
 b = a.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
         , test "should report unused fields of argument (using record access)" <|
             \() ->
@@ -81,7 +83,7 @@ b = a.foo
 a : {foo:Int, unused:Int} -> Int
 a arg = arg.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -95,7 +97,7 @@ a arg = arg.foo
 a : {foo:Int, unused:Int} -> Int
 a (arg) = arg.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -109,7 +111,7 @@ a (arg) = arg.foo
 a : {foo:Int, unused:Int} -> Int
 a (_ as arg) = arg.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -123,7 +125,7 @@ a (_ as arg) = arg.foo
 a : {foo:Int, bar:Int,unused:Int} -> Int
 a ({bar} as arg) = arg.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -137,7 +139,7 @@ a ({bar} as arg) = arg.foo
 a : {var|foo:Int, unused:Int} -> Int
 a arg = arg.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -151,7 +153,7 @@ a arg = arg.foo
 a : {foo:Int, unused:Int} -> Int
 a {foo} = arg.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -168,7 +170,7 @@ a : { a | thing : Bool } -> { a | thing : Bool }
 a value =
     { value | thing = True }
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
         , test "should report an unused field in a let function" <|
             \() ->
@@ -179,7 +181,7 @@ a =
     b = {foo=1, unused=2}
   in b.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -202,7 +204,7 @@ c =
     b = {foo=1, bar=2}
   in b.bar
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `bar`"
@@ -228,7 +230,7 @@ a b =
   in
   b + d
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
         , test "should not report unused field if it is used in a let expression below 2" <|
             \() ->
@@ -240,7 +242,7 @@ foo params =
             let _ = 1
             in params.used
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
         , test "should report an unused field in a let destructuration" <|
             \() ->
@@ -250,7 +252,7 @@ a =
     {foo} = {foo=1, unused=2}
   in foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -266,7 +268,7 @@ a : {foo:Int,unused:Int}
 a = {foo=1, unused=2}
 b = .foo a
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -286,7 +288,7 @@ getFoo : { var | foo : Int } -> Int
 getFoo data =
     data.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -306,7 +308,7 @@ getFoo : Int -> Int -> { var | foo : Int } -> Int
 getFoo _ _ data =
     data.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -324,7 +326,7 @@ a = {foo=1, unused=2}
 b = { a | unused = unused + 1 }
 c = a.foo
 """
-                        |> Review.Test.run rule
+                        |> Review.Test.runWithProjectData project rule
                         |> Review.Test.expectErrors
                             [ Review.Test.error
                                 { message = "Unused field `unused`"
@@ -342,7 +344,7 @@ getFoo : { var | foo : Int } -> Int
 getFoo data =
     data.foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -355,7 +357,7 @@ getFoo data =
                 """module A exposing (b)
 b = {foo=1, unused=2} |> .foo
 """
-                    |> Review.Test.run rule
+                    |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `unused`"
@@ -364,3 +366,9 @@ b = {foo=1, unused=2} |> .foo
                             }
                         ]
         ]
+
+
+project : Project
+project =
+    Project.new
+        |> Project.addDependency Dependencies.ElmCore.dependency
