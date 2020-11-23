@@ -5,6 +5,7 @@ module TypeInference exposing
     , foldProjectContexts
     , fromModuleToProject
     , fromProjectToModule
+    , inferOperatorType
     , inferType
     , initialProjectContext
     )
@@ -588,6 +589,11 @@ inferType context node =
         Expression.GLSLExpression _ ->
             -- TODO Handle this case
             Nothing
+
+
+inferOperatorType : OuterModuleContext a -> String -> Maybe Type
+inferOperatorType context operator =
+    Dict.get operator context.typeInference.operatorsInScope
 
 
 addTypeFromPatternToContext : Node Pattern -> OuterModuleContext a -> OuterModuleContext a

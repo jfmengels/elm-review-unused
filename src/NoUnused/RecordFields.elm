@@ -560,7 +560,7 @@ expressionEnterVisitor node context =
                     ( [], context )
 
         Expression.OperatorApplication operator _ left right ->
-            case TypeInference.inferType context function of
+            case TypeInference.inferOperatorType context operator of
                 Just ((Type.Function _ _) as functionType) ->
                     let
                         getArgumentsFromType : Type -> List Type
@@ -598,7 +598,7 @@ expressionEnterVisitor node context =
                                             Nothing
                                 )
                                 (getArgumentsFromType functionType)
-                                arguments
+                                [ left, right ]
                                 |> List.filterMap identity
 
                         ( errors, foundUsedFields ) =
