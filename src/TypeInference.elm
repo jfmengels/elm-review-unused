@@ -594,7 +594,6 @@ inferType context node =
 inferOperatorType : OuterModuleContext a -> String -> Maybe Type
 inferOperatorType context operator =
     Dict.get operator context.typeInference.operatorsInScope
-        |> Debug.log operator
 
 
 addTypeFromPatternToContext : Node Pattern -> OuterModuleContext a -> OuterModuleContext a
