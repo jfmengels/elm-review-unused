@@ -516,23 +516,28 @@ expressionEnterVisitor node context =
                         foos =
                             List.map2
                                 (\type_ argument ->
-                                    case ( type_, argument ) of
-                                        ( Type.Record { fields }, Node functionOrValueRange (Expression.FunctionOrValue [] name) ) ->
-                                            Just (Foo_Variable { variableName = name, declaredFields = List.map Tuple.first fields, variableExpressionToIgnore = functionOrValueRange })
+                                    case type_ of
+                                        Type.Record { fields } ->
+                                            case argument of
+                                                Node functionOrValueRange (Expression.FunctionOrValue [] name) ->
+                                                    Just (Foo_Variable { variableName = name, declaredFields = List.map Tuple.first fields, variableExpressionToIgnore = functionOrValueRange })
 
-                                        ( Type.Record { fields }, Node _ (Expression.RecordExpr recordSetters) ) ->
-                                            let
-                                                usedFields : Set String
-                                                usedFields =
-                                                    List.map Tuple.first fields
-                                                        |> Set.fromList
-                                            in
-                                            recordSetters
-                                                |> List.map Node.value
-                                                |> List.map Tuple.first
-                                                |> List.filter (\declaredField -> not (Set.member (Node.value declaredField) usedFields))
-                                                |> Foo_Errors
-                                                |> Just
+                                                Node _ (Expression.RecordExpr recordSetters) ->
+                                                    let
+                                                        usedFields : Set String
+                                                        usedFields =
+                                                            List.map Tuple.first fields
+                                                                |> Set.fromList
+                                                    in
+                                                    recordSetters
+                                                        |> List.map Node.value
+                                                        |> List.map Tuple.first
+                                                        |> List.filter (\declaredField -> not (Set.member (Node.value declaredField) usedFields))
+                                                        |> Foo_Errors
+                                                        |> Just
+
+                                                _ ->
+                                                    Nothing
 
                                         _ ->
                                             Nothing
