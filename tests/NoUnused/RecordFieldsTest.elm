@@ -332,7 +332,7 @@ foo _ = 1
                 """module A exposing (b)
 a = {foo=1, unused=2}
 b = a.foo
-c = thing (identity a)
+c = thing (always a)
 """
                     |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
