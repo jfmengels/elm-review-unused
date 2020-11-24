@@ -339,43 +339,17 @@ c = thing (identity a)
         , test "siuiuhihlhhould report an unused field when the value corresponds to a generic argument of the function that uses it that can be found again" <|
             \() ->
                 """module A exposing (b)
-view : (MainMenu.Msg -> msg) -> (NotificationService.Msg -> msg) -> (Msg -> msg) -> Model -> HumioDocument msg
-view fromMainMenuMsg toNotificationMsg toMainMsg model =
-    let
-        frame : Bool -> RepoLayout.Section -> Html msg -> List (Html msg)
-        frame allowOverflow activeSection body_ =
-            case Session.getManagedOrgId model.consoleModel.session of
-                Nothing ->
-                    frameList allowOverflow activeSection (List.singleton body_)
+view =
+    .foo (always repoParams)
 
-                Just orgId ->
-                    let
-                        repoParams : { repoOrViewName : String, activeSection : RepoLayout.Section, repoInfo : RepoLayout.RepoInfo, isFeatureEnabled : FeatureFlag.FeatureFlag -> Bool, orgId : String }
-                        repoParams =
-                            { repoOrViewName = model.dataspace.name
-                            , activeSection = activeSection
-                            , repoInfo = getRepoInfo model
-                            , isFeatureEnabled = \\feature -> Session.isFeatureEnabled feature model.consoleModel.session
-                            , orgId = orgId
-                            }
-                    in
-                    OrgFrame.view (OrgLayoutMsg >> toMainMsg)
-                        { breadcrumbs =
-                            OrgBreadcrumbsUtil.repoPage
-                                { managedOrgId = orgId
-                                , managedOrgName = Session.getManagedOrgName model.consoleModel.session
-                                , repoOrViewName = model.dataspace.name
-                                }
-                        , repoParams = Just repoParams
-                        }
-                        model.consoleModel
-                        (Just orgId)
-                        [ body_ ]
-    in
-    1
+repoParams : { repoOrViewName : String, activeSection : RepoLayout.Section, repoInfo : RepoLayout.RepoInfo, isFeatureEnabled : FeatureFlag.FeatureFlag -> Bool, foo : String }
+repoParams =
+    { unused = ()
+    , foo = orgId
+    }
 """
                     |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectNoErrors
+                    |> Review.Test.expectErrors [ unusedError ]
         ]
 
 
