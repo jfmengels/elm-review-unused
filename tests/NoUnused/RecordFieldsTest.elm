@@ -336,14 +336,15 @@ c = thing (always a)
 """
                     |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
-        , test "TODO name 2" <|
-            \() ->
-                """module A exposing (b)
+        , Test.skip <|
+            test "TODO name 2" <|
+                \() ->
+                    """module A exposing (b)
 a = {foo=1, unused=2}
 b = .foo (always a)
 """
-                    |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectErrors [ unusedError ]
+                        |> Review.Test.runWithProjectData project rule
+                        |> Review.Test.expectErrors [ unusedError ]
         , test "should not report anything when the value corresponds to a type alias, and all of those type's fields are used" <|
             \() ->
                 """module A exposing (b)
