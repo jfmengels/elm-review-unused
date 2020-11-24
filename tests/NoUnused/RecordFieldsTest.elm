@@ -11,9 +11,14 @@ unusedError : Review.Test.ExpectedError
 unusedError =
     Review.Test.error
         { message = "Unused field `unused`"
-        , details = [ "REPLACEME" ]
+        , details = details
         , under = "unused"
         }
+
+
+details : List String
+details =
+    [ "This field has been declared and may have been assigned to, but is never used. You may have forgotten to use it where needed. Please do so or remove the field." ]
 
 
 all : Test
@@ -37,11 +42,7 @@ b = a.foo
 """
                     |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
+                        [ unusedError
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
                         ]
         , test "should not report if value is used with an unknown function" <|
@@ -156,11 +157,7 @@ a =
 """
                     |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
+                        [ unusedError
                             |> Review.Test.atExactly { start = { row = 5, column = 17 }, end = { row = 5, column = 23 } }
                         ]
         , test "should not mix two let declarations that are in different locations" <|
@@ -181,13 +178,13 @@ c =
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Unused field `bar`"
-                            , details = [ "REPLACEME" ]
+                            , details = details
                             , under = "bar"
                             }
                             |> Review.Test.atExactly { start = { row = 5, column = 17 }, end = { row = 5, column = 20 } }
                         , Review.Test.error
                             { message = "Unused field `foo`"
-                            , details = [ "REPLACEME" ]
+                            , details = details
                             , under = "foo"
                             }
                             |> Review.Test.atExactly { start = { row = 10, column = 10 }, end = { row = 10, column = 13 } }
@@ -227,11 +224,7 @@ a =
 """
                     |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
+                        [ unusedError
                             |> Review.Test.atExactly { start = { row = 4, column = 21 }, end = { row = 4, column = 27 } }
                         ]
         , test "should not report a field when used with a `.field` accessor function" <|
@@ -243,11 +236,7 @@ b = .foo a
 """
                     |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
+                        [ unusedError
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
                         ]
         , test "should not report a field when used with a function that uses only a select number of fields" <|
@@ -263,11 +252,7 @@ getFoo data =
 """
                     |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
+                        [ unusedError
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
                         ]
         , test "should not report a field when used with a function that uses only a select number of fields, not as the first argument" <|
@@ -283,11 +268,7 @@ getFoo _ _ data =
 """
                     |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Unused field `unused`"
-                            , details = [ "REPLACEME" ]
-                            , under = "unused"
-                            }
+                        [ unusedError
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
                         ]
         , Test.skip <|
@@ -301,11 +282,7 @@ c = a.foo
 """
                         |> Review.Test.runWithProjectData project rule
                         |> Review.Test.expectErrors
-                            [ Review.Test.error
-                                { message = "Unused field `unused`"
-                                , details = [ "REPLACEME" ]
-                                , under = "unused"
-                                }
+                            [ unusedError
                                 |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
                             ]
         , test "should report an unused field from a literal record passed to a function directly" <|
@@ -337,13 +314,7 @@ getFoo data =
 b = {foo=1, unused=2} |> .foo
 """
                         |> Review.Test.runWithProjectData project rule
-                        |> Review.Test.expectErrors
-                            [ Review.Test.error
-                                { message = "Unused field `unused`"
-                                , details = [ "REPLACEME" ]
-                                , under = "unused"
-                                }
-                            ]
+                        |> Review.Test.expectErrors [ unusedError ]
         , test "should report an unused field when the value corresponds to an unused generic argument of the function that uses it" <|
             \() ->
                 """module A exposing (b)

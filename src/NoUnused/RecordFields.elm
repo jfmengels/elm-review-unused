@@ -812,6 +812,6 @@ createError : Node String -> Error {}
 createError unusedFieldNode =
     Rule.error
         { message = "Unused field `" ++ Node.value unusedFieldNode ++ "`"
-        , details = [ "REPLACEME" ]
+        , details = [ "This field has been declared and may have been assigned to, but is never used. You may have forgotten to use it where needed. Please do so or remove the field." ]
         }
         (Node.range unusedFieldNode)
