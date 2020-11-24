@@ -336,9 +336,22 @@ c = thing (identity a)
 """
                     |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
-        , test "siuiuhihlhhould report an unused field when the value corresponds to a generic argument of the function that uses it that can be found again" <|
+        , test "should not report anything when the value corresponds to a type alias, and all of those type's fields are used" <|
             \() ->
                 """module A exposing (b)
+type alias Thing = {foo : Int, used:()}
+a = {foo=1, used=()}
+b = func a
+
+func : Thing -> ()
+func thing = thing.foo + thing.used
+"""
+                    |> Review.Test.runWithProjectData project rule
+                    |> Review.Test.expectNoErrors
+        , Test.skip <|
+            test "TODO name" <|
+                \() ->
+                    """module A exposing (b)
 view =
     .foo (always repoParams)
 
@@ -348,8 +361,8 @@ repoParams =
     , foo = orgId
     }
 """
-                    |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectErrors [ unusedError ]
+                        |> Review.Test.runWithProjectData project rule
+                        |> Review.Test.expectErrors [ unusedError ]
         ]
 
 
