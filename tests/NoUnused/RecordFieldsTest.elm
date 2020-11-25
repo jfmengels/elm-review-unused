@@ -357,6 +357,29 @@ func thing = thing.foo + thing.used
 """
                     |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
+        , test "TODO name2" <|
+            \() ->
+                """module A exposing (b)
+repoParams =
+    { foo = ()
+    , unused = ()
+    }
+
+b = OrgFrame.view (OrgLayoutMsg >> toMainMsg)
+    { breadcrumbs =
+        OrgBreadcrumbsUtil.repoPage
+            { managedOrgId = orgId
+            , managedOrgName = Session.getManagedOrgName model.consoleModel.session
+            , repoOrViewName = model.dataspace.name
+            }
+    , repoParams = Just repoParams
+    }
+    model.consoleModel
+    (Just orgId)
+    [ body_ ]
+"""
+                    |> Review.Test.runWithProjectData project rule
+                    |> Review.Test.expectNoErrors
         , Test.skip <|
             test "TODO name" <|
                 \() ->
