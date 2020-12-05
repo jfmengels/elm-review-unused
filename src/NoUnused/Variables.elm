@@ -81,7 +81,7 @@ type alias Context =
     , exposesEverything : Bool
     , constructorNameToTypeName : Dict String String
     , declaredModules : Dict String DeclaredModule
-    , usedModules : Set String
+    , usedModules : Set ModuleName
     }
 
 
@@ -348,7 +348,6 @@ registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) con
                 , under = Node.range moduleName
                 , rangeToRemove = untilStartOfNextLine range
                 }
-                (getModuleName <| Node.value moduleName)
                 context
 
 
@@ -371,7 +370,6 @@ registerModuleAlias ((Node range { exposingList, moduleName }) as node) moduleAl
                 Just _ ->
                     moduleAliasRange node (Node.range moduleAlias)
         }
-        (getModuleName <| Node.value moduleAlias)
         context
 
 
@@ -387,7 +385,7 @@ expressionEnterVisitor (Node range value) context =
             ( [], markAsUsed name context )
 
         Expression.FunctionOrValue moduleName _ ->
-            ( [], markModuleAsUsed (getModuleName moduleName) context )
+            ( [], markModuleAsUsed moduleName context )
 
         Expression.OperatorApplication name _ _ _ ->
             ( [], markAsUsed name context )
@@ -410,7 +408,7 @@ expressionEnterVisitor (Node range value) context =
                     case Node.value declaration of
                         Expression.LetFunction function ->
                             let
-                                namesUsedInArgumentPatterns : { types : List String, modules : List String }
+                                namesUsedInArgumentPatterns : { types : List String, modules : List ModuleName }
                                 namesUsedInArgumentPatterns =
                                     function.declaration
                                         |> Node.value
@@ -455,7 +453,7 @@ expressionEnterVisitor (Node range value) context =
 
         Expression.LambdaExpression { args } ->
             let
-                namesUsedInArgumentPatterns : { types : List String, modules : List String }
+                namesUsedInArgumentPatterns : { types : List String, modules : List ModuleName }
                 namesUsedInArgumentPatterns =
                     args
                         |> List.map getUsedVariablesFromPattern
@@ -488,7 +486,7 @@ expressionExitVisitor node context =
 
         Expression.CaseExpression { cases } ->
             let
-                usedVariables : { types : List String, modules : List String }
+                usedVariables : { types : List String, modules : List ModuleName }
                 usedVariables =
                     cases
                         |> List.map
@@ -518,7 +516,7 @@ expressionExitVisitor node context =
             ( [], context )
 
 
-getUsedVariablesFromPattern : Node Pattern -> { types : List String, modules : List String }
+getUsedVariablesFromPattern : Node Pattern -> { types : List String, modules : List ModuleName }
 getUsedVariablesFromPattern patternNode =
     { types = getUsedTypesFromPattern patternNode
     , modules = getUsedModulesFromPattern patternNode
@@ -579,7 +577,7 @@ getUsedTypesFromPattern patternNode =
             getUsedTypesFromPattern pattern
 
 
-getUsedModulesFromPattern : Node Pattern -> List String
+getUsedModulesFromPattern : Node Pattern -> List ModuleName
 getUsedModulesFromPattern patternNode =
     case Node.value patternNode of
         Pattern.AllPattern ->
@@ -624,7 +622,7 @@ getUsedModulesFromPattern patternNode =
                     List.concatMap getUsedModulesFromPattern patterns
 
                 moduleName ->
-                    getModuleName moduleName :: List.concatMap getUsedModulesFromPattern patterns
+                    moduleName :: List.concatMap getUsedModulesFromPattern patterns
 
         Pattern.AsPattern pattern _ ->
             getUsedModulesFromPattern pattern
@@ -642,13 +640,13 @@ declarationVisitor node context =
                 functionImplementation =
                     Node.value function.declaration
 
-                namesUsedInSignature : { types : List String, modules : List String }
+                namesUsedInSignature : { types : List String, modules : List ModuleName }
                 namesUsedInSignature =
                     function.signature
                         |> Maybe.map (Node.value >> .typeAnnotation >> collectNamesFromTypeAnnotation)
                         |> Maybe.withDefault { types = [], modules = [] }
 
-                namesUsedInArgumentPatterns : { types : List String, modules : List String }
+                namesUsedInArgumentPatterns : { types : List String, modules : List ModuleName }
                 namesUsedInArgumentPatterns =
                     function.declaration
                         |> Node.value
@@ -672,7 +670,7 @@ declarationVisitor node context =
 
         Declaration.CustomTypeDeclaration { name, documentation, constructors } ->
             let
-                variablesFromConstructorArguments : { types : List String, modules : List String }
+                variablesFromConstructorArguments : { types : List String, modules : List ModuleName }
                 variablesFromConstructorArguments =
                     constructors
                         |> List.concatMap (Node.value >> .arguments)
@@ -703,7 +701,7 @@ declarationVisitor node context =
 
         Declaration.AliasDeclaration { name, typeAnnotation, documentation } ->
             let
-                namesUsedInTypeAnnotation : { types : List String, modules : List String }
+                namesUsedInTypeAnnotation : { types : List String, modules : List ModuleName }
                 namesUsedInTypeAnnotation =
                     collectNamesFromTypeAnnotation typeAnnotation
             in
@@ -720,7 +718,7 @@ declarationVisitor node context =
 
         Declaration.PortDeclaration { name, typeAnnotation } ->
             let
-                namesUsedInTypeAnnotation : { types : List String, modules : List String }
+                namesUsedInTypeAnnotation : { types : List String, modules : List ModuleName }
                 namesUsedInTypeAnnotation =
                     collectNamesFromTypeAnnotation typeAnnotation
             in
@@ -751,12 +749,12 @@ declarationVisitor node context =
             ( [], context )
 
 
-foldUsedTypesAndModules : List { types : List String, modules : List String } -> { types : List String, modules : List String }
+foldUsedTypesAndModules : List { types : List String, modules : List ModuleName } -> { types : List String, modules : List ModuleName }
 foldUsedTypesAndModules =
     List.foldl (\a b -> { types = a.types ++ b.types, modules = a.modules ++ b.modules }) { types = [], modules = [] }
 
 
-markUsedTypesAndModules : { types : List String, modules : List String } -> Context -> Context
+markUsedTypesAndModules : { types : List String, modules : List ModuleName } -> Context -> Context
 markUsedTypesAndModules { types, modules } context =
     context
         |> markAllAsUsed types
@@ -801,7 +799,17 @@ finalEvaluation context =
             moduleErrors : List (Error {})
             moduleErrors =
                 context.declaredModules
-                    |> Dict.filter (\key _ -> not <| Set.member key context.usedModules)
+                    |> Dict.filter
+                        (\key variableInfo ->
+                            not
+                                (case variableInfo.alias of
+                                    Just alias ->
+                                        Set.member [ alias ] context.usedModules
+
+                                    Nothing ->
+                                        Set.member variableInfo.moduleName context.usedModules
+                                )
+                        )
                     |> Dict.toList
                     |> List.map
                         (\( _, variableInfo ) ->
@@ -832,7 +840,7 @@ registerFunction letBlockContext function context =
         declaration =
             Node.value function.declaration
 
-        namesUsedInSignature : { types : List String, modules : List String }
+        namesUsedInSignature : { types : List String, modules : List ModuleName }
         namesUsedInSignature =
             case Maybe.map Node.value function.signature of
                 Just signature ->
@@ -971,7 +979,7 @@ untilEndOfVariable name range =
         { range | end = { row = range.start.row, column = range.start.column + String.length name } }
 
 
-collectNamesFromTypeAnnotation : Node TypeAnnotation -> { types : List String, modules : List String }
+collectNamesFromTypeAnnotation : Node TypeAnnotation -> { types : List String, modules : List ModuleName }
 collectNamesFromTypeAnnotation node =
     { types = collectTypesFromTypeAnnotation node
     , modules = collectModuleNamesFromTypeAnnotation node
@@ -1018,7 +1026,7 @@ collectTypesFromTypeAnnotation node =
             []
 
 
-collectModuleNamesFromTypeAnnotation : Node TypeAnnotation -> List String
+collectModuleNamesFromTypeAnnotation : Node TypeAnnotation -> List ModuleName
 collectModuleNamesFromTypeAnnotation node =
     case Node.value node of
         TypeAnnotation.FunctionTypeAnnotation a b ->
@@ -1026,14 +1034,14 @@ collectModuleNamesFromTypeAnnotation node =
 
         TypeAnnotation.Typed nameNode params ->
             let
-                name : List String
+                name : List ModuleName
                 name =
                     case Node.value nameNode of
                         ( [], _ ) ->
                             []
 
                         ( moduleName, _ ) ->
-                            [ getModuleName moduleName ]
+                            [ moduleName ]
             in
             name ++ List.concatMap collectModuleNamesFromTypeAnnotation params
 
@@ -1094,15 +1102,14 @@ register variableInfo name context =
             registerVariable variableInfo name context
 
 
-registerModule : DeclaredModule -> String -> Context -> Context
-registerModule variableInfo name context =
+registerModule : DeclaredModule -> Context -> Context
+registerModule variableInfo context =
     { context
         | declaredModules =
             Dict.insert
-                name
-                -- TODO
-                { moduleName = []
-                , alias = Just name
+                (getModuleName variableInfo.moduleName)
+                { moduleName = variableInfo.moduleName
+                , alias = variableInfo.alias
                 , variableType = variableInfo.variableType
                 , under = variableInfo.under
                 , rangeToRemove = variableInfo.rangeToRemove
@@ -1148,12 +1155,12 @@ markAsUsed name context =
         { context | scopes = scopes }
 
 
-markAllModulesAsUsed : List String -> Context -> Context
+markAllModulesAsUsed : List ModuleName -> Context -> Context
 markAllModulesAsUsed names context =
     { context | usedModules = Set.union (Set.fromList names) context.usedModules }
 
 
-markModuleAsUsed : String -> Context -> Context
+markModuleAsUsed : ModuleName -> Context -> Context
 markModuleAsUsed name context =
     { context | usedModules = Set.insert name context.usedModules }
 
