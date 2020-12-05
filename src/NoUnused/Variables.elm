@@ -88,6 +88,7 @@ type alias Context =
 type alias DeclaredModule =
     { moduleName : ModuleName
     , alias : Maybe String
+    , typeName : String
     , variableType : VariableType
     , under : Range
     , rangeToRemove : Range
@@ -102,6 +103,7 @@ type alias Scope =
 
 type alias VariableInfo =
     { variableType : VariableType
+    , typeName : String
     , under : Range
     , rangeToRemove : Range
     }
@@ -152,48 +154,14 @@ emptyScope =
     }
 
 
-error : (String -> Bool) -> { a | variableType : VariableType, under : Range, rangeToRemove : Range } -> String -> Error {}
+error : (String -> Bool) -> { a | variableType : VariableType, typeName : String, under : Range, rangeToRemove : Range } -> String -> Error {}
 error willConflictWithOtherModule variableInfo name =
     Rule.errorWithFix
-        { message = variableTypeToString variableInfo.variableType ++ " `" ++ name ++ "` is not used" ++ variableTypeWarning variableInfo.variableType
+        { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used" ++ variableTypeWarning variableInfo.variableType
         , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
         }
         variableInfo.under
         (fix willConflictWithOtherModule variableInfo)
-
-
-variableTypeToString : VariableType -> String
-variableTypeToString variableType =
-    case variableType of
-        TopLevelVariable ->
-            "Top-level variable"
-
-        LetVariable ->
-            "`let in` variable"
-
-        ImportedModule ->
-            "Imported module"
-
-        ImportedItem ImportedVariable ->
-            "Imported variable"
-
-        ImportedItem ImportedType ->
-            "Imported type"
-
-        ImportedItem ImportedOperator ->
-            "Imported operator"
-
-        ModuleAlias _ ->
-            "Module alias"
-
-        Type ->
-            "Type"
-
-        Port ->
-            "Port"
-
-        Operator ->
-            "Declared operator"
 
 
 variableTypeWarning : VariableType -> String
@@ -344,6 +312,7 @@ registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) con
             registerModule
                 { moduleName = Node.value moduleName
                 , alias = Nothing
+                , typeName = "Imported module"
                 , variableType = ImportedModule
                 , under = Node.range moduleName
                 , rangeToRemove = untilStartOfNextLine range
@@ -361,6 +330,7 @@ registerModuleAlias ((Node range { exposingList, moduleName }) as node) moduleAl
                 { originalNameOfTheImport = getModuleName <| Node.value moduleName
                 , exposesSomething = exposingList /= Nothing
                 }
+        , typeName = "Module alias"
         , under = Node.range moduleAlias
         , rangeToRemove =
             case exposingList of
@@ -659,6 +629,7 @@ declarationVisitor node context =
                     { context | inTheDeclarationOf = Just <| Node.value functionImplementation.name }
                         |> register
                             { variableType = TopLevelVariable
+                            , typeName = "Top-level variable"
                             , under = Node.range functionImplementation.name
                             , rangeToRemove = rangeToRemoveForNodeWithDocumentation node function.documentation
                             }
@@ -692,6 +663,7 @@ declarationVisitor node context =
             , { context | constructorNameToTypeName = Dict.union constructorsForType context.constructorNameToTypeName }
                 |> register
                     { variableType = Type
+                    , typeName = "Type"
                     , under = Node.range name
                     , rangeToRemove = rangeToRemoveForNodeWithDocumentation node documentation
                     }
@@ -709,6 +681,7 @@ declarationVisitor node context =
             , context
                 |> register
                     { variableType = Type
+                    , typeName = "Type"
                     , under = Node.range name
                     , rangeToRemove = rangeToRemoveForNodeWithDocumentation node documentation
                     }
@@ -727,6 +700,7 @@ declarationVisitor node context =
                 |> markUsedTypesAndModules namesUsedInTypeAnnotation
                 |> register
                     { variableType = Port
+                    , typeName = "Port"
                     , under = Node.range name
                     , rangeToRemove = Node.range node
                     }
@@ -739,6 +713,7 @@ declarationVisitor node context =
                 |> markAsUsed (Node.value function)
                 |> register
                     { variableType = Operator
+                    , typeName = "Declared operator"
                     , under = Node.range operator
                     , rangeToRemove = Node.range node
                     }
@@ -863,6 +838,7 @@ registerFunction letBlockContext function context =
     context
         |> register
             { variableType = LetVariable
+            , typeName = "`let in` variable"
             , under = Node.range declaration.name
             , rangeToRemove =
                 case letBlockContext of
@@ -928,6 +904,7 @@ collectFromExposing exposingNode =
                                 Just
                                     ( name
                                     , { variableType = ImportedItem ImportedVariable
+                                      , typeName = "Imported variable"
                                       , under = untilEndOfVariable name range
                                       , rangeToRemove = rangeToRemove
                                       }
@@ -937,6 +914,7 @@ collectFromExposing exposingNode =
                                 Just
                                     ( name
                                     , { variableType = ImportedItem ImportedOperator
+                                      , typeName = "Imported operator"
                                       , under = untilEndOfVariable name range
                                       , rangeToRemove = rangeToRemove
                                       }
@@ -947,6 +925,7 @@ collectFromExposing exposingNode =
                                 Just
                                     ( name
                                     , { variableType = ImportedItem ImportedType
+                                      , typeName = "Imported type"
                                       , under = untilEndOfVariable name range
                                       , rangeToRemove = rangeToRemove
                                       }
@@ -959,9 +938,11 @@ collectFromExposing exposingNode =
                                         Nothing
 
                                     Nothing ->
+                                        -- TODO Check that this case has tests, it doesn't look like it
                                         Just
                                             ( name
                                             , { variableType = ImportedItem ImportedType
+                                              , typeName = "Imported type"
                                               , under = range
                                               , rangeToRemove = rangeToRemove
                                               }
@@ -1114,12 +1095,7 @@ registerModule variableInfo context =
                     Nothing ->
                         getModuleName variableInfo.moduleName
                 )
-                { moduleName = variableInfo.moduleName
-                , alias = variableInfo.alias
-                , variableType = variableInfo.variableType
-                , under = variableInfo.under
-                , rangeToRemove = variableInfo.rangeToRemove
-                }
+                variableInfo
                 context.declaredModules
     }
 
