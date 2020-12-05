@@ -142,14 +142,14 @@ emptyScope =
     }
 
 
-error : Dict String VariableInfo -> VariableInfo -> String -> Error {}
-error declaredModules variableInfo name =
+error : (String -> Bool) -> VariableInfo -> String -> Error {}
+error willConflictWithOtherModule variableInfo name =
     Rule.errorWithFix
         { message = variableTypeToString variableInfo.variableType ++ " `" ++ name ++ "` is not used" ++ variableTypeWarning variableInfo.variableType
         , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
         }
         variableInfo.under
-        (fix declaredModules variableInfo)
+        (fix willConflictWithOtherModule variableInfo)
 
 
 variableTypeToString : VariableType -> String
@@ -214,8 +214,8 @@ variableTypeWarning value =
             ""
 
 
-fix : Dict String VariableInfo -> VariableInfo -> List Fix
-fix declaredModules { variableType, rangeToRemove } =
+fix : (String -> Bool) -> VariableInfo -> List Fix
+fix willConflictWithOtherModule { variableType, rangeToRemove } =
     let
         shouldOfferFix : Bool
         shouldOfferFix =
@@ -234,7 +234,7 @@ fix declaredModules { variableType, rangeToRemove } =
 
                 ModuleAlias { originalNameOfTheImport, exposesSomething } ->
                     not exposesSomething
-                        || not (Dict.member originalNameOfTheImport declaredModules)
+                        || not (willConflictWithOtherModule originalNameOfTheImport)
 
                 Type ->
                     True
@@ -787,7 +787,7 @@ finalEvaluation context =
                 context.declaredModules
                     |> Dict.filter (\key _ -> not <| Set.member key context.usedModules)
                     |> Dict.toList
-                    |> List.map (\( key, variableInfo ) -> error context.declaredModules variableInfo key)
+                    |> List.map (\( key, variableInfo ) -> error (\moduleName -> Dict.member moduleName context.declaredModules) variableInfo key)
         in
         List.concat
             [ newRootScope
@@ -1132,7 +1132,7 @@ makeReport { declared, used } =
         errors =
             Dict.filter (\key _ -> not <| Set.member key used) declared
                 |> Dict.toList
-                |> List.map (\( key, variableInfo ) -> error Dict.empty variableInfo key)
+                |> List.map (\( key, variableInfo ) -> error (always False) variableInfo key)
     in
     ( errors, nonUsedVars )
 
