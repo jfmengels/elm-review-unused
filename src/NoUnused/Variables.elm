@@ -808,13 +808,13 @@ registerFunction letBlockContext function context =
         |> markUsedTypesAndModules namesUsedInSignature
 
 
-mapWithPreviousAndNextRanges : (Maybe Location -> Node a -> Maybe Location -> b) -> List (Node a) -> List b
+mapWithPreviousAndNextRanges : (Int -> Maybe Location -> Node a -> Maybe Location -> b) -> List (Node a) -> List b
 mapWithPreviousAndNextRanges fn list =
-    mapWithPreviousAndNextRangesHelp [] fn Nothing list
+    mapWithPreviousAndNextRangesHelp [] fn Nothing list 0
 
 
-mapWithPreviousAndNextRangesHelp : List b -> (Maybe Location -> Node a -> Maybe Location -> b) -> Maybe Location -> List (Node a) -> List b
-mapWithPreviousAndNextRangesHelp result fn prev list =
+mapWithPreviousAndNextRangesHelp : List b -> (Int -> Maybe Location -> Node a -> Maybe Location -> b) -> Maybe Location -> List (Node a) -> Int -> List b
+mapWithPreviousAndNextRangesHelp result fn prev list index =
     case list of
         [] ->
             List.reverse result
@@ -823,9 +823,9 @@ mapWithPreviousAndNextRangesHelp result fn prev list =
             let
                 newResult : List b
                 newResult =
-                    fn prev x (List.head xs |> Maybe.map (Node.range >> .start)) :: result
+                    fn index prev x (List.head xs |> Maybe.map (Node.range >> .start)) :: result
             in
-            mapWithPreviousAndNextRangesHelp newResult fn (Just (Node.range x).start) xs
+            mapWithPreviousAndNextRangesHelp newResult fn (Just (Node.range x).start) xs (index + 1)
 
 
 collectFromExposing : Node Exposing -> List ( String, VariableInfo )
