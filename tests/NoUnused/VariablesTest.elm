@@ -860,6 +860,28 @@ import Html exposing (div)
 a = let button = 1
     in button + div"""
                     ]
+    , test "should report unused import alias when two modules share the same alias" <|
+        \() ->
+            [ """module A exposing (a)
+import B
+import C as B
+a = B.b"""
+            , """module B exposing (b)
+b = 1"""
+            , """module C exposing (b)
+c = 1"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Module alias `B` is not used"
+                            , details = details
+                            , under = "B"
+                            }
+                        ]
+                      )
+                    ]
     ]
 
 
