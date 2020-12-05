@@ -26,6 +26,7 @@ all =
         , describe "Opaque Types" opaqueTypeTests
         , describe "Operators" operatorTests
         , describe "Ports" portTests
+        , describe "Operator declarations" operatorDeclarationTests
         ]
 
 
@@ -1408,6 +1409,45 @@ port output : String -> Cmd msg"""
                         { message = "Port `output` is not used (Warning: Removing this port may break your application if it is used in the JS code)"
                         , details = details
                         , under = "output"
+                        }
+                    ]
+    ]
+
+
+operatorDeclarationTests : List Test
+operatorDeclarationTests =
+    [ test "should not report operator that is exposed" <|
+        \() ->
+            """module SomeModule exposing ((<|))
+infix right 0 (<|) = apL
+apL : (a -> b) -> a -> b
+apL f x =
+  f x"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should not report used operator" <|
+        \() ->
+            """module SomeModule exposing (value)
+value = apl <| 1
+infix right 0 (<|) = apL
+apL : (a -> b) -> a -> b
+apL f x =
+  f x"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should report unused operator" <|
+        \() ->
+            """module SomeModule exposing (apL)
+infix right 0 (<|) = apL
+apL : (a -> b) -> a -> b
+apL f x =
+  f x"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Declared operator `<|` is not used"
+                        , details = details
+                        , under = "(<|)"
                         }
                     ]
     ]

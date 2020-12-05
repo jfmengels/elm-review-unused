@@ -103,6 +103,7 @@ type VariableType
     | ModuleAlias { originalNameOfTheImport : String, exposesSomething : Bool }
     | Type
     | Port
+    | Operator
 
 
 type LetBlockContext
@@ -174,6 +175,9 @@ variableTypeToString variableType =
         Port ->
             "Port"
 
+        Operator ->
+            "Declared operator"
+
 
 variableTypeWarning : VariableType -> String
 variableTypeWarning value =
@@ -198,6 +202,9 @@ variableTypeWarning value =
 
         Port ->
             " (Warning: Removing this port may break your application if it is used in the JS code)"
+
+        Operator ->
+            ""
 
 
 fix : Dict String VariableInfo -> VariableInfo -> List Fix
@@ -227,6 +234,9 @@ fix declaredModules { variableType, rangeToRemove } =
 
                 Port ->
                     False
+
+                Operator ->
+                    False
     in
     if shouldOfferFix then
         [ Fix.removeRange rangeToRemove ]
@@ -245,21 +255,20 @@ moduleDefinitionVisitor (Node _ moduleNode) context =
             let
                 names : List String
                 names =
-                    List.filterMap
+                    List.map
                         (\(Node _ node) ->
                             case node of
                                 Exposing.FunctionExpose name ->
-                                    Just name
+                                    name
 
                                 Exposing.TypeOrAliasExpose name ->
-                                    Just name
+                                    name
 
                                 Exposing.TypeExpose { name } ->
-                                    Just name
+                                    name
 
                                 Exposing.InfixExpose name ->
-                                    -- Just name
-                                    Nothing
+                                    name
                         )
                         list
             in
@@ -354,7 +363,7 @@ expressionEnterVisitor (Node range value) context =
         Expression.FunctionOrValue [] name ->
             ( [], markAsUsed name context )
 
-        Expression.FunctionOrValue moduleName name ->
+        Expression.FunctionOrValue moduleName _ ->
             ( [], markModuleAsUsed (getModuleName moduleName) context )
 
         Expression.OperatorApplication name _ _ _ ->
@@ -669,8 +678,17 @@ declarationVisitor node context =
                     (Node.value name)
             )
 
-        Declaration.InfixDeclaration _ ->
-            ( [], context )
+        Declaration.InfixDeclaration { operator, function } ->
+            ( []
+            , context
+                |> markAsUsed (Node.value function)
+                |> register
+                    { variableType = Operator
+                    , under = Node.range operator
+                    , rangeToRemove = Node.range node
+                    }
+                    (Node.value operator)
+            )
 
         Declaration.Destructuring _ _ ->
             ( [], context )
@@ -915,7 +933,7 @@ collectTypesFromTypeAnnotation node =
                 |> List.map (Node.value >> Tuple.second)
                 |> List.concatMap collectTypesFromTypeAnnotation
 
-        TypeAnnotation.GenericRecord name list ->
+        TypeAnnotation.GenericRecord _ list ->
             list
                 |> Node.value
                 |> List.map (Node.value >> Tuple.second)
@@ -955,7 +973,7 @@ collectModuleNamesFromTypeAnnotation node =
                 |> List.map (Node.value >> Tuple.second)
                 |> List.concatMap collectModuleNamesFromTypeAnnotation
 
-        TypeAnnotation.GenericRecord name list ->
+        TypeAnnotation.GenericRecord _ list ->
             list
                 |> Node.value
                 |> List.map (Node.value >> Tuple.second)
@@ -998,6 +1016,9 @@ register variableInfo name context =
             registerVariable variableInfo name context
 
         Port ->
+            registerVariable variableInfo name context
+
+        Operator ->
             registerVariable variableInfo name context
 
 
