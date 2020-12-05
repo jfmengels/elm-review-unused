@@ -852,71 +852,70 @@ collectFromExposing exposingNode =
                     )
                         ++ [ { start = { row = 0, column = 0 }, end = { row = 0, column = 0 } } ]
             in
-            list
-                |> List.map3 (\prev next current -> ( prev, current, next )) listWithPreviousRange listWithNextRange
-                |> List.indexedMap
-                    (\index ( maybePreviousRange, Node range value, nextRange ) ->
-                        let
-                            rangeToRemove : Range
-                            rangeToRemove =
-                                if List.length list == 1 then
-                                    Node.range exposingNode
+            mapWithPreviousAndNextRanges
+                (\index maybePreviousRange (Node range value) nextRange ->
+                    let
+                        rangeToRemove : Range
+                        rangeToRemove =
+                            if List.length list == 1 then
+                                Node.range exposingNode
 
-                                else if index == 0 then
-                                    { range | end = nextRange.start }
+                            else if index == 0 then
+                                { range | end = nextRange.start }
 
-                                else
-                                    case maybePreviousRange of
-                                        Nothing ->
-                                            range
-
-                                        Just previousRange ->
-                                            { range | start = previousRange.end }
-                        in
-                        case value of
-                            Exposing.FunctionExpose name ->
-                                Just
-                                    ( name
-                                    , { variableType = ImportedItem ImportedVariable
-                                      , under = untilEndOfVariable name range
-                                      , rangeToRemove = rangeToRemove
-                                      }
-                                    )
-
-                            Exposing.InfixExpose name ->
-                                Just
-                                    ( name
-                                    , { variableType = ImportedItem ImportedOperator
-                                      , under = untilEndOfVariable name range
-                                      , rangeToRemove = rangeToRemove
-                                      }
-                                    )
-
-                            Exposing.TypeOrAliasExpose name ->
-                                -- TODO Detect whether it is a custom type or type alias
-                                Just
-                                    ( name
-                                    , { variableType = ImportedItem ImportedType
-                                      , under = untilEndOfVariable name range
-                                      , rangeToRemove = rangeToRemove
-                                      }
-                                    )
-
-                            Exposing.TypeExpose { name, open } ->
-                                case open of
-                                    Just _ ->
-                                        -- TODO Change this behavior once we know the contents of the open range, using dependencies or the interfaces of the other modules
-                                        Nothing
-
+                            else
+                                case maybePreviousRange of
                                     Nothing ->
-                                        Just
-                                            ( name
-                                            , { variableType = ImportedItem ImportedType
-                                              , under = range
-                                              , rangeToRemove = rangeToRemove
-                                              }
-                                            )
-                    )
+                                        range
+
+                                    Just previousRange ->
+                                        { range | start = previousRange.end }
+                    in
+                    case value of
+                        Exposing.FunctionExpose name ->
+                            Just
+                                ( name
+                                , { variableType = ImportedItem ImportedVariable
+                                  , under = untilEndOfVariable name range
+                                  , rangeToRemove = rangeToRemove
+                                  }
+                                )
+
+                        Exposing.InfixExpose name ->
+                            Just
+                                ( name
+                                , { variableType = ImportedItem ImportedOperator
+                                  , under = untilEndOfVariable name range
+                                  , rangeToRemove = rangeToRemove
+                                  }
+                                )
+
+                        Exposing.TypeOrAliasExpose name ->
+                            -- TODO Detect whether it is a custom type or type alias
+                            Just
+                                ( name
+                                , { variableType = ImportedItem ImportedType
+                                  , under = untilEndOfVariable name range
+                                  , rangeToRemove = rangeToRemove
+                                  }
+                                )
+
+                        Exposing.TypeExpose { name, open } ->
+                            case open of
+                                Just _ ->
+                                    -- TODO Change this behavior once we know the contents of the open range, using dependencies or the interfaces of the other modules
+                                    Nothing
+
+                                Nothing ->
+                                    Just
+                                        ( name
+                                        , { variableType = ImportedItem ImportedType
+                                          , under = range
+                                          , rangeToRemove = rangeToRemove
+                                          }
+                                        )
+                )
+                list
                 |> List.filterMap identity
 
 
