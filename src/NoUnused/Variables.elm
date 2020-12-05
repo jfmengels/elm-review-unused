@@ -21,6 +21,7 @@ import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import Review.Fix as Fix exposing (Fix)
+import Review.ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 
@@ -62,7 +63,7 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Varia
 -}
 rule : Rule
 rule =
-    Rule.newModuleRuleSchema "NoUnused.Variables" initialContext
+    Rule.newModuleRuleSchemaUsingContextCreator "NoUnused.Variables" initialContext
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withImportVisitor importVisitor
         |> Rule.withDeclarationEnterVisitor declarationVisitor
@@ -73,7 +74,8 @@ rule =
 
 
 type alias Context =
-    { scopes : Nonempty Scope
+    { lookupTable : ModuleNameLookupTable
+    , scopes : Nonempty Scope
     , inTheDeclarationOf : Maybe String
     , exposesEverything : Bool
     , constructorNameToTypeName : Dict String String
@@ -117,15 +119,20 @@ type ImportType
     | ImportedOperator
 
 
-initialContext : Context
+initialContext : Rule.ContextCreator () Context
 initialContext =
-    { scopes = NonemptyList.fromElement emptyScope
-    , inTheDeclarationOf = Nothing
-    , exposesEverything = False
-    , constructorNameToTypeName = Dict.empty
-    , declaredModules = Dict.empty
-    , usedModules = Set.empty
-    }
+    Rule.initContextCreator
+        (\lookupTable () ->
+            { lookupTable = lookupTable
+            , scopes = NonemptyList.fromElement emptyScope
+            , inTheDeclarationOf = Nothing
+            , exposesEverything = False
+            , constructorNameToTypeName = Dict.empty
+            , declaredModules = Dict.empty
+            , usedModules = Set.empty
+            }
+        )
+        |> Rule.withModuleNameLookupTable
 
 
 emptyScope : Scope
