@@ -799,8 +799,9 @@ finalEvaluation context =
             moduleErrors : List (Error {})
             moduleErrors =
                 context.declaredModules
-                    |> Dict.filter
-                        (\key variableInfo ->
+                    |> Dict.values
+                    |> List.filter
+                        (\variableInfo ->
                             not
                                 (case variableInfo.alias of
                                     Just alias ->
@@ -810,9 +811,8 @@ finalEvaluation context =
                                         Set.member variableInfo.moduleName context.usedModules
                                 )
                         )
-                    |> Dict.toList
                     |> List.map
-                        (\( _, variableInfo ) ->
+                        (\variableInfo ->
                             error
                                 (\moduleName -> Dict.member moduleName context.declaredModules)
                                 variableInfo
@@ -1107,7 +1107,13 @@ registerModule variableInfo context =
     { context
         | declaredModules =
             Dict.insert
-                (getModuleName variableInfo.moduleName)
+                (case variableInfo.alias of
+                    Just alias ->
+                        alias
+
+                    Nothing ->
+                        getModuleName variableInfo.moduleName
+                )
                 { moduleName = variableInfo.moduleName
                 , alias = variableInfo.alias
                 , variableType = variableInfo.variableType
