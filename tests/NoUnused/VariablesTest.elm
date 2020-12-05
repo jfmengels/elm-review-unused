@@ -843,37 +843,50 @@ a = 1"""
                 |> Review.Test.expectNoErrors
     , test "should report unused import alias but not remove it if another import is aliased as the real name of the reported import and it exposes something" <|
         \() ->
-            """module SomeModule exposing (a)
-import Html as RootHtml exposing (something)
-import Html.Styled as Html
-a : Html.Html msg
-a = something 1"""
-                |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Module alias `RootHtml` is not used"
-                        , details = details
-                        , under = "RootHtml"
-                        }
+            [ """module A exposing (a)
+import B as Unused exposing (b)
+import C as B
+a = b + B.c"""
+            , """module B exposing (b)
+b = C.c"""
+            , """module C exposing (c)
+c = Value"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Module alias `Unused` is not used"
+                            , details = details
+                            , under = "Unused"
+                            }
+                        ]
+                      )
                     ]
     , test "should report unused import alias and remove it if another import is aliased as the real name of the reported import but it doesn't expose anything" <|
         \() ->
-            """module SomeModule exposing (a)
-import Html as RootHtml
-import Html.Styled as Html
-a : Html.Html msg
-a = something 1"""
-                |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Module alias `RootHtml` is not used"
-                        , details = details
-                        , under = "RootHtml"
-                        }
-                        |> Review.Test.whenFixed """module SomeModule exposing (a)
-import Html.Styled as Html
-a : Html.Html msg
-a = something 1"""
+            [ """module A exposing (a)
+import B as Unused
+import C as B
+a = B.b"""
+            , """module B exposing (b)
+b = 1"""
+            , """module C exposing (c)
+c = 1"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Module alias `Unused` is not used"
+                            , details = details
+                            , under = "Unused"
+                            }
+                            |> Review.Test.whenFixed """module A exposing (a)
+import C as B
+a = B.b"""
+                        ]
+                      )
                     ]
     , test "should report unused import even if a let in variable is named the same way" <|
         \() ->
@@ -893,6 +906,32 @@ a = let button = 1
 import Html exposing (div)
 a = let button = 1
     in button + div"""
+                    ]
+    , test "should report unused import alias when two modules share the same alias" <|
+        \() ->
+            [ """module A exposing (a)
+import B
+import C as B
+a = B.b"""
+            , """module B exposing (b)
+b = 1"""
+            , """module C exposing (c)
+c = 1"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Module alias `B` is not used"
+                            , details = details
+                            , under = "B"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 14 } }
+                            |> Review.Test.whenFixed """module A exposing (a)
+import B
+a = B.b"""
+                        ]
+                      )
                     ]
     ]
 
