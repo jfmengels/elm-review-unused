@@ -15,6 +15,7 @@ import Elm.Syntax.Exposing as Exposing exposing (Exposing)
 import Elm.Syntax.Expression as Expression exposing (Expression, Function, FunctionImplementation)
 import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Module as Module exposing (Module)
+import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
@@ -79,8 +80,17 @@ type alias Context =
     , inTheDeclarationOf : Maybe String
     , exposesEverything : Bool
     , constructorNameToTypeName : Dict String String
-    , declaredModules : Dict String VariableInfo
+    , declaredModules : Dict String DeclaredModule
     , usedModules : Set String
+    }
+
+
+type alias DeclaredModule =
+    { moduleName : ModuleName
+    , alias : Maybe String
+    , variableType : VariableType
+    , under : Range
+    , rangeToRemove : Range
     }
 
 
@@ -142,7 +152,7 @@ emptyScope =
     }
 
 
-error : (String -> Bool) -> VariableInfo -> String -> Error {}
+error : (String -> Bool) -> { a | variableType : VariableType, under : Range, rangeToRemove : Range } -> String -> Error {}
 error willConflictWithOtherModule variableInfo name =
     Rule.errorWithFix
         { message = variableTypeToString variableInfo.variableType ++ " `" ++ name ++ "` is not used" ++ variableTypeWarning variableInfo.variableType
@@ -214,7 +224,7 @@ variableTypeWarning value =
             ""
 
 
-fix : (String -> Bool) -> VariableInfo -> List Fix
+fix : (String -> Bool) -> { a | variableType : VariableType, rangeToRemove : Range } -> List Fix
 fix willConflictWithOtherModule { variableType, rangeToRemove } =
     let
         shouldOfferFix : Bool
@@ -312,7 +322,14 @@ importVisitor ((Node _ import_) as node) context =
             ( errors
             , List.foldl
                 (\( name, variableInfo ) context_ -> register variableInfo name context_)
-                (registerModuleAlias node context)
+                (case import_.moduleAlias of
+                    Just moduleAlias ->
+                        registerModuleAlias node moduleAlias context
+
+                    Nothing ->
+                        -- TODO?
+                        context
+                )
                 (collectFromExposing declaredImports)
             )
 
@@ -320,12 +337,14 @@ importVisitor ((Node _ import_) as node) context =
 registerModuleNameOrAlias : Node Import -> Context -> Context
 registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) context =
     case moduleAlias of
-        Just _ ->
-            registerModuleAlias node context
+        Just moduleAlias_ ->
+            registerModuleAlias node moduleAlias_ context
 
         Nothing ->
-            register
-                { variableType = ImportedModule
+            registerModule
+                { moduleName = Node.value moduleName
+                , alias = Nothing
+                , variableType = ImportedModule
                 , under = Node.range moduleName
                 , rangeToRemove = untilStartOfNextLine range
                 }
@@ -333,30 +352,27 @@ registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) con
                 context
 
 
-registerModuleAlias : Node Import -> Context -> Context
-registerModuleAlias ((Node range { exposingList, moduleAlias, moduleName }) as node) context =
-    case moduleAlias of
-        Just moduleAlias_ ->
-            register
-                { variableType =
-                    ModuleAlias
-                        { originalNameOfTheImport = getModuleName <| Node.value moduleName
-                        , exposesSomething = exposingList /= Nothing
-                        }
-                , under = Node.range moduleAlias_
-                , rangeToRemove =
-                    case exposingList of
-                        Nothing ->
-                            untilStartOfNextLine range
-
-                        Just _ ->
-                            moduleAliasRange node (Node.range moduleAlias_)
+registerModuleAlias : Node Import -> Node ModuleName -> Context -> Context
+registerModuleAlias ((Node range { exposingList, moduleName }) as node) moduleAlias context =
+    registerModule
+        { moduleName = Node.value moduleName
+        , alias = Just (getModuleName (Node.value moduleAlias))
+        , variableType =
+            ModuleAlias
+                { originalNameOfTheImport = getModuleName <| Node.value moduleName
+                , exposesSomething = exposingList /= Nothing
                 }
-                (getModuleName <| Node.value moduleAlias_)
-                context
+        , under = Node.range moduleAlias
+        , rangeToRemove =
+            case exposingList of
+                Nothing ->
+                    untilStartOfNextLine range
 
-        Nothing ->
-            context
+                Just _ ->
+                    moduleAliasRange node (Node.range moduleAlias)
+        }
+        (getModuleName <| Node.value moduleAlias)
+        context
 
 
 moduleAliasRange : Node Import -> Range -> Range
@@ -787,7 +803,19 @@ finalEvaluation context =
                 context.declaredModules
                     |> Dict.filter (\key _ -> not <| Set.member key context.usedModules)
                     |> Dict.toList
-                    |> List.map (\( key, variableInfo ) -> error (\moduleName -> Dict.member moduleName context.declaredModules) variableInfo key)
+                    |> List.map
+                        (\( _, variableInfo ) ->
+                            error
+                                (\moduleName -> Dict.member moduleName context.declaredModules)
+                                variableInfo
+                                (case variableInfo.alias of
+                                    Just alias ->
+                                        alias
+
+                                    Nothing ->
+                                        getModuleName variableInfo.moduleName
+                                )
+                        )
         in
         List.concat
             [ newRootScope
@@ -1035,6 +1063,7 @@ register variableInfo name context =
     case variableInfo.variableType of
         TopLevelVariable ->
             -- The main function is "exposed" by default
+            -- TODO Don't do this for libraries
             if name == "main" then
                 context
 
@@ -1045,13 +1074,15 @@ register variableInfo name context =
             registerVariable variableInfo name context
 
         ImportedModule ->
-            registerModule variableInfo name context
+            -- Does not call this function for this case
+            context
+
+        ModuleAlias _ ->
+            -- Does not call this function for this case
+            context
 
         ImportedItem _ ->
             registerVariable variableInfo name context
-
-        ModuleAlias _ ->
-            registerModule variableInfo name context
 
         Type ->
             registerVariable variableInfo name context
@@ -1063,9 +1094,21 @@ register variableInfo name context =
             registerVariable variableInfo name context
 
 
-registerModule : VariableInfo -> String -> Context -> Context
+registerModule : DeclaredModule -> String -> Context -> Context
 registerModule variableInfo name context =
-    { context | declaredModules = Dict.insert name variableInfo context.declaredModules }
+    { context
+        | declaredModules =
+            Dict.insert
+                name
+                -- TODO
+                { moduleName = []
+                , alias = Just name
+                , variableType = variableInfo.variableType
+                , under = variableInfo.under
+                , rangeToRemove = variableInfo.rangeToRemove
+                }
+                context.declaredModules
+    }
 
 
 registerVariable : VariableInfo -> String -> Context -> Context
