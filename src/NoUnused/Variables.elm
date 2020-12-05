@@ -17,7 +17,7 @@ import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.Range exposing (Location, Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import Review.Fix as Fix exposing (Fix)
@@ -806,6 +806,26 @@ registerFunction letBlockContext function context =
             }
             (Node.value declaration.name)
         |> markUsedTypesAndModules namesUsedInSignature
+
+
+mapWithPreviousAndNextRanges : (Maybe Location -> Node a -> Maybe Location -> b) -> List (Node a) -> List b
+mapWithPreviousAndNextRanges fn list =
+    mapWithPreviousAndNextRangesHelp [] fn Nothing list
+
+
+mapWithPreviousAndNextRangesHelp : List b -> (Maybe Location -> Node a -> Maybe Location -> b) -> Maybe Location -> List (Node a) -> List b
+mapWithPreviousAndNextRangesHelp result fn prev list =
+    case list of
+        [] ->
+            List.reverse result
+
+        x :: xs ->
+            let
+                newResult : List b
+                newResult =
+                    fn prev x (List.head xs |> Maybe.map (Node.range >> .start)) :: result
+            in
+            mapWithPreviousAndNextRangesHelp newResult fn (Just (Node.range x).start) xs
 
 
 collectFromExposing : Node Exposing -> List ( String, VariableInfo )
