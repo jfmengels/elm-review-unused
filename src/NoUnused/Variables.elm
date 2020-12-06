@@ -761,6 +761,7 @@ rangeToRemoveForNodeWithDocumentation (Node nodeRange _) documentation =
 
 finalEvaluation : Context -> List (Error {})
 finalEvaluation context =
+    -- TODO report imports even when exposing everything
     if context.exposesEverything then
         []
 
