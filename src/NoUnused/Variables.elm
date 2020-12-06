@@ -80,7 +80,7 @@ type alias Context =
     , inTheDeclarationOf : Maybe String
     , exposesEverything : Bool
     , constructorNameToTypeName : Dict String String
-    , declaredModules : Dict String DeclaredModule
+    , declaredModules : List DeclaredModule
     , usedModules : Set ModuleName
     }
 
@@ -140,7 +140,7 @@ initialContext =
             , inTheDeclarationOf = Nothing
             , exposesEverything = False
             , constructorNameToTypeName = Dict.empty
-            , declaredModules = Dict.empty
+            , declaredModules = []
             , usedModules = Set.empty
             }
         )
@@ -771,10 +771,15 @@ finalEvaluation context =
             newRootScope =
                 { rootScope | used = Set.union namesOfCustomTypesUsedByCallingAConstructor rootScope.used }
 
+            moduleNamesInUse : Set String
+            moduleNamesInUse =
+                context.declaredModules
+                    |> List.map (\{ alias, moduleName } -> Maybe.withDefault (getModuleName moduleName) alias)
+                    |> Set.fromList
+
             moduleErrors : List (Error {})
             moduleErrors =
                 context.declaredModules
-                    |> Dict.values
                     |> List.filter
                         (\variableInfo ->
                             not
@@ -789,7 +794,7 @@ finalEvaluation context =
                     |> List.map
                         (\variableInfo ->
                             error
-                                (\moduleName -> Dict.member moduleName context.declaredModules)
+                                (\moduleName -> Set.member moduleName moduleNamesInUse)
                                 variableInfo
                                 (case variableInfo.alias of
                                     Just alias ->
@@ -1084,20 +1089,8 @@ register variableInfo name context =
 
 
 registerModule : DeclaredModule -> Context -> Context
-registerModule variableInfo context =
-    { context
-        | declaredModules =
-            Dict.insert
-                (case variableInfo.alias of
-                    Just alias ->
-                        alias
-
-                    Nothing ->
-                        getModuleName variableInfo.moduleName
-                )
-                variableInfo
-                context.declaredModules
-    }
+registerModule declaredModule context =
+    { context | declaredModules = declaredModule :: context.declaredModules }
 
 
 registerVariable : VariableInfo -> String -> Context -> Context
