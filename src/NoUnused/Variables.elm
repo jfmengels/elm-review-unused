@@ -22,7 +22,7 @@ import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import Review.Fix as Fix exposing (Fix)
-import Review.ModuleNameLookupTable exposing (ModuleNameLookupTable)
+import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 
@@ -81,7 +81,7 @@ type alias Context =
     , exposesEverything : Bool
     , constructorNameToTypeName : Dict String String
     , declaredModules : List DeclaredModule
-    , usedModules : Set ModuleName
+    , usedModules : Set ( ModuleName, ModuleName )
     }
 
 
@@ -355,7 +355,12 @@ expressionEnterVisitor (Node range value) context =
             ( [], markAsUsed name context )
 
         Expression.FunctionOrValue moduleName _ ->
-            ( [], markModuleAsUsed moduleName context )
+            case ModuleNameLookupTable.moduleNameAt context.lookupTable range of
+                Just realModuleName ->
+                    ( [], markModuleAsUsed ( realModuleName, moduleName ) context )
+
+                Nothing ->
+                    ( [], context )
 
         Expression.OperatorApplication name _ _ _ ->
             ( [], markAsUsed name context )
@@ -378,12 +383,12 @@ expressionEnterVisitor (Node range value) context =
                     case Node.value declaration of
                         Expression.LetFunction function ->
                             let
-                                namesUsedInArgumentPatterns : { types : List String, modules : List ModuleName }
+                                namesUsedInArgumentPatterns : { types : List String, modules : List ( ModuleName, ModuleName ) }
                                 namesUsedInArgumentPatterns =
                                     function.declaration
                                         |> Node.value
                                         |> .arguments
-                                        |> List.map getUsedVariablesFromPattern
+                                        |> List.map (getUsedVariablesFromPattern context.lookupTable)
                                         |> foldUsedTypesAndModules
                             in
                             ( errors
@@ -423,10 +428,10 @@ expressionEnterVisitor (Node range value) context =
 
         Expression.LambdaExpression { args } ->
             let
-                namesUsedInArgumentPatterns : { types : List String, modules : List ModuleName }
+                namesUsedInArgumentPatterns : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInArgumentPatterns =
                     args
-                        |> List.map getUsedVariablesFromPattern
+                        |> List.map (getUsedVariablesFromPattern context.lookupTable)
                         |> foldUsedTypesAndModules
             in
             ( [], markUsedTypesAndModules namesUsedInArgumentPatterns context )
@@ -456,12 +461,12 @@ expressionExitVisitor node context =
 
         Expression.CaseExpression { cases } ->
             let
-                usedVariables : { types : List String, modules : List ModuleName }
+                usedVariables : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 usedVariables =
                     cases
                         |> List.map
                             (\( patternNode, _ ) ->
-                                getUsedVariablesFromPattern patternNode
+                                getUsedVariablesFromPattern context.lookupTable patternNode
                             )
                         |> foldUsedTypesAndModules
             in
@@ -486,10 +491,10 @@ expressionExitVisitor node context =
             ( [], context )
 
 
-getUsedVariablesFromPattern : Node Pattern -> { types : List String, modules : List ModuleName }
-getUsedVariablesFromPattern patternNode =
+getUsedVariablesFromPattern : ModuleNameLookupTable -> Node Pattern -> { types : List String, modules : List ( ModuleName, ModuleName ) }
+getUsedVariablesFromPattern lookupTable patternNode =
     { types = getUsedTypesFromPattern patternNode
-    , modules = getUsedModulesFromPattern patternNode
+    , modules = getUsedModulesFromPattern lookupTable patternNode
     }
 
 
@@ -547,8 +552,8 @@ getUsedTypesFromPattern patternNode =
             getUsedTypesFromPattern pattern
 
 
-getUsedModulesFromPattern : Node Pattern -> List ModuleName
-getUsedModulesFromPattern patternNode =
+getUsedModulesFromPattern : ModuleNameLookupTable -> Node Pattern -> List ( ModuleName, ModuleName )
+getUsedModulesFromPattern lookupTable patternNode =
     case Node.value patternNode of
         Pattern.AllPattern ->
             []
@@ -572,16 +577,16 @@ getUsedModulesFromPattern patternNode =
             []
 
         Pattern.TuplePattern patterns ->
-            List.concatMap getUsedModulesFromPattern patterns
+            List.concatMap (getUsedModulesFromPattern lookupTable) patterns
 
         Pattern.RecordPattern _ ->
             []
 
         Pattern.UnConsPattern pattern1 pattern2 ->
-            List.concatMap getUsedModulesFromPattern [ pattern1, pattern2 ]
+            List.concatMap (getUsedModulesFromPattern lookupTable) [ pattern1, pattern2 ]
 
         Pattern.ListPattern patterns ->
-            List.concatMap getUsedModulesFromPattern patterns
+            List.concatMap (getUsedModulesFromPattern lookupTable) patterns
 
         Pattern.VarPattern _ ->
             []
@@ -589,16 +594,21 @@ getUsedModulesFromPattern patternNode =
         Pattern.NamedPattern qualifiedNameRef patterns ->
             case qualifiedNameRef.moduleName of
                 [] ->
-                    List.concatMap getUsedModulesFromPattern patterns
+                    List.concatMap (getUsedModulesFromPattern lookupTable) patterns
 
                 moduleName ->
-                    moduleName :: List.concatMap getUsedModulesFromPattern patterns
+                    case ModuleNameLookupTable.moduleNameFor lookupTable patternNode of
+                        Just realModuleName ->
+                            ( realModuleName, moduleName ) :: List.concatMap (getUsedModulesFromPattern lookupTable) patterns
+
+                        Nothing ->
+                            List.concatMap (getUsedModulesFromPattern lookupTable) patterns
 
         Pattern.AsPattern pattern _ ->
-            getUsedModulesFromPattern pattern
+            getUsedModulesFromPattern lookupTable pattern
 
         Pattern.ParenthesizedPattern pattern ->
-            getUsedModulesFromPattern pattern
+            getUsedModulesFromPattern lookupTable pattern
 
 
 declarationVisitor : Node Declaration -> Context -> ( List nothing, Context )
@@ -610,18 +620,18 @@ declarationVisitor node context =
                 functionImplementation =
                     Node.value function.declaration
 
-                namesUsedInSignature : { types : List String, modules : List ModuleName }
+                namesUsedInSignature : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInSignature =
                     function.signature
-                        |> Maybe.map (Node.value >> .typeAnnotation >> collectNamesFromTypeAnnotation)
+                        |> Maybe.map (Node.value >> .typeAnnotation >> collectNamesFromTypeAnnotation context.lookupTable)
                         |> Maybe.withDefault { types = [], modules = [] }
 
-                namesUsedInArgumentPatterns : { types : List String, modules : List ModuleName }
+                namesUsedInArgumentPatterns : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInArgumentPatterns =
                     function.declaration
                         |> Node.value
                         |> .arguments
-                        |> List.map getUsedVariablesFromPattern
+                        |> List.map (getUsedVariablesFromPattern context.lookupTable)
                         |> foldUsedTypesAndModules
 
                 newContext : Context
@@ -641,11 +651,11 @@ declarationVisitor node context =
 
         Declaration.CustomTypeDeclaration { name, documentation, constructors } ->
             let
-                variablesFromConstructorArguments : { types : List String, modules : List ModuleName }
+                variablesFromConstructorArguments : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 variablesFromConstructorArguments =
                     constructors
                         |> List.concatMap (Node.value >> .arguments)
-                        |> List.map collectNamesFromTypeAnnotation
+                        |> List.map (collectNamesFromTypeAnnotation context.lookupTable)
                         |> foldUsedTypesAndModules
 
                 typeName : String
@@ -673,9 +683,9 @@ declarationVisitor node context =
 
         Declaration.AliasDeclaration { name, typeAnnotation, documentation } ->
             let
-                namesUsedInTypeAnnotation : { types : List String, modules : List ModuleName }
+                namesUsedInTypeAnnotation : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInTypeAnnotation =
-                    collectNamesFromTypeAnnotation typeAnnotation
+                    collectNamesFromTypeAnnotation context.lookupTable typeAnnotation
             in
             ( []
             , context
@@ -691,9 +701,9 @@ declarationVisitor node context =
 
         Declaration.PortDeclaration { name, typeAnnotation } ->
             let
-                namesUsedInTypeAnnotation : { types : List String, modules : List ModuleName }
+                namesUsedInTypeAnnotation : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInTypeAnnotation =
-                    collectNamesFromTypeAnnotation typeAnnotation
+                    collectNamesFromTypeAnnotation context.lookupTable typeAnnotation
             in
             ( []
             , context
@@ -724,12 +734,12 @@ declarationVisitor node context =
             ( [], context )
 
 
-foldUsedTypesAndModules : List { types : List String, modules : List ModuleName } -> { types : List String, modules : List ModuleName }
+foldUsedTypesAndModules : List { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 foldUsedTypesAndModules =
     List.foldl (\a b -> { types = a.types ++ b.types, modules = a.modules ++ b.modules }) { types = [], modules = [] }
 
 
-markUsedTypesAndModules : { types : List String, modules : List ModuleName } -> Context -> Context
+markUsedTypesAndModules : { types : List String, modules : List ( ModuleName, ModuleName ) } -> Context -> Context
 markUsedTypesAndModules { types, modules } context =
     context
         |> markAllAsUsed types
@@ -785,10 +795,10 @@ finalEvaluation context =
                             not
                                 (case variableInfo.alias of
                                     Just alias ->
-                                        Set.member [ alias ] context.usedModules
+                                        Set.member ( variableInfo.moduleName, [ alias ] ) context.usedModules
 
                                     Nothing ->
-                                        Set.member variableInfo.moduleName context.usedModules
+                                        Set.member ( variableInfo.moduleName, variableInfo.moduleName ) context.usedModules
                                 )
                         )
                     |> List.map
@@ -820,11 +830,11 @@ registerFunction letBlockContext function context =
         declaration =
             Node.value function.declaration
 
-        namesUsedInSignature : { types : List String, modules : List ModuleName }
+        namesUsedInSignature : { types : List String, modules : List ( ModuleName, ModuleName ) }
         namesUsedInSignature =
             case Maybe.map Node.value function.signature of
                 Just signature ->
-                    collectNamesFromTypeAnnotation signature.typeAnnotation
+                    collectNamesFromTypeAnnotation context.lookupTable signature.typeAnnotation
 
                 Nothing ->
                     { types = [], modules = [] }
@@ -965,10 +975,10 @@ untilEndOfVariable name range =
         { range | end = { row = range.start.row, column = range.start.column + String.length name } }
 
 
-collectNamesFromTypeAnnotation : Node TypeAnnotation -> { types : List String, modules : List ModuleName }
-collectNamesFromTypeAnnotation node =
+collectNamesFromTypeAnnotation : ModuleNameLookupTable -> Node TypeAnnotation -> { types : List String, modules : List ( ModuleName, ModuleName ) }
+collectNamesFromTypeAnnotation lookupTable node =
     { types = collectTypesFromTypeAnnotation node
-    , modules = collectModuleNamesFromTypeAnnotation node
+    , modules = collectModuleNamesFromTypeAnnotation lookupTable node
     }
 
 
@@ -1012,38 +1022,33 @@ collectTypesFromTypeAnnotation node =
             []
 
 
-collectModuleNamesFromTypeAnnotation : Node TypeAnnotation -> List ModuleName
-collectModuleNamesFromTypeAnnotation node =
+collectModuleNamesFromTypeAnnotation : ModuleNameLookupTable -> Node TypeAnnotation -> List ( ModuleName, ModuleName )
+collectModuleNamesFromTypeAnnotation lookupTable node =
     case Node.value node of
         TypeAnnotation.FunctionTypeAnnotation a b ->
-            collectModuleNamesFromTypeAnnotation a ++ collectModuleNamesFromTypeAnnotation b
+            collectModuleNamesFromTypeAnnotation lookupTable a ++ collectModuleNamesFromTypeAnnotation lookupTable b
 
         TypeAnnotation.Typed nameNode params ->
-            let
-                name : List ModuleName
-                name =
-                    case Node.value nameNode of
-                        ( [], _ ) ->
-                            []
+            case ( Tuple.first (Node.value nameNode), ModuleNameLookupTable.moduleNameFor lookupTable node ) of
+                ( usedModuleNameFirst :: usedModuleNameRest, Just realModuleName ) ->
+                    ( realModuleName, usedModuleNameFirst :: usedModuleNameRest ) :: List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable) params
 
-                        ( moduleName, _ ) ->
-                            [ moduleName ]
-            in
-            name ++ List.concatMap collectModuleNamesFromTypeAnnotation params
+                _ ->
+                    List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable) params
 
         TypeAnnotation.Record list ->
             list
                 |> List.map (Node.value >> Tuple.second)
-                |> List.concatMap collectModuleNamesFromTypeAnnotation
+                |> List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable)
 
         TypeAnnotation.GenericRecord _ list ->
             list
                 |> Node.value
                 |> List.map (Node.value >> Tuple.second)
-                |> List.concatMap collectModuleNamesFromTypeAnnotation
+                |> List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable)
 
         TypeAnnotation.Tupled list ->
-            List.concatMap collectModuleNamesFromTypeAnnotation list
+            List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable) list
 
         TypeAnnotation.GenericType _ ->
             []
@@ -1130,12 +1135,12 @@ markAsUsed name context =
         { context | scopes = scopes }
 
 
-markAllModulesAsUsed : List ModuleName -> Context -> Context
+markAllModulesAsUsed : List ( ModuleName, ModuleName ) -> Context -> Context
 markAllModulesAsUsed names context =
     { context | usedModules = Set.union (Set.fromList names) context.usedModules }
 
 
-markModuleAsUsed : ModuleName -> Context -> Context
+markModuleAsUsed : ( ModuleName, ModuleName ) -> Context -> Context
 markModuleAsUsed name context =
     { context | usedModules = Set.insert name context.usedModules }
 
