@@ -888,6 +888,20 @@ a = B.b"""
                         ]
                       )
                     ]
+    , test "should not mark module as unused when using a qualified type from it" <|
+        \() ->
+            [ """module A exposing (foo)
+import B as C
+foo : C.Thing Account
+foo user = 1
+"""
+            , """module B exposing (Thing)
+type alias Thing a = {}"""
+            , """module C exposing (c)
+c = 1"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
     , test "should report unused import even if a let in variable is named the same way" <|
         \() ->
             """module SomeModule exposing (a)

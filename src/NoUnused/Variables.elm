@@ -1029,7 +1029,7 @@ collectModuleNamesFromTypeAnnotation lookupTable node =
             collectModuleNamesFromTypeAnnotation lookupTable a ++ collectModuleNamesFromTypeAnnotation lookupTable b
 
         TypeAnnotation.Typed nameNode params ->
-            case ( Tuple.first (Node.value nameNode), ModuleNameLookupTable.moduleNameFor lookupTable node ) of
+            case ( Tuple.first (Node.value nameNode), ModuleNameLookupTable.moduleNameFor lookupTable nameNode ) of
                 ( usedModuleNameFirst :: usedModuleNameRest, Just realModuleName ) ->
                     ( realModuleName, usedModuleNameFirst :: usedModuleNameRest ) :: List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable) params
 
