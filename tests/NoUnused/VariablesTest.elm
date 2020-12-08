@@ -1,9 +1,12 @@
 module NoUnused.VariablesTest exposing (all)
 
+import Elm.Docs
 import Elm.Project
+import Elm.Type
 import Json.Decode as Decode
 import NoUnused.Variables exposing (rule)
 import Review.Project as Project exposing (Project)
+import Review.Project.Dependency as Dependency exposing (Dependency)
 import Review.Test
 import Test exposing (Test, describe, test)
 
@@ -843,7 +846,7 @@ a = Html.div"""
 import Html
 a = Html.div"""
                     ]
-    , test "should not report import that exposes a used exposed type" <|
+    , test "should not report open type import when we don't know what the constructors are" <|
         \() ->
             """module SomeModule exposing (a)
 import B exposing (C(..))
@@ -851,6 +854,193 @@ a : C
 a = 1"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should not report open type import when at least one of the exposed constructors are used as a value (imported local module)" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..))
+a = C_Value"""
+            , """module B exposing (C(..))
+type C = C_Value
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
+    , test "should report open type import when none of its constructors is used (imported dependency)" <|
+        \() ->
+            """module A exposing (a)
+import Dependency exposing (C(..))
+a = 1"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported type `C` is not used"
+                        , details = details
+                        , under = "C(..)"
+                        }
+                        |> Review.Test.whenFixed ("""module A exposing (a)
+import Dependency$
+a = 1""" |> String.replace "$" " ")
+                    ]
+    , test "should not report open type import when at least one of the exposed constructors are used as a value (imported dependency)" <|
+        \() ->
+            """module A exposing (a)
+import Dependency exposing (C(..))
+a = C_Value"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectNoErrors
+    , test "should not report open type import when the dependency it comes from is unknown" <|
+        \() ->
+            """module A exposing (a)
+import UnknownDependency exposing (C(..))
+a = 1"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectNoErrors
+    , test "should not report open type import when at least one of the exposed constructors are used in a pattern" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..))
+a = case thing of
+      C_Value -> 1
+"""
+            , """module B exposing (C(..))
+type C = C_Value
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
+    , test "should not report open type import when at least one of the exposed constructors are used in a let expression" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..))
+a = let foo = C_Value
+    in foo
+"""
+            , """module B exposing (C(..))
+type C = C_Value
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
+    , test "should report open type import when none of the exposed constructors are used" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..))
+a = 1
+"""
+            , """module B exposing (C(..))
+type C = C_Value
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported type `C` is not used"
+                            , details = details
+                            , under = "C(..)"
+                            }
+                            |> Review.Test.whenFixed ("""module A exposing (a)
+import B$
+a = 1
+""" |> String.replace "$" " ")
+                        ]
+                      )
+                    ]
+    , test "should report open type import when none of the exposed constructors are used, because they have been shadowed" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..), something)
+type Something = C_Value
+a = C_Value + something
+"""
+            , """module B exposing (C(..))
+type C = C_Value
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported type `C` is not used"
+                            , details = details
+                            , under = "C(..)"
+                            }
+                            |> Review.Test.whenFixed """module A exposing (a)
+import B exposing (something)
+type Something = C_Value
+a = C_Value + something
+"""
+                        ]
+                      )
+                    ]
+    , test "should report open type import when none of the exposed constructors are used and the type itself has been shadowed" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..), something)
+type C = Local_Value
+a = Local_Value + something
+"""
+            , """module B exposing (C(..))
+type C = C_Value
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported type `C` is not used"
+                            , details = details
+                            , under = "C(..)"
+                            }
+                            |> Review.Test.whenFixed """module A exposing (a)
+import B exposing (something)
+type C = Local_Value
+a = Local_Value + something
+"""
+                        ]
+                      )
+                    ]
+    , test "should not report open type import when at least of the exposed constructors even when the type itself has been shadowed" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..), something)
+type C = Local_Value
+a = C_Value + Local_Value + something
+"""
+            , """module B exposing (C(..))
+type C = C_Value
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
+    , test "should report open type import when none of the exposed constructors are used, but only remove the (..) when type is used" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..), something)
+a : C
+a = B.something + something
+"""
+            , """module B exposing (C(..), something)
+type C = C_Value
+something = C_Value
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported constructors for `C` are not used"
+                            , details = details
+                            , under = "C(..)"
+                            }
+                            |> Review.Test.whenFixed """module A exposing (a)
+import B exposing (C, something)
+a : C
+a = B.something + something
+"""
+                        ]
+                      )
+                    ]
     , test "should not report import that exposes an unused exposed type (but whose subtype is potentially used)" <|
         \() ->
             """module SomeModule exposing (a)
@@ -1581,12 +1771,13 @@ apL f x =
 packageProject : Project
 packageProject =
     Project.new
-        |> Project.addElmJson (createPackageElmJson ())
+        |> Project.addElmJson (createElmJson rawPackageElmJson)
+        |> Project.addDependency packageWithFoo
 
 
-createPackageElmJson : () -> { path : String, raw : String, project : Elm.Project.Project }
-createPackageElmJson _ =
-    case Decode.decodeString Elm.Project.decoder rawPackageElmJson of
+createElmJson : String -> { path : String, raw : String, project : Elm.Project.Project }
+createElmJson rawElmJson =
+    case Decode.decodeString Elm.Project.decoder rawElmJson of
         Ok elmJson ->
             { path = "elm.json"
             , raw = rawPackageElmJson
@@ -1609,6 +1800,53 @@ rawPackageElmJson =
         "Exposed"
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
-    "dependencies": {},
+    "dependencies": {
+        "package/author": "1.0.0 <= v < 2.0.0"
+    },
     "test-dependencies": {}
 }"""
+
+
+packageWithFoo : Dependency
+packageWithFoo =
+    let
+        modules : List Elm.Docs.Module
+        modules =
+            [ { name = "Dependency"
+              , comment = ""
+              , unions =
+                    [ { name = "C"
+                      , comment = ""
+                      , args = []
+                      , tags = [ ( "C_Value", [ Elm.Type.Var "a" ] ) ]
+                      }
+                    ]
+              , aliases = []
+              , values = []
+              , binops = []
+              }
+            ]
+
+        elmJson : Elm.Project.Project
+        elmJson =
+            .project <| createElmJson """
+  {
+      "type": "package",
+      "name": "author/package-with-foo",
+      "summary": "Summary",
+      "license": "BSD-3-Clause",
+      "version": "1.0.0",
+      "exposed-modules": [
+          "Dependency"
+      ],
+      "elm-version": "0.19.0 <= v < 0.20.0",
+      "dependencies": {
+          "elm/core": "1.0.0 <= v < 2.0.0"
+      },
+      "test-dependencies": {}
+  }"""
+    in
+    Dependency.create
+        "author/package-with-foo"
+        elmJson
+        modules
