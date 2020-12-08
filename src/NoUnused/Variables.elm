@@ -358,7 +358,6 @@ importVisitor ((Node _ import_) as node) context =
                         registerModuleAlias node moduleAlias context
 
                     Nothing ->
-                        -- TODO?
                         context
                 )
                 (collectFromExposing declaredImports)
