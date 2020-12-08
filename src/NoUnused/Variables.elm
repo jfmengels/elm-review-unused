@@ -64,14 +64,30 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Varia
 -}
 rule : Rule
 rule =
-    Rule.newModuleRuleSchemaUsingContextCreator "NoUnused.Variables" initialContext
+    Rule.newProjectRuleSchema "NoUnused.Variables" initialContext
+        |> Rule.withModuleVisitor moduleVisitor
+        |> Rule.withModuleContextUsingContextCreator
+            { fromProjectToModule = fromProjectToModule
+            , fromModuleToProject = fromModuleToProject
+            , foldProjectContexts = foldProjectContexts
+            }
+        |> Rule.fromProjectRuleSchema
+
+
+moduleVisitor : Rule.ModuleRuleSchema schemaState ModuleContext -> Rule.ModuleRuleSchema { schemaState | hasAtLeastOneVisitor : () } ModuleContext
+moduleVisitor schema =
+    schema
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withImportVisitor importVisitor
         |> Rule.withDeclarationEnterVisitor declarationVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
-        |> Rule.fromModuleRuleSchema
+
+
+type alias ProjectContext =
+    { isApplication : Bool
+    }
 
 
 type alias ModuleContext =
@@ -132,21 +148,42 @@ type ImportType
     | ImportedOperator
 
 
-initialContext : Rule.ContextCreator () ModuleContext
+initialContext : ProjectContext
 initialContext =
+    { isApplication = True
+    }
+
+
+fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
+fromProjectToModule =
     Rule.initContextCreator
-        (\lookupTable () ->
+        (\lookupTable { isApplication } ->
             { lookupTable = lookupTable
             , scopes = NonemptyList.fromElement emptyScope
             , inTheDeclarationOf = Nothing
             , exposesEverything = False
-            , isApplication = True
+            , isApplication = isApplication
             , constructorNameToTypeName = Dict.empty
             , declaredModules = []
             , usedModules = Set.empty
             }
         )
         |> Rule.withModuleNameLookupTable
+
+
+fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
+fromModuleToProject =
+    Rule.initContextCreator
+        (\_ ->
+            -- Will be ignored in foldProjectContexts
+            { isApplication = True
+            }
+        )
+
+
+foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
+foldProjectContexts _ previousProjectContext =
+    previousProjectContext
 
 
 emptyScope : Scope
@@ -636,8 +673,8 @@ declarationVisitor node context =
                         |> List.map (getUsedVariablesFromPattern context.lookupTable)
                         |> foldUsedTypesAndModules
 
-                newContextWherFunctionIsRegistered : ModuleContext
-                newContextWherFunctionIsRegistered =
+                newContextWhereFunctionIsRegistered : ModuleContext
+                newContextWhereFunctionIsRegistered =
                     if context.exposesEverything then
                         context
 
@@ -653,7 +690,7 @@ declarationVisitor node context =
 
                 newContext : ModuleContext
                 newContext =
-                    newContextWherFunctionIsRegistered
+                    newContextWhereFunctionIsRegistered
                         |> markUsedTypesAndModules namesUsedInSignature
                         |> markUsedTypesAndModules namesUsedInArgumentPatterns
             in
