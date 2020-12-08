@@ -634,16 +634,24 @@ declarationVisitor node context =
                         |> List.map (getUsedVariablesFromPattern context.lookupTable)
                         |> foldUsedTypesAndModules
 
+                newContextWherFunctionIsRegistered : Context
+                newContextWherFunctionIsRegistered =
+                    if context.exposesEverything then
+                        context
+
+                    else
+                        { context | inTheDeclarationOf = Just <| Node.value functionImplementation.name }
+                            |> register
+                                { variableType = TopLevelVariable
+                                , typeName = "Top-level variable"
+                                , under = Node.range functionImplementation.name
+                                , rangeToRemove = rangeToRemoveForNodeWithDocumentation node function.documentation
+                                }
+                                (Node.value functionImplementation.name)
+
                 newContext : Context
                 newContext =
-                    { context | inTheDeclarationOf = Just <| Node.value functionImplementation.name }
-                        |> register
-                            { variableType = TopLevelVariable
-                            , typeName = "Top-level variable"
-                            , under = Node.range functionImplementation.name
-                            , rangeToRemove = rangeToRemoveForNodeWithDocumentation node function.documentation
-                            }
-                            (Node.value functionImplementation.name)
+                    newContextWherFunctionIsRegistered
                         |> markUsedTypesAndModules namesUsedInSignature
                         |> markUsedTypesAndModules namesUsedInArgumentPatterns
             in
@@ -761,67 +769,62 @@ rangeToRemoveForNodeWithDocumentation (Node nodeRange _) documentation =
 
 finalEvaluation : Context -> List (Error {})
 finalEvaluation context =
-    -- TODO report imports even when exposing everything
-    if context.exposesEverything then
-        []
+    let
+        rootScope : Scope
+        rootScope =
+            NonemptyList.head context.scopes
 
-    else
-        let
-            rootScope : Scope
-            rootScope =
-                NonemptyList.head context.scopes
+        namesOfCustomTypesUsedByCallingAConstructor : Set String
+        namesOfCustomTypesUsedByCallingAConstructor =
+            context.constructorNameToTypeName
+                |> Dict.filter (\usedName _ -> Set.member usedName rootScope.used)
+                |> Dict.values
+                |> Set.fromList
 
-            namesOfCustomTypesUsedByCallingAConstructor : Set String
-            namesOfCustomTypesUsedByCallingAConstructor =
-                context.constructorNameToTypeName
-                    |> Dict.filter (\usedName _ -> Set.member usedName rootScope.used)
-                    |> Dict.values
-                    |> Set.fromList
+        newRootScope : Scope
+        newRootScope =
+            { rootScope | used = Set.union namesOfCustomTypesUsedByCallingAConstructor rootScope.used }
 
-            newRootScope : Scope
-            newRootScope =
-                { rootScope | used = Set.union namesOfCustomTypesUsedByCallingAConstructor rootScope.used }
+        moduleNamesInUse : Set String
+        moduleNamesInUse =
+            context.declaredModules
+                |> List.map (\{ alias, moduleName } -> Maybe.withDefault (getModuleName moduleName) alias)
+                |> Set.fromList
 
-            moduleNamesInUse : Set String
-            moduleNamesInUse =
-                context.declaredModules
-                    |> List.map (\{ alias, moduleName } -> Maybe.withDefault (getModuleName moduleName) alias)
-                    |> Set.fromList
+        moduleErrors : List (Error {})
+        moduleErrors =
+            context.declaredModules
+                |> List.filter
+                    (\variableInfo ->
+                        not
+                            (case variableInfo.alias of
+                                Just alias ->
+                                    Set.member ( variableInfo.moduleName, [ alias ] ) context.usedModules
 
-            moduleErrors : List (Error {})
-            moduleErrors =
-                context.declaredModules
-                    |> List.filter
-                        (\variableInfo ->
-                            not
-                                (case variableInfo.alias of
-                                    Just alias ->
-                                        Set.member ( variableInfo.moduleName, [ alias ] ) context.usedModules
+                                Nothing ->
+                                    Set.member ( variableInfo.moduleName, variableInfo.moduleName ) context.usedModules
+                            )
+                    )
+                |> List.map
+                    (\variableInfo ->
+                        error
+                            (\moduleName -> Set.member moduleName moduleNamesInUse)
+                            variableInfo
+                            (case variableInfo.alias of
+                                Just alias ->
+                                    alias
 
-                                    Nothing ->
-                                        Set.member ( variableInfo.moduleName, variableInfo.moduleName ) context.usedModules
-                                )
-                        )
-                    |> List.map
-                        (\variableInfo ->
-                            error
-                                (\moduleName -> Set.member moduleName moduleNamesInUse)
-                                variableInfo
-                                (case variableInfo.alias of
-                                    Just alias ->
-                                        alias
-
-                                    Nothing ->
-                                        getModuleName variableInfo.moduleName
-                                )
-                        )
-        in
-        List.concat
-            [ newRootScope
-                |> makeReport
-                |> Tuple.first
-            , moduleErrors
-            ]
+                                Nothing ->
+                                    getModuleName variableInfo.moduleName
+                            )
+                    )
+    in
+    List.concat
+        [ newRootScope
+            |> makeReport
+            |> Tuple.first
+        , moduleErrors
+        ]
 
 
 registerFunction : LetBlockContext -> Function -> Context -> Context

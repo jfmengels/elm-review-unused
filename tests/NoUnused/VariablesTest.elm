@@ -947,6 +947,21 @@ a = B.b"""
                         ]
                       )
                     ]
+    , test "should report unused imports even if everything is exposed" <|
+        \() ->
+            """module SomeModule exposing (..)
+import Unused
+a = 1"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported module `Unused` is not used"
+                        , details = details
+                        , under = "Unused"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (..)
+a = 1"""
+                    ]
     ]
 
 
