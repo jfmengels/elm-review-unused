@@ -74,7 +74,7 @@ rule =
         |> Rule.fromModuleRuleSchema
 
 
-type alias Context =
+type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
     , scopes : Nonempty Scope
     , inTheDeclarationOf : Maybe String
@@ -132,7 +132,7 @@ type ImportType
     | ImportedOperator
 
 
-initialContext : Rule.ContextCreator () Context
+initialContext : Rule.ContextCreator () ModuleContext
 initialContext =
     Rule.initContextCreator
         (\lookupTable () ->
@@ -232,7 +232,7 @@ fix willConflictWithOtherModule { variableType, rangeToRemove } =
         []
 
 
-moduleDefinitionVisitor : Node Module -> Context -> ( List nothing, Context )
+moduleDefinitionVisitor : Node Module -> ModuleContext -> ( List nothing, ModuleContext )
 moduleDefinitionVisitor (Node _ moduleNode) context =
     case Module.exposingList moduleNode of
         Exposing.All _ ->
@@ -262,7 +262,7 @@ moduleDefinitionVisitor (Node _ moduleNode) context =
             ( [], markAllAsUsed names context )
 
 
-importVisitor : Node Import -> Context -> ( List (Error {}), Context )
+importVisitor : Node Import -> ModuleContext -> ( List (Error {}), ModuleContext )
 importVisitor ((Node _ import_) as node) context =
     let
         errors : List (Error {})
@@ -304,7 +304,7 @@ importVisitor ((Node _ import_) as node) context =
             )
 
 
-registerModuleNameOrAlias : Node Import -> Context -> Context
+registerModuleNameOrAlias : Node Import -> ModuleContext -> ModuleContext
 registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) context =
     case moduleAlias of
         Just moduleAlias_ ->
@@ -322,7 +322,7 @@ registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) con
                 context
 
 
-registerModuleAlias : Node Import -> Node ModuleName -> Context -> Context
+registerModuleAlias : Node Import -> Node ModuleName -> ModuleContext -> ModuleContext
 registerModuleAlias ((Node range { exposingList, moduleName }) as node) moduleAlias context =
     registerModule
         { moduleName = Node.value moduleName
@@ -350,7 +350,7 @@ moduleAliasRange (Node _ { moduleName }) range =
     { range | start = (Node.range moduleName).end }
 
 
-expressionEnterVisitor : Node Expression -> Context -> ( List (Error {}), Context )
+expressionEnterVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionEnterVisitor (Node range value) context =
     case value of
         Expression.FunctionOrValue [] name ->
@@ -455,7 +455,7 @@ isAllPattern node =
             Nothing
 
 
-expressionExitVisitor : Node Expression -> Context -> ( List (Error {}), Context )
+expressionExitVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionExitVisitor node context =
     case Node.value node of
         Expression.RecordUpdateExpression expr _ ->
@@ -481,7 +481,7 @@ expressionExitVisitor node context =
                 ( errors, remainingUsed ) =
                     makeReport (NonemptyList.head context.scopes)
 
-                contextWithPoppedScope : Context
+                contextWithPoppedScope : ModuleContext
                 contextWithPoppedScope =
                     { context | scopes = NonemptyList.pop context.scopes }
             in
@@ -613,7 +613,7 @@ getUsedModulesFromPattern lookupTable patternNode =
             getUsedModulesFromPattern lookupTable pattern
 
 
-declarationVisitor : Node Declaration -> Context -> ( List nothing, Context )
+declarationVisitor : Node Declaration -> ModuleContext -> ( List nothing, ModuleContext )
 declarationVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
@@ -636,7 +636,7 @@ declarationVisitor node context =
                         |> List.map (getUsedVariablesFromPattern context.lookupTable)
                         |> foldUsedTypesAndModules
 
-                newContextWherFunctionIsRegistered : Context
+                newContextWherFunctionIsRegistered : ModuleContext
                 newContextWherFunctionIsRegistered =
                     if context.exposesEverything then
                         context
@@ -651,7 +651,7 @@ declarationVisitor node context =
                                 }
                                 (Node.value functionImplementation.name)
 
-                newContext : Context
+                newContext : ModuleContext
                 newContext =
                     newContextWherFunctionIsRegistered
                         |> markUsedTypesAndModules namesUsedInSignature
@@ -749,7 +749,7 @@ foldUsedTypesAndModules =
     List.foldl (\a b -> { types = a.types ++ b.types, modules = a.modules ++ b.modules }) { types = [], modules = [] }
 
 
-markUsedTypesAndModules : { types : List String, modules : List ( ModuleName, ModuleName ) } -> Context -> Context
+markUsedTypesAndModules : { types : List String, modules : List ( ModuleName, ModuleName ) } -> ModuleContext -> ModuleContext
 markUsedTypesAndModules { types, modules } context =
     context
         |> markAllAsUsed types
@@ -769,7 +769,7 @@ rangeToRemoveForNodeWithDocumentation (Node nodeRange _) documentation =
                 }
 
 
-finalEvaluation : Context -> List (Error {})
+finalEvaluation : ModuleContext -> List (Error {})
 finalEvaluation context =
     let
         rootScope : Scope
@@ -829,7 +829,7 @@ finalEvaluation context =
         ]
 
 
-registerFunction : LetBlockContext -> Function -> Context -> Context
+registerFunction : LetBlockContext -> Function -> ModuleContext -> ModuleContext
 registerFunction letBlockContext function context =
     let
         declaration : FunctionImplementation
@@ -1066,7 +1066,7 @@ collectModuleNamesFromTypeAnnotation lookupTable node =
             []
 
 
-register : VariableInfo -> String -> Context -> Context
+register : VariableInfo -> String -> ModuleContext -> ModuleContext
 register variableInfo name context =
     case variableInfo.variableType of
         TopLevelVariable ->
@@ -1102,12 +1102,12 @@ register variableInfo name context =
             registerVariable variableInfo name context
 
 
-registerModule : DeclaredModule -> Context -> Context
+registerModule : DeclaredModule -> ModuleContext -> ModuleContext
 registerModule declaredModule context =
     { context | declaredModules = declaredModule :: context.declaredModules }
 
 
-registerVariable : VariableInfo -> String -> Context -> Context
+registerVariable : VariableInfo -> String -> ModuleContext -> ModuleContext
 registerVariable variableInfo name context =
     let
         scopes : Nonempty Scope
@@ -1121,12 +1121,12 @@ registerVariable variableInfo name context =
     { context | scopes = scopes }
 
 
-markAllAsUsed : List String -> Context -> Context
+markAllAsUsed : List String -> ModuleContext -> ModuleContext
 markAllAsUsed names context =
     List.foldl markAsUsed context names
 
 
-markAsUsed : String -> Context -> Context
+markAsUsed : String -> ModuleContext -> ModuleContext
 markAsUsed name context =
     if context.inTheDeclarationOf == Just name then
         context
@@ -1144,12 +1144,12 @@ markAsUsed name context =
         { context | scopes = scopes }
 
 
-markAllModulesAsUsed : List ( ModuleName, ModuleName ) -> Context -> Context
+markAllModulesAsUsed : List ( ModuleName, ModuleName ) -> ModuleContext -> ModuleContext
 markAllModulesAsUsed names context =
     { context | usedModules = Set.union (Set.fromList names) context.usedModules }
 
 
-markModuleAsUsed : ( ModuleName, ModuleName ) -> Context -> Context
+markModuleAsUsed : ( ModuleName, ModuleName ) -> ModuleContext -> ModuleContext
 markModuleAsUsed name context =
     { context | usedModules = Set.insert name context.usedModules }
 
