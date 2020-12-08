@@ -1,6 +1,9 @@
 module NoUnused.VariablesTest exposing (all)
 
+import Elm.Project
+import Json.Decode as Decode
 import NoUnused.Variables exposing (rule)
+import Review.Project as Project exposing (Project)
 import Review.Test
 import Test exposing (Test, describe, test)
 
@@ -246,7 +249,7 @@ a = Html.Styled.Attributes.href"""
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 a = Html.Styled.Attributes.href"""
                     ]
-    , test "should not report 'main' as unused, even if it's not exposed" <|
+    , test "should not report 'main' as unused for applications, even if it's not exposed" <|
         \() ->
             """module SomeModule exposing (a)
 main = Html.text "hello, world"
@@ -254,6 +257,21 @@ a = ()
             """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should report unused 'main' as unused for packages" <|
+        \() ->
+            """module SomeModule exposing (a)
+main = Html.text "hello, world"
+a = ()"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Top-level variable `main` is not used"
+                        , details = details
+                        , under = "main"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+a = ()"""
+                    ]
     , test "should not remove too much" <|
         \() ->
             """module A exposing
@@ -1553,3 +1571,39 @@ apL f x =
                         }
                     ]
     ]
+
+
+packageProject : Project
+packageProject =
+    Project.new
+        |> Project.addElmJson (createPackageElmJson ())
+
+
+createPackageElmJson : () -> { path : String, raw : String, project : Elm.Project.Project }
+createPackageElmJson _ =
+    case Decode.decodeString Elm.Project.decoder rawPackageElmJson of
+        Ok elmJson ->
+            { path = "elm.json"
+            , raw = rawPackageElmJson
+            , project = elmJson
+            }
+
+        Err err ->
+            Debug.todo ("Invalid elm.json supplied to test: " ++ Debug.toString err)
+
+
+rawPackageElmJson : String
+rawPackageElmJson =
+    """{
+    "type": "package",
+    "name": "author/package",
+    "summary": "Summary",
+    "license": "BSD-3-Clause",
+    "version": "1.0.0",
+    "exposed-modules": [
+        "Exposed"
+    ],
+    "elm-version": "0.19.0 <= v < 0.20.0",
+    "dependencies": {},
+    "test-dependencies": {}
+}"""
