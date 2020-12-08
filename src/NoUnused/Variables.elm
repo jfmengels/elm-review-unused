@@ -1002,7 +1002,6 @@ collectFromExposing exposingNode =
                                     )
 
                             Exposing.TypeOrAliasExpose name ->
-                                -- TODO Detect whether it is a custom type or type alias
                                 Just
                                     ( name
                                     , { variableType = ImportedItem ImportedType
