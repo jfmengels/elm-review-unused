@@ -79,6 +79,7 @@ type alias Context =
     , scopes : Nonempty Scope
     , inTheDeclarationOf : Maybe String
     , exposesEverything : Bool
+    , isApplication : Bool
     , constructorNameToTypeName : Dict String String
     , declaredModules : List DeclaredModule
     , usedModules : Set ( ModuleName, ModuleName )
@@ -139,6 +140,7 @@ initialContext =
             , scopes = NonemptyList.fromElement emptyScope
             , inTheDeclarationOf = Nothing
             , exposesEverything = False
+            , isApplication = True
             , constructorNameToTypeName = Dict.empty
             , declaredModules = []
             , usedModules = Set.empty
@@ -1070,7 +1072,7 @@ register variableInfo name context =
         TopLevelVariable ->
             -- The main function is "exposed" by default
             -- TODO Don't do this for libraries
-            if name == "main" then
+            if context.isApplication && name == "main" then
                 context
 
             else
