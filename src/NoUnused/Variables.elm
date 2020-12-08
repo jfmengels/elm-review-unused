@@ -10,6 +10,7 @@ module NoUnused.Variables exposing (rule)
 -}
 
 import Dict exposing (Dict)
+import Elm.Project
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Exposing as Exposing exposing (Exposing)
 import Elm.Syntax.Expression as Expression exposing (Expression, Function, FunctionImplementation)
@@ -65,6 +66,7 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Varia
 rule : Rule
 rule =
     Rule.newProjectRuleSchema "NoUnused.Variables" initialContext
+        |> Rule.withElmJsonProjectVisitor elmJsonVisitor
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
             { fromProjectToModule = fromProjectToModule
@@ -267,6 +269,28 @@ fix willConflictWithOtherModule { variableType, rangeToRemove } =
 
     else
         []
+
+
+
+-- ELM.JSON VISITOR
+
+
+elmJsonVisitor : Maybe { a | project : Elm.Project.Project } -> ProjectContext -> ( List nothing, ProjectContext )
+elmJsonVisitor maybeElmJson projectContext =
+    case Maybe.map .project maybeElmJson of
+        Just (Elm.Project.Application _) ->
+            ( [], { projectContext | isApplication = True } )
+
+        Just (Elm.Project.Package _) ->
+            ( [], { projectContext | isApplication = False } )
+
+        Nothing ->
+            -- Sensible default, because now `main` won't be reported.
+            ( [], { projectContext | isApplication = True } )
+
+
+
+-- MODULE DEFINITION VISITOR
 
 
 moduleDefinitionVisitor : Node Module -> ModuleContext -> ( List nothing, ModuleContext )
@@ -1107,8 +1131,7 @@ register : VariableInfo -> String -> ModuleContext -> ModuleContext
 register variableInfo name context =
     case variableInfo.variableType of
         TopLevelVariable ->
-            -- The main function is "exposed" by default
-            -- TODO Don't do this for libraries
+            -- The main function is "exposed" by default for applications
             if context.isApplication && name == "main" then
                 context
 
