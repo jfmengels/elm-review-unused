@@ -953,19 +953,22 @@ collectFromExposing exposingNode =
                             Exposing.TypeExpose { name, open } ->
                                 case open of
                                     Just _ ->
-                                        -- TODO Change this behavior once we know the contents of the open range, using dependencies or the interfaces of the other modules
+                                        -- TODO Change this behavior once we know the contents of the open range,
+                                        -- using dependencies or the interfaces of the other modules
+                                        --Just
+                                        --    ( name
+                                        --    , { variableType = ImportedItem ImportedType
+                                        --      , typeName = "Imported type"
+                                        --      , under = range
+                                        --      , rangeToRemove = rangeToRemove
+                                        --      }
+                                        --    )
                                         Nothing
 
                                     Nothing ->
-                                        -- TODO Check that this case has tests, it doesn't look like it
-                                        Just
-                                            ( name
-                                            , { variableType = ImportedItem ImportedType
-                                              , typeName = "Imported type"
-                                              , under = range
-                                              , rangeToRemove = rangeToRemove
-                                              }
-                                            )
+                                        -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
+                                        -- `Exposing.TypeOrAliasExpose`, not a `Exposing.TypeExpose`.
+                                        Nothing
                     )
                 |> List.filterMap identity
 
