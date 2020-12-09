@@ -1164,13 +1164,6 @@ a = 1"""
                         |> Review.Test.whenFixed """module SomeModule exposing (..)
 a = 1"""
                     ]
-    , test "should not report import if it exposes all and its contents are unknown" <|
-        \() ->
-            """module SomeModule exposing (a)
-import Unknown exposing (..)
-a = 1"""
-                |> Review.Test.run rule
-                |> Review.Test.expectNoErrors
     , test "should report unused import from local module that exposes everything" <|
         \() ->
             [ """module A exposing (a)
