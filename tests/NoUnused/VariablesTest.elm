@@ -1189,7 +1189,7 @@ b = 1
                                 , details = details
                                 , under = "Unused"
                                 }
-                                |> Review.Test.whenFixed """module SomeModule exposing (..)
+                                |> Review.Test.whenFixed """module A exposing (a)
 a = 1"""
                             ]
                           )

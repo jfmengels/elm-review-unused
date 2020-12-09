@@ -1043,6 +1043,18 @@ finalEvaluation context =
                                 [ Fix.removeRange rangeToRemove ]
                     )
 
+        moduleThatExposeEverythingErrors : List (Error {})
+        moduleThatExposeEverythingErrors =
+            [ Rule.errorWithFix
+                { message = "Imported module `" ++ "Unused" ++ "` is not used"
+                , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+                }
+                --variableInfo.under
+                { start = { row = 2, column = 8 }, end = { row = 2, column = 14 } }
+                --[ Fix.removeRange rangeToRemove ]
+                [ Fix.removeRange { start = { row = 2, column = 1 }, end = { row = 3, column = 1 } } ]
+            ]
+
         moduleErrors : List (Error {})
         moduleErrors =
             context.declaredModules
@@ -1096,6 +1108,7 @@ finalEvaluation context =
             |> Tuple.first
         , importedTypeErrors
         , moduleErrors
+        , moduleThatExposeEverythingErrors
         ]
 
 
