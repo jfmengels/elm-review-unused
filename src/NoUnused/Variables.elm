@@ -779,22 +779,26 @@ declarationVisitor node context =
 
                 newContextWhereFunctionIsRegistered : ModuleContext
                 newContextWhereFunctionIsRegistered =
-                    if context.exposesEverything then
+                    if
+                        context.exposesEverything
+                            -- The main function is "exposed" by default for applications
+                            || (context.isApplication && Node.value functionImplementation.name == "main")
+                    then
                         context
 
                     else
-                        { context | inTheDeclarationOf = Just <| Node.value functionImplementation.name }
-                            |> register
-                                { variableType = TopLevelVariable
-                                , typeName = "Top-level variable"
-                                , under = Node.range functionImplementation.name
-                                , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node function.documentation)
-                                }
-                                (Node.value functionImplementation.name)
+                        register
+                            { variableType = TopLevelVariable
+                            , typeName = "Top-level variable"
+                            , under = Node.range functionImplementation.name
+                            , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node function.documentation)
+                            }
+                            (Node.value functionImplementation.name)
+                            context
 
                 newContext : ModuleContext
                 newContext =
-                    newContextWhereFunctionIsRegistered
+                    { newContextWhereFunctionIsRegistered | inTheDeclarationOf = Just <| Node.value functionImplementation.name }
                         |> markUsedTypesAndModules namesUsedInSignature
                         |> markUsedTypesAndModules namesUsedInArgumentPatterns
             in
@@ -1270,12 +1274,7 @@ register : VariableInfo -> String -> ModuleContext -> ModuleContext
 register variableInfo name context =
     case variableInfo.variableType of
         TopLevelVariable ->
-            -- The main function is "exposed" by default for applications
-            if context.isApplication && name == "main" then
-                context
-
-            else
-                registerVariable variableInfo name context
+            registerVariable variableInfo name context
 
         LetVariable ->
             registerVariable variableInfo name context
