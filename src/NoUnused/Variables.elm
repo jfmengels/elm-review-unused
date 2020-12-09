@@ -12,7 +12,7 @@ module NoUnused.Variables exposing (rule)
 import Dict exposing (Dict)
 import Elm.Project
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
-import Elm.Syntax.Exposing as Exposing exposing (Exposing)
+import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression, Function, FunctionImplementation)
 import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Module as Module exposing (Module)
@@ -173,7 +173,7 @@ fromProjectToModule =
             , isApplication = isApplication
             , constructorNameToTypeName = Dict.empty
             , declaredModules = []
-            , exposingAllModules = [ () ]
+            , exposingAllModules = []
             , usedModules = Set.empty
             , unusedImportedCustomTypes = Dict.empty
             , importedCustomTypeLookup = Dict.empty
@@ -339,18 +339,28 @@ importVisitor ((Node _ import_) as node) context =
                     context.customTypes
                         |> Dict.get (Node.value import_.moduleName)
                         |> Maybe.withDefault Dict.empty
+
+                contextWithAlias : ModuleContext
+                contextWithAlias =
+                    case import_.moduleAlias of
+                        Just moduleAlias ->
+                            registerModuleAlias node moduleAlias context
+
+                        Nothing ->
+                            context
             in
             ( errors
-            , List.foldl
-                (registerExposedElements customTypesFromModule)
-                (case import_.moduleAlias of
-                    Just moduleAlias ->
-                        registerModuleAlias node moduleAlias context
+            , case Node.value declaredImports of
+                Exposing.All _ ->
+                    -- TODO Use contextWithAlias and write test case
+                    --contextWithAlias
+                    context
 
-                    Nothing ->
-                        context
-                )
-                (collectFromExposing declaredImports)
+                Exposing.Explicit list ->
+                    List.foldl
+                        (registerExposedElements customTypesFromModule)
+                        contextWithAlias
+                        (collectExplicitlyExposedElements (Node.range declaredImports) list)
             )
 
 
@@ -376,16 +386,6 @@ registerExposedElements customTypesFromModule importedElement context_ =
 
         TypeOrValue name variableInfo ->
             registerVariable variableInfo name context_
-
-
-collectFromExposing : Node Exposing -> List ExposedElement
-collectFromExposing exposingNode =
-    case Node.value exposingNode of
-        Exposing.All _ ->
-            []
-
-        Exposing.Explicit list ->
-            collectExplicitlyExposedElements (Node.range exposingNode) list
 
 
 collectExplicitlyExposedElements : Range -> List (Node Exposing.TopLevelExpose) -> List ExposedElement
