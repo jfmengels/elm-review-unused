@@ -116,10 +116,15 @@ type alias DeclaredModule =
     { moduleName : ModuleName
     , alias : Maybe String
     , typeName : String
-    , variableType : VariableType
+    , variableType : DeclaredModuleType
     , under : Range
     , rangeToRemove : Range
     }
+
+
+type DeclaredModuleType
+    = ImportedModule2
+    | ModuleAlias2 { originalNameOfTheImport : String, exposesSomething : Bool }
 
 
 type alias Scope =
@@ -456,7 +461,7 @@ registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) con
                 { moduleName = Node.value moduleName
                 , alias = Nothing
                 , typeName = "Imported module"
-                , variableType = ImportedModule
+                , variableType = ImportedModule2
                 , under = Node.range moduleName
                 , rangeToRemove = untilStartOfNextLine range
                 }
@@ -469,7 +474,7 @@ registerModuleAlias ((Node range { exposingList, moduleName }) as node) moduleAl
         { moduleName = Node.value moduleName
         , alias = Just (getModuleName (Node.value moduleAlias))
         , variableType =
-            ModuleAlias
+            ModuleAlias2
                 { originalNameOfTheImport = getModuleName <| Node.value moduleName
                 , exposesSomething = exposingList /= Nothing
                 }
@@ -1023,16 +1028,43 @@ finalEvaluation context =
                     )
                 |> List.map
                     (\variableInfo ->
-                        error
-                            (\moduleName -> Set.member moduleName moduleNamesInUse)
-                            variableInfo
-                            (case variableInfo.alias of
-                                Just alias ->
-                                    alias
+                        let
+                            typeName : String
+                            typeName =
+                                case variableInfo.variableType of
+                                    ImportedModule2 ->
+                                        "Imported module"
 
-                                Nothing ->
-                                    getModuleName variableInfo.moduleName
-                            )
+                                    ModuleAlias2 _ ->
+                                        "Module alias"
+
+                            name : String
+                            name =
+                                case variableInfo.alias of
+                                    Just alias ->
+                                        alias
+
+                                    Nothing ->
+                                        getModuleName variableInfo.moduleName
+
+                            fix2 =
+                                case variableInfo.variableType of
+                                    ImportedModule2 ->
+                                        [ Fix.removeRange variableInfo.rangeToRemove ]
+
+                                    ModuleAlias2 { originalNameOfTheImport, exposesSomething } ->
+                                        if not exposesSomething || not (Set.member originalNameOfTheImport moduleNamesInUse) then
+                                            [ Fix.removeRange variableInfo.rangeToRemove ]
+
+                                        else
+                                            []
+                        in
+                        Rule.errorWithFix
+                            { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used"
+                            , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+                            }
+                            variableInfo.under
+                            fix2
                     )
     in
     List.concat
