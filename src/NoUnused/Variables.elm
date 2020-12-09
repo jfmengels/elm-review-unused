@@ -127,7 +127,7 @@ type alias ModuleThatExposesEverything =
     { name : ModuleName
     , alias : Maybe String
     , moduleNameRange : Range
-    , rangeToRemove : Range
+    , importRange : Range
     , wasUsedImplicitly : Bool
     , wasUsedWithModuleName : Bool
     }
@@ -372,7 +372,7 @@ importVisitor ((Node importRange import_) as node) context =
 
                             -- TODO
                             --, rangeToRemove = Node.range declaredImports
-                            , rangeToRemove = { importRange | end = { row = importRange.end.row + 1, column = 1 } }
+                            , importRange = { importRange | end = { row = importRange.end.row + 1, column = 1 } }
                             , wasUsedImplicitly = False
                             , wasUsedWithModuleName = False
                             }
@@ -1108,7 +1108,7 @@ finalEvaluation context =
                                 , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
                                 }
                                 module_.moduleNameRange
-                                [ Fix.removeRange module_.rangeToRemove ]
+                                [ Fix.removeRange module_.importRange ]
                             )
 
                     else
