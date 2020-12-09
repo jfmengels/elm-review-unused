@@ -32,4 +32,5 @@ config =
     , NoUnused.Parameters.rule
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
+        |> Review.Rule.ignoreErrorsForDirectories [ "src-gen/" ]
     ]

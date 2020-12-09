@@ -1255,13 +1255,25 @@ import Dependency exposing (..)
 a = C_Value"""
                 |> Review.Test.runWithProjectData packageProject rule
                 |> Review.Test.expectNoErrors
-    , test "should not report used exposing from local module that exposes everything" <|
+    , test "should not report used exposing from local module that exposes everything (using function)" <|
         \() ->
             [ """module A exposing (a)
 import Used exposing (..)
 a = b"""
             , """module Used exposing (b)
 b = 1
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
+    , test "should not report used exposing from local module that exposes everything (using type)" <|
+        \() ->
+            [ """module A exposing (a)
+import Used exposing (..)
+a : C
+a = 1"""
+            , """module Used exposing (b)
+type alias C = Int
 """
             ]
                 |> Review.Test.runOnModules rule
