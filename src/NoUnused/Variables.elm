@@ -228,7 +228,7 @@ error : { typeName : String, under : Range, rangeToRemove : Maybe Range, warning
 error variableInfo name =
     Rule.errorWithFix
         { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used" ++ variableInfo.warning
-        , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+        , details = details
         }
         variableInfo.under
         (case variableInfo.rangeToRemove of
@@ -238,6 +238,12 @@ error variableInfo name =
             Nothing ->
                 []
         )
+
+
+details : List String
+details =
+    [ "You should either use this value somewhere, or remove it at the location I pointed at."
+    ]
 
 
 
@@ -1079,7 +1085,7 @@ finalEvaluation context =
                         if Set.member name usedLocally then
                             Rule.errorWithFix
                                 { message = "Imported constructors for `" ++ name ++ "` are not used"
-                                , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+                                , details = details
                                 }
                                 under
                                 -- If the constructors are not used but the type itself is, then only remove the `(..)`
@@ -1088,7 +1094,7 @@ finalEvaluation context =
                         else
                             Rule.errorWithFix
                                 { message = "Imported type `" ++ name ++ "` is not used"
-                                , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+                                , details = details
                                 }
                                 under
                                 [ Fix.removeRange rangeToRemove ]
@@ -1107,7 +1113,7 @@ finalEvaluation context =
 
                                     else
                                         "Imported module `" ++ String.join "." module_.name ++ "` is not used"
-                                , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+                                , details = details
                                 }
                                 module_.moduleNameRange
                                 [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
@@ -1159,7 +1165,7 @@ finalEvaluation context =
                         in
                         Rule.errorWithFix
                             { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used"
-                            , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+                            , details = details
                             }
                             variableInfo.under
                             fix
