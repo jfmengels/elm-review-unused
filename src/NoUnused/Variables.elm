@@ -553,7 +553,12 @@ expressionEnterVisitor (Node range value) context =
                             ( [], { context | unusedImportedCustomTypes = Dict.remove customTypeName context.unusedImportedCustomTypes } )
 
                         Nothing ->
-                            ( [], markAsUsed name context )
+                            case ModuleNameLookupTable.moduleNameAt context.lookupTable range of
+                                Just realModuleName ->
+                                    ( [], markModuleAsUsed ( realModuleName, [] ) context )
+
+                                Nothing ->
+                                    ( [], markAsUsed name context )
 
         Expression.FunctionOrValue moduleName _ ->
             case ModuleNameLookupTable.moduleNameAt context.lookupTable range of
