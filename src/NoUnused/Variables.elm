@@ -127,6 +127,8 @@ type alias ModuleThatExposesEverything =
     { name : ModuleName
     , under : Range
     , rangeToRemove : Range
+    , wasUsedImplicitly : Bool
+    , wasUsedWithModuleName : Bool
     }
 
 
@@ -369,6 +371,8 @@ importVisitor ((Node importRange import_) as node) context =
                             -- TODO
                             --, rangeToRemove = Node.range declaredImports
                             , rangeToRemove = { importRange | end = { row = importRange.end.row + 1, column = 1 } }
+                            , wasUsedImplicitly = False
+                            , wasUsedWithModuleName = False
                             }
                                 :: context.exposingAllModules
                     }
