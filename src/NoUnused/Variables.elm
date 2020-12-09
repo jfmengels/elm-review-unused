@@ -543,12 +543,17 @@ expressionEnterVisitor : Node Expression -> ModuleContext -> ( List (Error {}), 
 expressionEnterVisitor (Node range value) context =
     case value of
         Expression.FunctionOrValue [] name ->
-            case ( Dict.get name context.importedCustomTypeLookup, Dict.get name context.constructorNameToTypeName ) of
-                ( Just customTypeName, Nothing ) ->
-                    ( [], { context | unusedImportedCustomTypes = Dict.remove customTypeName context.unusedImportedCustomTypes } )
-
-                _ ->
+            case Dict.get name context.constructorNameToTypeName of
+                Just _ ->
                     ( [], markAsUsed name context )
+
+                Nothing ->
+                    case Dict.get name context.importedCustomTypeLookup of
+                        Just customTypeName ->
+                            ( [], { context | unusedImportedCustomTypes = Dict.remove customTypeName context.unusedImportedCustomTypes } )
+
+                        Nothing ->
+                            ( [], markAsUsed name context )
 
         Expression.FunctionOrValue moduleName _ ->
             case ModuleNameLookupTable.moduleNameAt context.lookupTable range of
