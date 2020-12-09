@@ -1569,6 +1569,11 @@ apL f x =
                         , details = details
                         , under = "(<|)"
                         }
+                        |> Review.Test.whenFixed """module SomeModule exposing (apL)
+
+apL : (a -> b) -> a -> b
+apL f x =
+  f x"""
                     ]
     ]
 

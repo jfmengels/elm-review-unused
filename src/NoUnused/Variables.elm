@@ -262,7 +262,7 @@ fix willConflictWithOtherModule { variableType, rangeToRemove } =
                     False
 
                 Operator ->
-                    False
+                    True
     in
     if shouldOfferFix then
         [ Fix.removeRange rangeToRemove ]
