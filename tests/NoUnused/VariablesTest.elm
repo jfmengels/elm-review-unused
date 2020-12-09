@@ -1203,7 +1203,7 @@ a = 1"""
                     ]
     , test "should report unused exposing from dependency that exposes everything when it is used with qualified imports" <|
         \() ->
-            """module SomeModule exposing (..)
+            """module SomeModule exposing (a)
 import Dependency exposing (..)
 a = Dependency.C_Value"""
                 |> Review.Test.runWithProjectData packageProject rule
