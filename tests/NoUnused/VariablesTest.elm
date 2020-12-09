@@ -1278,6 +1278,29 @@ type alias C = Int
             ]
                 |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
+    , test "should not report used exposing from local module that exposes everything (using case of pattern)" <|
+        \() ->
+            [ """module A exposing (a)
+import Used exposing (..)
+a = case () of
+    C_Value -> 1"""
+            , """module Used exposing (b)
+type C = C_Value
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
+    , test "should not report used exposing from local module that exposes everything (using destructuring pattern)" <|
+        \() ->
+            [ """module A exposing (a)
+import Used exposing (..)
+a C_Value = 1"""
+            , """module Used exposing (b)
+type C = C_Value
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
     , test "should report unused module alias from module exposing everything and where something is used implicitly" <|
         \() ->
             [ """module A exposing (a)
