@@ -1191,7 +1191,7 @@ a = 1"""
             """module SomeModule exposing (..)
 import Dependency exposing (..)
 a = 1"""
-                |> Review.Test.run rule
+                |> Review.Test.runWithProjectData packageProject rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Imported module `Dependency` is not used"
@@ -1206,7 +1206,7 @@ a = 1"""
             """module SomeModule exposing (..)
 import Dependency exposing (..)
 a = Dependency.C_Value"""
-                |> Review.Test.run rule
+                |> Review.Test.runWithProjectData packageProject rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "No imported elements from `Dependency` are used"
@@ -1217,12 +1217,23 @@ a = Dependency.C_Value"""
 import Dependency$
 a = Dependency.C_Value""" |> String.replace "$" " ")
                     ]
-    , test "should not report used exposing from module that exposes everything" <|
+    , test "should not report used exposing from dependency module that exposes everything" <|
         \() ->
             """module SomeModule exposing (..)
 import Dependency exposing (..)
 a = C_Value"""
-                |> Review.Test.run rule
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectNoErrors
+    , test "should not report used exposing from local module that exposes everything" <|
+        \() ->
+            [ """module A exposing (a)
+import Used exposing (..)
+a = b"""
+            , """module Used exposing (b)
+b = 1
+"""
+            ]
+                |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
     ]
 
