@@ -1266,6 +1266,17 @@ b = 1
             ]
                 |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
+    , test "should report unused module alias from module exposing everything and where something is used implicitly" <|
+        \() ->
+            [ """module A exposing (a)
+import Used as U exposing (..)
+a = b"""
+            , """module Used exposing (b)
+b = 1
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
     , test "should not report used exposing from local module that exposes everything that is aliased and alias is also used" <|
         \() ->
             [ """module A exposing (a)
