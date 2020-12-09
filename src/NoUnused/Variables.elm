@@ -1099,7 +1099,12 @@ finalEvaluation context =
                     if not module_.wasUsedImplicitly then
                         Just
                             (Rule.errorWithFix
-                                { message = "Imported module `" ++ String.join "." module_.name ++ "` is not used"
+                                { message =
+                                    if module_.wasUsedWithModuleName then
+                                        "No imported elements from `" ++ String.join "." module_.name ++ "` are used"
+
+                                    else
+                                        "Imported module `" ++ String.join "." module_.name ++ "` is not used"
                                 , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
                                 }
                                 module_.under
@@ -1373,8 +1378,20 @@ markAllModulesAsUsed names context =
 
 
 markModuleAsUsed : ( ModuleName, ModuleName ) -> ModuleContext -> ModuleContext
-markModuleAsUsed realAndAliasModuleNames context =
-    { context | usedModules = Set.insert realAndAliasModuleNames context.usedModules }
+markModuleAsUsed (( realModuleName, aliasName ) as realAndAliasModuleNames) context =
+    { context
+        | usedModules = Set.insert realAndAliasModuleNames context.usedModules
+        , exposingAllModules =
+            List.map
+                (\module_ ->
+                    if module_.name == realModuleName && (module_.name == aliasName || Just (String.join "." aliasName) == module_.alias) then
+                        { module_ | wasUsedWithModuleName = True }
+
+                    else
+                        module_
+                )
+                context.exposingAllModules
+    }
 
 
 getModuleName : List String -> String
