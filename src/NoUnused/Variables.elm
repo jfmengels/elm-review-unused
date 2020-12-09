@@ -1095,13 +1095,13 @@ finalEvaluation context =
                                 [ Fix.removeRange rangeToRemove ]
                     )
 
-        moduleThatExposeEverythingErrors : List (Error {})
+        moduleThatExposeEverythingErrors : List ( Maybe (Error {}), Maybe ( ModuleName, ModuleName ) )
         moduleThatExposeEverythingErrors =
-            List.filterMap
+            List.map
                 (\({ importRange, exposingRange } as module_) ->
                     if not module_.wasUsedImplicitly then
                         if module_.wasUsedWithModuleName then
-                            Just
+                            ( Just
                                 (Rule.errorWithFix
                                     { message = "No imported elements from `" ++ String.join "." module_.name ++ "` are used"
                                     , details = details
@@ -1109,9 +1109,11 @@ finalEvaluation context =
                                     exposingRange
                                     [ Fix.removeRange exposingRange ]
                                 )
+                            , Nothing
+                            )
 
                         else
-                            Just
+                            ( Just
                                 (Rule.errorWithFix
                                     { message = "Imported module `" ++ String.join "." module_.name ++ "` is not used"
                                     , details = details
@@ -1119,15 +1121,19 @@ finalEvaluation context =
                                     module_.moduleNameRange
                                     [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
                                 )
+                            , Maybe.map (\alias -> ( module_.name, [ alias ] )) module_.alias
+                            )
 
                     else
-                        Nothing
+                        ( Nothing, Nothing )
                 )
                 context.exposingAllModules
 
         usedModules : Set ( ModuleName, ModuleName )
         usedModules =
-            context.usedModules
+            Set.union
+                (Set.fromList (List.filterMap Tuple.second moduleThatExposeEverythingErrors))
+                context.usedModules
 
         moduleErrors : List (Error {})
         moduleErrors =
@@ -1182,7 +1188,7 @@ finalEvaluation context =
             |> Tuple.first
         , importedTypeErrors
         , moduleErrors
-        , moduleThatExposeEverythingErrors
+        , List.filterMap Tuple.first moduleThatExposeEverythingErrors
         ]
 
 
