@@ -1444,6 +1444,23 @@ a = 1"""
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 a = 1"""
                     ]
+    , test "should report unused custom type declaration even if another constructor with the same name is used" <|
+        \() ->
+            """module SomeModule exposing (a)
+type A = B | C
+type Something = A
+a = A"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Type `A` is not used"
+                        , details = details
+                        , under = "A"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+type Something = A
+a = A"""
+                    ]
     , test "should not report unused custom type constructors" <|
         -- This is handled by the `NoUnused.CustomTypeConstructors` rule
         \() ->
