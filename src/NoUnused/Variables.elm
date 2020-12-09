@@ -152,9 +152,7 @@ type alias ImportedCustomType =
 type VariableType
     = TopLevelVariable
     | LetVariable
-    | ImportedModule
     | ImportedItem ImportType
-    | ModuleAlias { originalNameOfTheImport : String, exposesSomething : Bool }
     | Type
     | Port
     | Operator
@@ -228,14 +226,14 @@ emptyScope =
     }
 
 
-error : (String -> Bool) -> { a | variableType : VariableType, typeName : String, under : Range, rangeToRemove : Range } -> String -> Error {}
-error willConflictWithOtherModule variableInfo name =
+error : { a | variableType : VariableType, typeName : String, under : Range, rangeToRemove : Range } -> String -> Error {}
+error variableInfo name =
     Rule.errorWithFix
         { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used" ++ variableTypeWarning variableInfo.variableType
         , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
         }
         variableInfo.under
-        (fix willConflictWithOtherModule variableInfo)
+        (fix variableInfo)
 
 
 variableTypeWarning : VariableType -> String
@@ -247,13 +245,7 @@ variableTypeWarning value =
         LetVariable ->
             ""
 
-        ImportedModule ->
-            ""
-
         ImportedItem _ ->
-            ""
-
-        ModuleAlias _ ->
             ""
 
         Type ->
@@ -266,8 +258,8 @@ variableTypeWarning value =
             ""
 
 
-fix : (String -> Bool) -> { a | variableType : VariableType, rangeToRemove : Range } -> List Fix
-fix willConflictWithOtherModule { variableType, rangeToRemove } =
+fix : { a | variableType : VariableType, rangeToRemove : Range } -> List Fix
+fix { variableType, rangeToRemove } =
     let
         shouldOfferFix : Bool
         shouldOfferFix =
@@ -278,15 +270,8 @@ fix willConflictWithOtherModule { variableType, rangeToRemove } =
                 LetVariable ->
                     True
 
-                ImportedModule ->
-                    True
-
                 ImportedItem _ ->
                     True
-
-                ModuleAlias { originalNameOfTheImport, exposesSomething } ->
-                    not exposesSomething
-                        || not (willConflictWithOtherModule originalNameOfTheImport)
 
                 Type ->
                     True
@@ -1029,15 +1014,6 @@ finalEvaluation context =
                 |> List.map
                     (\variableInfo ->
                         let
-                            typeName : String
-                            typeName =
-                                case variableInfo.variableType of
-                                    ImportedModule2 ->
-                                        "Imported module"
-
-                                    ModuleAlias2 _ ->
-                                        "Module alias"
-
                             name : String
                             name =
                                 case variableInfo.alias of
@@ -1328,14 +1304,6 @@ register variableInfo name context =
         LetVariable ->
             registerVariable variableInfo name context
 
-        ImportedModule ->
-            -- Does not call this function for this case
-            context
-
-        ModuleAlias _ ->
-            -- Does not call this function for this case
-            context
-
         ImportedItem _ ->
             registerVariable variableInfo name context
 
@@ -1439,7 +1407,7 @@ makeReport { declared, used } =
         errors =
             Dict.filter (\key _ -> not <| Set.member key usedLocally) declared
                 |> Dict.toList
-                |> List.map (\( key, variableInfo ) -> error (always False) variableInfo key)
+                |> List.map (\( key, variableInfo ) -> error variableInfo key)
     in
     ( errors, nonUsedVars )
 
