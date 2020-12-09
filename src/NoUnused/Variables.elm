@@ -123,8 +123,8 @@ type alias DeclaredModule =
 
 
 type DeclaredModuleType
-    = ImportedModule2
-    | ModuleAlias2 { originalNameOfTheImport : String, exposesSomething : Bool }
+    = ImportedModule
+    | ModuleAlias { originalNameOfTheImport : String, exposesSomething : Bool }
 
 
 type alias Scope =
@@ -137,7 +137,7 @@ type alias VariableInfo =
     { variableType : VariableType
     , typeName : String
     , under : Range
-    , rangeToRemove : Range
+    , rangeToRemove : Maybe Range
     }
 
 
@@ -226,14 +226,20 @@ emptyScope =
     }
 
 
-error : { a | variableType : VariableType, typeName : String, under : Range, rangeToRemove : Range } -> String -> Error {}
+error : { a | variableType : VariableType, typeName : String, under : Range, rangeToRemove : Maybe Range } -> String -> Error {}
 error variableInfo name =
     Rule.errorWithFix
         { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used" ++ variableTypeWarning variableInfo.variableType
         , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
         }
         variableInfo.under
-        (fix variableInfo)
+        (case variableInfo.rangeToRemove of
+            Just rangeToRemove ->
+                [ Fix.removeRange rangeToRemove ]
+
+            Nothing ->
+                []
+        )
 
 
 variableTypeWarning : VariableType -> String
@@ -256,37 +262,6 @@ variableTypeWarning value =
 
         Operator ->
             ""
-
-
-fix : { a | variableType : VariableType, rangeToRemove : Range } -> List Fix
-fix { variableType, rangeToRemove } =
-    let
-        shouldOfferFix : Bool
-        shouldOfferFix =
-            case variableType of
-                TopLevelVariable ->
-                    True
-
-                LetVariable ->
-                    True
-
-                ImportedItem _ ->
-                    True
-
-                Type ->
-                    True
-
-                Port ->
-                    False
-
-                Operator ->
-                    True
-    in
-    if shouldOfferFix then
-        [ Fix.removeRange rangeToRemove ]
-
-    else
-        []
 
 
 
@@ -446,7 +421,7 @@ registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) con
                 { moduleName = Node.value moduleName
                 , alias = Nothing
                 , typeName = "Imported module"
-                , variableType = ImportedModule2
+                , variableType = ImportedModule
                 , under = Node.range moduleName
                 , rangeToRemove = untilStartOfNextLine range
                 }
@@ -459,7 +434,7 @@ registerModuleAlias ((Node range { exposingList, moduleName }) as node) moduleAl
         { moduleName = Node.value moduleName
         , alias = Just (getModuleName (Node.value moduleAlias))
         , variableType =
-            ModuleAlias2
+            ModuleAlias
                 { originalNameOfTheImport = getModuleName <| Node.value moduleName
                 , exposesSomething = exposingList /= Nothing
                 }
@@ -813,7 +788,7 @@ declarationVisitor node context =
                                 { variableType = TopLevelVariable
                                 , typeName = "Top-level variable"
                                 , under = Node.range functionImplementation.name
-                                , rangeToRemove = rangeToRemoveForNodeWithDocumentation node function.documentation
+                                , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node function.documentation)
                                 }
                                 (Node.value functionImplementation.name)
 
@@ -851,7 +826,7 @@ declarationVisitor node context =
                     { variableType = Type
                     , typeName = "Type"
                     , under = Node.range name
-                    , rangeToRemove = rangeToRemoveForNodeWithDocumentation node documentation
+                    , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node documentation)
                     }
                     (Node.value name)
                 |> markUsedTypesAndModules variablesFromConstructorArguments
@@ -869,7 +844,7 @@ declarationVisitor node context =
                     { variableType = Type
                     , typeName = "Type"
                     , under = Node.range name
-                    , rangeToRemove = rangeToRemoveForNodeWithDocumentation node documentation
+                    , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node documentation)
                     }
                     (Node.value name)
                 |> markUsedTypesAndModules namesUsedInTypeAnnotation
@@ -888,7 +863,7 @@ declarationVisitor node context =
                     { variableType = Port
                     , typeName = "Port"
                     , under = Node.range name
-                    , rangeToRemove = Node.range node
+                    , rangeToRemove = Nothing
                     }
                     (Node.value name)
             )
@@ -901,7 +876,7 @@ declarationVisitor node context =
                     { variableType = Operator
                     , typeName = "Declared operator"
                     , under = Node.range operator
-                    , rangeToRemove = Node.range node
+                    , rangeToRemove = Just (Node.range node)
                     }
                     (Node.value operator)
             )
@@ -1023,12 +998,13 @@ finalEvaluation context =
                                     Nothing ->
                                         getModuleName variableInfo.moduleName
 
-                            fix2 =
+                            fix : List Fix
+                            fix =
                                 case variableInfo.variableType of
-                                    ImportedModule2 ->
+                                    ImportedModule ->
                                         [ Fix.removeRange variableInfo.rangeToRemove ]
 
-                                    ModuleAlias2 { originalNameOfTheImport, exposesSomething } ->
+                                    ModuleAlias { originalNameOfTheImport, exposesSomething } ->
                                         if not exposesSomething || not (Set.member originalNameOfTheImport moduleNamesInUse) then
                                             [ Fix.removeRange variableInfo.rangeToRemove ]
 
@@ -1040,7 +1016,7 @@ finalEvaluation context =
                             , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
                             }
                             variableInfo.under
-                            fix2
+                            fix
                     )
     in
     List.concat
@@ -1087,12 +1063,12 @@ registerFunction letBlockContext function context =
             , rangeToRemove =
                 case letBlockContext of
                     HasMultipleDeclarations ->
-                        functionRange
+                        Just functionRange
 
                     HasNoOtherDeclarations letDeclarationsRange ->
                         -- If there are no other declarations in the let in block,
                         -- we also need to remove the `let in` keywords.
-                        letDeclarationsRange
+                        Just letDeclarationsRange
             }
             (Node.value declaration.name)
         |> markUsedTypesAndModules namesUsedInSignature
@@ -1155,7 +1131,7 @@ collectFromExposing exposingNode =
                                     { variableType = ImportedItem ImportedVariable
                                     , typeName = "Imported variable"
                                     , under = untilEndOfVariable name range
-                                    , rangeToRemove = rangeToRemove
+                                    , rangeToRemove = Just rangeToRemove
                                     }
                                     |> Just
 
@@ -1165,7 +1141,7 @@ collectFromExposing exposingNode =
                                     { variableType = ImportedItem ImportedOperator
                                     , typeName = "Imported operator"
                                     , under = untilEndOfVariable name range
-                                    , rangeToRemove = rangeToRemove
+                                    , rangeToRemove = Just rangeToRemove
                                     }
                                     |> Just
 
@@ -1175,7 +1151,7 @@ collectFromExposing exposingNode =
                                     { variableType = ImportedItem ImportedType
                                     , typeName = "Imported type"
                                     , under = untilEndOfVariable name range
-                                    , rangeToRemove = rangeToRemove
+                                    , rangeToRemove = Just rangeToRemove
                                     }
                                     |> Just
 
