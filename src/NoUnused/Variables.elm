@@ -154,12 +154,6 @@ type LetBlockContext
     | HasNoOtherDeclarations Range
 
 
-type ImportType
-    = ImportedVariable
-    | ImportedType
-    | ImportedOperator
-
-
 initialContext : ProjectContext
 initialContext =
     { isApplication = True
