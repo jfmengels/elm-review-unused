@@ -354,7 +354,7 @@ importVisitor ((Node _ import_) as node) context =
                 Exposing.All _ ->
                     -- TODO Use contextWithAlias and write test case
                     --contextWithAlias
-                    context
+                    { context | exposingAllModules = () :: context.exposingAllModules }
 
                 Exposing.Explicit list ->
                     List.foldl
