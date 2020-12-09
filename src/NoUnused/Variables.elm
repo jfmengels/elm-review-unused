@@ -555,7 +555,10 @@ expressionEnterVisitor (Node range value) context =
                         Nothing ->
                             case ModuleNameLookupTable.moduleNameAt context.lookupTable range of
                                 Just realModuleName ->
-                                    ( [], markModuleAsUsed ( realModuleName, [] ) context )
+                                    ( []
+                                    , { context | exposingAllModules = List.filter (\module_ -> module_.name /= realModuleName) context.exposingAllModules }
+                                        |> markAsUsed name
+                                    )
 
                                 Nothing ->
                                     ( [], markAsUsed name context )
