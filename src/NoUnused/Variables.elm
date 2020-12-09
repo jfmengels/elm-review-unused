@@ -217,7 +217,7 @@ emptyScope =
     }
 
 
-error : { a | typeName : String, under : Range, rangeToRemove : Maybe Range, warning : String } -> String -> Error {}
+error : { typeName : String, under : Range, rangeToRemove : Maybe Range, warning : String } -> String -> Error {}
 error variableInfo name =
     Rule.errorWithFix
         { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used" ++ variableInfo.warning
