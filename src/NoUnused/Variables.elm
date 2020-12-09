@@ -346,28 +346,7 @@ importVisitor ((Node _ import_) as node) context =
             in
             ( errors
             , List.foldl
-                (\importedElement context_ ->
-                    case importedElement of
-                        CustomType name variableInfo ->
-                            case Dict.get name customTypesFromModule of
-                                Just constructorNames ->
-                                    { context_
-                                        | unusedImportedCustomTypes = Dict.insert name variableInfo context_.unusedImportedCustomTypes
-                                        , importedCustomTypeLookup =
-                                            Dict.union
-                                                (constructorNames
-                                                    |> List.map (\constructorName -> ( constructorName, name ))
-                                                    |> Dict.fromList
-                                                )
-                                                context_.importedCustomTypeLookup
-                                    }
-
-                                Nothing ->
-                                    context_
-
-                        TypeOrValue name variableInfo ->
-                            registerVariable variableInfo name context_
-                )
+                (registerExposedElements customTypesFromModule)
                 (case import_.moduleAlias of
                     Just moduleAlias ->
                         registerModuleAlias node moduleAlias context
@@ -377,6 +356,131 @@ importVisitor ((Node _ import_) as node) context =
                 )
                 (collectFromExposing declaredImports)
             )
+
+
+registerExposedElements : Dict String (List String) -> ExposedElement -> ModuleContext -> ModuleContext
+registerExposedElements customTypesFromModule importedElement context_ =
+    case importedElement of
+        CustomType name variableInfo ->
+            case Dict.get name customTypesFromModule of
+                Just constructorNames ->
+                    { context_
+                        | unusedImportedCustomTypes = Dict.insert name variableInfo context_.unusedImportedCustomTypes
+                        , importedCustomTypeLookup =
+                            Dict.union
+                                (constructorNames
+                                    |> List.map (\constructorName -> ( constructorName, name ))
+                                    |> Dict.fromList
+                                )
+                                context_.importedCustomTypeLookup
+                    }
+
+                Nothing ->
+                    context_
+
+        TypeOrValue name variableInfo ->
+            registerVariable variableInfo name context_
+
+
+collectFromExposing : Node Exposing -> List ExposedElement
+collectFromExposing exposingNode =
+    case Node.value exposingNode of
+        Exposing.All _ ->
+            []
+
+        Exposing.Explicit list ->
+            collectExplicitlyExposedElements (Node.range exposingNode) list
+
+
+collectExplicitlyExposedElements : Range -> List (Node Exposing.TopLevelExpose) -> List ExposedElement
+collectExplicitlyExposedElements exposingNodeRange list =
+    let
+        listWithPreviousRange : List (Maybe Range)
+        listWithPreviousRange =
+            Nothing
+                :: (list
+                        |> List.map (Node.range >> Just)
+                        |> List.take (List.length list - 1)
+                   )
+
+        listWithNextRange : List Range
+        listWithNextRange =
+            (list
+                |> List.map Node.range
+                |> List.drop 1
+            )
+                ++ [ { start = { row = 0, column = 0 }, end = { row = 0, column = 0 } } ]
+    in
+    list
+        |> List.map3 (\prev next current -> ( prev, current, next )) listWithPreviousRange listWithNextRange
+        |> List.indexedMap
+            (\index ( maybePreviousRange, Node range value, nextRange ) ->
+                let
+                    rangeToRemove : Range
+                    rangeToRemove =
+                        if List.length list == 1 then
+                            exposingNodeRange
+
+                        else if index == 0 then
+                            { range | end = nextRange.start }
+
+                        else
+                            case maybePreviousRange of
+                                Nothing ->
+                                    range
+
+                                Just previousRange ->
+                                    { range | start = previousRange.end }
+                in
+                case value of
+                    Exposing.FunctionExpose name ->
+                        TypeOrValue
+                            name
+                            { typeName = "Imported variable"
+                            , under = untilEndOfVariable name range
+                            , rangeToRemove = Just rangeToRemove
+                            , warning = ""
+                            }
+                            |> Just
+
+                    Exposing.InfixExpose name ->
+                        TypeOrValue
+                            name
+                            { typeName = "Imported operator"
+                            , under = untilEndOfVariable name range
+                            , rangeToRemove = Just rangeToRemove
+                            , warning = ""
+                            }
+                            |> Just
+
+                    Exposing.TypeOrAliasExpose name ->
+                        TypeOrValue
+                            name
+                            { typeName = "Imported type"
+                            , under = untilEndOfVariable name range
+                            , rangeToRemove = Just rangeToRemove
+                            , warning = ""
+                            }
+                            |> Just
+
+                    Exposing.TypeExpose { name, open } ->
+                        case open of
+                            Just openRange ->
+                                CustomType
+                                    name
+                                    { typeName = "Imported type"
+                                    , under = range
+                                    , rangeToRemove = rangeToRemove
+                                    , openRange = openRange
+                                    }
+                                    |> Just
+
+                            Nothing ->
+                                -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
+                                -- `Exposing.TypeOrAliasExpose`, not a `Exposing.TypeExpose`.
+                                Nothing
+            )
+        |> List.filterMap identity
 
 
 registerModuleNameOrAlias : Node Import -> ModuleContext -> ModuleContext
@@ -1050,102 +1154,6 @@ registerFunction letBlockContext function context =
 type ExposedElement
     = CustomType String ImportedCustomType
     | TypeOrValue String VariableInfo
-
-
-collectFromExposing : Node Exposing -> List ExposedElement
-collectFromExposing exposingNode =
-    case Node.value exposingNode of
-        Exposing.All _ ->
-            []
-
-        Exposing.Explicit list ->
-            let
-                listWithPreviousRange : List (Maybe Range)
-                listWithPreviousRange =
-                    Nothing
-                        :: (list
-                                |> List.map (Node.range >> Just)
-                                |> List.take (List.length list - 1)
-                           )
-
-                listWithNextRange : List Range
-                listWithNextRange =
-                    (list
-                        |> List.map Node.range
-                        |> List.drop 1
-                    )
-                        ++ [ { start = { row = 0, column = 0 }, end = { row = 0, column = 0 } } ]
-            in
-            list
-                |> List.map3 (\prev next current -> ( prev, current, next )) listWithPreviousRange listWithNextRange
-                |> List.indexedMap
-                    (\index ( maybePreviousRange, Node range value, nextRange ) ->
-                        let
-                            rangeToRemove : Range
-                            rangeToRemove =
-                                if List.length list == 1 then
-                                    Node.range exposingNode
-
-                                else if index == 0 then
-                                    { range | end = nextRange.start }
-
-                                else
-                                    case maybePreviousRange of
-                                        Nothing ->
-                                            range
-
-                                        Just previousRange ->
-                                            { range | start = previousRange.end }
-                        in
-                        case value of
-                            Exposing.FunctionExpose name ->
-                                TypeOrValue
-                                    name
-                                    { typeName = "Imported variable"
-                                    , under = untilEndOfVariable name range
-                                    , rangeToRemove = Just rangeToRemove
-                                    , warning = ""
-                                    }
-                                    |> Just
-
-                            Exposing.InfixExpose name ->
-                                TypeOrValue
-                                    name
-                                    { typeName = "Imported operator"
-                                    , under = untilEndOfVariable name range
-                                    , rangeToRemove = Just rangeToRemove
-                                    , warning = ""
-                                    }
-                                    |> Just
-
-                            Exposing.TypeOrAliasExpose name ->
-                                TypeOrValue
-                                    name
-                                    { typeName = "Imported type"
-                                    , under = untilEndOfVariable name range
-                                    , rangeToRemove = Just rangeToRemove
-                                    , warning = ""
-                                    }
-                                    |> Just
-
-                            Exposing.TypeExpose { name, open } ->
-                                case open of
-                                    Just openRange ->
-                                        CustomType
-                                            name
-                                            { typeName = "Imported type"
-                                            , under = range
-                                            , rangeToRemove = rangeToRemove
-                                            , openRange = openRange
-                                            }
-                                            |> Just
-
-                                    Nothing ->
-                                        -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
-                                        -- `Exposing.TypeOrAliasExpose`, not a `Exposing.TypeExpose`.
-                                        Nothing
-                    )
-                |> List.filterMap identity
 
 
 untilEndOfVariable : String -> Range -> Range
