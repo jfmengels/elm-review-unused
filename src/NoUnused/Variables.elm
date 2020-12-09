@@ -1125,6 +1125,10 @@ finalEvaluation context =
                 )
                 context.exposingAllModules
 
+        usedModules : Set ( ModuleName, ModuleName )
+        usedModules =
+            context.usedModules
+
         moduleErrors : List (Error {})
         moduleErrors =
             context.declaredModules
@@ -1133,10 +1137,10 @@ finalEvaluation context =
                         not
                             (case variableInfo.alias of
                                 Just alias ->
-                                    Set.member ( variableInfo.moduleName, [ alias ] ) context.usedModules
+                                    Set.member ( variableInfo.moduleName, [ alias ] ) usedModules
 
                                 Nothing ->
-                                    Set.member ( variableInfo.moduleName, variableInfo.moduleName ) context.usedModules
+                                    Set.member ( variableInfo.moduleName, variableInfo.moduleName ) usedModules
                             )
                     )
                 |> List.map
