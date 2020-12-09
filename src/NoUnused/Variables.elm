@@ -369,17 +369,12 @@ importVisitor ((Node importRange import_) as node) context =
             ( errors
             , case Node.value declaredImports of
                 Exposing.All _ ->
-                    -- TODO Use contextWithAlias and write test case
-                    --contextWithAlias
-                    { context
+                    { contextWithAlias
                         | exposingAllModules =
                             { name = Node.value import_.moduleName
                             , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
                             , moduleNameRange = Node.range import_.moduleName
                             , exposingRange = Node.range declaredImports
-
-                            -- TODO
-                            --, rangeToRemove = Node.range declaredImports
                             , importRange = importRange
                             , wasUsedImplicitly = False
                             , wasUsedWithModuleName = False

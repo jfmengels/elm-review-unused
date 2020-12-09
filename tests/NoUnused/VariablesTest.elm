@@ -1269,14 +1269,26 @@ b = 1
     , test "should report unused module alias from module exposing everything and where something is used implicitly" <|
         \() ->
             [ """module A exposing (a)
-import Used as U exposing (..)
+import Used as UnusedAlias exposing (..)
 a = b"""
             , """module Used exposing (b)
 b = 1
 """
             ]
                 |> Review.Test.runOnModules rule
-                |> Review.Test.expectNoErrors
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Module alias `UnusedAlias` is not used"
+                            , details = details
+                            , under = "UnusedAlias"
+                            }
+                            |> Review.Test.whenFixed """module A exposing (a)
+import Used exposing (..)
+a = b"""
+                        ]
+                      )
+                    ]
     , test "should not report used exposing from local module that exposes everything that is aliased and alias is also used" <|
         \() ->
             [ """module A exposing (a)
