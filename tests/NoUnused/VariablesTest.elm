@@ -1171,29 +1171,28 @@ import Unknown exposing (..)
 a = 1"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
-    , Test.only <|
-        test "should report unused import from local module that exposes everything" <|
-            \() ->
-                [ """module A exposing (a)
+    , test "should report unused import from local module that exposes everything" <|
+        \() ->
+            [ """module A exposing (a)
 import Unused exposing (..)
 a = 1"""
-                , """module Unused exposing (b)
+            , """module Unused exposing (b)
 b = 1
 """
-                ]
-                    |> Review.Test.runOnModules rule
-                    |> Review.Test.expectErrorsForModules
-                        [ ( "A"
-                          , [ Review.Test.error
-                                { message = "Imported module `Unused` is not used"
-                                , details = details
-                                , under = "Unused"
-                                }
-                                |> Review.Test.whenFixed """module A exposing (a)
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported module `Unused` is not used"
+                            , details = details
+                            , under = "Unused"
+                            }
+                            |> Review.Test.whenFixed """module A exposing (a)
 a = 1"""
-                            ]
-                          )
                         ]
+                      )
+                    ]
     , test "should report unused import from dependency that exposes everything" <|
         \() ->
             """module SomeModule exposing (..)
