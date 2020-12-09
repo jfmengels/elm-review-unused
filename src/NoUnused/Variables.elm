@@ -105,6 +105,7 @@ type alias ModuleContext =
     , isApplication : Bool
     , constructorNameToTypeName : Dict String String
     , declaredModules : List DeclaredModule
+    , exposingAllModules : List ()
     , usedModules : Set ( ModuleName, ModuleName )
     , unusedImportedCustomTypes : Dict String ImportedCustomType
     , importedCustomTypeLookup : Dict String String
@@ -172,6 +173,7 @@ fromProjectToModule =
             , isApplication = isApplication
             , constructorNameToTypeName = Dict.empty
             , declaredModules = []
+            , exposingAllModules = [ () ]
             , usedModules = Set.empty
             , unusedImportedCustomTypes = Dict.empty
             , importedCustomTypeLookup = Dict.empty
@@ -1045,15 +1047,18 @@ finalEvaluation context =
 
         moduleThatExposeEverythingErrors : List (Error {})
         moduleThatExposeEverythingErrors =
-            [ Rule.errorWithFix
-                { message = "Imported module `" ++ "Unused" ++ "` is not used"
-                , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
-                }
-                --variableInfo.under
-                { start = { row = 2, column = 8 }, end = { row = 2, column = 14 } }
-                --[ Fix.removeRange rangeToRemove ]
-                [ Fix.removeRange { start = { row = 2, column = 1 }, end = { row = 3, column = 1 } } ]
-            ]
+            List.map
+                (\thing ->
+                    Rule.errorWithFix
+                        { message = "Imported module `" ++ "Unused" ++ "` is not used"
+                        , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+                        }
+                        --variableInfo.under
+                        { start = { row = 2, column = 8 }, end = { row = 2, column = 14 } }
+                        --[ Fix.removeRange rangeToRemove ]
+                        [ Fix.removeRange { start = { row = 2, column = 1 }, end = { row = 3, column = 1 } } ]
+                )
+                context.exposingAllModules
 
         moduleErrors : List (Error {})
         moduleErrors =
