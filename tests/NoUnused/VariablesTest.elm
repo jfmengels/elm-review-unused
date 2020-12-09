@@ -1201,6 +1201,21 @@ a = 1"""
                         |> Review.Test.whenFixed """module SomeModule exposing (..)
 a = 1"""
                     ]
+    , test "should report unused aliased import from dependency that exposes everything" <|
+        \() ->
+            """module SomeModule exposing (..)
+import Dependency as D exposing (..)
+a = 1"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported module `Dependency` is not used"
+                        , details = details
+                        , under = "Dependency"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (..)
+a = 1"""
+                    ]
     , test "should report unused exposing from dependency that exposes everything when it is used with qualified imports" <|
         \() ->
             """module SomeModule exposing (a)
@@ -1217,6 +1232,22 @@ a = Dependency.C_Value"""
 import Dependency$
 a = Dependency.C_Value""" |> String.replace "$" " ")
                     ]
+    , test "should report unused exposing from aliased dependency that exposes everything when it is used with qualified imports" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Dependency as D exposing (..)
+a = D.C_Value"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "No imported elements from `Dependency` are used"
+                        , details = details
+                        , under = "exposing (..)"
+                        }
+                        |> Review.Test.whenFixed ("""module SomeModule exposing (a)
+import Dependency as D$
+a = D.C_Value""" |> String.replace "$" " ")
+                    ]
     , test "should not report used exposing from dependency module that exposes everything" <|
         \() ->
             """module SomeModule exposing (..)
@@ -1229,6 +1260,17 @@ a = C_Value"""
             [ """module A exposing (a)
 import Used exposing (..)
 a = b"""
+            , """module Used exposing (b)
+b = 1
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
+    , test "should not report used exposing from local module that exposes everything that is aliased and alias is also used" <|
+        \() ->
+            [ """module A exposing (a)
+import Used as U exposing (..)
+a = U.b + b"""
             , """module Used exposing (b)
 b = 1
 """
