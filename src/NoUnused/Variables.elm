@@ -563,7 +563,18 @@ expressionEnterVisitor (Node range value) context =
                             case ModuleNameLookupTable.moduleNameAt context.lookupTable range of
                                 Just realModuleName ->
                                     ( []
-                                    , { context | exposingAllModules = List.filter (\module_ -> module_.name /= realModuleName) context.exposingAllModules }
+                                    , { context
+                                        | exposingAllModules =
+                                            List.map
+                                                (\module_ ->
+                                                    if module_.name == realModuleName then
+                                                        { module_ | wasUsedImplicitly = True }
+
+                                                    else
+                                                        module_
+                                                )
+                                                context.exposingAllModules
+                                      }
                                         |> markAsUsed name
                                     )
 
@@ -1081,14 +1092,20 @@ finalEvaluation context =
 
         moduleThatExposeEverythingErrors : List (Error {})
         moduleThatExposeEverythingErrors =
-            List.map
-                (\{ name, under, rangeToRemove } ->
-                    Rule.errorWithFix
-                        { message = "Imported module `" ++ String.join "." name ++ "` is not used"
-                        , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
-                        }
-                        under
-                        [ Fix.removeRange rangeToRemove ]
+            List.filterMap
+                (\module_ ->
+                    if not module_.wasUsedImplicitly then
+                        Just
+                            (Rule.errorWithFix
+                                { message = "Imported module `" ++ String.join "." module_.name ++ "` is not used"
+                                , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+                                }
+                                module_.under
+                                [ Fix.removeRange module_.rangeToRemove ]
+                            )
+
+                    else
+                        Nothing
                 )
                 context.exposingAllModules
 
