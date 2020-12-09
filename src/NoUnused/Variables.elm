@@ -105,7 +105,7 @@ type alias ModuleContext =
     , isApplication : Bool
     , constructorNameToTypeName : Dict String String
     , declaredModules : List DeclaredModule
-    , exposingAllModules : List ()
+    , exposingAllModules : List ModuleThatExposesEverything
     , usedModules : Set ( ModuleName, ModuleName )
     , unusedImportedCustomTypes : Dict String ImportedCustomType
     , importedCustomTypeLookup : Dict String String
@@ -118,6 +118,13 @@ type alias DeclaredModule =
     , alias : Maybe String
     , typeName : String
     , variableType : DeclaredModuleType
+    , under : Range
+    , rangeToRemove : Range
+    }
+
+
+type alias ModuleThatExposesEverything =
+    { name : ModuleName
     , under : Range
     , rangeToRemove : Range
     }
@@ -354,7 +361,14 @@ importVisitor ((Node _ import_) as node) context =
                 Exposing.All _ ->
                     -- TODO Use contextWithAlias and write test case
                     --contextWithAlias
-                    { context | exposingAllModules = () :: context.exposingAllModules }
+                    { context
+                        | exposingAllModules =
+                            { name = Node.value import_.moduleName
+                            , under = Node.range import_.moduleName
+                            , rangeToRemove = Node.range declaredImports
+                            }
+                                :: context.exposingAllModules
+                    }
 
                 Exposing.Explicit list ->
                     List.foldl
@@ -1048,15 +1062,13 @@ finalEvaluation context =
         moduleThatExposeEverythingErrors : List (Error {})
         moduleThatExposeEverythingErrors =
             List.map
-                (\thing ->
+                (\{ name, under, rangeToRemove } ->
                     Rule.errorWithFix
-                        { message = "Imported module `" ++ "Unused" ++ "` is not used"
+                        { message = "Imported module `" ++ String.join "." name ++ "` is not used"
                         , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
                         }
-                        --variableInfo.under
-                        { start = { row = 2, column = 8 }, end = { row = 2, column = 14 } }
-                        --[ Fix.removeRange rangeToRemove ]
-                        [ Fix.removeRange { start = { row = 2, column = 1 }, end = { row = 3, column = 1 } } ]
+                        under
+                        [ Fix.removeRange rangeToRemove ]
                 )
                 context.exposingAllModules
 
