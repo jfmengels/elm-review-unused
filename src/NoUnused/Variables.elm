@@ -1103,7 +1103,7 @@ finalEvaluation context =
         moduleThatExposeEverythingErrors : List (Error {})
         moduleThatExposeEverythingErrors =
             List.filterMap
-                (\({ importRange } as module_) ->
+                (\({ importRange, exposingRange } as module_) ->
                     if not module_.wasUsedImplicitly then
                         if module_.wasUsedWithModuleName then
                             Just
@@ -1111,8 +1111,8 @@ finalEvaluation context =
                                     { message = "No imported elements from `" ++ String.join "." module_.name ++ "` are used"
                                     , details = details
                                     }
-                                    module_.moduleNameRange
-                                    [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
+                                    exposingRange
+                                    [ Fix.removeRange exposingRange ]
                                 )
 
                         else

@@ -1213,7 +1213,7 @@ a = Dependency.C_Value"""
                         , details = details
                         , under = "exposing (..)"
                         }
-                        |> Review.Test.whenFixed ("""module SomeModule exposing (..)
+                        |> Review.Test.whenFixed ("""module SomeModule exposing (a)
 import Dependency$
 a = Dependency.C_Value""" |> String.replace "$" " ")
                     ]
