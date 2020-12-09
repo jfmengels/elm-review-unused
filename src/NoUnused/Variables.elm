@@ -134,10 +134,10 @@ type alias Scope =
 
 
 type alias VariableInfo =
-    { variableType : VariableType
-    , typeName : String
+    { typeName : String
     , under : Range
     , rangeToRemove : Maybe Range
+    , warning : String
     }
 
 
@@ -147,15 +147,6 @@ type alias ImportedCustomType =
     , rangeToRemove : Range
     , openRange : Range
     }
-
-
-type VariableType
-    = TopLevelVariable
-    | LetVariable
-    | ImportedItem ImportType
-    | Type
-    | Port
-    | Operator
 
 
 type LetBlockContext
@@ -226,10 +217,10 @@ emptyScope =
     }
 
 
-error : { a | variableType : VariableType, typeName : String, under : Range, rangeToRemove : Maybe Range } -> String -> Error {}
+error : { a | typeName : String, under : Range, rangeToRemove : Maybe Range, warning : String } -> String -> Error {}
 error variableInfo name =
     Rule.errorWithFix
-        { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used" ++ variableTypeWarning variableInfo.variableType
+        { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used" ++ variableInfo.warning
         , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
         }
         variableInfo.under
@@ -240,28 +231,6 @@ error variableInfo name =
             Nothing ->
                 []
         )
-
-
-variableTypeWarning : VariableType -> String
-variableTypeWarning value =
-    case value of
-        TopLevelVariable ->
-            ""
-
-        LetVariable ->
-            ""
-
-        ImportedItem _ ->
-            ""
-
-        Type ->
-            ""
-
-        Port ->
-            " (Warning: Removing this port may break your application if it is used in the JS code)"
-
-        Operator ->
-            ""
 
 
 
@@ -788,10 +757,10 @@ declarationVisitor node context =
 
                     else
                         registerVariable
-                            { variableType = TopLevelVariable
-                            , typeName = "Top-level variable"
+                            { typeName = "Top-level variable"
                             , under = Node.range functionImplementation.name
                             , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node function.documentation)
+                            , warning = ""
                             }
                             (Node.value functionImplementation.name)
                             context
@@ -827,10 +796,10 @@ declarationVisitor node context =
             ( []
             , { context | constructorNameToTypeName = Dict.union constructorsForType context.constructorNameToTypeName }
                 |> registerVariable
-                    { variableType = Type
-                    , typeName = "Type"
+                    { typeName = "Type"
                     , under = Node.range name
                     , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node documentation)
+                    , warning = ""
                     }
                     (Node.value name)
                 |> markUsedTypesAndModules variablesFromConstructorArguments
@@ -845,10 +814,10 @@ declarationVisitor node context =
             ( []
             , context
                 |> registerVariable
-                    { variableType = Type
-                    , typeName = "Type"
+                    { typeName = "Type"
                     , under = Node.range name
                     , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node documentation)
+                    , warning = ""
                     }
                     (Node.value name)
                 |> markUsedTypesAndModules namesUsedInTypeAnnotation
@@ -864,10 +833,10 @@ declarationVisitor node context =
             , context
                 |> markUsedTypesAndModules namesUsedInTypeAnnotation
                 |> registerVariable
-                    { variableType = Port
-                    , typeName = "Port"
+                    { typeName = "Port"
                     , under = Node.range name
                     , rangeToRemove = Nothing
+                    , warning = " (Warning: Removing this port may break your application if it is used in the JS code)"
                     }
                     (Node.value name)
             )
@@ -877,10 +846,10 @@ declarationVisitor node context =
             , context
                 |> markAsUsed (Node.value function)
                 |> registerVariable
-                    { variableType = Operator
-                    , typeName = "Declared operator"
+                    { typeName = "Declared operator"
                     , under = Node.range operator
                     , rangeToRemove = Just (Node.range node)
+                    , warning = ""
                     }
                     (Node.value operator)
             )
@@ -1061,8 +1030,7 @@ registerFunction letBlockContext function context =
     in
     context
         |> registerVariable
-            { variableType = LetVariable
-            , typeName = "`let in` variable"
+            { typeName = "`let in` variable"
             , under = Node.range declaration.name
             , rangeToRemove =
                 case letBlockContext of
@@ -1073,6 +1041,7 @@ registerFunction letBlockContext function context =
                         -- If there are no other declarations in the let in block,
                         -- we also need to remove the `let in` keywords.
                         Just letDeclarationsRange
+            , warning = ""
             }
             (Node.value declaration.name)
         |> markUsedTypesAndModules namesUsedInSignature
@@ -1132,30 +1101,30 @@ collectFromExposing exposingNode =
                             Exposing.FunctionExpose name ->
                                 TypeOrValue
                                     name
-                                    { variableType = ImportedItem ImportedVariable
-                                    , typeName = "Imported variable"
+                                    { typeName = "Imported variable"
                                     , under = untilEndOfVariable name range
                                     , rangeToRemove = Just rangeToRemove
+                                    , warning = ""
                                     }
                                     |> Just
 
                             Exposing.InfixExpose name ->
                                 TypeOrValue
                                     name
-                                    { variableType = ImportedItem ImportedOperator
-                                    , typeName = "Imported operator"
+                                    { typeName = "Imported operator"
                                     , under = untilEndOfVariable name range
                                     , rangeToRemove = Just rangeToRemove
+                                    , warning = ""
                                     }
                                     |> Just
 
                             Exposing.TypeOrAliasExpose name ->
                                 TypeOrValue
                                     name
-                                    { variableType = ImportedItem ImportedType
-                                    , typeName = "Imported type"
+                                    { typeName = "Imported type"
                                     , under = untilEndOfVariable name range
                                     , rangeToRemove = Just rangeToRemove
+                                    , warning = ""
                                     }
                                     |> Just
 
