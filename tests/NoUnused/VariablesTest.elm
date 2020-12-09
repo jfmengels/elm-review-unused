@@ -1217,6 +1217,13 @@ a = Dependency.C_Value"""
 import Dependency$
 a = Dependency.C_Value""" |> String.replace "$" " ")
                     ]
+    , test "should not report used exposing from module that exposes everything" <|
+        \() ->
+            """module SomeModule exposing (..)
+import Dependency exposing (..)
+a = C_Value"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     ]
 
 
