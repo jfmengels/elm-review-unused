@@ -1105,19 +1105,25 @@ finalEvaluation context =
             List.filterMap
                 (\({ importRange } as module_) ->
                     if not module_.wasUsedImplicitly then
-                        Just
-                            (Rule.errorWithFix
-                                { message =
-                                    if module_.wasUsedWithModuleName then
-                                        "No imported elements from `" ++ String.join "." module_.name ++ "` are used"
+                        if module_.wasUsedWithModuleName then
+                            Just
+                                (Rule.errorWithFix
+                                    { message = "No imported elements from `" ++ String.join "." module_.name ++ "` are used"
+                                    , details = details
+                                    }
+                                    module_.moduleNameRange
+                                    [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
+                                )
 
-                                    else
-                                        "Imported module `" ++ String.join "." module_.name ++ "` is not used"
-                                , details = details
-                                }
-                                module_.moduleNameRange
-                                [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
-                            )
+                        else
+                            Just
+                                (Rule.errorWithFix
+                                    { message = "Imported module `" ++ String.join "." module_.name ++ "` is not used"
+                                    , details = details
+                                    }
+                                    module_.moduleNameRange
+                                    [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
+                                )
 
                     else
                         Nothing
