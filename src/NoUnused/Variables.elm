@@ -126,7 +126,7 @@ type alias DeclaredModule =
 type alias ModuleThatExposesEverything =
     { name : ModuleName
     , alias : Maybe String
-    , importRange : Range
+    , moduleNameRange : Range
     , rangeToRemove : Range
     , wasUsedImplicitly : Bool
     , wasUsedWithModuleName : Bool
@@ -368,7 +368,7 @@ importVisitor ((Node importRange import_) as node) context =
                         | exposingAllModules =
                             { name = Node.value import_.moduleName
                             , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
-                            , importRange = Node.range import_.moduleName
+                            , moduleNameRange = Node.range import_.moduleName
 
                             -- TODO
                             --, rangeToRemove = Node.range declaredImports
@@ -1107,7 +1107,7 @@ finalEvaluation context =
                                         "Imported module `" ++ String.join "." module_.name ++ "` is not used"
                                 , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
                                 }
-                                module_.importRange
+                                module_.moduleNameRange
                                 [ Fix.removeRange module_.rangeToRemove ]
                             )
 
