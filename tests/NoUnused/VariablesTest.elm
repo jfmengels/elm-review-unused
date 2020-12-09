@@ -722,12 +722,6 @@ import Html.Styled.Attributes"""
                         }
                         |> Review.Test.whenFixed "module SomeModule exposing (a)\n"
                     ]
-    , test "should not report import if it exposes all (should be improved by detecting if any exposed value is used)" <|
-        \() ->
-            """module SomeModule exposing (a)
-import Html.Styled.Attributes exposing (..)"""
-                |> Review.Test.run rule
-                |> Review.Test.expectNoErrors
     , test "should not report used import (function access)" <|
         \() ->
             """module SomeModule exposing (a)
@@ -1169,6 +1163,66 @@ a = 1"""
                         }
                         |> Review.Test.whenFixed """module SomeModule exposing (..)
 a = 1"""
+                    ]
+    , test "should not report import if it exposes all and its contents are unknown" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Unknown exposing (..)
+a = 1"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should report unused import from local module that exposes everything" <|
+        \() ->
+            [ """module A exposing (a)
+import Unused exposing (..)
+a = 1"""
+            , """module Unused exposing (b)
+b = 1
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported module `Unused` is not used"
+                            , details = details
+                            , under = "Unused"
+                            }
+                            |> Review.Test.whenFixed """module SomeModule exposing (..)
+a = 1"""
+                        ]
+                      )
+                    ]
+    , test "should report unused import from dependency that exposes everything" <|
+        \() ->
+            """module SomeModule exposing (..)
+import Dependency exposing (..)
+a = 1"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported module `Dependency` is not used"
+                        , details = details
+                        , under = "Dependency"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (..)
+a = 1"""
+                    ]
+    , test "should report unused exposing from dependency that exposes everything when it is used with qualified imports" <|
+        \() ->
+            """module SomeModule exposing (..)
+import Dependency exposing (..)
+a = Dependency.C_Value"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "No imported elements from `Dependency` are used"
+                        , details = details
+                        , under = "exposing (..)"
+                        }
+                        |> Review.Test.whenFixed ("""module SomeModule exposing (..)
+import Dependency$
+a = Dependency.C_Value""" |> String.replace "$" " ")
                     ]
     ]
 
