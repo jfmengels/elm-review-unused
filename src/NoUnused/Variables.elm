@@ -314,7 +314,7 @@ moduleDefinitionVisitor (Node _ moduleNode) context =
 
 
 importVisitor : Node Import -> ModuleContext -> ( List (Error {}), ModuleContext )
-importVisitor ((Node _ import_) as node) context =
+importVisitor ((Node importRange import_) as node) context =
     let
         errors : List (Error {})
         errors =
@@ -365,7 +365,10 @@ importVisitor ((Node _ import_) as node) context =
                         | exposingAllModules =
                             { name = Node.value import_.moduleName
                             , under = Node.range import_.moduleName
-                            , rangeToRemove = Node.range declaredImports
+
+                            -- TODO
+                            --, rangeToRemove = Node.range declaredImports
+                            , rangeToRemove = { importRange | end = { row = importRange.end.row + 1, column = 1 } }
                             }
                                 :: context.exposingAllModules
                     }
