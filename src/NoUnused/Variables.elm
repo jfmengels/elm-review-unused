@@ -397,7 +397,7 @@ importVisitor ((Node _ import_) as node) context =
                                     context_
 
                         TypeOrValue name variableInfo ->
-                            register variableInfo name context_
+                            registerVariable variableInfo name context_
                 )
                 (case import_.moduleAlias of
                     Just moduleAlias ->
@@ -787,7 +787,7 @@ declarationVisitor node context =
                         context
 
                     else
-                        register
+                        registerVariable
                             { variableType = TopLevelVariable
                             , typeName = "Top-level variable"
                             , under = Node.range functionImplementation.name
@@ -826,7 +826,7 @@ declarationVisitor node context =
             in
             ( []
             , { context | constructorNameToTypeName = Dict.union constructorsForType context.constructorNameToTypeName }
-                |> register
+                |> registerVariable
                     { variableType = Type
                     , typeName = "Type"
                     , under = Node.range name
@@ -844,7 +844,7 @@ declarationVisitor node context =
             in
             ( []
             , context
-                |> register
+                |> registerVariable
                     { variableType = Type
                     , typeName = "Type"
                     , under = Node.range name
@@ -863,7 +863,7 @@ declarationVisitor node context =
             ( []
             , context
                 |> markUsedTypesAndModules namesUsedInTypeAnnotation
-                |> register
+                |> registerVariable
                     { variableType = Port
                     , typeName = "Port"
                     , under = Node.range name
@@ -876,7 +876,7 @@ declarationVisitor node context =
             ( []
             , context
                 |> markAsUsed (Node.value function)
-                |> register
+                |> registerVariable
                     { variableType = Operator
                     , typeName = "Declared operator"
                     , under = Node.range operator
@@ -1060,7 +1060,7 @@ registerFunction letBlockContext function context =
                     Node.range function.declaration
     in
     context
-        |> register
+        |> registerVariable
             { variableType = LetVariable
             , typeName = "`let in` variable"
             , under = Node.range declaration.name
@@ -1268,28 +1268,6 @@ collectModuleNamesFromTypeAnnotation lookupTable node =
 
         TypeAnnotation.Unit ->
             []
-
-
-register : VariableInfo -> String -> ModuleContext -> ModuleContext
-register variableInfo name context =
-    case variableInfo.variableType of
-        TopLevelVariable ->
-            registerVariable variableInfo name context
-
-        LetVariable ->
-            registerVariable variableInfo name context
-
-        ImportedItem _ ->
-            registerVariable variableInfo name context
-
-        Type ->
-            registerVariable variableInfo name context
-
-        Port ->
-            registerVariable variableInfo name context
-
-        Operator ->
-            registerVariable variableInfo name context
 
 
 registerModule : DeclaredModule -> ModuleContext -> ModuleContext
