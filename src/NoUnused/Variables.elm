@@ -125,6 +125,7 @@ type alias DeclaredModule =
 
 type alias ModuleThatExposesEverything =
     { name : ModuleName
+    , alias : Maybe String
     , under : Range
     , rangeToRemove : Range
     , wasUsedImplicitly : Bool
@@ -366,6 +367,7 @@ importVisitor ((Node importRange import_) as node) context =
                     { context
                         | exposingAllModules =
                             { name = Node.value import_.moduleName
+                            , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
                             , under = Node.range import_.moduleName
 
                             -- TODO
