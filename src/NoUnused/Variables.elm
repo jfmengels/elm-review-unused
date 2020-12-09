@@ -374,7 +374,7 @@ importVisitor ((Node importRange import_) as node) context =
 
                             -- TODO
                             --, rangeToRemove = Node.range declaredImports
-                            , importRange = { importRange | end = { row = importRange.end.row + 1, column = 1 } }
+                            , importRange = importRange
                             , wasUsedImplicitly = False
                             , wasUsedWithModuleName = False
                             }
@@ -1097,7 +1097,7 @@ finalEvaluation context =
         moduleThatExposeEverythingErrors : List (Error {})
         moduleThatExposeEverythingErrors =
             List.filterMap
-                (\module_ ->
+                (\({ importRange } as module_) ->
                     if not module_.wasUsedImplicitly then
                         Just
                             (Rule.errorWithFix
@@ -1110,7 +1110,7 @@ finalEvaluation context =
                                 , details = [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
                                 }
                                 module_.moduleNameRange
-                                [ Fix.removeRange module_.importRange ]
+                                [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
                             )
 
                     else
