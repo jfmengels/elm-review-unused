@@ -865,6 +865,8 @@ declarationListVisitor nodes context =
                             Nothing
                 )
                 nodes
+
+        -- TODO handle type aliases, and remove constructorNameToTypeName coming from imports that are named like the type alias
     in
     ( [], { context | customTypes = Dict.insert [] (Dict.fromList customTypes) context.customTypes } )
 
