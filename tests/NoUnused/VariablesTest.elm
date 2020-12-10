@@ -1472,6 +1472,22 @@ a = 1"""
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 a = 1"""
                     ]
+    , test "should report unused custom type declaration even when it references itself" <|
+        \() ->
+            """module SomeModule exposing (a)
+type Node = Node Int (List (Node))
+a = 1"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Type `Node` is not used"
+                        , details = details
+                        , under = "Node"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 6 }, end = { row = 2, column = 10 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+a = 1"""
+                    ]
     , test "should report unused custom type declaration even if another constructor with the same name is used" <|
         \() ->
             """module SomeModule exposing (a)

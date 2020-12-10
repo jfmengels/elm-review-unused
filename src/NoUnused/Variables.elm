@@ -968,15 +968,18 @@ declarationVisitor node context =
 
         Declaration.CustomTypeDeclaration { name, documentation, constructors } ->
             let
-                variablesFromConstructorArguments : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                variablesFromConstructorArguments =
+                { types, modules } =
                     constructors
                         |> List.concatMap (Node.value >> .arguments)
                         |> List.map (collectNamesFromTypeAnnotation context.lookupTable)
                         |> foldUsedTypesAndModules
             in
             ( []
-            , markUsedTypesAndModules variablesFromConstructorArguments context
+            , markUsedTypesAndModules
+                { types = List.filter ((/=) (Node.value name)) types
+                , modules = modules
+                }
+                context
             )
 
         Declaration.AliasDeclaration { name, typeAnnotation, documentation } ->
