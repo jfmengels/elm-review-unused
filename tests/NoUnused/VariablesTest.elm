@@ -1732,16 +1732,7 @@ a str = {c = str}"""
         \() ->
             """module SomeModule exposing (a)
 type Baz = Baz String
-
 a (Baz range) =
-    []"""
-                |> Review.Test.run rule
-                |> Review.Test.expectNoErrors
-    , test "should not report type alias when it is deconstructed in a function call" <|
-        \() ->
-            """module SomeModule exposing (a)
-type alias Baz = { a : String}
-a (Baz value) =
     []"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
@@ -1759,14 +1750,13 @@ outer arg =
     """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
-    , test "should not report unused type alias when it is function call in a let" <|
+    , test "should not report unused type alias when it is used in a function call in a let expression" <|
         \() ->
             """module SomeModule exposing (outer)
 type alias Baz = { a: String }
 outer arg =
     let
-        inner (Baz range) =
-            []
+        inner = Baz range
     in
     inner arg
     """
