@@ -1512,6 +1512,17 @@ a : A
 a = {a = 1}"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should not report type alias used in a let constant's signature" <|
+        \() ->
+            """module SomeModule exposing (a)
+type alias A = { a : B }
+a =
+  let
+    b : A
+    b = {a = 1}
+  in b"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     , test "should not report type alias used in a signature with multiple arguments" <|
         \() ->
             """module SomeModule exposing (a)
