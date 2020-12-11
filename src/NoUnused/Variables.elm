@@ -824,17 +824,12 @@ getUsedModulesFromPattern lookupTable patternNode =
             []
 
         Pattern.NamedPattern qualifiedNameRef patterns ->
-            case qualifiedNameRef.moduleName of
-                [] ->
+            case ModuleNameLookupTable.moduleNameFor lookupTable patternNode of
+                Just realModuleName ->
+                    ( realModuleName, qualifiedNameRef.moduleName ) :: List.concatMap (getUsedModulesFromPattern lookupTable) patterns
+
+                Nothing ->
                     List.concatMap (getUsedModulesFromPattern lookupTable) patterns
-
-                moduleName ->
-                    case ModuleNameLookupTable.moduleNameFor lookupTable patternNode of
-                        Just realModuleName ->
-                            ( realModuleName, moduleName ) :: List.concatMap (getUsedModulesFromPattern lookupTable) patterns
-
-                        Nothing ->
-                            List.concatMap (getUsedModulesFromPattern lookupTable) patterns
 
         Pattern.AsPattern pattern _ ->
             getUsedModulesFromPattern lookupTable pattern
