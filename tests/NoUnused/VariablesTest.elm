@@ -859,6 +859,31 @@ type C = C_Value
             ]
                 |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
+    , test "should report open type import when the exposed constructor is shadowed by a local type alias" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..))
+type alias C_Value = {}
+a = C_Value"""
+            , """module B exposing (C(..))
+type C = C_Value
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported type `C` is not used"
+                            , details = details
+                            , under = "C(..)"
+                            }
+                            |> Review.Test.whenFixed ("""module A exposing (a)
+import B$
+type alias C_Value = {}
+a = C_Value""" |> String.replace "$" " ")
+                        ]
+                      )
+                    ]
     , test "should report open type import when none of its constructors is used (imported dependency)" <|
         \() ->
             """module A exposing (a)

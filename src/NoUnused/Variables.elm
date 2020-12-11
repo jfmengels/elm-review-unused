@@ -893,10 +893,21 @@ declarationListVisitor nodes context =
                       }
                     )
 
+                Declaration.AliasDeclaration { name, typeAnnotation, documentation } ->
+                    ( []
+                    , registerVariable
+                        { typeName = "Type"
+                        , under = Node.range name
+                        , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node documentation)
+                        , warning = ""
+                        }
+                        (Node.value name)
+                        { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
+                    )
+
                 _ ->
                     ( errors, ctx )
         )
-        -- TODO handle type aliases, and remove constructorNameToTypeName coming from imports that are named like the type alias
         ( [], context )
         nodes
 
@@ -975,15 +986,7 @@ declarationVisitor node context =
                     collectNamesFromTypeAnnotation context.lookupTable typeAnnotation
             in
             ( []
-            , context
-                |> registerVariable
-                    { typeName = "Type"
-                    , under = Node.range name
-                    , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node documentation)
-                    , warning = ""
-                    }
-                    (Node.value name)
-                |> markUsedTypesAndModules namesUsedInTypeAnnotation
+            , markUsedTypesAndModules namesUsedInTypeAnnotation context
             )
 
         Declaration.PortDeclaration { name, typeAnnotation } ->
