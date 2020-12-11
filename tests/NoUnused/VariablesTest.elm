@@ -1291,19 +1291,18 @@ b = 1
             ]
                 |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
-    , Test.skip <|
-        test "should not report used exposing from local module that exposes everything (using type)" <|
-            \() ->
-                [ """module A exposing (a)
+    , test "should not report used exposing from local module that exposes everything (using type)" <|
+        \() ->
+            [ """module A exposing (a)
 import Used exposing (..)
 a : C
 a = 1"""
-                , """module Used exposing (b)
+            , """module Used exposing (C)
 type alias C = Int
 """
-                ]
-                    |> Review.Test.runOnModules rule
-                    |> Review.Test.expectNoErrors
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
     , Test.skip <|
         test "should not report used exposing from local module that exposes everything (using case of pattern)" <|
             \() ->

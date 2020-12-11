@@ -1341,11 +1341,11 @@ collectModuleNamesFromTypeAnnotation lookupTable node =
             collectModuleNamesFromTypeAnnotation lookupTable a ++ collectModuleNamesFromTypeAnnotation lookupTable b
 
         TypeAnnotation.Typed nameNode params ->
-            case ( Tuple.first (Node.value nameNode), ModuleNameLookupTable.moduleNameFor lookupTable nameNode ) of
-                ( usedModuleNameFirst :: usedModuleNameRest, Just realModuleName ) ->
-                    ( realModuleName, usedModuleNameFirst :: usedModuleNameRest ) :: List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable) params
+            case ModuleNameLookupTable.moduleNameFor lookupTable nameNode of
+                Just realModuleName ->
+                    ( realModuleName, Tuple.first (Node.value nameNode) ) :: List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable) params
 
-                _ ->
+                Nothing ->
                     List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable) params
 
         TypeAnnotation.Record list ->
@@ -1428,7 +1428,7 @@ markAsUsed name context =
 
 markAllModulesAsUsed : List ( ModuleName, ModuleName ) -> ModuleContext -> ModuleContext
 markAllModulesAsUsed names context =
-    { context | usedModules = Set.union (Set.fromList names) context.usedModules }
+    List.foldl markModuleAsUsed context names
 
 
 markModuleAsUsed : ( ModuleName, ModuleName ) -> ModuleContext -> ModuleContext
@@ -1438,8 +1438,15 @@ markModuleAsUsed (( realModuleName, aliasName ) as realAndAliasModuleNames) cont
         , exposingAllModules =
             List.map
                 (\module_ ->
-                    if module_.name == realModuleName && (module_.name == aliasName || Just (String.join "." aliasName) == module_.alias) then
-                        { module_ | wasUsedWithModuleName = True }
+                    if module_.name == realModuleName then
+                        if module_.name == aliasName || Just (String.join "." aliasName) == module_.alias then
+                            { module_ | wasUsedWithModuleName = True }
+
+                        else if aliasName == [] then
+                            { module_ | wasUsedImplicitly = True }
+
+                        else
+                            module_
 
                     else
                         module_
