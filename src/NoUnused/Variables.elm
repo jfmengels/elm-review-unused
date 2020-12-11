@@ -109,6 +109,7 @@ type alias ModuleContext =
     , usedModules : Set ( ModuleName, ModuleName )
     , unusedImportedCustomTypes : Dict String ImportedCustomType
     , importedCustomTypeLookup : Dict String String
+    , localCustomTypes : Dict String CustomTypeData
     , customTypes : Dict ModuleName (Dict String (List String))
     }
 
@@ -120,6 +121,13 @@ type alias DeclaredModule =
     , variableType : DeclaredModuleType
     , under : Range
     , rangeToRemove : Range
+    }
+
+
+type alias CustomTypeData =
+    { under : Range
+    , rangeToRemove : Range
+    , variants : List String
     }
 
 
@@ -188,6 +196,7 @@ fromProjectToModule =
             , usedModules = Set.empty
             , unusedImportedCustomTypes = Dict.empty
             , importedCustomTypeLookup = Dict.empty
+            , localCustomTypes = Dict.empty
             , customTypes = customTypes
             }
         )
@@ -199,8 +208,8 @@ fromModuleToProject =
     Rule.initContextCreator
         (\metadata moduleContext ->
             { customTypes =
-                Dict.get [] moduleContext.customTypes
-                    |> Maybe.withDefault Dict.empty
+                moduleContext.localCustomTypes
+                    |> Dict.map (\_ customType -> customType.variants)
                     |> Dict.singleton (Rule.moduleNameFromMetadata metadata)
 
             -- Will be ignored in foldProjectContexts
@@ -556,8 +565,8 @@ expressionEnterVisitor (Node range value) context =
     case value of
         Expression.FunctionOrValue [] name ->
             case Dict.get name context.constructorNameToTypeName of
-                Just _ ->
-                    ( [], markAsUsed name context )
+                Just typeName ->
+                    ( [], markAsUsed typeName context )
 
                 Nothing ->
                     case Dict.get name context.importedCustomTypeLookup of
@@ -620,7 +629,7 @@ expressionEnterVisitor (Node range value) context =
                                     function.declaration
                                         |> Node.value
                                         |> .arguments
-                                        |> List.map (getUsedVariablesFromPattern context.lookupTable)
+                                        |> List.map (getUsedVariablesFromPattern context)
                                         |> foldUsedTypesAndModules
                             in
                             ( errors
@@ -663,7 +672,7 @@ expressionEnterVisitor (Node range value) context =
                 namesUsedInArgumentPatterns : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInArgumentPatterns =
                     args
-                        |> List.map (getUsedVariablesFromPattern context.lookupTable)
+                        |> List.map (getUsedVariablesFromPattern context)
                         |> foldUsedTypesAndModules
             in
             ( [], markUsedTypesAndModules namesUsedInArgumentPatterns context )
@@ -698,7 +707,7 @@ expressionExitVisitor node context =
                     cases
                         |> List.map
                             (\( patternNode, _ ) ->
-                                getUsedVariablesFromPattern context.lookupTable patternNode
+                                getUsedVariablesFromPattern context patternNode
                             )
                         |> foldUsedTypesAndModules
             in
@@ -723,15 +732,15 @@ expressionExitVisitor node context =
             ( [], context )
 
 
-getUsedVariablesFromPattern : ModuleNameLookupTable -> Node Pattern -> { types : List String, modules : List ( ModuleName, ModuleName ) }
-getUsedVariablesFromPattern lookupTable patternNode =
-    { types = getUsedTypesFromPattern patternNode
-    , modules = getUsedModulesFromPattern lookupTable patternNode
+getUsedVariablesFromPattern : ModuleContext -> Node Pattern -> { types : List String, modules : List ( ModuleName, ModuleName ) }
+getUsedVariablesFromPattern context patternNode =
+    { types = getUsedTypesFromPattern context.constructorNameToTypeName patternNode
+    , modules = getUsedModulesFromPattern context.lookupTable patternNode
     }
 
 
-getUsedTypesFromPattern : Node Pattern -> List String
-getUsedTypesFromPattern patternNode =
+getUsedTypesFromPattern : Dict String String -> Node Pattern -> List String
+getUsedTypesFromPattern constructorNameToTypeName patternNode =
     case Node.value patternNode of
         Pattern.AllPattern ->
             []
@@ -755,16 +764,16 @@ getUsedTypesFromPattern patternNode =
             []
 
         Pattern.TuplePattern patterns ->
-            List.concatMap getUsedTypesFromPattern patterns
+            List.concatMap (getUsedTypesFromPattern constructorNameToTypeName) patterns
 
         Pattern.RecordPattern _ ->
             []
 
         Pattern.UnConsPattern pattern1 pattern2 ->
-            List.concatMap getUsedTypesFromPattern [ pattern1, pattern2 ]
+            List.concatMap (getUsedTypesFromPattern constructorNameToTypeName) [ pattern1, pattern2 ]
 
         Pattern.ListPattern patterns ->
-            List.concatMap getUsedTypesFromPattern patterns
+            List.concatMap (getUsedTypesFromPattern constructorNameToTypeName) patterns
 
         Pattern.VarPattern _ ->
             []
@@ -772,16 +781,17 @@ getUsedTypesFromPattern patternNode =
         Pattern.NamedPattern qualifiedNameRef patterns ->
             case qualifiedNameRef.moduleName of
                 [] ->
-                    qualifiedNameRef.name :: List.concatMap getUsedTypesFromPattern patterns
+                    (Dict.get qualifiedNameRef.name constructorNameToTypeName |> Maybe.withDefault qualifiedNameRef.name)
+                        :: List.concatMap (getUsedTypesFromPattern constructorNameToTypeName) patterns
 
                 _ ->
-                    List.concatMap getUsedTypesFromPattern patterns
+                    List.concatMap (getUsedTypesFromPattern constructorNameToTypeName) patterns
 
         Pattern.AsPattern pattern _ ->
-            getUsedTypesFromPattern pattern
+            getUsedTypesFromPattern constructorNameToTypeName pattern
 
         Pattern.ParenthesizedPattern pattern ->
-            getUsedTypesFromPattern pattern
+            getUsedTypesFromPattern constructorNameToTypeName pattern
 
 
 getUsedModulesFromPattern : ModuleNameLookupTable -> Node Pattern -> List ( ModuleName, ModuleName )
@@ -847,28 +857,48 @@ getUsedModulesFromPattern lookupTable patternNode =
 -- DECLARATION LIST VISITOR
 
 
-declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List nothing, ModuleContext )
+declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List (Error {}), ModuleContext )
 declarationListVisitor nodes context =
-    let
-        customTypes : List ( String, List String )
-        customTypes =
-            List.filterMap
-                (\node ->
-                    case Node.value node of
-                        Declaration.CustomTypeDeclaration { name, constructors } ->
-                            Just
-                                ( Node.value name
-                                , List.map (Node.value >> .name >> Node.value) constructors
-                                )
+    List.foldl
+        (\node ( errors, ctx ) ->
+            case Node.value node of
+                Declaration.CustomTypeDeclaration { name, constructors, documentation } ->
+                    let
+                        typeName : String
+                        typeName =
+                            Node.value name
 
-                        _ ->
-                            Nothing
-                )
-                nodes
+                        constructorsForType : Dict String String
+                        constructorsForType =
+                            constructors
+                                |> List.map (Node.value >> .name >> Node.value)
+                                |> List.map (\constructorName -> ( constructorName, typeName ))
+                                |> Dict.fromList
 
+                        customType : CustomTypeData
+                        customType =
+                            { under = Node.range name
+                            , rangeToRemove = rangeToRemoveForNodeWithDocumentation node documentation
+                            , variants = List.map (Node.value >> .name >> Node.value) constructors
+                            }
+                    in
+                    ( errors
+                    , { ctx
+                        | localCustomTypes =
+                            Dict.insert
+                                (Node.value name)
+                                customType
+                                ctx.localCustomTypes
+                        , constructorNameToTypeName = Dict.union constructorsForType ctx.constructorNameToTypeName
+                      }
+                    )
+
+                _ ->
+                    ( errors, ctx )
+        )
         -- TODO handle type aliases, and remove constructorNameToTypeName coming from imports that are named like the type alias
-    in
-    ( [], { context | customTypes = Dict.insert [] (Dict.fromList customTypes) context.customTypes } )
+        ( [], context )
+        nodes
 
 
 
@@ -895,7 +925,7 @@ declarationVisitor node context =
                     function.declaration
                         |> Node.value
                         |> .arguments
-                        |> List.map (getUsedVariablesFromPattern context.lookupTable)
+                        |> List.map (getUsedVariablesFromPattern context)
                         |> foldUsedTypesAndModules
 
                 newContextWhereFunctionIsRegistered : ModuleContext
@@ -933,28 +963,9 @@ declarationVisitor node context =
                         |> List.concatMap (Node.value >> .arguments)
                         |> List.map (collectNamesFromTypeAnnotation context.lookupTable)
                         |> foldUsedTypesAndModules
-
-                typeName : String
-                typeName =
-                    Node.value name
-
-                constructorsForType : Dict String String
-                constructorsForType =
-                    constructors
-                        |> List.map (Node.value >> .name >> Node.value)
-                        |> List.map (\constructorName -> ( constructorName, typeName ))
-                        |> Dict.fromList
             in
             ( []
-            , { context | constructorNameToTypeName = Dict.union constructorsForType context.constructorNameToTypeName }
-                |> registerVariable
-                    { typeName = "Type"
-                    , under = Node.range name
-                    , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node documentation)
-                    , warning = ""
-                    }
-                    (Node.value name)
-                |> markUsedTypesAndModules variablesFromConstructorArguments
+            , markUsedTypesAndModules variablesFromConstructorArguments context
             )
 
         Declaration.AliasDeclaration { name, typeAnnotation, documentation } ->
@@ -1079,7 +1090,7 @@ finalEvaluation context =
                 |> Dict.toList
                 |> List.map
                     (\( name, { under, rangeToRemove, openRange } ) ->
-                        if Set.member name usedLocally then
+                        if Set.member name usedLocally && not (Dict.member name context.localCustomTypes) then
                             Rule.errorWithFix
                                 { message = "Imported constructors for `" ++ name ++ "` are not used"
                                 , details = details
@@ -1183,6 +1194,21 @@ finalEvaluation context =
                             variableInfo.under
                             fix
                     )
+
+        customTypeErrors : List (Error {})
+        customTypeErrors =
+            context.localCustomTypes
+                |> Dict.toList
+                |> List.filter (\( name, _ ) -> not <| Set.member name usedLocally)
+                |> List.map
+                    (\( name, customType ) ->
+                        Rule.errorWithFix
+                            { message = "Type `" ++ name ++ "` is not used"
+                            , details = details
+                            }
+                            customType.under
+                            [ Fix.removeRange customType.rangeToRemove ]
+                    )
     in
     List.concat
         [ newRootScope
@@ -1191,6 +1217,7 @@ finalEvaluation context =
         , importedTypeErrors
         , moduleErrors
         , List.filterMap Tuple.first moduleThatExposeEverythingErrors
+        , customTypeErrors
         ]
 
 
