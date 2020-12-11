@@ -1460,6 +1460,7 @@ a = A"""
                         , details = details
                         , under = "A"
                         }
+                        |> Review.Test.atExactly { start = { row = 2, column = 6 }, end = { row = 2, column = 7 } }
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 type Something = A
 a = A"""
