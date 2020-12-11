@@ -25,6 +25,7 @@ import Review.Rule exposing (Rule)
 config : List Rule
 config =
     [ NoUnused.CustomTypeConstructors.rule []
+        |> Review.Rule.ignoreErrorsForDirectories [ "src-gen/", "tests/" ]
     , NoUnused.CustomTypeConstructorArgs.rule
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule

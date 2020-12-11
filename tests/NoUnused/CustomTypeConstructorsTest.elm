@@ -152,6 +152,68 @@ type Foo = Bar | Baz"""
                             , under = "Baz"
                             }
                         ]
+        , test "should report type constructors that are only used inside pattern matches that require themselves" <|
+            \() ->
+                """
+module MyModule exposing (a)
+type Foo = Used | Unused
+a = case () of
+        Unused -> Unused + Used
+        Used -> Used
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Unused` is not used."
+                            , details = details
+                            , under = "Unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 19 }, end = { row = 3, column = 25 } }
+                        ]
+        , test "should report type constructors that are only used inside deep pattern matches that require themselves" <|
+            \() ->
+                """
+module MyModule exposing (a)
+type Foo = Used | Unused
+a = case () of
+        Foo (a :: [ ( Unused as b, bar ) ]) -> Unused + Used
+        Used -> Used
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Unused` is not used."
+                            , details = details
+                            , under = "Unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 19 }, end = { row = 3, column = 25 } }
+                        ]
+        , test "should properly remove the ignored constructors once the pattern has been left" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = A | B | C
+a = case () of
+        A -> B
+        B -> A
+        C -> 1
+b = C
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectNoErrors
+        , test "should not ignore type constructors that are used after other case expressions" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = A | B
+a = case () of
+        A -> case () of
+                B -> 1
+        B -> A
+b = B
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectNoErrors
         ]
 
 

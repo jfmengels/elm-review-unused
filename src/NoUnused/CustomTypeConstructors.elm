@@ -18,6 +18,8 @@ import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node)
+import Elm.Syntax.Pattern as Pattern exposing (Pattern)
+import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
@@ -139,6 +141,7 @@ moduleVisitor schema =
         |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withDeclarationEnterVisitor declarationVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
+        |> Rule.withExpressionExitVisitor expressionExitVisitor
 
 
 
@@ -181,7 +184,13 @@ type alias ModuleContext =
     , declaredTypesWithConstructors : Dict CustomTypeName (Dict ConstructorName (Node ConstructorName))
     , usedFunctionsOrValues : Dict ModuleNameAsString (Set ConstructorName)
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
+    , cases : List (Dict RangeAsString (Set ( ModuleName, String )))
+    , constructorsToIgnore : List (Set ( ModuleName, String ))
     }
+
+
+type alias RangeAsString =
+    String
 
 
 initialProjectContext : List { moduleName : String, typeName : String, index : Int } -> ProjectContext
@@ -211,6 +220,8 @@ fromProjectToModule lookupTable metadata projectContext =
     , declaredTypesWithConstructors = Dict.empty
     , usedFunctionsOrValues = Dict.empty
     , phantomVariables = projectContext.phantomVariables
+    , cases = []
+    , constructorsToIgnore = []
     }
 
 
@@ -441,6 +452,52 @@ declarationVisitor node context =
 
 expressionVisitor : Node Expression -> ModuleContext -> ( List nothing, ModuleContext )
 expressionVisitor node moduleContext =
+    let
+        newModuleContext : ModuleContext
+        newModuleContext =
+            case List.head moduleContext.cases of
+                Just expressionsWhereToIgnoreCases ->
+                    case Dict.get (rangeAsString (Node.range node)) expressionsWhereToIgnoreCases of
+                        Just constructorsToIgnore ->
+                            { moduleContext | constructorsToIgnore = constructorsToIgnore :: moduleContext.constructorsToIgnore }
+
+                        Nothing ->
+                            moduleContext
+
+                Nothing ->
+                    moduleContext
+    in
+    expressionVisitorHelp node newModuleContext
+
+
+expressionExitVisitor : Node Expression -> ModuleContext -> ( List nothing, ModuleContext )
+expressionExitVisitor node moduleContext =
+    let
+        newModuleContext : ModuleContext
+        newModuleContext =
+            case Node.value node of
+                Expression.CaseExpression _ ->
+                    { moduleContext | cases = List.drop 1 moduleContext.cases }
+
+                _ ->
+                    moduleContext
+    in
+    case List.head newModuleContext.cases of
+        Just expressionsWhereToIgnoreCases ->
+            if Dict.member (rangeAsString (Node.range node)) expressionsWhereToIgnoreCases then
+                ( []
+                , { newModuleContext | constructorsToIgnore = List.drop 1 newModuleContext.constructorsToIgnore }
+                )
+
+            else
+                ( [], newModuleContext )
+
+        Nothing ->
+            ( [], newModuleContext )
+
+
+expressionVisitorHelp : Node Expression -> ModuleContext -> ( List nothing, ModuleContext )
+expressionVisitorHelp node moduleContext =
     case Node.value node of
         Expression.FunctionOrValue _ name ->
             case ModuleNameLookupTable.moduleNameFor moduleContext.lookupTable node of
@@ -465,13 +522,62 @@ expressionVisitor node moduleContext =
                 |> List.foldl markPhantomTypesFromTypeAnnotationAsUsed moduleContext
             )
 
+        Expression.CaseExpression { cases } ->
+            let
+                newCases : Dict RangeAsString (Set ( ModuleName, String ))
+                newCases =
+                    cases
+                        |> List.map (\( pattern, body ) -> ( rangeAsString (Node.range body), constructorsInPattern moduleContext.lookupTable pattern ))
+                        |> Dict.fromList
+            in
+            ( []
+            , { moduleContext | cases = newCases :: moduleContext.cases }
+            )
+
         _ ->
             ( [], moduleContext )
 
 
+constructorsInPattern : ModuleNameLookupTable -> Node Pattern -> Set ( ModuleName, String )
+constructorsInPattern lookupTable node =
+    case Node.value node of
+        Pattern.NamedPattern qualifiedNameRef patterns ->
+            let
+                initialSet : Set ( ModuleName, String )
+                initialSet =
+                    case ModuleNameLookupTable.moduleNameFor lookupTable node of
+                        Just realModuleName ->
+                            Set.fromList [ ( realModuleName, qualifiedNameRef.name ) ]
+
+                        Nothing ->
+                            Set.empty
+            in
+            List.foldl (\pattern acc -> Set.union (constructorsInPattern lookupTable pattern) acc) initialSet patterns
+
+        Pattern.TuplePattern patterns ->
+            List.foldl (\pattern acc -> Set.union (constructorsInPattern lookupTable pattern) acc) Set.empty patterns
+
+        Pattern.UnConsPattern left right ->
+            Set.union
+                (constructorsInPattern lookupTable left)
+                (constructorsInPattern lookupTable right)
+
+        Pattern.ListPattern patterns ->
+            List.foldl (\pattern acc -> Set.union (constructorsInPattern lookupTable pattern) acc) Set.empty patterns
+
+        Pattern.AsPattern pattern _ ->
+            constructorsInPattern lookupTable pattern
+
+        Pattern.ParenthesizedPattern pattern ->
+            constructorsInPattern lookupTable pattern
+
+        _ ->
+            Set.empty
+
+
 registerUsedFunctionOrValue : List String -> ConstructorName -> ModuleContext -> ModuleContext
 registerUsedFunctionOrValue moduleName name moduleContext =
-    if not (isCapitalized name) then
+    if not (isCapitalized name) || List.any (Set.member ( moduleName, name )) moduleContext.constructorsToIgnore then
         moduleContext
 
     else
@@ -675,3 +781,14 @@ listAtIndex index list =
 
         ( n, _ :: rest ) ->
             listAtIndex (n - 1) rest
+
+
+rangeAsString : Range -> RangeAsString
+rangeAsString range =
+    [ range.start.row
+    , range.start.column
+    , range.end.row
+    , range.end.column
+    ]
+        |> List.map String.fromInt
+        |> String.join "_"
