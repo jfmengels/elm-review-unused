@@ -893,7 +893,7 @@ declarationListVisitor nodes context =
                       }
                     )
 
-                Declaration.AliasDeclaration { name, typeAnnotation, documentation } ->
+                Declaration.AliasDeclaration { name, documentation } ->
                     ( []
                     , registerVariable
                         { typeName = "Type"
@@ -966,7 +966,7 @@ declarationVisitor node context =
             in
             ( [], newContext )
 
-        Declaration.CustomTypeDeclaration { name, documentation, constructors } ->
+        Declaration.CustomTypeDeclaration { name, constructors } ->
             let
                 { types, modules } =
                     constructors
@@ -982,7 +982,7 @@ declarationVisitor node context =
                 context
             )
 
-        Declaration.AliasDeclaration { name, typeAnnotation, documentation } ->
+        Declaration.AliasDeclaration { name, typeAnnotation } ->
             let
                 namesUsedInTypeAnnotation : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInTypeAnnotation =
