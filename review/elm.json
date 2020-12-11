@@ -12,9 +12,9 @@
             "elm/project-metadata-utils": "1.0.1",
             "elm/regex": "1.0.0",
             "jfmengels/elm-review": "2.3.8",
-            "jfmengels/review-common": "1.2.1",
-            "jfmengels/review-debug": "2.0.1",
-            "jfmengels/review-documentation": "1.0.0",
+            "jfmengels/elm-review-common": "1.0.2",
+            "jfmengels/elm-review-debug": "1.0.3",
+            "jfmengels/elm-review-documentation": "1.0.1",
             "sparksp/elm-review-forbidden-words": "1.0.1",
             "stil4m/elm-syntax": "7.1.3"
         },
