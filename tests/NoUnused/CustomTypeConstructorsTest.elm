@@ -219,6 +219,67 @@ b = B
 """
                     |> Review.Test.runWithProjectData project (rule [])
                     |> Review.Test.expectNoErrors
+        , test "should not count type constructors used in an equality expression (==)" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused | B
+a = Unused == value
+b = B
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Unused` is not used."
+                            , details = [ defaultDetails ]
+                            , under = "Unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
+                        ]
+        , test "should not count type constructors used in an equality expression (/=)" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused | B
+a = value /= Unused
+b = B
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Unused` is not used."
+                            , details = [ defaultDetails ]
+                            , under = "Unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
+                        ]
+        , test "should count type constructors used in a function call inside an equality expression" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused | B
+a = foo Unused == value
+b = B
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectNoErrors
+        , test "should not count type constructors used in an deep static expression" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused | B
+a = value /= Just ([value, ({foo = Unused}, {bar | foo = Unused})])
+b = B
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Unused` is not used."
+                            , details = [ defaultDetails ]
+                            , under = "Unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
+                        ]
         ]
 
 

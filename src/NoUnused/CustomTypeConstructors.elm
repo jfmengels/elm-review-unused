@@ -189,6 +189,7 @@ type alias ModuleContext =
     , cases : List (Dict RangeAsString (Set ( ModuleName, String )))
     , constructorsToIgnore : List (Set ( ModuleName, String ))
     , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
+    , ignoredRanges : List Range
     }
 
 
@@ -227,6 +228,7 @@ fromProjectToModule lookupTable metadata projectContext =
     , cases = []
     , constructorsToIgnore = []
     , wasUsedInLocationThatNeedsItself = Set.empty
+    , ignoredRanges = []
     }
 
 
@@ -469,7 +471,11 @@ declarationVisitor node context =
                 )
 
         Declaration.FunctionDeclaration function ->
-            ( [], markPhantomTypesFromTypeAnnotationAsUsed (Maybe.map (Node.value >> .typeAnnotation) function.signature) context )
+            ( []
+            , markPhantomTypesFromTypeAnnotationAsUsed
+                (Maybe.map (Node.value >> .typeAnnotation) function.signature)
+                { context | ignoredRanges = [] }
+            )
 
         Declaration.AliasDeclaration { typeAnnotation } ->
             ( [], markPhantomTypesFromTypeAnnotationAsUsed (Just typeAnnotation) context )
@@ -554,12 +560,28 @@ expressionVisitorHelp : Node Expression -> ModuleContext -> ( List nothing, Modu
 expressionVisitorHelp node moduleContext =
     case Node.value node of
         Expression.FunctionOrValue _ name ->
-            case ModuleNameLookupTable.moduleNameFor moduleContext.lookupTable node of
-                Just moduleName ->
-                    ( [], registerUsedFunctionOrValue moduleName name moduleContext )
+            if List.member (Node.range node) moduleContext.ignoredRanges then
+                ( [], moduleContext )
 
-                Nothing ->
-                    ( [], moduleContext )
+            else
+                case ModuleNameLookupTable.moduleNameFor moduleContext.lookupTable node of
+                    Just moduleName ->
+                        ( [], registerUsedFunctionOrValue moduleName name moduleContext )
+
+                    Nothing ->
+                        ( [], moduleContext )
+
+        Expression.OperatorApplication operator _ left right ->
+            if operator == "==" || operator == "/=" then
+                let
+                    ranges : List Range
+                    ranges =
+                        List.concatMap staticRanges [ left, right ]
+                in
+                ( [], { moduleContext | ignoredRanges = ranges ++ moduleContext.ignoredRanges } )
+
+            else
+                ( [], moduleContext )
 
         Expression.LetExpression { declarations } ->
             ( []
@@ -590,6 +612,48 @@ expressionVisitorHelp node moduleContext =
 
         _ ->
             ( [], moduleContext )
+
+
+staticRanges : Node Expression -> List Range
+staticRanges node =
+    case Node.value node of
+        Expression.FunctionOrValue _ _ ->
+            [ Node.range node ]
+
+        Expression.Application ((Node _ (Expression.FunctionOrValue _ name)) :: restOfArgs) ->
+            if isCapitalized name then
+                Node.range node :: List.concatMap staticRanges restOfArgs
+
+            else
+                []
+
+        Expression.OperatorApplication operator _ left right ->
+            if List.member operator [ "+", "-", "==", "/=" ] then
+                List.concatMap staticRanges [ left, right ]
+
+            else
+                []
+
+        Expression.ListExpr nodes ->
+            List.concatMap staticRanges nodes
+
+        Expression.TupledExpression nodes ->
+            List.concatMap staticRanges nodes
+
+        Expression.ParenthesizedExpression expr ->
+            staticRanges expr
+
+        Expression.RecordExpr fields ->
+            List.concatMap (Node.value >> Tuple.second >> staticRanges) fields
+
+        Expression.RecordUpdateExpression _ fields ->
+            List.concatMap (Node.value >> Tuple.second >> staticRanges) fields
+
+        Expression.RecordAccess expr _ ->
+            staticRanges expr
+
+        _ ->
+            []
 
 
 constructorsInPattern : ModuleNameLookupTable -> Node Pattern -> Set ( ModuleName, String )
