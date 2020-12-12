@@ -174,6 +174,7 @@ type alias ProjectContext =
     , usedConstructors : Dict ModuleNameAsString (Set ConstructorName)
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
     , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
+    , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
     }
 
 
@@ -189,7 +190,8 @@ type alias ModuleContext =
     , cases : List (Dict RangeAsString (Set ( ModuleName, String )))
     , constructorsToIgnore : List (Set ( ModuleName, String ))
     , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
-    , ignoredRanges : List Range
+    , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
+    , ignoredComparisonRanges : List Range
     }
 
 
@@ -212,6 +214,7 @@ initialProjectContext phantomTypes =
             Dict.empty
             phantomTypes
     , wasUsedInLocationThatNeedsItself = Set.empty
+    , wasUsedInComparisons = Set.empty
     }
 
 
@@ -228,7 +231,8 @@ fromProjectToModule lookupTable metadata projectContext =
     , cases = []
     , constructorsToIgnore = []
     , wasUsedInLocationThatNeedsItself = Set.empty
-    , ignoredRanges = []
+    , wasUsedInComparisons = Set.empty
+    , ignoredComparisonRanges = []
     }
 
 
@@ -295,6 +299,16 @@ fromModuleToProject moduleKey metadata moduleContext =
                     untouched
             )
             moduleContext.wasUsedInLocationThatNeedsItself
+    , wasUsedInComparisons =
+        Set.map
+            (\(( moduleName_, constructorName ) as untouched) ->
+                if moduleName_ == "" then
+                    ( moduleNameAsString, constructorName )
+
+                else
+                    untouched
+            )
+            moduleContext.wasUsedInComparisons
     }
 
 
@@ -312,6 +326,7 @@ foldProjectContexts newContext previousContext =
             Dict.empty
     , phantomVariables = Dict.union newContext.phantomVariables previousContext.phantomVariables
     , wasUsedInLocationThatNeedsItself = Set.union newContext.wasUsedInLocationThatNeedsItself previousContext.wasUsedInLocationThatNeedsItself
+    , wasUsedInComparisons = Set.union newContext.wasUsedInComparisons previousContext.wasUsedInComparisons
     }
 
 
@@ -474,7 +489,7 @@ declarationVisitor node context =
             ( []
             , markPhantomTypesFromTypeAnnotationAsUsed
                 (Maybe.map (Node.value >> .typeAnnotation) function.signature)
-                { context | ignoredRanges = [] }
+                { context | ignoredComparisonRanges = [] }
             )
 
         Declaration.AliasDeclaration { typeAnnotation } ->
@@ -560,16 +575,12 @@ expressionVisitorHelp : Node Expression -> ModuleContext -> ( List nothing, Modu
 expressionVisitorHelp node moduleContext =
     case Node.value node of
         Expression.FunctionOrValue _ name ->
-            if List.member (Node.range node) moduleContext.ignoredRanges then
-                ( [], moduleContext )
+            case ModuleNameLookupTable.moduleNameFor moduleContext.lookupTable node of
+                Just moduleName ->
+                    ( [], registerUsedFunctionOrValue (Node.range node) moduleName name moduleContext )
 
-            else
-                case ModuleNameLookupTable.moduleNameFor moduleContext.lookupTable node of
-                    Just moduleName ->
-                        ( [], registerUsedFunctionOrValue moduleName name moduleContext )
-
-                    Nothing ->
-                        ( [], moduleContext )
+                Nothing ->
+                    ( [], moduleContext )
 
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
@@ -578,7 +589,7 @@ expressionVisitorHelp node moduleContext =
                     ranges =
                         List.concatMap staticRanges [ left, right ]
                 in
-                ( [], { moduleContext | ignoredRanges = ranges ++ moduleContext.ignoredRanges } )
+                ( [], { moduleContext | ignoredComparisonRanges = ranges ++ moduleContext.ignoredComparisonRanges } )
 
             else
                 ( [], moduleContext )
@@ -693,10 +704,18 @@ constructorsInPattern lookupTable node =
             Set.empty
 
 
-registerUsedFunctionOrValue : ModuleName -> ConstructorName -> ModuleContext -> ModuleContext
-registerUsedFunctionOrValue moduleName name moduleContext =
+registerUsedFunctionOrValue : Range -> ModuleName -> ConstructorName -> ModuleContext -> ModuleContext
+registerUsedFunctionOrValue range moduleName name moduleContext =
     if not (isCapitalized name) then
         moduleContext
+
+    else if List.member range moduleContext.ignoredComparisonRanges then
+        { moduleContext
+            | wasUsedInComparisons =
+                Set.insert
+                    ( String.join "." moduleName, name )
+                    moduleContext.wasUsedInComparisons
+        }
 
     else if List.any (Set.member ( moduleName, name )) moduleContext.constructorsToIgnore then
         { moduleContext
@@ -750,7 +769,12 @@ finalProjectEvaluation projectContext =
                                 |> Dict.values
                                 |> List.map
                                     (\constructorName ->
-                                        errorForModule moduleKey (Set.member ( moduleName, Node.value constructorName ) projectContext.wasUsedInLocationThatNeedsItself) constructorName
+                                        errorForModule
+                                            moduleKey
+                                            { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, Node.value constructorName ) projectContext.wasUsedInLocationThatNeedsItself
+                                            , wasUsedInComparisons = Set.member ( moduleName, Node.value constructorName ) projectContext.wasUsedInComparisons
+                                            }
+                                            constructorName
                                     )
                         )
             )
@@ -760,17 +784,16 @@ finalProjectEvaluation projectContext =
 -- ERROR
 
 
-errorInformation : Bool -> String -> { message : String, details : List String }
-errorInformation wasUsedInLocationThatNeedsItself name =
+errorInformation : { wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool } -> String -> { message : String, details : List String }
+errorInformation { wasUsedInLocationThatNeedsItself, wasUsedInComparisons } name =
     { message = "Type constructor `" ++ name ++ "` is not used."
     , details =
-        if wasUsedInLocationThatNeedsItself then
-            [ defaultDetails
-            , "The only locations where I found it being created require already having one."
-            ]
-
-        else
-            [ defaultDetails ]
+        [ ( defaultDetails, True )
+        , ( "The only locations where I found it being created require already having one.", wasUsedInLocationThatNeedsItself )
+        , ( "I found it used in comparisons, but since it is never created anywhere, all of those can be evaluated to False (for (==), True for (/=)).", wasUsedInComparisons )
+        ]
+            |> List.filter Tuple.second
+            |> List.map Tuple.first
     }
 
 
@@ -779,11 +802,11 @@ defaultDetails =
     "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created."
 
 
-errorForModule : Rule.ModuleKey -> Bool -> Node String -> Error scope
-errorForModule moduleKey wasUsedInLocationThatNeedsItself node =
+errorForModule : Rule.ModuleKey -> { wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool } -> Node String -> Error scope
+errorForModule moduleKey conditions node =
     Rule.errorForModule
         moduleKey
-        (errorInformation wasUsedInLocationThatNeedsItself (Node.value node))
+        (errorInformation conditions (Node.value node))
         (Node.range node)
 
 

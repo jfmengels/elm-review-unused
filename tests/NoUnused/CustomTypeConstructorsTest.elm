@@ -84,6 +84,11 @@ defaultDetails =
     "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created."
 
 
+conditionDetails : String
+conditionDetails =
+    "I found it used in comparisons, but since it is never created anywhere, all of those can be evaluated to False (for (==), True for (/=))."
+
+
 recursiveNeedDetails : String
 recursiveNeedDetails =
     "The only locations where I found it being created require already having one."
@@ -230,7 +235,7 @@ b = B
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Unused` is not used."
-                            , details = [ defaultDetails ]
+                            , details = [ defaultDetails, conditionDetails ]
                             , under = "Unused"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
@@ -247,7 +252,7 @@ b = B
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Unused` is not used."
-                            , details = [ defaultDetails ]
+                            , details = [ defaultDetails, conditionDetails ]
                             , under = "Unused"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
@@ -274,7 +279,7 @@ b = B
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Unused` is not used."
-                            , details = [ defaultDetails ]
+                            , details = [ defaultDetails, conditionDetails ]
                             , under = "Unused"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
