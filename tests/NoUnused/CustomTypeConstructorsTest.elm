@@ -84,6 +84,11 @@ defaultDetails =
     "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created."
 
 
+recursiveNeedDetails : String
+recursiveNeedDetails =
+    "The only locations where I found it being created require already having one."
+
+
 all : Test
 all =
     describe "NoUnusedCustomTypeConstructors"
@@ -164,10 +169,7 @@ a = case () of
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Unused` is not used."
-                            , details =
-                                [ defaultDetails
-                                , "The only locations where I found it being created require already having one."
-                                ]
+                            , details = [ defaultDetails, recursiveNeedDetails ]
                             , under = "Unused"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 19 }, end = { row = 3, column = 25 } }
@@ -185,10 +187,7 @@ a = case () of
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Unused` is not used."
-                            , details =
-                                [ defaultDetails
-                                , "The only locations where I found it being created require already having one."
-                                ]
+                            , details = [ defaultDetails, recursiveNeedDetails ]
                             , under = "Unused"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 19 }, end = { row = 3, column = 25 } }
