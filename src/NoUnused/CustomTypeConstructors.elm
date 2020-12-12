@@ -17,9 +17,10 @@ import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.ModuleName exposing (ModuleName)
-import Elm.Syntax.Node as Node exposing (Node)
+import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.Type as Type
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
@@ -435,33 +436,37 @@ declarationVisitor : Node Declaration -> ModuleContext -> ( List nothing, Module
 declarationVisitor node context =
     case Node.value node of
         Declaration.CustomTypeDeclaration { name, constructors } ->
-            let
-                constructorsForCustomType : Dict String (Node String)
-                constructorsForCustomType =
-                    List.foldl
-                        (\constructor dict ->
-                            let
-                                nameNode : Node String
-                                nameNode =
-                                    (Node.value constructor).name
-                            in
-                            Dict.insert
-                                (Node.value nameNode)
-                                nameNode
-                                dict
-                        )
-                        Dict.empty
-                        constructors
-            in
-            ( []
-            , { context
-                | declaredTypesWithConstructors =
-                    Dict.insert
-                        (Node.value name)
-                        constructorsForCustomType
-                        context.declaredTypesWithConstructors
-              }
-            )
+            if isPhantomCustomType name constructors then
+                ( [], context )
+
+            else
+                let
+                    constructorsForCustomType : Dict String (Node String)
+                    constructorsForCustomType =
+                        List.foldl
+                            (\constructor dict ->
+                                let
+                                    nameNode : Node String
+                                    nameNode =
+                                        (Node.value constructor).name
+                                in
+                                Dict.insert
+                                    (Node.value nameNode)
+                                    nameNode
+                                    dict
+                            )
+                            Dict.empty
+                            constructors
+                in
+                ( []
+                , { context
+                    | declaredTypesWithConstructors =
+                        Dict.insert
+                            (Node.value name)
+                            constructorsForCustomType
+                            context.declaredTypesWithConstructors
+                  }
+                )
 
         Declaration.FunctionDeclaration function ->
             ( [], markPhantomTypesFromTypeAnnotationAsUsed (Maybe.map (Node.value >> .typeAnnotation) function.signature) context )
@@ -471,6 +476,28 @@ declarationVisitor node context =
 
         _ ->
             ( [], context )
+
+
+isPhantomCustomType : Node String -> List (Node Type.ValueConstructor) -> Bool
+isPhantomCustomType name constructors =
+    case constructors of
+        (Node _ constructor) :: [] ->
+            if Node.value name == Node.value constructor.name then
+                case constructor.arguments of
+                    (Node _ (TypeAnnotation.Typed (Node _ ( [], "Never" )) [])) :: [] ->
+                        True
+
+                    (Node _ (TypeAnnotation.Typed (Node _ ( [ "Basics" ], "Never" )) [])) :: [] ->
+                        True
+
+                    _ ->
+                        False
+
+            else
+                False
+
+        _ ->
+            False
 
 
 

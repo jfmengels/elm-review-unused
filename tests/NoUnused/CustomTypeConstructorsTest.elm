@@ -369,6 +369,42 @@ id = Id
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 17 } }
                         ]
+        , test "should not report a custom type with one constructor that takes Never" <|
+            \() ->
+                """
+module MyModule exposing (id)
+type User = User Never
+type Id a = Id a
+
+id : Id User
+id = Id
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectNoErrors
+        , test "should report a custom type with multiple constructors, even when some take Never" <|
+            \() ->
+                """
+module MyModule exposing (id)
+type User = User Never | Other
+type Id a = Id a
+
+id : Id User
+id = Id
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `User` is not used."
+                            , details = [ defaultDetails ]
+                            , under = "User"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 17 } }
+                        , Review.Test.error
+                            { message = "Type constructor `Other` is not used."
+                            , details = [ defaultDetails ]
+                            , under = "Other"
+                            }
+                        ]
         , test "should not report a phantom type if it is used in another module (directly imported)" <|
             \() ->
                 [ """
