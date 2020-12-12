@@ -226,6 +226,35 @@ foo =
         _ :: _ :: _ -> 3
 """
                     ]
+    , test "report unused values with the same name as found in other branches" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case value of
+        Thing foo ->
+            Just foo
+        OtherThing foo ->
+            Nothing
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Value `foo` is not used."
+                        , details = details
+                        , under = "foo"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case value of
+        Thing foo ->
+            Just foo
+        OtherThing _ ->
+            Nothing
+"""
+                    ]
     ]
 
 
