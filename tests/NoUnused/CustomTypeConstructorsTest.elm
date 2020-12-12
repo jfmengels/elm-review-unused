@@ -500,6 +500,38 @@ type Foo = Bar | Baz
                             , under = "Baz"
                             }
                         ]
+        , test "should report unused type constructors when a package module is exposing all and module is exposed but types are not" <|
+            \() ->
+                """
+module Exposed exposing (Opaque)
+type Opaque = Opaque
+type NotExposed = NotExposed
+a = 1
+"""
+                    |> Review.Test.runWithProjectData packageProject (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Opaque` is not used."
+                            , details = details
+                            , under = "Opaque"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 15 }, end = { row = 3, column = 21 } }
+                        , Review.Test.error
+                            { message = "Type constructor `NotExposed` is not used."
+                            , details = details
+                            , under = "NotExposed"
+                            }
+                            |> Review.Test.atExactly { start = { row = 4, column = 19 }, end = { row = 4, column = 29 } }
+                        ]
+        , test "should not report unused type constructors when a package module is exposing all and module and module exposes everything" <|
+            \() ->
+                """
+module Exposed exposing (..)
+type Foo = Unused
+a = 1
+"""
+                    |> Review.Test.runWithProjectData packageProject (rule [])
+                    |> Review.Test.expectNoErrors
         , test "should report unused type constructors when an application module is exposing all" <|
             \() ->
                 """

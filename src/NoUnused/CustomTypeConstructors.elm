@@ -251,7 +251,19 @@ fromModuleToProject moduleKey metadata moduleContext =
     { exposedModules = Set.empty
     , exposedConstructors =
         if moduleContext.isExposed then
-            Dict.empty
+            if moduleContext.exposesEverything then
+                Dict.empty
+
+            else
+                Dict.singleton
+                    moduleNameAsString
+                    (ExposedConstructors
+                        { moduleKey = moduleKey
+                        , customTypes =
+                            moduleContext.declaredTypesWithConstructors
+                                |> Dict.filter (\typeName _ -> not <| Set.member typeName moduleContext.exposedCustomTypesWithConstructors)
+                        }
+                    )
 
         else
             Dict.singleton
