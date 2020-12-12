@@ -172,6 +172,7 @@ type alias ProjectContext =
     , exposedConstructors : Dict ModuleNameAsString ExposedConstructors
     , usedConstructors : Dict ModuleNameAsString (Set ConstructorName)
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
+    , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
     }
 
 
@@ -186,6 +187,7 @@ type alias ModuleContext =
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
     , cases : List (Dict RangeAsString (Set ( ModuleName, String )))
     , constructorsToIgnore : List (Set ( ModuleName, String ))
+    , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
     }
 
 
@@ -207,6 +209,7 @@ initialProjectContext phantomTypes =
             )
             Dict.empty
             phantomTypes
+    , wasUsedInLocationThatNeedsItself = Set.empty
     }
 
 
@@ -222,6 +225,7 @@ fromProjectToModule lookupTable metadata projectContext =
     , phantomVariables = projectContext.phantomVariables
     , cases = []
     , constructorsToIgnore = []
+    , wasUsedInLocationThatNeedsItself = Set.empty
     }
 
 
@@ -278,6 +282,16 @@ fromModuleToProject moduleKey metadata moduleContext =
             |> Dict.remove ""
             |> Dict.insert moduleNameAsString localUsed
     , phantomVariables = Dict.singleton moduleName localPhantomTypes
+    , wasUsedInLocationThatNeedsItself =
+        Set.map
+            (\(( moduleName_, constructorName ) as untouched) ->
+                if moduleName_ == "" then
+                    ( moduleNameAsString, constructorName )
+
+                else
+                    untouched
+            )
+            moduleContext.wasUsedInLocationThatNeedsItself
     }
 
 
@@ -294,6 +308,7 @@ foldProjectContexts newContext previousContext =
             previousContext.usedConstructors
             Dict.empty
     , phantomVariables = Dict.union newContext.phantomVariables previousContext.phantomVariables
+    , wasUsedInLocationThatNeedsItself = Set.union newContext.wasUsedInLocationThatNeedsItself previousContext.wasUsedInLocationThatNeedsItself
     }
 
 
@@ -587,10 +602,18 @@ constructorsInPattern lookupTable node =
             Set.empty
 
 
-registerUsedFunctionOrValue : List String -> ConstructorName -> ModuleContext -> ModuleContext
+registerUsedFunctionOrValue : ModuleName -> ConstructorName -> ModuleContext -> ModuleContext
 registerUsedFunctionOrValue moduleName name moduleContext =
-    if not (isCapitalized name) || List.any (Set.member ( moduleName, name )) moduleContext.constructorsToIgnore then
+    if not (isCapitalized name) then
         moduleContext
+
+    else if List.any (Set.member ( moduleName, name )) moduleContext.constructorsToIgnore then
+        { moduleContext
+            | wasUsedInLocationThatNeedsItself =
+                Set.insert
+                    ( String.join "." moduleName, name )
+                    moduleContext.wasUsedInLocationThatNeedsItself
+        }
 
     else
         { moduleContext
@@ -634,7 +657,10 @@ finalProjectEvaluation projectContext =
                             constructors
                                 |> Dict.filter (\constructorName _ -> not <| Set.member constructorName usedConstructors)
                                 |> Dict.values
-                                |> List.map (errorForModule moduleKey)
+                                |> List.map
+                                    (\constructorName ->
+                                        errorForModule moduleKey (Set.member ( moduleName, Node.value constructorName ) projectContext.wasUsedInLocationThatNeedsItself) constructorName
+                                    )
                         )
             )
 
@@ -643,18 +669,30 @@ finalProjectEvaluation projectContext =
 -- ERROR
 
 
-errorInformation : String -> { message : String, details : List String }
-errorInformation name =
+errorInformation : Bool -> String -> { message : String, details : List String }
+errorInformation wasUsedInLocationThatNeedsItself name =
     { message = "Type constructor `" ++ name ++ "` is not used."
-    , details = [ "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created." ]
+    , details =
+        if wasUsedInLocationThatNeedsItself then
+            [ defaultDetails
+            , "The only locations where I found it being created require already having one."
+            ]
+
+        else
+            [ defaultDetails ]
     }
 
 
-errorForModule : Rule.ModuleKey -> Node String -> Error scope
-errorForModule moduleKey node =
+defaultDetails : String
+defaultDetails =
+    "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created."
+
+
+errorForModule : Rule.ModuleKey -> Bool -> Node String -> Error scope
+errorForModule moduleKey wasUsedInLocationThatNeedsItself node =
     Rule.errorForModule
         moduleKey
-        (errorInformation (Node.value node))
+        (errorInformation wasUsedInLocationThatNeedsItself (Node.value node))
         (Node.range node)
 
 

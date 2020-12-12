@@ -79,10 +79,9 @@ packageElmJson =
 }"""
 
 
-details : List String
-details =
-    [ "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created."
-    ]
+defaultDetails : String
+defaultDetails =
+    "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created."
 
 
 all : Test
@@ -125,12 +124,12 @@ type Foo = Bar | Baz"""
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Bar` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Bar"
                             }
                         , Review.Test.error
                             { message = "Type constructor `Baz` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Baz"
                             }
                         ]
@@ -143,12 +142,12 @@ type Foo = Bar | Baz"""
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Bar` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Bar"
                             }
                         , Review.Test.error
                             { message = "Type constructor `Baz` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Baz"
                             }
                         ]
@@ -165,7 +164,10 @@ a = case () of
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Unused` is not used."
-                            , details = details
+                            , details =
+                                [ defaultDetails
+                                , "The only locations where I found it being created require already having one."
+                                ]
                             , under = "Unused"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 19 }, end = { row = 3, column = 25 } }
@@ -183,7 +185,10 @@ a = case () of
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Unused` is not used."
-                            , details = details
+                            , details =
+                                [ defaultDetails
+                                , "The only locations where I found it being created require already having one."
+                                ]
                             , under = "Unused"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 19 }, end = { row = 3, column = 25 } }
@@ -263,12 +268,12 @@ id = Id
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `A` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "A"
                             }
                         , Review.Test.error
                             { message = "Type constructor `B` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "B"
                             }
                         ]
@@ -284,7 +289,7 @@ id = Id
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `User` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "User"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 17 } }
@@ -303,7 +308,7 @@ id = Id
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `UserConstructor` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "UserConstructor"
                             }
                         ]
@@ -321,7 +326,7 @@ id = Id
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `User` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "User"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 17 } }
@@ -340,7 +345,7 @@ id = Id
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `User` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "User"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 23 }, end = { row = 3, column = 27 } }
@@ -359,7 +364,7 @@ id = Id
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `User` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "User"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 17 } }
@@ -491,12 +496,12 @@ type Foo = Bar | Baz
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Bar` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Bar"
                             }
                         , Review.Test.error
                             { message = "Type constructor `Baz` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Baz"
                             }
                         ]
@@ -512,13 +517,13 @@ a = 1
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Opaque` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Opaque"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 15 }, end = { row = 3, column = 21 } }
                         , Review.Test.error
                             { message = "Type constructor `NotExposed` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "NotExposed"
                             }
                             |> Review.Test.atExactly { start = { row = 4, column = 19 }, end = { row = 4, column = 29 } }
@@ -542,12 +547,12 @@ type Foo = Bar | Baz
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Bar` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Bar"
                             }
                         , Review.Test.error
                             { message = "Type constructor `Baz` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Baz"
                             }
                         ]
@@ -569,12 +574,12 @@ type Foo = Bar | Baz
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Bar` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Bar"
                             }
                         , Review.Test.error
                             { message = "Type constructor `Baz` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Baz"
                             }
                         ]
@@ -588,12 +593,12 @@ type Foo = Bar | Baz
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Type constructor `Bar` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Bar"
                             }
                         , Review.Test.error
                             { message = "Type constructor `Baz` is not used."
-                            , details = details
+                            , details = [ defaultDetails ]
                             , under = "Baz"
                             }
                         ]
@@ -666,7 +671,7 @@ type Msg = NoOp
                         [ ( "Other"
                           , [ Review.Test.error
                                 { message = "Type constructor `NoOp` is not used."
-                                , details = details
+                                , details = [ defaultDetails ]
                                 , under = "NoOp"
                                 }
                             ]
@@ -723,7 +728,7 @@ type Foo = Foo Int
                         [ ( "B"
                           , [ Review.Test.error
                                 { message = "Type constructor `Foo` is not used."
-                                , details = details
+                                , details = [ defaultDetails ]
                                 , under = "Foo"
                                 }
                                 |> Review.Test.atExactly { start = { row = 2, column = 12 }, end = { row = 2, column = 15 } }
