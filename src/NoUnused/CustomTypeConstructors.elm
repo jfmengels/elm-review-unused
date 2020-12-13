@@ -653,6 +653,12 @@ getValues node =
         Expression.OperatorApplication "/=" _ left right ->
             reverseTuple (foo left right)
 
+        Expression.Application ((Node _ (Expression.FunctionOrValue _ "not")) :: expr :: []) ->
+            reverseTuple (getValues expr)
+
+        Expression.ParenthesizedExpression expr ->
+            getValues expr
+
         _ ->
             ( Set.empty, Set.empty )
 
