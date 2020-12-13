@@ -669,8 +669,10 @@ getValues lookupTable node =
 
 
 foo : Node Expression -> Set ( List comparable, String )
-foo expr =
-    Set.singleton ( [], "Unused" )
+foo node =
+    case Node.value node of
+        _ ->
+            Set.singleton ( [], "Unused" )
 
 
 reverseTuple : ( a, b ) -> ( b, a )
