@@ -627,7 +627,7 @@ expressionVisitorHelp node moduleContext =
         Expression.IfBlock condition then_ else_ ->
             let
                 { thenSet, elseSet } =
-                    { thenSet = Set.singleton ( [], "Unused" ), elseSet = Set.singleton ( [], "Unused" ) }
+                    getValues condition
 
                 newCases : Dict RangeAsString (Set ( ModuleName, String ))
                 newCases =
@@ -642,6 +642,11 @@ expressionVisitorHelp node moduleContext =
 
         _ ->
             ( [], moduleContext )
+
+
+getValues : Node Expression -> { thenSet : Set ( ModuleName, String ), elseSet : Set ( ModuleName, String ) }
+getValues condition =
+    { thenSet = Set.singleton ( [], "Unused" ), elseSet = Set.singleton ( [], "Unused" ) }
 
 
 staticRanges : Node Expression -> List Range
