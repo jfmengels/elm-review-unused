@@ -352,7 +352,7 @@ b = Used
                 """
 module MyModule exposing (a, b)
 type Foo = Unused | Used
-a = if value == Just Unused then
+a = if value == (Just Unused) then
         Unused
     else
         Used
