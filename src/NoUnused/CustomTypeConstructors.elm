@@ -19,7 +19,7 @@ import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Syntax.Type as Type
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
@@ -648,10 +648,18 @@ getValues : ModuleNameLookupTable -> Node Expression -> ( Set ( ModuleName, Stri
 getValues lookupTable node =
     case Node.value node of
         Expression.OperatorApplication "==" _ left right ->
-            ( Set.union (foo lookupTable left) (foo lookupTable right), Set.empty )
+            if areEqual left right then
+                ( Set.empty, Set.empty )
+
+            else
+                ( Set.union (foo lookupTable left) (foo lookupTable right), Set.empty )
 
         Expression.OperatorApplication "/=" _ left right ->
-            ( Set.empty, Set.union (foo lookupTable left) (foo lookupTable right) )
+            if areEqual left right then
+                ( Set.empty, Set.union (foo lookupTable left) (foo lookupTable right) )
+
+            else
+                ( Set.union (foo lookupTable left) (foo lookupTable right), Set.empty )
 
         Expression.Application ((Node notFunctionRange (Expression.FunctionOrValue _ "not")) :: expr :: []) ->
             case ModuleNameLookupTable.moduleNameAt lookupTable notFunctionRange of
@@ -693,6 +701,75 @@ foo lookupTable node =
 
         _ ->
             Set.empty
+
+
+areEqual : Node Expression -> Node Expression -> Bool
+areEqual (Node _ left) (Node _ right) =
+    case ( left, right ) of
+        ( _, _ ) ->
+            False
+
+
+canonicalExpression : Node Expression -> Node Expression
+canonicalExpression node =
+    case Node.value node of
+        Expression.ParenthesizedExpression expr ->
+            canonicalExpression expr
+
+        Expression.Application nodes ->
+            wrapInEmptyRange (Expression.Application (List.map canonicalExpression nodes))
+
+        Expression.OperatorApplication string infixDirection left right ->
+            wrapInEmptyRange (Expression.OperatorApplication string infixDirection (canonicalExpression left) (canonicalExpression right))
+
+        Expression.IfBlock condition then_ else_ ->
+            wrapInEmptyRange (Expression.IfBlock (canonicalExpression condition) (canonicalExpression then_) (canonicalExpression else_))
+
+        Expression.Negation expr ->
+            wrapInEmptyRange (Expression.Negation (canonicalExpression expr))
+
+        Expression.TupledExpression nodes ->
+            wrapInEmptyRange (Expression.TupledExpression (List.map canonicalExpression nodes))
+
+        Expression.LetExpression _ ->
+            -- TODO
+            removeRange node
+
+        Expression.CaseExpression _ ->
+            -- TODO
+            removeRange node
+
+        Expression.LambdaExpression _ ->
+            -- TODO
+            removeRange node
+
+        Expression.RecordExpr _ ->
+            -- TODO
+            removeRange node
+
+        Expression.ListExpr nodes ->
+            wrapInEmptyRange (Expression.TupledExpression (List.map canonicalExpression nodes))
+
+        Expression.RecordAccess _ _ ->
+            -- TODO
+            removeRange node
+
+        Expression.RecordUpdateExpression _ _ ->
+            -- TODO
+            removeRange node
+
+        _ ->
+            removeRange node
+
+
+removeRange : Node a -> Node a
+removeRange (Node _ value) =
+    Node Range.emptyRange value
+
+
+wrapInEmptyRange : a -> Node a
+wrapInEmptyRange value =
+    Node Range.emptyRange value
 
 
 reverseTuple : ( a, b ) -> ( b, a )
