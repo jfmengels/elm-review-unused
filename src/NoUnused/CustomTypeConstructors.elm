@@ -648,13 +648,23 @@ getValues : Node Expression -> ( Set ( ModuleName, String ), Set ( ModuleName, S
 getValues node =
     case Node.value node of
         Expression.OperatorApplication "==" _ left right ->
-            ( Set.singleton ( [], "Unused" ), Set.singleton ( [], "Unused" ) )
+            foo left right
 
         Expression.OperatorApplication "/=" _ left right ->
-            ( Set.singleton ( [], "Unused" ), Set.singleton ( [], "Unused" ) )
+            reverseTuple (foo left right)
 
         _ ->
             ( Set.empty, Set.empty )
+
+
+foo : Node Expression -> Node Expression -> ( Set ( List comparable, String ), Set ( List comparable, String ) )
+foo left right =
+    ( Set.singleton ( [], "Unused" ), Set.singleton ( [], "Unused" ) )
+
+
+reverseTuple : ( a, b ) -> ( b, a )
+reverseTuple ( a, b ) =
+    ( b, a )
 
 
 staticRanges : Node Expression -> List Range
