@@ -1,5 +1,6 @@
 module NoUnused.CustomTypeConstructorsTest exposing (all)
 
+import Dependencies.ElmCore
 import Elm.Project
 import Json.Decode as Decode
 import NoUnused.CustomTypeConstructors exposing (rule)
@@ -12,12 +13,14 @@ packageProject : Project
 packageProject =
     Project.new
         |> Project.addElmJson (createElmJson packageElmJson)
+        |> Project.addDependency Dependencies.ElmCore.dependency
 
 
 applicationProject : Project
 applicationProject =
     Project.new
         |> Project.addElmJson (createElmJson applicationElmJson)
+        |> Project.addDependency Dependencies.ElmCore.dependency
 
 
 createElmJson : String -> { path : String, raw : String, project : Elm.Project.Project }
