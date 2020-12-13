@@ -187,7 +187,7 @@ type alias ModuleContext =
     , declaredTypesWithConstructors : Dict CustomTypeName (Dict ConstructorName (Node ConstructorName))
     , usedFunctionsOrValues : Dict ModuleNameAsString (Set ConstructorName)
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
-    , cases : List (Dict RangeAsString (Set ( ModuleName, String )))
+    , ignoreBlocks : List (Dict RangeAsString (Set ( ModuleName, String )))
     , constructorsToIgnore : List (Set ( ModuleName, String ))
     , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
@@ -228,7 +228,7 @@ fromProjectToModule lookupTable metadata projectContext =
     , declaredTypesWithConstructors = Dict.empty
     , usedFunctionsOrValues = Dict.empty
     , phantomVariables = projectContext.phantomVariables
-    , cases = []
+    , ignoreBlocks = []
     , constructorsToIgnore = []
     , wasUsedInLocationThatNeedsItself = Set.empty
     , wasUsedInComparisons = Set.empty
@@ -530,7 +530,7 @@ expressionVisitor node moduleContext =
     let
         newModuleContext : ModuleContext
         newModuleContext =
-            case List.head moduleContext.cases of
+            case List.head moduleContext.ignoreBlocks of
                 Just expressionsWhereToIgnoreCases ->
                     case Dict.get (rangeAsString (Node.range node)) expressionsWhereToIgnoreCases of
                         Just constructorsToIgnore ->
@@ -552,14 +552,14 @@ expressionExitVisitor node moduleContext =
         newModuleContext =
             case Node.value node of
                 Expression.CaseExpression _ ->
-                    { moduleContext | cases = List.drop 1 moduleContext.cases }
+                    { moduleContext | ignoreBlocks = List.drop 1 moduleContext.ignoreBlocks }
 
                 _ ->
                     moduleContext
     in
-    case List.head newModuleContext.cases of
-        Just expressionsWhereToIgnoreCases ->
-            if Dict.member (rangeAsString (Node.range node)) expressionsWhereToIgnoreCases then
+    case List.head newModuleContext.ignoreBlocks of
+        Just rangesWhereToIgnoreConstructors ->
+            if Dict.member (rangeAsString (Node.range node)) rangesWhereToIgnoreConstructors then
                 ( []
                 , { newModuleContext | constructorsToIgnore = List.drop 1 newModuleContext.constructorsToIgnore }
                 )
@@ -618,7 +618,7 @@ expressionVisitorHelp node moduleContext =
                         |> Dict.fromList
             in
             ( []
-            , { moduleContext | cases = newCases :: moduleContext.cases }
+            , { moduleContext | ignoreBlocks = newCases :: moduleContext.ignoreBlocks }
             )
 
         _ ->
