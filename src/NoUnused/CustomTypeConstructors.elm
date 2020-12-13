@@ -688,6 +688,9 @@ foo lookupTable node =
             else
                 Set.empty
 
+        Expression.ParenthesizedExpression expr ->
+            foo lookupTable expr
+
         _ ->
             Set.empty
 
