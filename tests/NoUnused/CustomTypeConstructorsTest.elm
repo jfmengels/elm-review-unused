@@ -287,6 +287,73 @@ b = B
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
                         ]
+        , test "should report type constructors that are only used inside a then branch where the condition requires a constructor to already exist" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused | Used
+a = if value == Unused then
+        Unused
+    else
+        Used
+b = Used
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Unused` is not used."
+                            , details = [ defaultDetails, conditionDetails, recursiveNeedDetails ]
+                            , under = "Unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
+                        ]
+        , test "should report type constructors that are only used inside an else branch where the condition requires a constructor to not exist" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused | Used
+a = if value /= Unused then
+        Used
+    else
+        Unused
+b = Used
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Unused` is not used."
+                            , details = [ defaultDetails, conditionDetails, recursiveNeedDetails ]
+                            , under = "Unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
+                        ]
+        , Test.skip <|
+            test "should not ignore constructors when under the right branch" <|
+                \() ->
+                    """
+module MyModule exposing (a, b)
+type Foo = A | B
+a = if foo /= A then
+        A
+    else
+        B
+b = B
+"""
+                        |> Review.Test.runWithProjectData project (rule [])
+                        |> Review.Test.expectNoErrors
+        , test "should not ignore constructors under undecidable conditions" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused | Used
+a = if fn Unused then
+        Unused
+    else
+        Used
+b = Used
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectNoErrors
         ]
 
 
