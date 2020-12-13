@@ -704,8 +704,17 @@ foo lookupTable node =
 
 
 areEqual : Node Expression -> Node Expression -> Bool
-areEqual (Node _ left) (Node _ right) =
-    case ( left, right ) of
+areEqual (Node _ rootLeft) (Node _ rootRight) =
+    case ( rootLeft, rootRight ) of
+        ( Expression.ParenthesizedExpression left, Expression.ParenthesizedExpression right ) ->
+            areEqual left right
+
+        ( _, Expression.ParenthesizedExpression right ) ->
+            areEqual (Node Range.emptyRange rootLeft) right
+
+        ( Expression.ParenthesizedExpression left, _ ) ->
+            areEqual left (Node Range.emptyRange rootRight)
+
         ( _, _ ) ->
             False
 
