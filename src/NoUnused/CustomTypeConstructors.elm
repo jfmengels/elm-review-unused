@@ -630,7 +630,7 @@ expressionVisitorHelp node moduleContext =
                 newCases =
                     Dict.singleton
                         (rangeAsString (Node.range then_))
-                        Set.empty
+                        (Set.singleton ( [], "Unused" ))
             in
             ( []
             , { moduleContext | ignoreBlocks = newCases :: moduleContext.ignoreBlocks }
