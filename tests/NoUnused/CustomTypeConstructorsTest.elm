@@ -353,9 +353,9 @@ b = Used
 module MyModule exposing (a, b)
 type Foo = Unused | Used
 a = if value == Just Unused then
-        Used
-    else
         Unused
+    else
+        Used
 b = Used
 """
                     |> Review.Test.runWithProjectData project (rule [])

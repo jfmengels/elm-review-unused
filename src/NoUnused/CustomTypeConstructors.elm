@@ -679,6 +679,15 @@ foo lookupTable node =
             else
                 Set.empty
 
+        Expression.Application ((Node notFunctionRange (Expression.FunctionOrValue moduleName name)) :: expr :: []) ->
+            if isCapitalized name then
+                Set.insert
+                    ( ModuleNameLookupTable.moduleNameAt lookupTable notFunctionRange |> Maybe.withDefault moduleName, name )
+                    (foo lookupTable expr)
+
+            else
+                Set.empty
+
         _ ->
             Set.empty
 
