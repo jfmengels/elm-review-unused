@@ -554,6 +554,9 @@ expressionExitVisitor node moduleContext =
                 Expression.CaseExpression _ ->
                     { moduleContext | ignoreBlocks = List.drop 1 moduleContext.ignoreBlocks }
 
+                Expression.IfBlock _ _ _ ->
+                    { moduleContext | ignoreBlocks = List.drop 1 moduleContext.ignoreBlocks }
+
                 _ ->
                     moduleContext
     in
@@ -616,6 +619,16 @@ expressionVisitorHelp node moduleContext =
                     cases
                         |> List.map (\( pattern, body ) -> ( rangeAsString (Node.range body), constructorsInPattern moduleContext.lookupTable pattern ))
                         |> Dict.fromList
+            in
+            ( []
+            , { moduleContext | ignoreBlocks = newCases :: moduleContext.ignoreBlocks }
+            )
+
+        Expression.IfBlock condition then_ else_ ->
+            let
+                newCases : Dict RangeAsString (Set ( ModuleName, String ))
+                newCases =
+                    Dict.empty
             in
             ( []
             , { moduleContext | ignoreBlocks = newCases :: moduleContext.ignoreBlocks }
