@@ -327,6 +327,26 @@ b = Used
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
                         ]
+        , test "should handle negation well" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused | Used
+a = if not (value == Unused) then
+        Used
+    else
+        Unused
+b = Used
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Unused` is not used."
+                            , details = [ defaultDetails, conditionDetails, recursiveNeedDetails ]
+                            , under = "Unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
+                        ]
         , test "should not ignore constructors when under the right branch" <|
             \() ->
                 """
