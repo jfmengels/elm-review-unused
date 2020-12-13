@@ -327,10 +327,9 @@ b = Used
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
                         ]
-        , Test.skip <|
-            test "should not ignore constructors when under the right branch" <|
-                \() ->
-                    """
+        , test "should not ignore constructors when under the right branch" <|
+            \() ->
+                """
 module MyModule exposing (a, b)
 type Foo = A | B
 a = if foo /= A then
@@ -339,8 +338,8 @@ a = if foo /= A then
         B
 b = B
 """
-                        |> Review.Test.runWithProjectData project (rule [])
-                        |> Review.Test.expectNoErrors
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectNoErrors
         , test "should not ignore constructors under undecidable conditions" <|
             \() ->
                 """
