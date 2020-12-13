@@ -648,10 +648,10 @@ getValues : ModuleNameLookupTable -> Node Expression -> ( Set ( ModuleName, Stri
 getValues lookupTable node =
     case Node.value node of
         Expression.OperatorApplication "==" _ left right ->
-            ( Set.union (foo left) (foo right), Set.empty )
+            ( Set.union (foo lookupTable left) (foo lookupTable right), Set.empty )
 
         Expression.OperatorApplication "/=" _ left right ->
-            ( Set.empty, Set.union (foo left) (foo right) )
+            ( Set.empty, Set.union (foo lookupTable left) (foo lookupTable right) )
 
         Expression.Application ((Node notFunctionRange (Expression.FunctionOrValue _ "not")) :: expr :: []) ->
             case ModuleNameLookupTable.moduleNameAt lookupTable notFunctionRange of
@@ -668,11 +668,19 @@ getValues lookupTable node =
             ( Set.empty, Set.empty )
 
 
-foo : Node Expression -> Set ( List comparable, String )
-foo node =
+foo : ModuleNameLookupTable -> Node Expression -> Set ( ModuleName, String )
+foo lookupTable node =
     case Node.value node of
+        Expression.FunctionOrValue moduleName name ->
+            if isCapitalized name then
+                Set.singleton
+                    ( ModuleNameLookupTable.moduleNameAt lookupTable (Node.range node) |> Maybe.withDefault moduleName, name )
+
+            else
+                Set.empty
+
         _ ->
-            Set.singleton ( [], "Unused" )
+            Set.empty
 
 
 reverseTuple : ( a, b ) -> ( b, a )
