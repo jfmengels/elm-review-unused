@@ -380,6 +380,19 @@ b = B
 """
                     |> Review.Test.runWithProjectData project (rule [])
                     |> Review.Test.expectNoErrors
+        , test "should not ignore constructors when under they we are comparing two of the same" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = A | B
+a = if A == A then
+        A
+    else
+        B
+b = B
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectNoErrors
         , test "should not ignore constructors under undecidable conditions" <|
             \() ->
                 """
