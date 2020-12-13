@@ -647,8 +647,14 @@ expressionVisitorHelp node moduleContext =
 getValues : Node Expression -> ( Set ( ModuleName, String ), Set ( ModuleName, String ) )
 getValues node =
     case Node.value node of
-        _ ->
+        Expression.OperatorApplication "==" _ left right ->
             ( Set.singleton ( [], "Unused" ), Set.singleton ( [], "Unused" ) )
+
+        Expression.OperatorApplication "/=" _ left right ->
+            ( Set.singleton ( [], "Unused" ), Set.singleton ( [], "Unused" ) )
+
+        _ ->
+            ( Set.empty, Set.empty )
 
 
 staticRanges : Node Expression -> List Range
