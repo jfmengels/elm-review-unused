@@ -628,7 +628,9 @@ expressionVisitorHelp node moduleContext =
             let
                 newCases : Dict RangeAsString (Set ( ModuleName, String ))
                 newCases =
-                    Dict.empty
+                    Dict.singleton
+                        (rangeAsString (Node.range then_))
+                        Set.empty
             in
             ( []
             , { moduleContext | ignoreBlocks = newCases :: moduleContext.ignoreBlocks }
