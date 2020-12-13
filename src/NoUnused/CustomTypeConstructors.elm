@@ -653,8 +653,13 @@ getValues lookupTable node =
         Expression.OperatorApplication "/=" _ left right ->
             reverseTuple (foo left right)
 
-        Expression.Application ((Node _ (Expression.FunctionOrValue _ "not")) :: expr :: []) ->
-            reverseTuple (getValues lookupTable expr)
+        Expression.Application ((Node notFunctionRange (Expression.FunctionOrValue _ "not")) :: expr :: []) ->
+            case ModuleNameLookupTable.moduleNameAt lookupTable notFunctionRange of
+                Just [ "Basics" ] ->
+                    reverseTuple (getValues lookupTable expr)
+
+                _ ->
+                    ( Set.empty, Set.empty )
 
         Expression.ParenthesizedExpression expr ->
             getValues lookupTable expr
