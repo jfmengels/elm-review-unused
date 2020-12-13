@@ -652,14 +652,14 @@ getValues lookupTable node =
                 ( Set.empty, Set.empty )
 
             else
-                ( Set.union (foo lookupTable left) (foo lookupTable right), Set.empty )
+                ( Set.union (findConstructors lookupTable left) (findConstructors lookupTable right), Set.empty )
 
         Expression.OperatorApplication "/=" _ left right ->
             if areEqual left right then
-                ( Set.empty, Set.union (foo lookupTable left) (foo lookupTable right) )
+                ( Set.empty, Set.union (findConstructors lookupTable left) (findConstructors lookupTable right) )
 
             else
-                ( Set.union (foo lookupTable left) (foo lookupTable right), Set.empty )
+                ( Set.union (findConstructors lookupTable left) (findConstructors lookupTable right), Set.empty )
 
         Expression.Application ((Node notFunctionRange (Expression.FunctionOrValue _ "not")) :: expr :: []) ->
             case ModuleNameLookupTable.moduleNameAt lookupTable notFunctionRange of
@@ -676,8 +676,8 @@ getValues lookupTable node =
             ( Set.empty, Set.empty )
 
 
-foo : ModuleNameLookupTable -> Node Expression -> Set ( ModuleName, String )
-foo lookupTable node =
+findConstructors : ModuleNameLookupTable -> Node Expression -> Set ( ModuleName, String )
+findConstructors lookupTable node =
     case Node.value node of
         Expression.FunctionOrValue moduleName name ->
             if isCapitalized name then
@@ -691,13 +691,13 @@ foo lookupTable node =
             if isCapitalized name then
                 Set.insert
                     ( ModuleNameLookupTable.moduleNameAt lookupTable notFunctionRange |> Maybe.withDefault moduleName, name )
-                    (foo lookupTable expr)
+                    (findConstructors lookupTable expr)
 
             else
                 Set.empty
 
         Expression.ParenthesizedExpression expr ->
-            foo lookupTable expr
+            findConstructors lookupTable expr
 
         _ ->
             Set.empty
