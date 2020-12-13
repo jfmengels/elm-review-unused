@@ -626,11 +626,15 @@ expressionVisitorHelp node moduleContext =
 
         Expression.IfBlock condition then_ else_ ->
             let
+                { thenSet, elseSet } =
+                    { thenSet = Set.singleton ( [], "Unused" ), elseSet = Set.singleton ( [], "Unused" ) }
+
                 newCases : Dict RangeAsString (Set ( ModuleName, String ))
                 newCases =
-                    Dict.singleton
-                        (rangeAsString (Node.range then_))
-                        (Set.singleton ( [], "Unused" ))
+                    Dict.fromList
+                        [ ( rangeAsString (Node.range then_), thenSet )
+                        , ( rangeAsString (Node.range else_), elseSet )
+                        ]
             in
             ( []
             , { moduleContext | ignoreBlocks = newCases :: moduleContext.ignoreBlocks }
