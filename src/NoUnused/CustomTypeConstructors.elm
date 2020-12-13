@@ -627,7 +627,7 @@ expressionVisitorHelp node moduleContext =
         Expression.IfBlock condition then_ else_ ->
             let
                 ( thenSet, elseSet ) =
-                    getValues moduleContext.lookupTable condition
+                    constructorsToIgnoreForIf moduleContext.lookupTable condition
 
                 newCases : Dict RangeAsString (Set ( ModuleName, String ))
                 newCases =
@@ -644,8 +644,8 @@ expressionVisitorHelp node moduleContext =
             ( [], moduleContext )
 
 
-getValues : ModuleNameLookupTable -> Node Expression -> ( Set ( ModuleName, String ), Set ( ModuleName, String ) )
-getValues lookupTable node =
+constructorsToIgnoreForIf : ModuleNameLookupTable -> Node Expression -> ( Set ( ModuleName, String ), Set ( ModuleName, String ) )
+constructorsToIgnoreForIf lookupTable node =
     case Node.value node of
         Expression.OperatorApplication "==" _ left right ->
             if areEqual left right then
@@ -664,13 +664,13 @@ getValues lookupTable node =
         Expression.Application ((Node notFunctionRange (Expression.FunctionOrValue _ "not")) :: expr :: []) ->
             case ModuleNameLookupTable.moduleNameAt lookupTable notFunctionRange of
                 Just [ "Basics" ] ->
-                    reverseTuple (getValues lookupTable expr)
+                    reverseTuple (constructorsToIgnoreForIf lookupTable expr)
 
                 _ ->
                     ( Set.empty, Set.empty )
 
         Expression.ParenthesizedExpression expr ->
-            getValues lookupTable expr
+            constructorsToIgnoreForIf lookupTable expr
 
         _ ->
             ( Set.empty, Set.empty )
