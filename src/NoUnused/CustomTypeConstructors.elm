@@ -644,6 +644,24 @@ expressionVisitorHelp node moduleContext =
             ( [], moduleContext )
 
 
+{-| a == b --> Set.diff (findConstructors a) (findConstructors b)
+a /= b --> ???
+a && b --> Set.union (findConstructors a) (findConstructors b)
+a || b --> Set.diff (findConstructors a) (findConstructors b)
+function call --> abort everything? Re-insert all the were found in that function call (directly or not).
+
+a == Just Foo --> ( [Foo], [] )
+a /= Just Foo --> ( [], [Foo])
+not (a == Just Foo) --> ( [], [Foo])
+not (not (a == Just Foo)) --> ( [], [Foo])
+a == Just Foo && a /= Just Foo --> ( [Foo], [Foo] )
+
+A == A --> [] ???
+
+if foo A then --> ([],[])
+if foo A && a == Just Foo then --> ([Foo],[])
+
+-}
 constructorsToIgnoreForIf : ModuleNameLookupTable -> Node Expression -> ( Set ( ModuleName, String ), Set ( ModuleName, String ) )
 constructorsToIgnoreForIf lookupTable node =
     case Node.value node of
