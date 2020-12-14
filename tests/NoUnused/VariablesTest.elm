@@ -67,6 +67,22 @@ fib n = fib (n - 1) + fib (n - 2)"""
 fib n = fib (n - 1) + fib (n - 2)"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should report recursive functions declared in a let block that are not used elsewhere" <|
+        \() ->
+            """module SomeModule exposing (a)
+a = let fib n = fib (n - 1) + fib (n - 2)
+    in 1"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "`let in` variable `fib` is not used"
+                        , details = details
+                        , under = "fib"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 9 }, end = { row = 2, column = 12 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+a = 1"""
+                    ]
     ]
 
 

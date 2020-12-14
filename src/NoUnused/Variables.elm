@@ -100,7 +100,8 @@ type alias ProjectContext =
 type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
     , scopes : Nonempty Scope
-    , inTheDeclarationOf : Maybe String
+    , inTheDeclarationOf : List String
+    , declarations : Dict RangeAsString String
     , exposesEverything : Bool
     , isApplication : Bool
     , constructorNameToTypeName : Dict String String
@@ -140,6 +141,10 @@ type alias ModuleThatExposesEverything =
     , wasUsedImplicitly : Bool
     , wasUsedWithModuleName : Bool
     }
+
+
+type alias RangeAsString =
+    String
 
 
 type DeclaredModuleType
@@ -187,7 +192,8 @@ fromProjectToModule =
         (\lookupTable { isApplication, customTypes } ->
             { lookupTable = lookupTable
             , scopes = NonemptyList.fromElement emptyScope
-            , inTheDeclarationOf = Nothing
+            , inTheDeclarationOf = []
+            , declarations = Dict.empty
             , exposesEverything = False
             , isApplication = isApplication
             , constructorNameToTypeName = Dict.empty
@@ -561,7 +567,22 @@ moduleAliasRange (Node _ { moduleName }) range =
 
 
 expressionEnterVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
-expressionEnterVisitor (Node range value) context =
+expressionEnterVisitor node context =
+    let
+        newContext : ModuleContext
+        newContext =
+            case Dict.get (rangeAsString (Node.range node)) context.declarations of
+                Just functionName ->
+                    { context | inTheDeclarationOf = functionName :: context.inTheDeclarationOf }
+
+                Nothing ->
+                    context
+    in
+    expressionEnterVisitorHelp node newContext
+
+
+expressionEnterVisitorHelp : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
+expressionEnterVisitorHelp (Node range value) context =
     case value of
         Expression.FunctionOrValue [] name ->
             case Dict.get name context.constructorNameToTypeName of
@@ -621,11 +642,21 @@ expressionEnterVisitor (Node range value) context =
                                         |> .arguments
                                         |> List.map (getUsedVariablesFromPattern context)
                                         |> foldUsedTypesAndModules
+
+                                markAsInTheDeclarationOf name ctx =
+                                    { ctx
+                                        | declarations =
+                                            Dict.insert
+                                                (function.declaration |> Node.value |> .expression |> Node.range |> rangeAsString)
+                                                name
+                                                ctx.declarations
+                                    }
                             in
                             ( errors
                             , foldContext
                                 |> registerFunction letBlockContext function
                                 |> markUsedTypesAndModules namesUsedInArgumentPatterns
+                                |> markAsInTheDeclarationOf (function.declaration |> Node.value |> .name |> Node.value)
                             )
 
                         Expression.LetDestructuring pattern _ ->
@@ -686,6 +717,20 @@ isAllPattern node =
 
 expressionExitVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionExitVisitor node context =
+    let
+        newContext : ModuleContext
+        newContext =
+            if Dict.member (rangeAsString (Node.range node)) context.declarations then
+                { context | inTheDeclarationOf = List.drop 1 context.inTheDeclarationOf }
+
+            else
+                context
+    in
+    expressionExitVisitorHelp node newContext
+
+
+expressionExitVisitorHelp : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
+expressionExitVisitorHelp node context =
     case Node.value node of
         Expression.RecordUpdateExpression expr _ ->
             ( [], markAsUsed (Node.value expr) context )
@@ -945,7 +990,7 @@ declarationVisitor node context =
 
                 newContext : ModuleContext
                 newContext =
-                    { newContextWhereFunctionIsRegistered | inTheDeclarationOf = Just <| Node.value functionImplementation.name }
+                    { newContextWhereFunctionIsRegistered | inTheDeclarationOf = [ Node.value functionImplementation.name ], declarations = Dict.empty }
                         |> markUsedTypesAndModules namesUsedInSignature
                         |> markUsedTypesAndModules namesUsedInArgumentPatterns
             in
@@ -1385,7 +1430,7 @@ markAsUsed name context =
             { context | unusedImportedCustomTypes = Dict.remove customTypeName context.unusedImportedCustomTypes }
 
         _ ->
-            if context.inTheDeclarationOf == Just name then
+            if List.member name context.inTheDeclarationOf then
                 context
 
             else
@@ -1570,3 +1615,14 @@ comparePosition a b =
 
         _ ->
             order
+
+
+rangeAsString : Range -> RangeAsString
+rangeAsString range =
+    [ range.start.row
+    , range.start.column
+    , range.end.row
+    , range.end.column
+    ]
+        |> List.map String.fromInt
+        |> String.join "_"
