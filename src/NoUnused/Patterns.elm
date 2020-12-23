@@ -183,7 +183,7 @@ expressionExitVisitorHelp node context =
 report : Context -> ( List (Rule.Error {}), Context )
 report context =
     case context.scopes of
-        headScope :: secondScope :: restOfScopes ->
+        headScope :: restOfScopes ->
             let
                 nonUsedVars : Set String
                 nonUsedVars =
@@ -198,7 +198,12 @@ report context =
                         --error variableInfo key)
                         |> List.map (\( key, variableInfo ) -> Debug.todo "")
             in
-            ( errors, { context | scopes = { secondScope | used = Set.union nonUsedVars secondScope.used } :: restOfScopes } )
+            ( errors
+            , List.foldl
+                useValue
+                { context | scopes = restOfScopes }
+                (Set.toList nonUsedVars)
+            )
 
         _ ->
             ( [], context )
