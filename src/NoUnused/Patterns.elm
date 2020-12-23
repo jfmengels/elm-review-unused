@@ -86,12 +86,13 @@ type alias Scope =
     }
 
 
-type alias FoundPattern =
-    { range : Range
-    , message : String
-    , details : List String
-    , fix : List Fix
-    }
+type FoundPattern
+    = SingleValue
+        { range : Range
+        , message : String
+        , details : List String
+        , fix : List Fix
+        }
 
 
 initialContext : Context
@@ -205,13 +206,15 @@ report context =
                     Dict.filter (\name _ -> not <| Set.member name headScope.used) headScope.declared
                         |> Dict.values
                         |> List.map
-                            (\pattern ->
-                                Rule.errorWithFix
-                                    { message = pattern.message
-                                    , details = pattern.details
-                                    }
-                                    pattern.range
-                                    pattern.fix
+                            (\foundPattern ->
+                                case foundPattern of
+                                    SingleValue pattern ->
+                                        Rule.errorWithFix
+                                            { message = pattern.message
+                                            , details = pattern.details
+                                            }
+                                            pattern.range
+                                            pattern.fix
                             )
             in
             ( errors
@@ -277,11 +280,13 @@ rememberPattern (Node range pattern) context =
 
         Pattern.VarPattern name ->
             rememberValue name
-                { message = "Value `" ++ name ++ "` is not used."
-                , details = singularDetails
-                , range = range
-                , fix = [ Fix.replaceRangeBy range "_" ]
-                }
+                (SingleValue
+                    { message = "Value `" ++ name ++ "` is not used."
+                    , details = singularDetails
+                    , range = range
+                    , fix = [ Fix.replaceRangeBy range "_" ]
+                    }
+                )
                 context
 
         Pattern.TuplePattern patterns ->
@@ -321,11 +326,13 @@ findPatterns (Node range pattern) =
         Pattern.VarPattern name ->
             Dict.singleton
                 name
-                { message = "Value `" ++ name ++ "` is not used."
-                , details = singularDetails
-                , range = range
-                , fix = [ Fix.replaceRangeBy range "_" ]
-                }
+                (SingleValue
+                    { message = "Value `" ++ name ++ "` is not used."
+                    , details = singularDetails
+                    , range = range
+                    , fix = [ Fix.replaceRangeBy range "_" ]
+                    }
+                )
 
         Pattern.TuplePattern patterns ->
             List.foldl (findPatterns >> Dict.union) Dict.empty patterns
@@ -637,11 +644,12 @@ errorsForAsPattern patternRange inner (Node range name) context =
 foundPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
 foundPatternForAsPattern patternRange inner (Node range name) =
     if isAllPattern inner then
-        { message = "Pattern `_` is not needed."
-        , details = removeDetails
-        , range = Node.range inner
-        , fix = [ Fix.replaceRangeBy patternRange name ]
-        }
+        SingleValue
+            { message = "Pattern `_` is not needed."
+            , details = removeDetails
+            , range = Node.range inner
+            , fix = [ Fix.replaceRangeBy patternRange name ]
+            }
 
     else
         let
@@ -653,11 +661,12 @@ foundPatternForAsPattern patternRange inner (Node range name) =
                     |> Fix.replaceRangeBy patternRange
                 ]
         in
-        { message = "Pattern alias `" ++ name ++ "` is not used."
-        , details = singularDetails
-        , range = range
-        , fix = fix
-        }
+        SingleValue
+            { message = "Pattern alias `" ++ name ++ "` is not used."
+            , details = singularDetails
+            , range = range
+            , fix = fix
+            }
 
 
 isAllPattern : Node Pattern -> Bool
