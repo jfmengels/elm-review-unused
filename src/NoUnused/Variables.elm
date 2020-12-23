@@ -640,6 +640,7 @@ expressionEnterVisitorHelp (Node range value) context =
                                         |> List.map (getUsedVariablesFromPattern context)
                                         |> foldUsedTypesAndModules
 
+                                markAsInTheDeclarationOf : a -> { b | declarations : RangeDict a } -> { b | declarations : RangeDict a }
                                 markAsInTheDeclarationOf name ctx =
                                     { ctx
                                         | declarations =
