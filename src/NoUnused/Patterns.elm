@@ -72,12 +72,14 @@ rule =
 
 type alias Context =
     { declared : Set String
+    , used : Set String
     }
 
 
 initialContext : Context
 initialContext =
     { declared = Set.empty
+    , used = Set.empty
     }
 
 
