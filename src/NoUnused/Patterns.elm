@@ -114,7 +114,21 @@ expressionEnterVisitor node context =
 
 report : Context -> ( List (Rule.Error {}), Context )
 report context =
-    ( [], context )
+    let
+        nonUsedVars : Set String
+        nonUsedVars =
+            Dict.keys context.declared
+                |> Set.fromList
+                |> Set.diff context.used
+
+        errors : List (Rule.Error {})
+        errors =
+            Dict.filter (\key _ -> not <| Set.member key context.used) context.declared
+                |> Dict.toList
+                --error variableInfo key)
+                |> List.map (\( key, variableInfo ) -> Debug.todo "")
+    in
+    ( errors, { context | declared = Dict.empty, used = nonUsedVars } )
 
 
 expressionExitVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
