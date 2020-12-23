@@ -204,6 +204,15 @@ report context =
                 { singles, records, uselessAllPatternErrors } =
                     findDeclaredPatterns headScope
 
+                _ =
+                    Debug.log "\nsingles" singles
+
+                _ =
+                    Debug.log "\nrecords" records
+
+                _ =
+                    Debug.log "\nuselessAllPatternErrors" uselessAllPatternErrors
+
                 allDeclared : List String
                 allDeclared =
                     List.concat
