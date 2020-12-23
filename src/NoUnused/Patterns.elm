@@ -9,7 +9,6 @@ module NoUnused.Patterns exposing (rule)
 
 -}
 
-import Dict exposing (Dict)
 import Elm.Syntax.Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.ModuleName exposing (ModuleName)
@@ -151,9 +150,7 @@ expressionEnterVisitorHelp node context =
                             findPatterns Destructuring pattern
             in
             ( []
-            , --rememberLetDeclarationList
-              --   declarations
-              { context
+            , { context
                 | scopes =
                     { declared = List.concatMap findPatternsInLetDeclaration declarations
                     , used = Set.empty
@@ -183,32 +180,11 @@ expressionEnterVisitorHelp node context =
 
 expressionExitVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
 expressionExitVisitor node context =
-    let
-        ( errors, newContext ) =
-            case RangeDict.get (Node.range node) context.scopesToCreate of
-                Just _ ->
-                    report context
+    case RangeDict.get (Node.range node) context.scopesToCreate of
+        Just _ ->
+            report context
 
-                Nothing ->
-                    ( [], context )
-
-        ( errorsToRemoveTODO, resultContext ) =
-            expressionExitVisitorHelp node newContext
-    in
-    ( errors ++ errorsToRemoveTODO, resultContext )
-
-
-expressionExitVisitorHelp : Node Expression -> Context -> ( List (Rule.Error {}), Context )
-expressionExitVisitorHelp node context =
-    case Node.value node of
-        Expression.LetExpression { declarations } ->
-            --errorsForLetDeclarationList declarations context
-            ( [], context )
-
-        Expression.CaseExpression { cases } ->
-            ( [], context )
-
-        _ ->
+        Nothing ->
             ( [], context )
 
 
@@ -348,31 +324,6 @@ valueVisitor (Node _ ( moduleName, value )) context =
 --- ON ENTER
 
 
-rememberCaseList : List Expression.Case -> Context -> Context
-rememberCaseList list context =
-    List.foldl rememberCase context list
-
-
-rememberCase : Expression.Case -> Context -> Context
-rememberCase ( pattern, _ ) context =
-    rememberPattern pattern context
-
-
-rememberLetDeclarationList : List (Node Expression.LetDeclaration) -> Context -> Context
-rememberLetDeclarationList list context =
-    List.foldl rememberLetDeclaration context list
-
-
-rememberLetDeclaration : Node Expression.LetDeclaration -> Context -> Context
-rememberLetDeclaration (Node _ letDeclaration) context =
-    case letDeclaration of
-        Expression.LetFunction _ ->
-            context
-
-        Expression.LetDestructuring pattern _ ->
-            rememberPattern pattern context
-
-
 rememberPatternList : List (Node Pattern) -> Context -> Context
 rememberPatternList list context =
     List.foldl rememberPattern context list
@@ -399,9 +350,7 @@ rememberPattern (Node range pattern) context =
         Pattern.TuplePattern patterns ->
             rememberPatternList patterns context
 
-        Pattern.RecordPattern values ->
-            --List.foldl (\node -> rememberValue (Node.value node) (Node.range node)) context list
-            -- TODO
+        Pattern.RecordPattern _ ->
             context
 
         Pattern.UnConsPattern first second ->
@@ -533,31 +482,6 @@ andThen function value ( errors, context ) =
             function value context
     in
     ( newErrors ++ errors, newContext )
-
-
-errorsForCaseList : List Expression.Case -> Context -> ( List (Rule.Error {}), Context )
-errorsForCaseList list context =
-    List.foldl (andThen errorsForCase) ( [], context ) list
-
-
-errorsForCase : Expression.Case -> Context -> ( List (Rule.Error {}), Context )
-errorsForCase ( pattern, _ ) context =
-    errorsForPattern Matching pattern context
-
-
-errorsForLetDeclarationList : List (Node Expression.LetDeclaration) -> Context -> ( List (Rule.Error {}), Context )
-errorsForLetDeclarationList list context =
-    List.foldl (andThen errorsForLetDeclaration) ( [], context ) list
-
-
-errorsForLetDeclaration : Node Expression.LetDeclaration -> Context -> ( List (Rule.Error {}), Context )
-errorsForLetDeclaration (Node _ letDeclaration) context =
-    case letDeclaration of
-        Expression.LetFunction _ ->
-            ( [], context )
-
-        Expression.LetDestructuring pattern _ ->
-            errorsForPattern Destructuring pattern context
 
 
 type PatternUse
