@@ -74,7 +74,7 @@ rule =
 
 
 type alias Context =
-    { declared : Dict String Range
+    { declared : Dict String { range : Range }
     , used : Set String
     }
 
@@ -500,7 +500,7 @@ errorsForValue name range context =
 
 rememberValue : String -> Range -> Context -> Context
 rememberValue name range context =
-    { context | declared = Dict.insert name range context.declared }
+    { context | declared = Dict.insert name { range = range } context.declared }
 
 
 rememberValueList : List (Node String) -> Context -> Context
