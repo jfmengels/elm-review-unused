@@ -22,6 +22,7 @@ import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Type as Type
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import NoUnused.RangeAsString as RangeAsString exposing (RangeAsString)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -193,10 +194,6 @@ type alias ModuleContext =
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
     , ignoredComparisonRanges : List Range
     }
-
-
-type alias RangeAsString =
-    String
 
 
 initialProjectContext : List { moduleName : String, typeName : String, index : Int } -> ProjectContext
@@ -532,7 +529,7 @@ expressionVisitor node moduleContext =
         newModuleContext =
             case List.head moduleContext.ignoreBlocks of
                 Just expressionsWhereToIgnoreCases ->
-                    case Dict.get (rangeAsString (Node.range node)) expressionsWhereToIgnoreCases of
+                    case Dict.get (RangeAsString.asString (Node.range node)) expressionsWhereToIgnoreCases of
                         Just constructorsToIgnore ->
                             { moduleContext | constructorsToIgnore = constructorsToIgnore :: moduleContext.constructorsToIgnore }
 
@@ -559,7 +556,7 @@ expressionExitVisitor node moduleContext =
     in
     case List.head newModuleContext.ignoreBlocks of
         Just rangesWhereToIgnoreConstructors ->
-            if Dict.member (rangeAsString (Node.range node)) rangesWhereToIgnoreConstructors then
+            if Dict.member (RangeAsString.asString (Node.range node)) rangesWhereToIgnoreConstructors then
                 ( []
                 , { newModuleContext | constructorsToIgnore = List.drop 1 newModuleContext.constructorsToIgnore }
                 )
@@ -614,7 +611,7 @@ expressionVisitorHelp node moduleContext =
                 newCases : Dict RangeAsString (Set ( ModuleName, String ))
                 newCases =
                     cases
-                        |> List.map (\( pattern, body ) -> ( rangeAsString (Node.range body), constructorsInPattern moduleContext.lookupTable pattern ))
+                        |> List.map (\( pattern, body ) -> ( RangeAsString.asString (Node.range body), constructorsInPattern moduleContext.lookupTable pattern ))
                         |> Dict.fromList
             in
             ( []
@@ -945,14 +942,3 @@ listAtIndex index list =
 
         ( n, _ :: rest ) ->
             listAtIndex (n - 1) rest
-
-
-rangeAsString : Range -> RangeAsString
-rangeAsString range =
-    [ range.start.row
-    , range.start.column
-    , range.end.row
-    , range.end.column
-    ]
-        |> List.map String.fromInt
-        |> String.join "_"
