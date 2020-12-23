@@ -93,6 +93,7 @@ type FoundPattern
         , details : List String
         , fix : List Fix
         }
+    | RecordPattern Range (List (Node String))
 
 
 initialContext : Context
@@ -205,16 +206,57 @@ report context =
                 errors =
                     Dict.filter (\name _ -> not <| Set.member name headScope.used) headScope.declared
                         |> Dict.values
-                        |> List.map
+                        |> List.concatMap
                             (\foundPattern ->
                                 case foundPattern of
                                     SingleValue pattern ->
-                                        Rule.errorWithFix
+                                        [ Rule.errorWithFix
                                             { message = pattern.message
                                             , details = pattern.details
                                             }
                                             pattern.range
                                             pattern.fix
+                                        ]
+
+                                    RecordPattern recordRange fields ->
+                                        let
+                                            ( unused, used ) =
+                                                List.partition (isNodeInContext context) fields
+                                        in
+                                        case unused of
+                                            [] ->
+                                                []
+
+                                            firstNode :: restNodes ->
+                                                let
+                                                    first : String
+                                                    first =
+                                                        Node.value firstNode
+
+                                                    rest : List String
+                                                    rest =
+                                                        List.map Node.value restNodes
+
+                                                    ( errorRange, fix ) =
+                                                        case used of
+                                                            [] ->
+                                                                ( recordRange, Fix.replaceRangeBy recordRange "_" )
+
+                                                            _ ->
+                                                                ( Range.combine (List.map Node.range unused)
+                                                                , Node Range.emptyRange (Pattern.RecordPattern used)
+                                                                    |> Writer.writePattern
+                                                                    |> Writer.write
+                                                                    |> Fix.replaceRangeBy recordRange
+                                                                )
+                                                in
+                                                [ Rule.errorWithFix
+                                                    { message = listToMessage first rest
+                                                    , details = listToDetails first rest
+                                                    }
+                                                    errorRange
+                                                    [ fix ]
+                                                ]
                             )
             in
             ( errors
