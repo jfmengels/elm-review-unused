@@ -22,7 +22,7 @@ import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Type as Type
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
-import NoUnused.RangeAsString as RangeAsString exposing (RangeAsString)
+import NoUnused.RangeDict as RangeDict exposing (RangeDict)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -188,7 +188,7 @@ type alias ModuleContext =
     , declaredTypesWithConstructors : Dict CustomTypeName (Dict ConstructorName (Node ConstructorName))
     , usedFunctionsOrValues : Dict ModuleNameAsString (Set ConstructorName)
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
-    , ignoreBlocks : List (Dict RangeAsString (Set ( ModuleName, String )))
+    , ignoreBlocks : List (RangeDict (Set ( ModuleName, String )))
     , constructorsToIgnore : List (Set ( ModuleName, String ))
     , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
@@ -529,7 +529,7 @@ expressionVisitor node moduleContext =
         newModuleContext =
             case List.head moduleContext.ignoreBlocks of
                 Just expressionsWhereToIgnoreCases ->
-                    case Dict.get (RangeAsString.asString (Node.range node)) expressionsWhereToIgnoreCases of
+                    case RangeDict.get (Node.range node) expressionsWhereToIgnoreCases of
                         Just constructorsToIgnore ->
                             { moduleContext | constructorsToIgnore = constructorsToIgnore :: moduleContext.constructorsToIgnore }
 
@@ -556,7 +556,7 @@ expressionExitVisitor node moduleContext =
     in
     case List.head newModuleContext.ignoreBlocks of
         Just rangesWhereToIgnoreConstructors ->
-            if Dict.member (RangeAsString.asString (Node.range node)) rangesWhereToIgnoreConstructors then
+            if RangeDict.member (Node.range node) rangesWhereToIgnoreConstructors then
                 ( []
                 , { newModuleContext | constructorsToIgnore = List.drop 1 newModuleContext.constructorsToIgnore }
                 )
@@ -608,11 +608,11 @@ expressionVisitorHelp node moduleContext =
 
         Expression.CaseExpression { cases } ->
             let
-                newCases : Dict RangeAsString (Set ( ModuleName, String ))
+                newCases : RangeDict (Set ( ModuleName, String ))
                 newCases =
                     cases
-                        |> List.map (\( pattern, body ) -> ( RangeAsString.asString (Node.range body), constructorsInPattern moduleContext.lookupTable pattern ))
-                        |> Dict.fromList
+                        |> List.map (\( pattern, body ) -> ( Node.range body, constructorsInPattern moduleContext.lookupTable pattern ))
+                        |> RangeDict.fromList
             in
             ( []
             , { moduleContext | ignoreBlocks = newCases :: moduleContext.ignoreBlocks }
