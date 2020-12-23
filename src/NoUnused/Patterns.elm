@@ -336,7 +336,7 @@ rememberPattern (Node range pattern) context =
             context
 
         Pattern.VarPattern name ->
-            rememberValue name
+            rememberValue
                 (SingleValue
                     { name = name
                     , message = "Value `" ++ name ++ "` is not used."
@@ -367,7 +367,7 @@ rememberPattern (Node range pattern) context =
         Pattern.AsPattern inner name ->
             context
                 |> rememberPattern inner
-                |> rememberValue (Node.value name) (findPatternForAsPattern range inner name)
+                |> rememberValue (findPatternForAsPattern range inner name)
 
         Pattern.ParenthesizedPattern inner ->
             rememberPattern inner context
@@ -731,11 +731,10 @@ errorsForValue name range context =
 
 
 rememberValue :
-    String
-    -> FoundPattern
+    FoundPattern
     -> Context
     -> Context
-rememberValue name foundPattern context =
+rememberValue foundPattern context =
     case context.scopes of
         [] ->
             context
