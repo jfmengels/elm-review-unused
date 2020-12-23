@@ -98,6 +98,7 @@ type FoundPattern
         { fields : List (Node String)
         , recordRange : Range
         }
+    | UselessAllPatternAlias ( Range, Fix )
 
 
 initialContext : Context
@@ -200,18 +201,8 @@ report context =
     case context.scopes of
         headScope :: restOfScopes ->
             let
-                ( singles, records ) =
-                    List.foldl
-                        (\foundPattern ( single_, records_ ) ->
-                            case foundPattern of
-                                SingleValue v ->
-                                    ( v :: single_, records_ )
-
-                                RecordPattern v ->
-                                    ( single_, v :: records_ )
-                        )
-                        ( [], [] )
-                        headScope.declared
+                { singles, records, uselessAllPatternErrors } =
+                    findDeclaredPatterns headScope
 
                 allDeclared : List String
                 allDeclared =
@@ -228,7 +219,11 @@ report context =
 
                 errors : List (Rule.Error {})
                 errors =
-                    singleErrors ++ recordErrors
+                    List.concat
+                        [ singleErrors
+                        , recordErrors
+                        , uselessAllPatternErrors
+                        ]
 
                 singleErrors : List (Rule.Error {})
                 singleErrors =
@@ -297,6 +292,39 @@ report context =
 
         _ ->
             ( [], context )
+
+
+findDeclaredPatterns :
+    Scope
+    ->
+        { singles : List { name : String, range : Range, message : String, details : List String, fix : List Fix }
+        , records : List { fields : List (Node String), recordRange : Range }
+        , uselessAllPatternErrors : List (Rule.Error {})
+        }
+findDeclaredPatterns scope =
+    List.foldl
+        (\foundPattern acc ->
+            case foundPattern of
+                SingleValue v ->
+                    { acc | singles = v :: acc.singles }
+
+                RecordPattern v ->
+                    { acc | records = v :: acc.records }
+
+                UselessAllPatternAlias ( rangeToReport, fix ) ->
+                    { acc
+                        | uselessAllPatternErrors =
+                            Rule.errorWithFix
+                                { message = "Pattern `_` is not needed."
+                                , details = removeDetails
+                                }
+                                rangeToReport
+                                [ fix ]
+                                :: acc.uselessAllPatternErrors
+                    }
+        )
+        { singles = [], records = [], uselessAllPatternErrors = [] }
+        scope.declared
 
 
 valueVisitor : Node ( ModuleName, String ) -> Context -> ( List (Rule.Error {}), Context )
@@ -711,13 +739,7 @@ errorsForAsPattern patternRange inner (Node range name) context =
 foundPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
 foundPatternForAsPattern patternRange inner (Node range name) =
     if isAllPattern inner then
-        SingleValue
-            { name = "_"
-            , message = "Pattern `_` is not needed."
-            , details = removeDetails
-            , range = Node.range inner
-            , fix = [ Fix.replaceRangeBy patternRange name ]
-            }
+        UselessAllPatternAlias ( Node.range inner, Fix.replaceRangeBy patternRange name )
 
     else
         let
