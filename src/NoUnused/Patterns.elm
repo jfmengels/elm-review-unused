@@ -411,7 +411,7 @@ rememberPattern (Node range pattern) context =
         Pattern.AsPattern inner name ->
             context
                 |> rememberPattern inner
-                |> rememberValue (Node.value name) (foundPatternForAsPattern range inner name)
+                |> rememberValue (Node.value name) (findPatternForAsPattern range inner name)
 
         Pattern.ParenthesizedPattern inner ->
             rememberPattern inner context
@@ -451,7 +451,7 @@ findPatterns (Node range pattern) =
             List.concatMap findPatterns patterns
 
         Pattern.AsPattern inner name ->
-            foundPatternForAsPattern range inner name :: findPatterns inner
+            findPatternForAsPattern range inner name :: findPatterns inner
 
         Pattern.ParenthesizedPattern inner ->
             findPatterns inner
@@ -736,8 +736,8 @@ errorsForAsPattern patternRange inner (Node range name) context =
         ( [], context )
 
 
-foundPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
-foundPatternForAsPattern patternRange inner (Node range name) =
+findPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
+findPatternForAsPattern patternRange inner (Node range name) =
     if isAllPattern inner then
         UselessAllPatternAlias ( Node.range inner, Fix.replaceRangeBy patternRange name )
 
