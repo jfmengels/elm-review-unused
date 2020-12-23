@@ -194,9 +194,16 @@ report context =
                 errors : List (Rule.Error {})
                 errors =
                     Dict.filter (\name _ -> not <| Set.member name headScope.used) headScope.declared
-                        |> Dict.toList
-                        --error variableInfo key)
-                        |> List.map (\( key, variableInfo ) -> Debug.todo "")
+                        |> Dict.values
+                        |> List.map
+                            (\pattern ->
+                                Rule.errorWithFix
+                                    { message = pattern.message
+                                    , details = pattern.details
+                                    }
+                                    pattern.range
+                                    pattern.fix
+                            )
             in
             ( errors
             , List.foldl
