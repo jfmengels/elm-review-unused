@@ -74,6 +74,10 @@ rule =
 
 
 type alias Context =
+    List Scope
+
+
+type alias Scope =
     { declared : Dict String FoundPattern
     , used : Set String
     }
@@ -89,9 +93,7 @@ type alias FoundPattern =
 
 initialContext : Context
 initialContext =
-    { declared = Dict.empty
-    , used = Set.empty
-    }
+    []
 
 
 
@@ -111,10 +113,18 @@ expressionEnterVisitor : Node Expression -> Context -> ( List (Rule.Error {}), C
 expressionEnterVisitor node context =
     case Node.value node of
         Expression.LetExpression { declarations } ->
-            ( [], rememberLetDeclarationList declarations context )
+            ( []
+            , rememberLetDeclarationList
+                declarations
+                ({ declared = Dict.empty, used = Set.empty } :: context)
+            )
 
         Expression.CaseExpression { cases } ->
-            ( [], rememberCaseList cases context )
+            ( []
+            , rememberCaseList
+                cases
+                ({ declared = Dict.empty, used = Set.empty } :: context)
+            )
 
         _ ->
             ( [], context )
@@ -122,21 +132,26 @@ expressionEnterVisitor node context =
 
 report : Context -> ( List (Rule.Error {}), Context )
 report context =
-    let
-        nonUsedVars : Set String
-        nonUsedVars =
-            Dict.keys context.declared
-                |> Set.fromList
-                |> Set.diff context.used
+    case context of
+        [] ->
+            ( [], context )
 
-        errors : List (Rule.Error {})
-        errors =
-            Dict.filter (\key _ -> not <| Set.member key context.used) context.declared
-                |> Dict.toList
-                --error variableInfo key)
-                |> List.map (\( key, variableInfo ) -> Debug.todo "")
-    in
-    ( errors, { context | declared = Dict.empty, used = nonUsedVars } )
+        headScope :: rest ->
+            let
+                nonUsedVars : Set String
+                nonUsedVars =
+                    Dict.keys headScope.declared
+                        |> Set.fromList
+                        |> Set.diff headScope.used
+
+                errors : List (Rule.Error {})
+                errors =
+                    Dict.filter (\key _ -> not <| Set.member key headScope.used) headScope.declared
+                        |> Dict.toList
+                        --error variableInfo key)
+                        |> List.map (\( key, variableInfo ) -> Debug.todo "")
+            in
+            ( errors, rest )
 
 
 expressionExitVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
@@ -582,12 +597,22 @@ rememberValue :
     -> Context
     -> Context
 rememberValue name foundPattern context =
-    { context | declared = Dict.insert name foundPattern context.declared }
+    case context of
+        [] ->
+            []
+
+        headScope :: rest ->
+            { headScope | declared = Dict.insert name foundPattern headScope.declared } :: rest
 
 
 useValue : String -> Context -> Context
 useValue name context =
-    { context | used = Set.insert name context.used }
+    case context of
+        [] ->
+            []
+
+        headScope :: rest ->
+            { headScope | used = Set.insert name headScope.used } :: rest
 
 
 isNodeInContext : Context -> Node String -> Bool
@@ -597,4 +622,9 @@ isNodeInContext context (Node _ value) =
 
 isUnused : String -> Context -> Bool
 isUnused name context =
-    not <| Set.member name context.used
+    case context of
+        [] ->
+            False
+
+        headScope :: _ ->
+            not <| Set.member name headScope.used
