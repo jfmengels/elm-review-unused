@@ -187,7 +187,8 @@ expressionExitVisitorHelp : Node Expression -> Context -> ( List (Rule.Error {})
 expressionExitVisitorHelp node context =
     case Node.value node of
         Expression.LetExpression { declarations } ->
-            errorsForLetDeclarationList declarations context
+            --errorsForLetDeclarationList declarations context
+            ( [], context )
 
         Expression.CaseExpression { cases } ->
             ( [], context )
