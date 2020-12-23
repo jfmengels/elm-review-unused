@@ -74,8 +74,16 @@ rule =
 
 
 type alias Context =
-    { declared : Dict String { range : Range }
+    { declared : Dict String FoundPattern
     , used : Set String
+    }
+
+
+type alias FoundPattern =
+    { range : Range
+    , message : String
+    , details : List String
+    , fix : List Fix
     }
 
 
@@ -194,14 +202,22 @@ rememberPattern (Node range pattern) context =
         Pattern.AllPattern ->
             context
 
-        Pattern.VarPattern value ->
-            rememberValue value range context
+        Pattern.VarPattern name ->
+            rememberValue name
+                { message = "Value `" ++ name ++ "` is not used."
+                , details = singularDetails
+                , range = range
+                , fix = [ Fix.replaceRangeBy range "_" ]
+                }
+                context
 
         Pattern.TuplePattern patterns ->
             rememberPatternList patterns context
 
         Pattern.RecordPattern values ->
-            rememberValueList values context
+            --List.foldl (\node -> rememberValue (Node.value node) (Node.range node)) context list
+            -- TODO
+            context
 
         Pattern.UnConsPattern first second ->
             context
@@ -217,7 +233,7 @@ rememberPattern (Node range pattern) context =
         Pattern.AsPattern inner name ->
             context
                 |> rememberPattern inner
-                |> rememberValue (Node.value name) (Node.range name)
+                |> rememberValue (Node.value name) (foundPatternForAsPattern range inner name)
 
         Pattern.ParenthesizedPattern inner ->
             rememberPattern inner context
@@ -409,6 +425,42 @@ errorsForRecordValueList recordRange list context =
             )
 
 
+
+--foundPatternForRecordValueList : Range -> List (Node String) -> List ( String, FoundPattern )
+--foundPatternForRecordValueList recordRange list =
+--        firstNode :: restNodes ->
+--            let
+--                first : String
+--                first =
+--                    Node.value firstNode
+--
+--                rest : List String
+--                rest =
+--                    List.map Node.value restNodes
+--
+--                ( errorRange, fix ) =
+--                    case used of
+--                        [] ->
+--                            ( recordRange, Fix.replaceRangeBy recordRange "_" )
+--
+--                        _ ->
+--                            ( Range.combine (List.map Node.range unused)
+--                            , Node Range.emptyRange (Pattern.RecordPattern used)
+--                                |> Writer.writePattern
+--                                |> Writer.write
+--                                |> Fix.replaceRangeBy recordRange
+--                            )
+--            in
+--            [ ( first
+--              , { message = listToMessage first rest
+--                , details = listToDetails first rest
+--                , range = errorRange
+--                , fix = [ fix ]
+--                }
+--              )
+--            ]
+
+
 listToMessage : String -> List String -> String
 listToMessage first rest =
     case List.reverse rest of
@@ -466,6 +518,32 @@ errorsForAsPattern patternRange inner (Node range name) context =
         ( [], context )
 
 
+foundPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
+foundPatternForAsPattern patternRange inner (Node range name) =
+    if isAllPattern inner then
+        { message = "Pattern `_` is not needed."
+        , details = removeDetails
+        , range = Node.range inner
+        , fix = [ Fix.replaceRangeBy patternRange name ]
+        }
+
+    else
+        let
+            fix : List Fix
+            fix =
+                [ inner
+                    |> Writer.writePattern
+                    |> Writer.write
+                    |> Fix.replaceRangeBy patternRange
+                ]
+        in
+        { message = "Pattern alias `" ++ name ++ "` is not used."
+        , details = singularDetails
+        , range = range
+        , fix = fix
+        }
+
+
 isAllPattern : Node Pattern -> Bool
 isAllPattern (Node _ pattern) =
     case pattern of
@@ -498,14 +576,13 @@ errorsForValue name range context =
         ( [], context )
 
 
-rememberValue : String -> Range -> Context -> Context
-rememberValue name range context =
-    { context | declared = Dict.insert name { range = range } context.declared }
-
-
-rememberValueList : List (Node String) -> Context -> Context
-rememberValueList list context =
-    List.foldl (\node -> rememberValue (Node.value node) (Node.range node)) context list
+rememberValue :
+    String
+    -> FoundPattern
+    -> Context
+    -> Context
+rememberValue name foundPattern context =
+    { context | declared = Dict.insert name foundPattern context.declared }
 
 
 useValue : String -> Context -> Context
