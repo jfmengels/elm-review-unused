@@ -324,19 +324,19 @@ valueVisitor (Node _ ( moduleName, value )) context =
 --- ON ENTER
 
 
-rememberPatternList : List (Node Pattern) -> Context -> Context
-rememberPatternList list context =
-    List.foldl rememberPattern context list
+registerPatternList : List (Node Pattern) -> Context -> Context
+registerPatternList list context =
+    List.foldl registerPattern context list
 
 
-rememberPattern : Node Pattern -> Context -> Context
-rememberPattern (Node range pattern) context =
+registerPattern : Node Pattern -> Context -> Context
+registerPattern (Node range pattern) context =
     case pattern of
         Pattern.AllPattern ->
             context
 
         Pattern.VarPattern name ->
-            rememberValue
+            registerValue
                 (SingleValue
                     { name = name
                     , message = "Value `" ++ name ++ "` is not used."
@@ -348,29 +348,29 @@ rememberPattern (Node range pattern) context =
                 context
 
         Pattern.TuplePattern patterns ->
-            rememberPatternList patterns context
+            registerPatternList patterns context
 
         Pattern.RecordPattern _ ->
             context
 
         Pattern.UnConsPattern first second ->
             context
-                |> rememberPattern first
-                |> rememberPattern second
+                |> registerPattern first
+                |> registerPattern second
 
         Pattern.ListPattern patterns ->
-            rememberPatternList patterns context
+            registerPatternList patterns context
 
         Pattern.NamedPattern _ patterns ->
-            rememberPatternList patterns context
+            registerPatternList patterns context
 
         Pattern.AsPattern inner name ->
             context
-                |> rememberPattern inner
-                |> rememberValue (findPatternForAsPattern range inner name)
+                |> registerPattern inner
+                |> registerValue (findPatternForAsPattern range inner name)
 
         Pattern.ParenthesizedPattern inner ->
-            rememberPattern inner context
+            registerPattern inner context
 
         _ ->
             context
@@ -730,11 +730,11 @@ errorsForValue name range context =
         ( [], context )
 
 
-rememberValue :
+registerValue :
     FoundPattern
     -> Context
     -> Context
-rememberValue foundPattern context =
+registerValue foundPattern context =
     case context.scopes of
         [] ->
             context
