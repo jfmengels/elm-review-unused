@@ -71,12 +71,14 @@ rule =
 
 
 type alias Context =
-    Set String
+    { declared : Set String
+    }
 
 
 initialContext : Context
 initialContext =
-    Set.empty
+    { declared = Set.empty
+    }
 
 
 
@@ -469,8 +471,13 @@ errorsForValue name range context =
 
 
 rememberValue : String -> Context -> Context
-rememberValue value context =
-    Set.insert value context
+rememberValue name context =
+    { context | declared = Set.insert name context.declared }
+
+
+useValue : String -> Context -> Context
+useValue name context =
+    { context | declared = Set.remove name context.declared }
 
 
 isNodeInContext : Context -> Node String -> Bool
@@ -480,9 +487,4 @@ isNodeInContext context (Node _ value) =
 
 isUnused : String -> Context -> Bool
 isUnused name context =
-    Set.member name context
-
-
-useValue : String -> Context -> Context
-useValue name context =
-    Set.remove name context
+    Set.member name context.declared
