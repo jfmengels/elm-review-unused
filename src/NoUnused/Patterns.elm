@@ -324,58 +324,6 @@ valueVisitor (Node _ ( moduleName, value )) context =
 --- ON ENTER
 
 
-registerPatternList : List (Node Pattern) -> Context -> Context
-registerPatternList list context =
-    List.foldl registerPattern context list
-
-
-registerPattern : Node Pattern -> Context -> Context
-registerPattern (Node range pattern) context =
-    case pattern of
-        Pattern.AllPattern ->
-            context
-
-        Pattern.VarPattern name ->
-            registerValue
-                (SingleValue
-                    { name = name
-                    , message = "Value `" ++ name ++ "` is not used."
-                    , details = singularDetails
-                    , range = range
-                    , fix = [ Fix.replaceRangeBy range "_" ]
-                    }
-                )
-                context
-
-        Pattern.TuplePattern patterns ->
-            registerPatternList patterns context
-
-        Pattern.RecordPattern _ ->
-            context
-
-        Pattern.UnConsPattern first second ->
-            context
-                |> registerPattern first
-                |> registerPattern second
-
-        Pattern.ListPattern patterns ->
-            registerPatternList patterns context
-
-        Pattern.NamedPattern _ patterns ->
-            registerPatternList patterns context
-
-        Pattern.AsPattern inner name ->
-            context
-                |> registerPattern inner
-                |> registerValue (findPatternForAsPattern range inner name)
-
-        Pattern.ParenthesizedPattern inner ->
-            registerPattern inner context
-
-        _ ->
-            context
-
-
 findPatterns : PatternUse -> Node Pattern -> List FoundPattern
 findPatterns use (Node range pattern) =
     case pattern of
@@ -728,19 +676,6 @@ errorsForValue name range context =
 
     else
         ( [], context )
-
-
-registerValue :
-    FoundPattern
-    -> Context
-    -> Context
-registerValue foundPattern context =
-    case context.scopes of
-        [] ->
-            context
-
-        headScope :: restOfScopes ->
-            { context | scopes = { headScope | declared = foundPattern :: headScope.declared } :: restOfScopes }
 
 
 useValue : String -> Context -> Context
