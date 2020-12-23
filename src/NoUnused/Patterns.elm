@@ -116,6 +116,16 @@ declarationVisitor _ _ =
 
 expressionEnterVisitor : Node Expression -> Context -> ( List nothing, Context )
 expressionEnterVisitor node context =
+    let
+        newContext : Context
+        newContext =
+            context
+    in
+    expressionEnterVisitorHelp node newContext
+
+
+expressionEnterVisitorHelp : Node Expression -> Context -> ( List nothing, Context )
+expressionEnterVisitorHelp node context =
     case Node.value node of
         Expression.LetExpression { declarations } ->
             ( []
