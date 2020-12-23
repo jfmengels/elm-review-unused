@@ -255,6 +255,40 @@ foo =
             Nothing
 """
                     ]
+    , test "report unused values with the same name as found in different functions" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case bar of
+        bish ->
+            bish
+bar =
+    case bar of
+        bish ->
+            Nothing
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Value `bish` is not used."
+                        , details = details
+                        , under = "bish"
+                        }
+                        |> Review.Test.atExactly { start = { row = 9, column = 9 }, end = { row = 9, column = 13 } }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case bar of
+        bish ->
+            bish
+bar =
+    case bar of
+        _ ->
+            Nothing
+"""
+                    ]
     ]
 
 
