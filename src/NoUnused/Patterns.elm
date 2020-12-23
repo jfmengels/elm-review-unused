@@ -449,6 +449,28 @@ findPatterns (Node range pattern) =
                 }
             ]
 
+        Pattern.TuplePattern [ Node _ Pattern.AllPattern, Node _ Pattern.AllPattern ] ->
+            [ SimplifiablePattern
+                (Rule.errorWithFix
+                    { message = "Tuple pattern is not needed."
+                    , details = removeDetails
+                    }
+                    range
+                    [ Fix.replaceRangeBy range "_" ]
+                )
+            ]
+
+        Pattern.TuplePattern [ Node _ Pattern.AllPattern, Node _ Pattern.AllPattern, Node _ Pattern.AllPattern ] ->
+            [ SimplifiablePattern
+                (Rule.errorWithFix
+                    { message = "Tuple pattern is not needed."
+                    , details = removeDetails
+                    }
+                    range
+                    [ Fix.replaceRangeBy range "_" ]
+                )
+            ]
+
         Pattern.TuplePattern patterns ->
             List.concatMap findPatterns patterns
 
