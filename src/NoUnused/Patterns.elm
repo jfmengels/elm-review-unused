@@ -111,7 +111,7 @@ declarationVisitor _ _ =
 -- EXPRESSION ENTER VISITOR
 
 
-expressionEnterVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
+expressionEnterVisitor : Node Expression -> Context -> ( List nothing, Context )
 expressionEnterVisitor node context =
     case Node.value node of
         Expression.LetExpression { declarations } ->
