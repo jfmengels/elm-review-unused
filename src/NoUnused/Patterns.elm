@@ -132,6 +132,19 @@ expressionEnterVisitor node context =
             ( [], context )
 
 
+expressionExitVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
+expressionExitVisitor node context =
+    case Node.value node of
+        Expression.LetExpression { declarations } ->
+            errorsForLetDeclarationList declarations context
+
+        Expression.CaseExpression { cases } ->
+            errorsForCaseList cases context
+
+        _ ->
+            ( [], context )
+
+
 report : Context -> ( List (Rule.Error {}), Context )
 report context =
     case context.scopes of
@@ -154,19 +167,6 @@ report context =
                         |> List.map (\( key, variableInfo ) -> Debug.todo "")
             in
             ( errors, { context | scopes = restOfScopes } )
-
-
-expressionExitVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
-expressionExitVisitor node context =
-    case Node.value node of
-        Expression.LetExpression { declarations } ->
-            errorsForLetDeclarationList declarations context
-
-        Expression.CaseExpression { cases } ->
-            errorsForCaseList cases context
-
-        _ ->
-            ( [], context )
 
 
 valueVisitor : Node ( ModuleName, String ) -> Context -> ( List (Rule.Error {}), Context )
