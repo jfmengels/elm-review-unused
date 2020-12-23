@@ -119,7 +119,12 @@ expressionEnterVisitor node context =
     let
         newContext : Context
         newContext =
-            context
+            case RangeDict.get (Node.range node) context.scopesToCreate of
+                Just declared ->
+                    { context | scopes = { declared = declared, used = Set.empty } :: context.scopes }
+
+                Nothing ->
+                    context
     in
     expressionEnterVisitorHelp node newContext
 
@@ -147,6 +152,23 @@ expressionEnterVisitorHelp node context =
 
 expressionExitVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
 expressionExitVisitor node context =
+    let
+        ( errors, newContext ) =
+            case RangeDict.get (Node.range node) context.scopesToCreate of
+                Just _ ->
+                    report context
+
+                Nothing ->
+                    ( [], context )
+
+        ( errorsToRemoveTODO, resultContext ) =
+            expressionExitVisitorHelp node newContext
+    in
+    ( errors ++ errorsToRemoveTODO, resultContext )
+
+
+expressionExitVisitorHelp : Node Expression -> Context -> ( List (Rule.Error {}), Context )
+expressionExitVisitorHelp node context =
     case Node.value node of
         Expression.LetExpression { declarations } ->
             errorsForLetDeclarationList declarations context
@@ -161,10 +183,7 @@ expressionExitVisitor node context =
 report : Context -> ( List (Rule.Error {}), Context )
 report context =
     case context.scopes of
-        [] ->
-            ( [], context )
-
-        headScope :: restOfScopes ->
+        headScope :: secondScope :: restOfScopes ->
             let
                 nonUsedVars : Set String
                 nonUsedVars =
@@ -179,7 +198,10 @@ report context =
                         --error variableInfo key)
                         |> List.map (\( key, variableInfo ) -> Debug.todo "")
             in
-            ( errors, { context | scopes = restOfScopes } )
+            ( errors, { context | scopes = { secondScope | used = Set.union nonUsedVars secondScope.used } :: restOfScopes } )
+
+        _ ->
+            ( [], context )
 
 
 valueVisitor : Node ( ModuleName, String ) -> Context -> ( List (Rule.Error {}), Context )
