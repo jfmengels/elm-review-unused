@@ -643,42 +643,6 @@ errorsForRecordValueList recordRange list context =
             )
 
 
-
---foundPatternForRecordValueList : Range -> List (Node String) -> List ( String, FoundPattern )
---foundPatternForRecordValueList recordRange list =
---        firstNode :: restNodes ->
---            let
---                first : String
---                first =
---                    Node.value firstNode
---
---                rest : List String
---                rest =
---                    List.map Node.value restNodes
---
---                ( errorRange, fix ) =
---                    case used of
---                        [] ->
---                            ( recordRange, Fix.replaceRangeBy recordRange "_" )
---
---                        _ ->
---                            ( Range.combine (List.map Node.range unused)
---                            , Node Range.emptyRange (Pattern.RecordPattern used)
---                                |> Writer.writePattern
---                                |> Writer.write
---                                |> Fix.replaceRangeBy recordRange
---                            )
---            in
---            [ ( first
---              , { message = listToMessage first rest
---                , details = listToDetails first rest
---                , range = errorRange
---                , fix = [ fix ]
---                }
---              )
---            ]
-
-
 listToMessage : String -> List String -> String
 listToMessage first rest =
     case List.reverse rest of
