@@ -112,6 +112,11 @@ expressionEnterVisitor node context =
             ( [], context )
 
 
+report : Context -> ( List (Rule.Error {}), Context )
+report context =
+    ( [], context )
+
+
 expressionExitVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
 expressionExitVisitor node context =
     case Node.value node of
