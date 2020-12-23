@@ -10,6 +10,7 @@ module NoUnused.Patterns exposing (rule)
 -}
 
 import Dict exposing (Dict)
+import Elm.Syntax.Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
@@ -65,6 +66,7 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Patte
 rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoUnused.Patterns" initialContext
+        |> Rule.withDeclarationEnterVisitor declarationVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> NameVisitor.withValueVisitor valueVisitor
@@ -82,6 +84,15 @@ initialContext =
     { declared = Dict.empty
     , used = Set.empty
     }
+
+
+
+-- DECLARATION ENTER VISITOR
+
+
+declarationVisitor : Node Declaration -> Context -> ( List nothing, Context )
+declarationVisitor _ _ =
+    ( [], initialContext )
 
 
 
