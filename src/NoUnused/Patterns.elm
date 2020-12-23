@@ -94,7 +94,10 @@ type FoundPattern
         , details : List String
         , fix : List Fix
         }
-    | RecordPattern Range (List (Node String))
+    | RecordPattern
+        { fields : List (Node String)
+        , recordRange : Range
+        }
 
 
 initialContext : Context
@@ -219,7 +222,7 @@ report context =
                                             pattern.fix
                                         ]
 
-                                    RecordPattern recordRange fields ->
+                                    RecordPattern { fields, recordRange } ->
                                         let
                                             ( unused, used ) =
                                                 List.partition (isNodeInContext context) fields
