@@ -379,11 +379,6 @@ errorsForRecordValueList recordRange list context =
             )
 
 
-isNodeInContext : Context -> Node String -> Bool
-isNodeInContext context (Node _ value) =
-    Set.member value context
-
-
 listToMessage : String -> List String -> String
 listToMessage first rest =
     case List.reverse rest of
@@ -406,7 +401,7 @@ listToDetails _ rest =
 
 errorsForAsPattern : Range -> Node Pattern -> Node String -> Context -> ( List (Rule.Error {}), Context )
 errorsForAsPattern patternRange inner (Node range name) context =
-    if Set.member name context then
+    if isUnused name context then
         let
             fix : List Fix
             fix =
@@ -457,16 +452,16 @@ forgetNode (Node _ value) context =
 
 
 errorsForValue : String -> Range -> Context -> ( List (Rule.Error {}), Context )
-errorsForValue value range context =
-    if Set.member value context then
+errorsForValue name range context =
+    if isUnused name context then
         ( [ Rule.errorWithFix
-                { message = "Value `" ++ value ++ "` is not used."
+                { message = "Value `" ++ name ++ "` is not used."
                 , details = singularDetails
                 }
                 range
                 [ Fix.replaceRangeBy range "_" ]
           ]
-        , useValue value context
+        , useValue name context
         )
 
     else
@@ -478,6 +473,16 @@ rememberValue value context =
     Set.insert value context
 
 
+isNodeInContext : Context -> Node String -> Bool
+isNodeInContext context (Node _ value) =
+    isUnused value context
+
+
+isUnused : String -> Context -> Bool
+isUnused name context =
+    Set.member name context
+
+
 useValue : String -> Context -> Context
-useValue value context =
-    Set.remove value context
+useValue name context =
+    Set.remove name context
