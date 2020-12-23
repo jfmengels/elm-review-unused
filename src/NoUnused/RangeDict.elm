@@ -1,4 +1,4 @@
-module NoUnused.RangeDict exposing (RangeDict, empty, fromList, get, insert, member)
+module NoUnused.RangeDict exposing (RangeDict, empty, fromList, get, insert, member, singleton)
 
 import Dict exposing (Dict)
 import Elm.Syntax.Range exposing (Range)
@@ -11,6 +11,11 @@ type alias RangeDict v =
 empty : RangeDict v
 empty =
     Dict.empty
+
+
+singleton : Range -> v -> RangeDict v
+singleton range =
+    Dict.singleton (rangeAsString range)
 
 
 insert : Range -> v -> RangeDict v -> RangeDict v

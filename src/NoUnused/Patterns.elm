@@ -136,14 +136,23 @@ expressionEnterVisitorHelp node context =
             ( []
             , rememberLetDeclarationList
                 declarations
-                { context | scopes = { declared = Dict.empty, used = Set.empty } :: context.scopes }
+                { context
+                    | scopes = { declared = Dict.empty, used = Set.empty } :: context.scopes
+
+                    --, scopesToCreate = RangeDict.insert (Node.range expr) (findPatterns pattern) context.scopesToCreate)
+                }
             )
 
         Expression.CaseExpression { cases } ->
             ( []
-            , rememberCaseList
-                cases
-                { context | scopes = { declared = Dict.empty, used = Set.empty } :: context.scopes }
+            , { context
+                | scopes = { declared = Dict.empty, used = Set.empty } :: context.scopes
+                , scopesToCreate =
+                    List.foldl
+                        (\( pattern, expr ) scopesToCreate -> RangeDict.insert (Node.range expr) (findPatterns pattern) scopesToCreate)
+                        context.scopesToCreate
+                        cases
+              }
             )
 
         _ ->
@@ -304,6 +313,49 @@ rememberPattern (Node range pattern) context =
 
         _ ->
             context
+
+
+findPatterns : Node Pattern -> Dict String FoundPattern
+findPatterns (Node range pattern) =
+    case pattern of
+        Pattern.VarPattern name ->
+            Dict.singleton
+                name
+                { message = "Value `" ++ name ++ "` is not used."
+                , details = singularDetails
+                , range = range
+                , fix = [ Fix.replaceRangeBy range "_" ]
+                }
+
+        Pattern.TuplePattern patterns ->
+            List.foldl (findPatterns >> Dict.union) Dict.empty patterns
+
+        Pattern.RecordPattern values ->
+            --List.foldl (\node -> rememberValue (Node.value node) (Node.range node)) context list
+            -- TODO
+            Dict.empty
+
+        Pattern.UnConsPattern first second ->
+            Dict.union
+                (findPatterns first)
+                (findPatterns second)
+
+        Pattern.ListPattern patterns ->
+            List.foldl (findPatterns >> Dict.union) Dict.empty patterns
+
+        Pattern.NamedPattern _ patterns ->
+            List.foldl (findPatterns >> Dict.union) Dict.empty patterns
+
+        Pattern.AsPattern inner name ->
+            Dict.union
+                (Dict.singleton (Node.value name) (foundPatternForAsPattern range inner name))
+                (findPatterns inner)
+
+        Pattern.ParenthesizedPattern inner ->
+            findPatterns inner
+
+        _ ->
+            Dict.empty
 
 
 
