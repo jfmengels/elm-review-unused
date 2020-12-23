@@ -140,14 +140,29 @@ expressionEnterVisitorHelp : Node Expression -> Context -> ( List nothing, Conte
 expressionEnterVisitorHelp node context =
     case Node.value node of
         Expression.LetExpression { declarations } ->
-            ( []
-            , rememberLetDeclarationList
-                declarations
-                { context
-                    | scopes = { declared = [], used = Set.empty } :: context.scopes
+            let
+                findPatternsInLetDeclaration : Node Expression.LetDeclaration -> List FoundPattern
+                findPatternsInLetDeclaration letDeclaration =
+                    case Node.value letDeclaration of
+                        Expression.LetFunction _ ->
+                            []
 
-                    --, scopesToCreate = RangeDict.insert (Node.range expr) (findPatterns pattern) context.scopesToCreate)
-                }
+                        Expression.LetDestructuring pattern _ ->
+                            findPatterns pattern
+            in
+            ( []
+            , --rememberLetDeclarationList
+              --   declarations
+              { context
+                | scopes =
+                    { declared = List.concatMap findPatternsInLetDeclaration declarations
+                    , used = Set.empty
+                    }
+                        :: context.scopes
+
+                -- Will only be used to remove on exit, we are already adding the declared patterns to the scope above
+                , scopesToCreate = RangeDict.insert (Node.range node) [] context.scopesToCreate
+              }
             )
 
         Expression.CaseExpression { cases } ->
