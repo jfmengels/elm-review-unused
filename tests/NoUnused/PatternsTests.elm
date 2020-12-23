@@ -380,6 +380,52 @@ foo =
     bar
 """
                     ]
+    , test "should report unused values even if the same name is used in different scopes" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case a of
+      A ->
+        let
+            ( left, right ) =
+                tupleValue
+        in
+        left + right
+      B ->
+        let
+            ( left, right ) =
+                tupleValue
+        in
+        left
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Value `right` is not used."
+                        , details = details
+                        , under = "right"
+                        }
+                        |> Review.Test.atExactly { start = { row = 13, column = 21 }, end = { row = 13, column = 26 } }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    case a of
+      A ->
+        let
+            ( left, right ) =
+                tupleValue
+        in
+        left + right
+      B ->
+        let
+            ( left, _ ) =
+                tupleValue
+        in
+        left
+"""
+                    ]
     ]
 
 
