@@ -479,7 +479,7 @@ rememberValue name context =
 
 useValue : String -> Context -> Context
 useValue name context =
-    { context | declared = Set.remove name context.declared }
+    { context | used = Set.insert name context.used }
 
 
 isNodeInContext : Context -> Node String -> Bool
@@ -489,4 +489,4 @@ isNodeInContext context (Node _ value) =
 
 isUnused : String -> Context -> Bool
 isUnused name context =
-    Set.member name context.declared
+    not <| Set.member name context.used
