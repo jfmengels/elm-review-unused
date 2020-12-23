@@ -193,7 +193,7 @@ report context =
 
                 errors : List (Rule.Error {})
                 errors =
-                    Dict.filter (\key _ -> not <| Set.member key headScope.used) headScope.declared
+                    Dict.filter (\name _ -> not <| Set.member name headScope.used) headScope.declared
                         |> Dict.toList
                         --error variableInfo key)
                         |> List.map (\( key, variableInfo ) -> Debug.todo "")
