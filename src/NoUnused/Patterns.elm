@@ -148,7 +148,7 @@ expressionEnterVisitorHelp node context =
                             []
 
                         Expression.LetDestructuring pattern _ ->
-                            findPatterns pattern
+                            findPatterns Destructuring pattern
             in
             ( []
             , --rememberLetDeclarationList
@@ -171,7 +171,7 @@ expressionEnterVisitorHelp node context =
                 | scopes = { declared = [], used = Set.empty } :: context.scopes
                 , scopesToCreate =
                     List.foldl
-                        (\( pattern, expr ) scopesToCreate -> RangeDict.insert (Node.range expr) (findPatterns pattern) scopesToCreate)
+                        (\( pattern, expr ) scopesToCreate -> RangeDict.insert (Node.range expr) (findPatterns Matching pattern) scopesToCreate)
                         context.scopesToCreate
                         cases
               }
@@ -436,8 +436,8 @@ rememberPattern (Node range pattern) context =
             context
 
 
-findPatterns : Node Pattern -> List FoundPattern
-findPatterns (Node range pattern) =
+findPatterns : PatternUse -> Node Pattern -> List FoundPattern
+findPatterns use (Node range pattern) =
     case pattern of
         Pattern.VarPattern name ->
             [ SingleValue
@@ -472,7 +472,7 @@ findPatterns (Node range pattern) =
             ]
 
         Pattern.TuplePattern patterns ->
-            List.concatMap findPatterns patterns
+            List.concatMap (findPatterns use) patterns
 
         Pattern.RecordPattern fields ->
             [ RecordPattern
@@ -482,19 +482,31 @@ findPatterns (Node range pattern) =
             ]
 
         Pattern.UnConsPattern first second ->
-            findPatterns first ++ findPatterns second
+            findPatterns use first ++ findPatterns use second
 
         Pattern.ListPattern patterns ->
-            List.concatMap findPatterns patterns
+            List.concatMap (findPatterns use) patterns
 
         Pattern.NamedPattern _ patterns ->
-            List.concatMap findPatterns patterns
+            if use == Destructuring && List.all isAllPattern patterns then
+                [ SimplifiablePattern
+                    (Rule.errorWithFix
+                        { message = "Named pattern is not needed."
+                        , details = removeDetails
+                        }
+                        range
+                        [ Fix.replaceRangeBy range "_" ]
+                    )
+                ]
+
+            else
+                List.concatMap (findPatterns use) patterns
 
         Pattern.AsPattern inner name ->
-            findPatternForAsPattern range inner name :: findPatterns inner
+            findPatternForAsPattern range inner name :: findPatterns use inner
 
         Pattern.ParenthesizedPattern inner ->
-            findPatterns inner
+            findPatterns use inner
 
         _ ->
             []
