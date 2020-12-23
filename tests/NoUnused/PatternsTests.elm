@@ -828,7 +828,7 @@ foo =
         { bish, bash } =
             bar
     in
-    bosh
+    1
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
@@ -845,7 +845,36 @@ foo =
         _ =
             bar
     in
-    bosh
+    1
+"""
+                    ]
+    , test "should replace unused tuple when there is a single non-`_` element" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    let
+        ( foo, _ ) =
+            bar
+    in
+    1
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Value `foo` is not used."
+                        , details = [ "You should remove it at the location I pointed at." ]
+                        , under = "( foo, _ )"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    let
+        _ =
+            bar
+    in
+    1
 """
                     ]
     , test "should report unused record values" <|
