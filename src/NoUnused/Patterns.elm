@@ -418,7 +418,7 @@ errorsForAsPattern patternRange inner (Node range name) context =
                 range
                 fix
           ]
-        , Set.remove name context
+        , useValue name context
         )
 
     else if isAllPattern inner then
@@ -429,7 +429,7 @@ errorsForAsPattern patternRange inner (Node range name) context =
                 (Node.range inner)
                 [ Fix.replaceRangeBy patternRange name ]
           ]
-        , Set.remove name context
+        , useValue name context
         )
 
     else
