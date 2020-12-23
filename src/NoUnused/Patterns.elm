@@ -88,7 +88,8 @@ type alias Scope =
 
 type FoundPattern
     = SingleValue
-        { range : Range
+        { name : String
+        , range : Range
         , message : String
         , details : List String
         , fix : List Fix
@@ -323,7 +324,8 @@ rememberPattern (Node range pattern) context =
         Pattern.VarPattern name ->
             rememberValue name
                 (SingleValue
-                    { message = "Value `" ++ name ++ "` is not used."
+                    { name = name
+                    , message = "Value `" ++ name ++ "` is not used."
                     , details = singularDetails
                     , range = range
                     , fix = [ Fix.replaceRangeBy range "_" ]
@@ -369,7 +371,8 @@ findPatterns (Node range pattern) =
             Dict.singleton
                 name
                 (SingleValue
-                    { message = "Value `" ++ name ++ "` is not used."
+                    { name = name
+                    , message = "Value `" ++ name ++ "` is not used."
                     , details = singularDetails
                     , range = range
                     , fix = [ Fix.replaceRangeBy range "_" ]
@@ -687,7 +690,8 @@ foundPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
 foundPatternForAsPattern patternRange inner (Node range name) =
     if isAllPattern inner then
         SingleValue
-            { message = "Pattern `_` is not needed."
+            { name = "_"
+            , message = "Pattern `_` is not needed."
             , details = removeDetails
             , range = Node.range inner
             , fix = [ Fix.replaceRangeBy patternRange name ]
@@ -704,7 +708,8 @@ foundPatternForAsPattern patternRange inner (Node range name) =
                 ]
         in
         SingleValue
-            { message = "Pattern alias `" ++ name ++ "` is not used."
+            { name = name
+            , message = "Pattern alias `" ++ name ++ "` is not used."
             , details = singularDetails
             , range = range
             , fix = fix
