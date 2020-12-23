@@ -98,7 +98,7 @@ type FoundPattern
         { fields : List (Node String)
         , recordRange : Range
         }
-    | UselessAllPatternAlias ( Range, Fix )
+    | SimplifiablePattern { range : Range, fix : List Fix }
 
 
 initialContext : Context
@@ -217,7 +217,7 @@ report context =
     case context.scopes of
         headScope :: restOfScopes ->
             let
-                { singles, records, uselessAllPatternErrors } =
+                { singles, records, simplifiablePatterns } =
                     findDeclaredPatterns headScope
 
                 _ =
@@ -227,7 +227,7 @@ report context =
                     Debug.log "\nrecords" records
 
                 _ =
-                    Debug.log "\nuselessAllPatternErrors" uselessAllPatternErrors
+                    Debug.log "\nsimplifiablePatterns" simplifiablePatterns
 
                 allDeclared : List String
                 allDeclared =
@@ -247,7 +247,7 @@ report context =
                     List.concat
                         [ singleErrors
                         , recordErrors
-                        , uselessAllPatternErrors
+                        , simplifiablePatterns
                         ]
 
                 singleErrors : List (Rule.Error {})
@@ -324,7 +324,7 @@ findDeclaredPatterns :
     ->
         { singles : List { name : String, range : Range, message : String, details : List String, fix : List Fix }
         , records : List { fields : List (Node String), recordRange : Range }
-        , uselessAllPatternErrors : List (Rule.Error {})
+        , simplifiablePatterns : List (Rule.Error {})
         }
 findDeclaredPatterns scope =
     List.foldl
@@ -336,19 +336,19 @@ findDeclaredPatterns scope =
                 RecordPattern v ->
                     { acc | records = v :: acc.records }
 
-                UselessAllPatternAlias ( rangeToReport, fix ) ->
+                SimplifiablePattern { range, fix } ->
                     { acc
-                        | uselessAllPatternErrors =
+                        | simplifiablePatterns =
                             Rule.errorWithFix
                                 { message = "Pattern `_` is not needed."
                                 , details = removeDetails
                                 }
-                                rangeToReport
-                                [ fix ]
-                                :: acc.uselessAllPatternErrors
+                                range
+                                fix
+                                :: acc.simplifiablePatterns
                     }
         )
-        { singles = [], records = [], uselessAllPatternErrors = [] }
+        { singles = [], records = [], simplifiablePatterns = [] }
         scope.declared
 
 
@@ -730,7 +730,10 @@ errorsForAsPattern patternRange inner (Node range name) context =
 findPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
 findPatternForAsPattern patternRange inner (Node range name) =
     if isAllPattern inner then
-        UselessAllPatternAlias ( Node.range inner, Fix.replaceRangeBy patternRange name )
+        SimplifiablePattern
+            { range = Node.range inner
+            , fix = [ Fix.replaceRangeBy patternRange name ]
+            }
 
     else
         let
