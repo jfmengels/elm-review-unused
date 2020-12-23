@@ -244,6 +244,7 @@ foo =
                         , details = details
                         , under = "foo"
                         }
+                        |> Review.Test.atExactly { start = { row = 7, column = 20 }, end = { row = 7, column = 23 } }
                         |> Review.Test.whenFixed
                             """
 module A exposing (..)
