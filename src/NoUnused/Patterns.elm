@@ -18,6 +18,7 @@ import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Writer as Writer
 import NoUnused.Patterns.NameVisitor as NameVisitor
+import NoUnused.RangeDict as RangeDict exposing (RangeDict)
 import Review.Fix as Fix exposing (Fix)
 import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
@@ -75,6 +76,7 @@ rule =
 
 type alias Context =
     { scopes : List Scope
+    , scopesToCreate : RangeDict (Dict String FoundPattern)
     }
 
 
@@ -95,6 +97,7 @@ type alias FoundPattern =
 initialContext : Context
 initialContext =
     { scopes = []
+    , scopesToCreate = RangeDict.empty
     }
 
 
