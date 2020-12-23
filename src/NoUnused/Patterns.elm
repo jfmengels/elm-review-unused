@@ -70,6 +70,19 @@ rule =
         |> Rule.fromModuleRuleSchema
 
 
+type alias Context =
+    Set String
+
+
+initialContext : Context
+initialContext =
+    Set.empty
+
+
+
+-- EXPRESSION ENTER VISITOR
+
+
 expressionEnterVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
 expressionEnterVisitor node context =
     case Node.value node of
@@ -441,19 +454,6 @@ isAllPattern (Node _ pattern) =
 forgetNode : Node String -> Context -> Context
 forgetNode (Node _ value) context =
     Set.remove value context
-
-
-
---- CONTEXT
-
-
-type alias Context =
-    Set String
-
-
-initialContext : Context
-initialContext =
-    Set.empty
 
 
 errorsForValue : String -> Range -> Context -> ( List (Rule.Error {}), Context )
