@@ -74,7 +74,8 @@ rule =
 
 
 type alias Context =
-    List Scope
+    { scopes : List Scope
+    }
 
 
 type alias Scope =
@@ -93,7 +94,8 @@ type alias FoundPattern =
 
 initialContext : Context
 initialContext =
-    []
+    { scopes = []
+    }
 
 
 
@@ -116,14 +118,14 @@ expressionEnterVisitor node context =
             ( []
             , rememberLetDeclarationList
                 declarations
-                ({ declared = Dict.empty, used = Set.empty } :: context)
+                { context | scopes = { declared = Dict.empty, used = Set.empty } :: context.scopes }
             )
 
         Expression.CaseExpression { cases } ->
             ( []
             , rememberCaseList
                 cases
-                ({ declared = Dict.empty, used = Set.empty } :: context)
+                { context | scopes = { declared = Dict.empty, used = Set.empty } :: context.scopes }
             )
 
         _ ->
@@ -132,11 +134,11 @@ expressionEnterVisitor node context =
 
 report : Context -> ( List (Rule.Error {}), Context )
 report context =
-    case context of
+    case context.scopes of
         [] ->
             ( [], context )
 
-        headScope :: rest ->
+        headScope :: restOfScopes ->
             let
                 nonUsedVars : Set String
                 nonUsedVars =
@@ -151,7 +153,7 @@ report context =
                         --error variableInfo key)
                         |> List.map (\( key, variableInfo ) -> Debug.todo "")
             in
-            ( errors, rest )
+            ( errors, { context | scopes = restOfScopes } )
 
 
 expressionExitVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
@@ -597,22 +599,22 @@ rememberValue :
     -> Context
     -> Context
 rememberValue name foundPattern context =
-    case context of
+    case context.scopes of
         [] ->
-            []
+            context
 
-        headScope :: rest ->
-            { headScope | declared = Dict.insert name foundPattern headScope.declared } :: rest
+        headScope :: restOfScopes ->
+            { context | scopes = { headScope | declared = Dict.insert name foundPattern headScope.declared } :: restOfScopes }
 
 
 useValue : String -> Context -> Context
 useValue name context =
-    case context of
+    case context.scopes of
         [] ->
-            []
+            context
 
-        headScope :: rest ->
-            { headScope | used = Set.insert name headScope.used } :: rest
+        headScope :: restOfScopes ->
+            { context | scopes = { headScope | used = Set.insert name headScope.used } :: restOfScopes }
 
 
 isNodeInContext : Context -> Node String -> Bool
@@ -622,7 +624,7 @@ isNodeInContext context (Node _ value) =
 
 isUnused : String -> Context -> Bool
 isUnused name context =
-    case context of
+    case context.scopes of
         [] ->
             False
 
