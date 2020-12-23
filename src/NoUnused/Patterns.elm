@@ -98,7 +98,7 @@ type FoundPattern
         { fields : List (Node String)
         , recordRange : Range
         }
-    | SimplifiablePattern { range : Range, fix : List Fix }
+    | SimplifiablePattern (Rule.Error {})
 
 
 initialContext : Context
@@ -336,17 +336,8 @@ findDeclaredPatterns scope =
                 RecordPattern v ->
                     { acc | records = v :: acc.records }
 
-                SimplifiablePattern { range, fix } ->
-                    { acc
-                        | simplifiablePatterns =
-                            Rule.errorWithFix
-                                { message = "Pattern `_` is not needed."
-                                , details = removeDetails
-                                }
-                                range
-                                fix
-                                :: acc.simplifiablePatterns
-                    }
+                SimplifiablePattern simplifiablePatternError ->
+                    { acc | simplifiablePatterns = simplifiablePatternError :: acc.simplifiablePatterns }
         )
         { singles = [], records = [], simplifiablePatterns = [] }
         scope.declared
@@ -731,9 +722,13 @@ findPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
 findPatternForAsPattern patternRange inner (Node range name) =
     if isAllPattern inner then
         SimplifiablePattern
-            { range = Node.range inner
-            , fix = [ Fix.replaceRangeBy patternRange name ]
-            }
+            (Rule.errorWithFix
+                { message = "Pattern `_` is not needed."
+                , details = removeDetails
+                }
+                (Node.range inner)
+                [ Fix.replaceRangeBy patternRange name ]
+            )
 
     else
         let
