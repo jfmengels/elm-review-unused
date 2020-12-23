@@ -183,7 +183,7 @@ expressionExitVisitorHelp node context =
             errorsForLetDeclarationList declarations context
 
         Expression.CaseExpression { cases } ->
-            errorsForCaseList cases context
+            ( [], context )
 
         _ ->
             ( [], context )
