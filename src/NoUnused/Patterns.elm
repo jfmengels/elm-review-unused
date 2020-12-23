@@ -72,7 +72,7 @@ rule =
 
 
 type alias Context =
-    { declared : Dict String ()
+    { declared : Dict String Range
     , used : Set String
     }
 
@@ -159,13 +159,13 @@ rememberPatternList list context =
 
 
 rememberPattern : Node Pattern -> Context -> Context
-rememberPattern (Node _ pattern) context =
+rememberPattern (Node range pattern) context =
     case pattern of
         Pattern.AllPattern ->
             context
 
         Pattern.VarPattern value ->
-            rememberValue value context
+            rememberValue value range context
 
         Pattern.TuplePattern patterns ->
             rememberPatternList patterns context
@@ -187,18 +187,13 @@ rememberPattern (Node _ pattern) context =
         Pattern.AsPattern inner name ->
             context
                 |> rememberPattern inner
-                |> rememberValue (Node.value name)
+                |> rememberValue (Node.value name) (Node.range name)
 
         Pattern.ParenthesizedPattern inner ->
             rememberPattern inner context
 
         _ ->
             context
-
-
-rememberValueList : List (Node String) -> Context -> Context
-rememberValueList list context =
-    List.foldl (Node.value >> rememberValue) context list
 
 
 
@@ -473,9 +468,14 @@ errorsForValue name range context =
         ( [], context )
 
 
-rememberValue : String -> Context -> Context
-rememberValue name context =
-    { context | declared = Dict.insert name () context.declared }
+rememberValue : String -> Range -> Context -> Context
+rememberValue name range context =
+    { context | declared = Dict.insert name range context.declared }
+
+
+rememberValueList : List (Node String) -> Context -> Context
+rememberValueList list context =
+    List.foldl (\node -> rememberValue (Node.value node) (Node.range node)) context list
 
 
 useValue : String -> Context -> Context
