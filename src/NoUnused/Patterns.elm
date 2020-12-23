@@ -9,6 +9,7 @@ module NoUnused.Patterns exposing (rule)
 
 -}
 
+import Dict exposing (Dict)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
@@ -71,14 +72,14 @@ rule =
 
 
 type alias Context =
-    { declared : Set String
+    { declared : Dict String ()
     , used : Set String
     }
 
 
 initialContext : Context
 initialContext =
-    { declared = Set.empty
+    { declared = Dict.empty
     , used = Set.empty
     }
 
@@ -474,7 +475,7 @@ errorsForValue name range context =
 
 rememberValue : String -> Context -> Context
 rememberValue name context =
-    { context | declared = Set.insert name context.declared }
+    { context | declared = Dict.insert name () context.declared }
 
 
 useValue : String -> Context -> Context
