@@ -453,7 +453,7 @@ isAllPattern (Node _ pattern) =
 
 forgetNode : Node String -> Context -> Context
 forgetNode (Node _ value) context =
-    Set.remove value context
+    useValue value context
 
 
 errorsForValue : String -> Range -> Context -> ( List (Rule.Error {}), Context )
@@ -466,7 +466,7 @@ errorsForValue value range context =
                 range
                 [ Fix.replaceRangeBy range "_" ]
           ]
-        , Set.remove value context
+        , useValue value context
         )
 
     else
