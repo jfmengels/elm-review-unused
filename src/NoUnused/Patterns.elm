@@ -436,10 +436,12 @@ findPatterns (Node range pattern) =
         Pattern.TuplePattern patterns ->
             List.concatMap findPatterns patterns
 
-        Pattern.RecordPattern values ->
-            --List.foldl (\node -> rememberValue (Node.value node) (Node.range node)) context list
-            -- TODO
-            []
+        Pattern.RecordPattern fields ->
+            [ RecordPattern
+                { fields = fields
+                , recordRange = range
+                }
+            ]
 
         Pattern.UnConsPattern first second ->
             findPatterns first ++ findPatterns second
