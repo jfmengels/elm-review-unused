@@ -220,15 +220,6 @@ report context =
                 { singles, records, simplifiablePatterns } =
                     findDeclaredPatterns headScope
 
-                _ =
-                    Debug.log "\nsingles" singles
-
-                _ =
-                    Debug.log "\nrecords" records
-
-                _ =
-                    Debug.log "\nsimplifiablePatterns" simplifiablePatterns
-
                 allDeclared : List String
                 allDeclared =
                     List.concat
