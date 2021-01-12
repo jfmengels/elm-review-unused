@@ -10,6 +10,10 @@ details =
     [ "You should either use this value somewhere, or remove it at the location I pointed at."
     ]
 
+redundantReplaceDetails : List String
+redundantReplaceDetails =
+    [ "This pattern is redundant and should be replaced with '_' at the location I pointed at."
+    ]
 
 all : Test
 all =
@@ -744,7 +748,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Named pattern is not needed."
-                        , details = [ "You should remove it at the location I pointed at." ]
+                        , details = redundantReplaceDetails
                         , under = "Singular _"
                         }
                         |> Review.Test.whenFixed
@@ -759,7 +763,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Named pattern is not needed."
-                        , details = [ "You should remove it at the location I pointed at." ]
+                        , details = redundantReplaceDetails
                         , under = "Pair _ _"
                         }
                         |> Review.Test.whenFixed
@@ -787,7 +791,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Named pattern is not needed."
-                        , details = [ "You should remove it at the location I pointed at." ]
+                        , details = redundantReplaceDetails
                         , under = "Singular _"
                         }
                         |> Review.Test.whenFixed
@@ -801,7 +805,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Named pattern is not needed."
-                        , details = [ "You should remove it at the location I pointed at." ]
+                        , details = redundantReplaceDetails
                         , under = "Pair _ _"
                         }
                         |> Review.Test.whenFixed
@@ -970,7 +974,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Tuple pattern is not needed."
-                        , details = [ "You should remove it at the location I pointed at." ]
+                        , details = redundantReplaceDetails
                         , under = "( _, _ )"
                         }
                         |> Review.Test.whenFixed
@@ -999,7 +1003,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Tuple pattern is not needed."
-                        , details = [ "You should remove it at the location I pointed at." ]
+                        , details = redundantReplaceDetails
                         , under = "( _, _, _ )"
                         }
                         |> Review.Test.whenFixed

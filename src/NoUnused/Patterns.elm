@@ -330,7 +330,7 @@ findPatterns use (Node range pattern) =
             [ SimplifiablePattern
                 (Rule.errorWithFix
                     { message = "Tuple pattern is not needed."
-                    , details = removeDetails
+                    , details = redundantDetails
                     }
                     range
                     [ Fix.replaceRangeBy range "_" ]
@@ -341,7 +341,7 @@ findPatterns use (Node range pattern) =
             [ SimplifiablePattern
                 (Rule.errorWithFix
                     { message = "Tuple pattern is not needed."
-                    , details = removeDetails
+                    , details = redundantDetails
                     }
                     range
                     [ Fix.replaceRangeBy range "_" ]
@@ -369,7 +369,7 @@ findPatterns use (Node range pattern) =
                 [ SimplifiablePattern
                     (Rule.errorWithFix
                         { message = "Named pattern is not needed."
-                        , details = removeDetails
+                        , details = redundantDetails
                         }
                         range
                         [ Fix.replaceRangeBy range "_" ]
@@ -401,6 +401,11 @@ singularDetails =
 pluralDetails : List String
 pluralDetails =
     [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+
+
+redundantDetails : List String
+redundantDetails =
+    [ "This pattern is redundant and should be replaced with '_' at the location I pointed at." ]
 
 
 removeDetails : List String
@@ -481,7 +486,7 @@ errorsForUselessNamePattern : Range -> Context -> ( List (Rule.Error {}), Contex
 errorsForUselessNamePattern range context =
     ( [ Rule.errorWithFix
             { message = "Named pattern is not needed."
-            , details = removeDetails
+            , details = redundantDetails
             }
             range
             [ Fix.replaceRangeBy range "_" ]
@@ -494,7 +499,7 @@ errorsForUselessTuple : Range -> Context -> ( List (Rule.Error {}), Context )
 errorsForUselessTuple range context =
     ( [ Rule.errorWithFix
             { message = "Tuple pattern is not needed."
-            , details = removeDetails
+            , details = redundantDetails
             }
             range
             [ Fix.replaceRangeBy range "_" ]
