@@ -7,19 +7,19 @@ import Test exposing (Test, describe, test)
 
 useOrRemoveDetails : List String
 useOrRemoveDetails =
-    [ "You should either use this value somewhere, or remove it at the location I pointed at."
+    [ "You should either use this value somewhere or remove it."
     ]
 
 
 useOrReplaceDetails : List String
 useOrReplaceDetails =
-    [ "You should either use this value somewhere, or replace it with '_' at the location I pointed at."
+    [ "You should either use this value somewhere or replace it with '_'."
     ]
 
 
 redundantReplaceDetails : List String
 redundantReplaceDetails =
-    [ "This pattern is redundant and should be replaced with '_' at the location I pointed at."
+    [ "This pattern is redundant and should be replaced with '_'."
     ]
 
 
@@ -379,7 +379,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Pattern `_` is not needed."
-                        , details = [ "You should remove it at the location I pointed at." ]
+                        , details = [ "This pattern is redundant and should be removed." ]
                         , under = "_"
                         }
                         |> Review.Test.whenFixed
@@ -580,7 +580,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Pattern `_` is not needed."
-                        , details = [ "You should remove it at the location I pointed at." ]
+                        , details = [ "This pattern is redundant and should be removed." ]
                         , under = "_"
                         }
                         |> Review.Test.whenFixed
@@ -846,7 +846,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Values `bish` and `bash` are not used."
-                        , details = [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+                        , details = [ "You should either use these values somewhere or remove them." ]
                         , under = "{ bish, bash }"
                         }
                         |> Review.Test.whenFixed
@@ -875,7 +875,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Values `bish` and `bosh` are not used."
-                        , details = [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+                        , details = [ "You should either use these values somewhere or remove them." ]
                         , under = "bish, bash, bosh"
                         }
                         |> Review.Test.whenFixed
@@ -904,7 +904,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Values `bash` and `bosh` are not used."
-                        , details = [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+                        , details = [ "You should either use these values somewhere or remove them." ]
                         , under = "bash, bosh"
                         }
                         |> Review.Test.whenFixed

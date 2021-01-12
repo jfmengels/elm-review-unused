@@ -395,27 +395,27 @@ findPatterns use (Node range pattern) =
 
 singularRemoveDetails : List String
 singularRemoveDetails =
-    [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+    [ "You should either use this value somewhere or remove it." ]
 
 
 singularReplaceDetails : List String
 singularReplaceDetails =
-    [ "You should either use this value somewhere, or replace it with '_' at the location I pointed at." ]
+    [ "You should either use this value somewhere or replace it with '_'." ]
 
 
 pluralDetails : List String
 pluralDetails =
-    [ "You should either use these values somewhere, or remove them at the location I pointed at." ]
+    [ "You should either use these values somewhere or remove them." ]
 
 
 redundantDetails : List String
 redundantDetails =
-    [ "This pattern is redundant and should be replaced with '_' at the location I pointed at." ]
+    [ "This pattern is redundant and should be replaced with '_'." ]
 
 
 removeDetails : List String
 removeDetails =
-    [ "You should remove it at the location I pointed at." ]
+    [ "This pattern is redundant and should be removed." ]
 
 
 andThen :
