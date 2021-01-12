@@ -9,7 +9,6 @@ module NoUnused.Patterns exposing (rule)
 
 -}
 
-import Elm.Syntax.Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
