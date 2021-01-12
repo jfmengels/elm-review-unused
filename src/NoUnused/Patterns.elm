@@ -320,7 +320,7 @@ findPatterns use (Node range pattern) =
             [ SingleValue
                 { name = name
                 , message = "Value `" ++ name ++ "` is not used."
-                , details = singularDetails
+                , details = singularReplaceDetails
                 , range = range
                 , fix = [ Fix.replaceRangeBy range "_" ]
                 }
@@ -393,9 +393,14 @@ findPatterns use (Node range pattern) =
 --- ON EXIT
 
 
-singularDetails : List String
-singularDetails =
+singularRemoveDetails : List String
+singularRemoveDetails =
     [ "You should either use this value somewhere, or remove it at the location I pointed at." ]
+
+
+singularReplaceDetails : List String
+singularReplaceDetails =
+    [ "You should either use this value somewhere, or replace it with '_' at the location I pointed at." ]
 
 
 pluralDetails : List String
@@ -566,7 +571,7 @@ listToDetails : String -> List String -> List String
 listToDetails _ rest =
     case rest of
         [] ->
-            singularDetails
+            singularRemoveDetails
 
         _ ->
             pluralDetails
@@ -586,7 +591,7 @@ errorsForAsPattern patternRange inner (Node range name) context =
         in
         ( [ Rule.errorWithFix
                 { message = "Pattern alias `" ++ name ++ "` is not used."
-                , details = singularDetails
+                , details = singularRemoveDetails
                 }
                 range
                 fix
@@ -634,7 +639,7 @@ findPatternForAsPattern patternRange inner (Node range name) =
         SingleValue
             { name = name
             , message = "Pattern alias `" ++ name ++ "` is not used."
-            , details = singularDetails
+            , details = singularRemoveDetails
             , range = range
             , fix = fix
             }
@@ -660,7 +665,7 @@ errorsForValue name range context =
     if isUnused name context then
         ( [ Rule.errorWithFix
                 { message = "Value `" ++ name ++ "` is not used."
-                , details = singularDetails
+                , details = singularReplaceDetails
                 }
                 range
                 [ Fix.replaceRangeBy range "_" ]
