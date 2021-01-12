@@ -66,7 +66,6 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Patte
 rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoUnused.Patterns" initialContext
-        |> Rule.withDeclarationEnterVisitor declarationVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> NameVisitor.withValueVisitor valueVisitor
@@ -105,15 +104,6 @@ initialContext =
     { scopes = []
     , scopesToCreate = RangeDict.empty
     }
-
-
-
--- DECLARATION ENTER VISITOR
-
-
-declarationVisitor : Node Declaration -> Context -> ( List nothing, Context )
-declarationVisitor _ _ =
-    ( [], initialContext )
 
 
 
