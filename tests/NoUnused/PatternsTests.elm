@@ -5,8 +5,8 @@ import Review.Test
 import Test exposing (Test, describe, test)
 
 
-details : List String
-details =
+useOrRemoveDetails : List String
+useOrRemoveDetails =
     [ "You should either use this value somewhere, or remove it at the location I pointed at."
     ]
 
@@ -53,7 +53,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `bish` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "bish"
                         }
                         |> Review.Test.whenFixed
@@ -68,7 +68,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Value `bash` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "bash"
                         }
                         |> Review.Test.whenFixed
@@ -97,7 +97,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `one` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "one"
                         }
                         |> Review.Test.whenFixed
@@ -112,7 +112,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Value `first` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "first"
                         }
                         |> Review.Test.whenFixed
@@ -127,7 +127,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Value `two` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "two"
                         }
                         |> Review.Test.whenFixed
@@ -142,7 +142,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Value `more` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "more"
                         }
                         |> Review.Test.whenFixed
@@ -171,7 +171,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `one` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "one"
                         }
                         |> Review.Test.whenFixed
@@ -186,7 +186,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Value `first` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "first"
                         }
                         |> Review.Test.whenFixed
@@ -201,7 +201,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Value `two` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "two"
                         }
                         |> Review.Test.whenFixed
@@ -216,7 +216,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Value `more` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "more"
                         }
                         |> Review.Test.whenFixed
@@ -245,7 +245,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `foo` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "foo"
                         }
                         |> Review.Test.atExactly { start = { row = 7, column = 20 }, end = { row = 7, column = 23 } }
@@ -277,7 +277,7 @@ bar =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `bish` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "bish"
                         }
                         |> Review.Test.atExactly { start = { row = 9, column = 9 }, end = { row = 9, column = 13 } }
@@ -343,7 +343,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `right` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "right"
                         }
                         |> Review.Test.whenFixed
@@ -407,7 +407,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `right` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "right"
                         }
                         |> Review.Test.atExactly { start = { row = 13, column = 21 }, end = { row = 13, column = 26 } }
@@ -485,7 +485,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Pattern alias `bosh` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "bosh"
                         }
                         |> Review.Test.whenFixed
@@ -510,7 +510,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `bash` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "bash"
                         }
                         |> Review.Test.whenFixed
@@ -535,7 +535,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `bash` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "bash"
                         }
                         |> Review.Test.whenFixed
@@ -548,7 +548,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Pattern alias `bosh` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "bosh"
                         }
                         |> Review.Test.whenFixed
@@ -598,7 +598,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Pattern alias `bish` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "bish"
                         }
                         |> Review.Test.whenFixed
@@ -630,7 +630,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `first` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "first"
                         }
                         |> Review.Test.whenFixed
@@ -643,7 +643,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Value `second` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "second"
                         }
                         |> Review.Test.whenFixed
@@ -675,7 +675,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `bish` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "bish"
                         }
                         |> Review.Test.whenFixed
@@ -704,7 +704,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `bish` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "bish"
                         }
                         |> Review.Test.whenFixed
@@ -930,7 +930,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `bish` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "bish"
                         }
                         |> Review.Test.whenFixed
@@ -945,7 +945,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Value `bosh` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "bosh"
                         }
                         |> Review.Test.whenFixed
@@ -1046,7 +1046,7 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Value `first` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "first"
                         }
                         |> Review.Test.whenFixed
@@ -1059,7 +1059,7 @@ foo =
 """
                     , Review.Test.error
                         { message = "Value `rest` is not used."
-                        , details = details
+                        , details = useOrRemoveDetails
                         , under = "rest"
                         }
                         |> Review.Test.whenFixed
