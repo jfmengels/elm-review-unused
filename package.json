@@ -15,7 +15,7 @@
     "elm-doc-preview": "^5.0.3",
     "elm-format": "^0.8.4",
     "elm-review": "^2.3.0",
-    "elm-test": "^0.19.1-revision4",
+    "elm-test": "^0.19.1-revision5",
     "fs-extra": "9.0.0",
     "glob": "7.1.6",
     "npm-run-all": "^4.1.5"
