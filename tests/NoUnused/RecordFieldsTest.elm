@@ -361,13 +361,13 @@ func thing = thing.foo + thing.used
             test "TODO name2" <|
                 \() ->
                     """module A exposing (b)
-import OrgFrame
-repoParams =
+import B
+value =
     { foo = ()
     , unused = ()
     }
 
-b = OrgFrame.view { repoParams = Just repoParams }
+b = B.function { value = Just value }
 """
                         |> Review.Test.runWithProjectData project rule
                         |> Review.Test.expectNoErrors
