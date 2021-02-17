@@ -357,9 +357,10 @@ func thing = thing.foo + thing.used
 """
                     |> Review.Test.runWithProjectData project rule
                     |> Review.Test.expectNoErrors
-        , test "TODO name2" <|
-            \() ->
-                """module A exposing (b)
+        , Test.only <|
+            test "TODO name2" <|
+                \() ->
+                    """module A exposing (b)
 repoParams =
     { foo = ()
     , unused = ()
@@ -378,8 +379,8 @@ b = OrgFrame.view (OrgLayoutMsg >> toMainMsg)
     (Just orgId)
     [ body_ ]
 """
-                    |> Review.Test.runWithProjectData project rule
-                    |> Review.Test.expectNoErrors
+                        |> Review.Test.runWithProjectData project rule
+                        |> Review.Test.expectNoErrors
         , Test.skip <|
             test "TODO name" <|
                 \() ->
