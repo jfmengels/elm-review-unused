@@ -559,6 +559,7 @@ expressionEnterVisitor node context =
                         summarizedArgumentMatchResults =
                             extractOutOfArgumentMatchResults argumentMatchResults
 
+                        variableExpressionToIgnore : Set String
                         variableExpressionToIgnore =
                             List.map stringifyRange summarizedArgumentMatchResults.variableExpressionToIgnore
                                 |> Set.fromList
