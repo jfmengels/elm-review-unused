@@ -475,8 +475,8 @@ type ArgumentMatchResult
 extractOutOfArgumentMatchResults : List ArgumentMatchResult -> { errors : List (Error {}), variables : List { variableName : String, declaredFields : List String }, variableExpressionToIgnore : List Range }
 extractOutOfArgumentMatchResults argumentMatchResults =
     List.foldl
-        (\foo acc ->
-            case foo of
+        (\argumentMatch acc ->
+            case argumentMatch of
                 ArgumentMatch_RegisterVariable { variableName, declaredFields, variableExpressionToIgnore } ->
                     { acc
                         | variables = { variableName = variableName, declaredFields = declaredFields } :: acc.variables
