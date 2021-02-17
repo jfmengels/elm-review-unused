@@ -290,7 +290,7 @@ declarationEnterVisitor : Node Declaration -> ModuleContext -> ( List (Error {})
 declarationEnterVisitor node moduleContext =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            handleDeclaration moduleContext function
+            handleDeclaration { moduleContext | directAccessesToIgnore = Set.empty } function
 
         _ ->
             ( [], moduleContext )
@@ -334,12 +334,11 @@ handleDeclaration moduleContext { signature, declaration } =
             ( errorsToReport
             , { moduleContext
                 | variableRegister = Variable.addVariables variables moduleContext.variableRegister
-                , directAccessesToIgnore = Set.empty
               }
             )
 
         _ ->
-            ( [], { moduleContext | directAccessesToIgnore = Set.empty } )
+            ( [], moduleContext )
 
 
 getErrorsAndVariables : List (Maybe VariableOrError) -> ( List (Error {}), List ( String, Variable ) )
