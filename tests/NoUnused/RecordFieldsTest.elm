@@ -361,23 +361,13 @@ func thing = thing.foo + thing.used
             test "TODO name2" <|
                 \() ->
                     """module A exposing (b)
+import OrgFrame
 repoParams =
     { foo = ()
     , unused = ()
     }
 
-b = OrgFrame.view (OrgLayoutMsg >> toMainMsg)
-    { breadcrumbs =
-        OrgBreadcrumbsUtil.repoPage
-            { managedOrgId = orgId
-            , managedOrgName = Session.getManagedOrgName model.consoleModel.session
-            , repoOrViewName = model.dataspace.name
-            }
-    , repoParams = Just repoParams
-    }
-    model.consoleModel
-    (Just orgId)
-    [ body_ ]
+b = OrgFrame.view { repoParams = Just repoParams }
 """
                         |> Review.Test.runWithProjectData project rule
                         |> Review.Test.expectNoErrors

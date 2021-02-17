@@ -507,6 +507,9 @@ expressionEnterVisitor node context =
             , { newContext | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore }
             )
 
+        Expression.RecordAccess _ _ ->
+            ( [], context )
+
         Expression.Application (function :: arguments) ->
             case TypeInference.inferType context function of
                 Just (Type.Function input output) ->
@@ -575,6 +578,9 @@ expressionEnterVisitor node context =
                 _ ->
                     ( [], context )
 
+        Expression.Application [] ->
+            ( [], context )
+
         Expression.OperatorApplication operator _ left right ->
             --case TypeInference.inferOperatorType context operator of
             --    Just ((Type.Function _ _) as functionType) ->
@@ -642,6 +648,9 @@ expressionEnterVisitor node context =
             else
                 ( [], updateRegister name Variable.markAsUsedInAnUnknownManner context )
 
+        Expression.FunctionOrValue _ name ->
+            ( [], context )
+
         Expression.RecordUpdateExpression name _ ->
             ( [], updateRegister (Node.value name) Variable.markAsUsedInAnUnknownManner context )
 
@@ -684,7 +693,58 @@ expressionEnterVisitor node context =
             , { context | variableRegister = Variable.addVariablesInNewScope variables context.variableRegister }
             )
 
-        _ ->
+        Expression.RecordAccessFunction _ ->
+            ( [], context )
+
+        Expression.RecordExpr nodes ->
+            ( [], context )
+
+        Expression.UnitExpr ->
+            ( [], context )
+
+        Expression.IfBlock _ _ _ ->
+            ( [], context )
+
+        Expression.PrefixOperator _ ->
+            ( [], context )
+
+        Expression.Operator _ ->
+            ( [], context )
+
+        Expression.Integer _ ->
+            ( [], context )
+
+        Expression.Hex _ ->
+            ( [], context )
+
+        Expression.Floatable float ->
+            ( [], context )
+
+        Expression.Negation _ ->
+            ( [], context )
+
+        Expression.Literal _ ->
+            ( [], context )
+
+        Expression.CharLiteral _ ->
+            ( [], context )
+
+        Expression.TupledExpression _ ->
+            ( [], context )
+
+        Expression.ParenthesizedExpression _ ->
+            ( [], context )
+
+        Expression.CaseExpression _ ->
+            ( [], context )
+
+        Expression.LambdaExpression _ ->
+            ( [], context )
+
+        Expression.ListExpr _ ->
+            ( [], context )
+
+        Expression.GLSLExpression _ ->
             ( [], context )
 
 
