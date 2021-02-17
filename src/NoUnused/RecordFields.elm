@@ -293,7 +293,7 @@ declarationEnterVisitor node moduleContext =
             handleDeclaration moduleContext function
 
         _ ->
-            ( [], { moduleContext | directAccessesToIgnore = Set.empty } )
+            ( [], moduleContext )
 
 
 type VariableOrError
