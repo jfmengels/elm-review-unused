@@ -1374,6 +1374,58 @@ b = 1
             ]
                 |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
+    , test "should report unused imported value if it is redefined" <|
+        \() ->
+            [ """module A exposing (a)
+import Used exposing (shadowed)
+shadowed = 1
+a = shadowed"""
+            , """module Used exposing (shadowed)
+shadowed = 1
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported variable `shadowed` is not used"
+                            , details = details
+                            , under = "shadowed"
+                            }
+                            |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
+                            |> Review.Test.whenFixed ("""module A exposing (a)
+import Used$
+shadowed = 1
+a = shadowed""" |> String.replace "$" " ")
+                        ]
+                      )
+                    ]
+    , test "should report unused imported value if it is redefined, and should not report the top-level one even if used before declaration" <|
+        \() ->
+            [ """module A exposing (a)
+import Used exposing (shadowed)
+a = shadowed
+shadowed = 1"""
+            , """module Used exposing (shadowed)
+shadowed = 1
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported variable `shadowed` is not used"
+                            , details = details
+                            , under = "shadowed"
+                            }
+                            |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
+                            |> Review.Test.whenFixed ("""module A exposing (a)
+import Used$
+a = shadowed
+shadowed = 1""" |> String.replace "$" " ")
+                        ]
+                      )
+                    ]
     ]
 
 

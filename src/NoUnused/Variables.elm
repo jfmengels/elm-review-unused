@@ -944,7 +944,7 @@ declarationListVisitor nodes context =
 -- DECLARATION VISITOR
 
 
-declarationVisitor : Node Declaration -> ModuleContext -> ( List nothing, ModuleContext )
+declarationVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
 declarationVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
@@ -952,6 +952,10 @@ declarationVisitor node context =
                 functionImplementation : FunctionImplementation
                 functionImplementation =
                     Node.value function.declaration
+
+                functionName : String
+                functionName =
+                    Node.value functionImplementation.name
 
                 namesUsedInSignature : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInSignature =
@@ -972,7 +976,7 @@ declarationVisitor node context =
                     if
                         context.exposesEverything
                             -- The main function is "exposed" by default for applications
-                            || (context.isApplication && Node.value functionImplementation.name == "main")
+                            || (context.isApplication && functionName == "main")
                     then
                         context
 
@@ -983,16 +987,29 @@ declarationVisitor node context =
                             , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node function.documentation)
                             , warning = ""
                             }
-                            (Node.value functionImplementation.name)
+                            functionName
                             context
 
                 newContext : ModuleContext
                 newContext =
-                    { newContextWhereFunctionIsRegistered | inTheDeclarationOf = [ Node.value functionImplementation.name ], declarations = Dict.empty }
+                    { newContextWhereFunctionIsRegistered | inTheDeclarationOf = [ functionName ], declarations = Dict.empty }
                         |> markUsedTypesAndModules namesUsedInSignature
                         |> markUsedTypesAndModules namesUsedInArgumentPatterns
+
+                shadowingImportError : List (Error {})
+                shadowingImportError =
+                    case Dict.get functionName (NonemptyList.head context.scopes).declared of
+                        Just existingVariable ->
+                            if existingVariable.typeName == "Imported variable" then
+                                [ error existingVariable functionName ]
+
+                            else
+                                []
+
+                        _ ->
+                            []
             in
-            ( [], newContext )
+            ( shadowingImportError, newContext )
 
         Declaration.CustomTypeDeclaration { name, constructors } ->
             let
