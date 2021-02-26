@@ -648,5 +648,24 @@ expressionVisitor node moduleContext =
                 Nothing ->
                     ( [], moduleContext )
 
+        Expression.LetExpression { declarations } ->
+            let
+                used : List ( ModuleName, String )
+                used =
+                    List.concatMap
+                        (\declaration ->
+                            case Node.value declaration of
+                                Expression.LetFunction function ->
+                                    function.signature
+                                        |> Maybe.map (Node.value >> .typeAnnotation >> collectTypesFromTypeAnnotation moduleContext)
+                                        |> Maybe.withDefault []
+
+                                Expression.LetDestructuring _ _ ->
+                                    []
+                        )
+                        declarations
+            in
+            ( [], registerMultipleAsUsed used moduleContext )
+
         _ ->
             ( [], moduleContext )

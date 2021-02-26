@@ -501,6 +501,22 @@ type OtherType = OtherThing | SomeThing ((), List MyType)
                             ]
                           )
                         ]
+        , test "should not report an exposed type if it is used in a let block type annotation" <|
+            \() ->
+                [ """module Main exposing (main)
+import B
+main =
+  let
+    type1 : B.Type1
+    type1 =
+      1
+  in
+  type1
+""", """module B exposing (Type1)
+type Type1 = Type1
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
         ]
 
 
@@ -532,6 +548,34 @@ module B exposing (main)
 import A
 main : A.Exposed
 main = {}
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report an exposed type alias if it is used in a let block type annotation" <|
+            \() ->
+                [ """module Main exposing (main)
+import B
+main =
+  let
+    type1 : B.Type1
+    type1 =
+      1
+  in
+  type1
+""", """module B exposing (Type1)
+type alias Type1 = Int
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report an exposed type if it is used as value in a let block" <|
+            \() ->
+                [ """module Main exposing (main)
+import B
+main =
+  let type1 = B.Type1
+  in type1
+""", """module B exposing (Type1)
+type alias Type1 = {}
 """ ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
