@@ -1225,6 +1225,20 @@ a = 1"""
                         ]
                       )
                     ]
+    , test "should not report import if it exposes all and its contents are unknown" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Unknown exposing (..)
+a = 1"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should not report imported type if it exposes the constructors and the module is unknown" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Unknown exposing (A(..))
+a = 1"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     , test "should report unused import from dependency that exposes everything" <|
         \() ->
             """module SomeModule exposing (..)
