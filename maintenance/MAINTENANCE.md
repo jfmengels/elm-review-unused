@@ -17,15 +17,17 @@ This document and the set up created for you is aimed at helping you work and im
 
 Right after you have created the package, you should
 
-1. Install the `npm` dependencies
+### 1. Install the `npm` dependencies
 
 ```bash
 npm install
-# or if you have and prefer Yarn
-yarn
 ```
 
-2. Set up `Git`
+If you prefer using `yarn` or another package manager, you can do so, but you should update the 2 "Install npm dependencies" scripts in `.github/workflows/test.yml` so that they use your preferred package manager.
+
+Note that [`elm-tooling`](https://elm-tooling.github.io/elm-tooling-cli/) takes care of some of the Elm dependencies, notably `elm` and `elm-format`. Their versions are defined in the `elm-tooling.json` file, and are automatically installed through the `postinstall` script/hook in `package.json`.
+
+### 2. Set up `Git`
 
 ```bash
 git init
@@ -33,19 +35,23 @@ git add --all
 git commit --message="Initialize project"
 ```
 
-3. Create the project on GitHub
-
-You can do this step at a later time if you prefer.
-When you do, consider adding the `elm-review` tag, so that your project appears in [this list](https://github.com/topics/elm-review).
-
-
-4. Replace REPLACEME
+### 3. Replace REPLACEME
 
 In some of the files, notably `elm.json`, `README.md` and the rule files that were created for you, you will find a few `REPLACEME`. You will need to replace all of these and by things that make sense in their individual context.
 
 Again, you can do this step at a later time if you prefer, but you will have to do these before publishing. You will be reminded to do this when running the tests.
 
 Note that you will also have to supply the `summary` field in the `elm.json`, which should be close to the same thing that you will write in the README.
+
+### 4. (Can be done later) Create the project on GitHub
+
+You can do this step at a later time if you prefer.
+When you do, consider to
+
+- Adding the `elm-review` tag, so that your project appears in [this list](https://github.com/topics/elm-review).
+- [Adding a code of conduct](https://docs.github.com/en/github/building-a-strong-community/adding-a-code-of-conduct-to-your-project)
+- [Adding issue and pull request templates](https://docs.github.com/en/github/building-a-strong-community/using-templates-to-encourage-useful-issues-and-pull-requests)
+- [Setting guidelines for repository contributors](https://docs.github.com/en/github/building-a-strong-community/setting-guidelines-for-repository-contributors)
 
 
 ## Writing rules
@@ -111,23 +117,12 @@ Contrary to the initial release, the CI will automatically try to publish a new 
 Here is a script that you can run to publish your package, which will help you avoid errors showing up at the CI stage.
 
 ```bash
-# Bump the version of the package
-elm bump
-
-# Run elm-review, which will for instance auto-fix like documentation links
-elm-review --fix-all
-
-# Run the tests, fix them if necessary
-npm test
-
-# Update the example configurations to reflect what was previously in the
-# preview configurations
-node maintenance/update-examples-from-preview.js
+npm run elm-bump
 
 # Commit it all
 git add --all
-git commit
+git commit # You'll need to specify a message
 git push origin HEAD
 
-# Now wait for CI to finish
+# Now wait for CI to finish and check that it succeeded
 ```
