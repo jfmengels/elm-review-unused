@@ -663,8 +663,8 @@ expressionEnterVisitorHelp (Node range value) context =
                             )
 
                         Expression.LetDestructuring pattern _ ->
-                            case isAllPattern pattern of
-                                Just wildCardRange ->
+                            case removeParens pattern of
+                                Node wildCardRange Pattern.AllPattern ->
                                     ( Rule.errorWithFix
                                         { message = "Value assigned to `_` is unused"
                                         , details =
@@ -672,20 +672,25 @@ expressionEnterVisitorHelp (Node range value) context =
                                             ]
                                         }
                                         wildCardRange
-                                        [ case letBlockContext of
-                                            HasMultipleDeclarations ->
-                                                Fix.removeRange (Node.range declaration)
-
-                                            HasNoOtherDeclarations letDeclarationsRange ->
-                                                -- If there are no other declarations in the let in block,
-                                                -- we also need to remove the `let in` keywords.
-                                                Fix.removeRange letDeclarationsRange
-                                        ]
+                                        [ Fix.removeRange (letDeclarationToRemoveRange letBlockContext (Node.range declaration)) ]
                                         :: errors
                                     , foldContext
                                     )
 
-                                Nothing ->
+                                Node unitPattern Pattern.UnitPattern ->
+                                    ( Rule.errorWithFix
+                                        { message = "Unit value is unused"
+                                        , details =
+                                            [ "This value has no data, which makes the value unusable. You should remove it at the location I pointed at."
+                                            ]
+                                        }
+                                        unitPattern
+                                        [ Fix.removeRange (letDeclarationToRemoveRange letBlockContext (Node.range declaration)) ]
+                                        :: errors
+                                    , foldContext
+                                    )
+
+                                _ ->
                                     unchangedResult
                 )
                 ( [], { context | scopes = NonemptyList.cons emptyScope context.scopes } )
@@ -705,17 +710,26 @@ expressionEnterVisitorHelp (Node range value) context =
             ( [], context )
 
 
-isAllPattern : Node Pattern -> Maybe Range
-isAllPattern node =
+letDeclarationToRemoveRange : LetBlockContext -> Range -> Range
+letDeclarationToRemoveRange letBlockContext range =
+    case letBlockContext of
+        HasMultipleDeclarations ->
+            range
+
+        HasNoOtherDeclarations letDeclarationsRange ->
+            -- If there are no other declarations in the let in block,
+            -- we also need to remove the `let in` keywords.
+            letDeclarationsRange
+
+
+removeParens : Node Pattern -> Node Pattern
+removeParens node =
     case Node.value node of
         Pattern.ParenthesizedPattern pattern ->
-            isAllPattern pattern
-
-        Pattern.AllPattern ->
-            Just (Node.range node)
+            removeParens pattern
 
         _ ->
-            Nothing
+            node
 
 
 expressionExitVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
@@ -1308,15 +1322,7 @@ registerFunction letBlockContext function context =
         |> registerVariable
             { typeName = "`let in` variable"
             , under = Node.range declaration.name
-            , rangeToRemove =
-                case letBlockContext of
-                    HasMultipleDeclarations ->
-                        Just functionRange
-
-                    HasNoOtherDeclarations letDeclarationsRange ->
-                        -- If there are no other declarations in the let in block,
-                        -- we also need to remove the `let in` keywords.
-                        Just letDeclarationsRange
+            , rangeToRemove = Just (letDeclarationToRemoveRange letBlockContext functionRange)
             , warning = ""
             }
             (Node.value declaration.name)
