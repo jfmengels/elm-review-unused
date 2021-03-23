@@ -1469,6 +1469,25 @@ shadowed = 1""" |> String.replace "$" " ")
                         ]
                       )
                     ]
+    , test "should not report imported type as unused when it's used in a type annotation, and the name conflicts with an imported custom type constructor" <|
+        \() ->
+            [ """module Main exposing (thing, main)
+import ModuleA exposing (A)
+import ModuleB exposing (Variants(..))
+
+thing : Variants
+thing = A
+
+main : A
+main = ()
+"""
+            , """module ModuleA exposing (A)
+type alias A = ()"""
+            , """module ModuleB exposing (Variants(..))
+type Variants = A"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
     ]
 
 
