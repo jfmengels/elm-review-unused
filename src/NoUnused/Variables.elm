@@ -315,24 +315,25 @@ moduleDefinitionVisitor (Node _ moduleNode) context =
             let
                 names : List String
                 names =
-                    List.map
-                        (\(Node _ node) ->
-                            case node of
-                                Exposing.FunctionExpose name ->
-                                    name
-
-                                Exposing.TypeOrAliasExpose name ->
-                                    name
-
-                                Exposing.TypeExpose { name } ->
-                                    name
-
-                                Exposing.InfixExpose name ->
-                                    name
-                        )
-                        list
+                    List.map getExposingName list
             in
             ( [], markAllAsUsed names context )
+
+
+getExposingName : Node Exposing.TopLevelExpose -> String
+getExposingName node =
+    case Node.value node of
+        Exposing.FunctionExpose name ->
+            name
+
+        Exposing.TypeOrAliasExpose name ->
+            name
+
+        Exposing.TypeExpose { name } ->
+            name
+
+        Exposing.InfixExpose name ->
+            name
 
 
 importVisitor : Node Import -> ModuleContext -> ( List (Error {}), ModuleContext )
