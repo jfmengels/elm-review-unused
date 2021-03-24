@@ -17,6 +17,7 @@ import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.TypeAnnotation as TypeAnnotation
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -269,20 +270,42 @@ declarationListVisitor nodes context =
     let
         customTypeArgs : List ( String, Dict String (List Range) )
         customTypeArgs =
-            List.filterMap collectCustomType nodes
+            List.filterMap (collectCustomType context.lookupTable) nodes
     in
     ( [], { context | customTypeArgs = Dict.fromList customTypeArgs } )
 
 
-collectCustomType : Node Declaration -> Maybe ( String, Dict String (List Range) )
-collectCustomType node =
+collectCustomType : ModuleNameLookupTable -> Node Declaration -> Maybe ( String, Dict String (List Range) )
+collectCustomType lookupTable node =
     case Node.value node of
         Declaration.CustomTypeDeclaration typeDeclaration ->
             let
                 customTypeConstructors : List ( String, List Range )
                 customTypeConstructors =
-                    typeDeclaration.constructors
-                        |> List.map (Node.value >> (\{ name, arguments } -> ( Node.value name, List.map Node.range arguments )))
+                    List.map
+                        (Node.value
+                            >> (\{ name, arguments } ->
+                                    ( Node.value name
+                                    , arguments
+                                        |> List.filter
+                                            (\arg ->
+                                                case Node.value arg of
+                                                    TypeAnnotation.Typed (Node _ ( _, "Never" )) [] ->
+                                                        case ModuleNameLookupTable.moduleNameFor lookupTable arg of
+                                                            Just [ "Basics" ] ->
+                                                                False
+
+                                                            _ ->
+                                                                True
+
+                                                    _ ->
+                                                        True
+                                            )
+                                        |> List.map Node.range
+                                    )
+                               )
+                        )
+                        typeDeclaration.constructors
             in
             Just ( Node.value typeDeclaration.name, Dict.fromList customTypeConstructors )
 
