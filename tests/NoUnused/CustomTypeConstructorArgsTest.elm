@@ -1,5 +1,6 @@
 module NoUnused.CustomTypeConstructorArgsTest exposing (all)
 
+import Dependencies.ElmCore
 import Elm.Project
 import Json.Decode as Decode
 import NoUnused.CustomTypeConstructorArgs exposing (rule)
@@ -384,6 +385,45 @@ type Msg
                 ]
                     |> Review.Test.runOnModules rule
                     |> Review.Test.expectNoErrors
+        , test "should not report Never arguments" <|
+            \() ->
+                """
+module Main exposing (a)
+a = 1
+type CustomType
+  = B Never
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report Never arguments even when aliased" <|
+            \() ->
+                """
+module Main exposing (a)
+import Basics as B
+a = 1
+type CustomType
+  = B B.Never
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectNoErrors
+        , test "should report arguments next to Never" <|
+            -- Honestly I'm unsure about doing this, but I currently don't see
+            -- the point of having other args next to a Never arg.
+            \() ->
+                """
+module Main exposing (a)
+a = 1
+type CustomType
+  = B SomeData Never
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = message
+                            , details = details
+                            , under = "SomeData"
+                            }
+                        ]
         ]
 
 
@@ -391,6 +431,7 @@ packageProject : Project
 packageProject =
     Project.new
         |> Project.addElmJson (createElmJson packageElmJson)
+        |> Project.addDependency Dependencies.ElmCore.dependency
 
 
 packageElmJson : String
