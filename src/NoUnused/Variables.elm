@@ -941,15 +941,24 @@ declarationListVisitor nodes context =
                     )
 
                 Declaration.AliasDeclaration { name, documentation } ->
+                    let
+                        contextWithRemovedShadowedImports : ModuleContext
+                        contextWithRemovedShadowedImports =
+                            { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
+                    in
                     ( []
-                    , registerVariable
-                        { typeName = "Type"
-                        , under = Node.range name
-                        , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node documentation)
-                        , warning = ""
-                        }
-                        (Node.value name)
-                        { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
+                    , if context.exposesEverything then
+                        contextWithRemovedShadowedImports
+
+                      else
+                        registerVariable
+                            { typeName = "Type"
+                            , under = Node.range name
+                            , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node documentation)
+                            , warning = ""
+                            }
+                            (Node.value name)
+                            contextWithRemovedShadowedImports
                     )
 
                 _ ->
@@ -1267,18 +1276,22 @@ finalEvaluation context =
 
         customTypeErrors : List (Error {})
         customTypeErrors =
-            context.localCustomTypes
-                |> Dict.toList
-                |> List.filter (\( name, _ ) -> not <| Set.member name usedLocally)
-                |> List.map
-                    (\( name, customType ) ->
-                        Rule.errorWithFix
-                            { message = "Type `" ++ name ++ "` is not used"
-                            , details = details
-                            }
-                            customType.under
-                            [ Fix.removeRange customType.rangeToRemove ]
-                    )
+            if context.exposesEverything then
+                []
+
+            else
+                context.localCustomTypes
+                    |> Dict.toList
+                    |> List.filter (\( name, _ ) -> not <| Set.member name usedLocally)
+                    |> List.map
+                        (\( name, customType ) ->
+                            Rule.errorWithFix
+                                { message = "Type `" ++ name ++ "` is not used"
+                                , details = details
+                                }
+                                customType.under
+                                [ Fix.removeRange customType.rangeToRemove ]
+                        )
     in
     List.concat
         [ newRootScope

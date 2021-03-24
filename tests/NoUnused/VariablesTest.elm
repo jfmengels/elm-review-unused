@@ -188,11 +188,23 @@ b = 2"""
                         |> Review.Test.whenFixed """module SomeModule exposing (b)
 b = 2"""
                     ]
-    , test "should not report unused top-level variables if everything is exposed" <|
+    , test "should not report unused top-level variables if everything is exposed (functions)" <|
         \() ->
             """module SomeModule exposing (..)
 a n = 1
 b = a 1"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should not report unused top-level variables if everything is exposed (custom types)" <|
+        \() ->
+            """module SomeModule exposing (..)
+type A = A"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should not report unused top-level variables if everything is exposed (type aliases)" <|
+        \() ->
+            """module SomeModule exposing (..)
+type alias A = ()"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     , test "should not report unused top-level variables that are exposed by name" <|
