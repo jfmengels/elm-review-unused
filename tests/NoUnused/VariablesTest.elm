@@ -2029,6 +2029,22 @@ a = output ()
 subscriptions = input GotInput"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should not report exposed ports" <|
+        \() ->
+            """port module SomeModule exposing (output, input)
+import Json.Decode
+port output : () -> Cmd msg
+port input : (Json.Decode.Value -> msg) -> Sub msg"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should not report exposed ports using (..)" <|
+        \() ->
+            """port module SomeModule exposing (..)
+import Json.Decode
+port output : () -> Cmd msg
+port input : (Json.Decode.Value -> msg) -> Sub msg"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     , test "should report unused ports (ingoing)" <|
         \() ->
             """port module SomeModule exposing (a)

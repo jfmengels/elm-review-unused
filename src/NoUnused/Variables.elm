@@ -1070,17 +1070,24 @@ declarationVisitor node context =
                 namesUsedInTypeAnnotation : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInTypeAnnotation =
                     collectNamesFromTypeAnnotation context.lookupTable typeAnnotation
+
+                contextWithUsedElements : ModuleContext
+                contextWithUsedElements =
+                    markUsedTypesAndModules namesUsedInTypeAnnotation context
             in
             ( []
-            , context
-                |> markUsedTypesAndModules namesUsedInTypeAnnotation
-                |> registerVariable
+            , if context.exposesEverything then
+                contextWithUsedElements
+
+              else
+                registerVariable
                     { typeName = "Port"
                     , under = Node.range name
                     , rangeToRemove = Nothing
                     , warning = " (Warning: Removing this port may break your application if it is used in the JS code)"
                     }
                     (Node.value name)
+                    contextWithUsedElements
             )
 
         Declaration.InfixDeclaration { operator, function } ->
