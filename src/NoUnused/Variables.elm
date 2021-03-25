@@ -1477,30 +1477,35 @@ markAsUsed name context =
             { context | unusedImportedCustomTypes = Dict.remove customTypeName context.unusedImportedCustomTypes }
 
         _ ->
-            if List.member name context.inTheDeclarationOf then
-                context
+            markNameAsUserHelper name context
 
-            else
-                let
-                    scopes : Nonempty Scope
-                    scopes =
-                        NonemptyList.mapHead
-                            (\scope ->
-                                { scope
-                                    | used =
-                                        Dict.update []
-                                            (\set ->
-                                                set
-                                                    |> Maybe.withDefault Set.empty
-                                                    |> Set.insert name
-                                                    |> Just
-                                            )
-                                            scope.used
-                                }
-                            )
-                            context.scopes
-                in
-                { context | scopes = scopes }
+
+markNameAsUserHelper : String -> ModuleContext -> ModuleContext
+markNameAsUserHelper name context =
+    if List.member name context.inTheDeclarationOf then
+        context
+
+    else
+        let
+            scopes : Nonempty Scope
+            scopes =
+                NonemptyList.mapHead
+                    (\scope ->
+                        { scope
+                            | used =
+                                Dict.update []
+                                    (\set ->
+                                        set
+                                            |> Maybe.withDefault Set.empty
+                                            |> Set.insert name
+                                            |> Just
+                                    )
+                                    scope.used
+                        }
+                    )
+                    context.scopes
+        in
+        { context | scopes = scopes }
 
 
 markAllModulesAsUsed : List ( ModuleName, ModuleName ) -> ModuleContext -> ModuleContext
