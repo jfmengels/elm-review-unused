@@ -409,27 +409,27 @@ importVisitor ((Node importRange import_) as node) context =
 
 
 registerExposedElements : Dict String (List String) -> ExposedElement -> ModuleContext -> ModuleContext
-registerExposedElements customTypesFromModule importedElement context_ =
+registerExposedElements customTypesFromModule importedElement context =
     case importedElement of
         CustomType name variableInfo ->
             case Dict.get name customTypesFromModule of
                 Just constructorNames ->
-                    { context_
-                        | unusedImportedCustomTypes = Dict.insert name variableInfo context_.unusedImportedCustomTypes
+                    { context
+                        | unusedImportedCustomTypes = Dict.insert name variableInfo context.unusedImportedCustomTypes
                         , importedCustomTypeLookup =
                             Dict.union
                                 (constructorNames
                                     |> List.map (\constructorName -> ( constructorName, name ))
                                     |> Dict.fromList
                                 )
-                                context_.importedCustomTypeLookup
+                                context.importedCustomTypeLookup
                     }
 
                 Nothing ->
-                    context_
+                    context
 
         TypeOrValue name variableInfo ->
-            registerVariable variableInfo name context_
+            registerVariable variableInfo name context
 
 
 collectExplicitlyExposedElements : Range -> List (Node Exposing.TopLevelExpose) -> List ExposedElement
