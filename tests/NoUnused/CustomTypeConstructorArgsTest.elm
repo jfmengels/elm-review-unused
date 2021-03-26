@@ -429,7 +429,7 @@ type CustomType
                 """
 module MyModule exposing (a, b)
 type Foo = Unused Int | B
-a = Unused == b
+a = Unused 0 == b
 b = B
 """
                     |> Review.Test.runWithProjectData packageProject rule
@@ -439,7 +439,7 @@ b = B
                 """
 module MyModule exposing (a, b)
 type Foo = Unused Int | B
-a = Unused /= b
+a = Unused 0 /= b
 b = B
 """
                     |> Review.Test.runWithProjectData packageProject rule
@@ -465,7 +465,7 @@ b = B
                 """
 module MyModule exposing (a, b)
 type Foo = Unused Int | B
-a = ( Unused ) == b
+a = ( Unused 0 ) == b
 b = ( B )
 """
                     |> Review.Test.runWithProjectData packageProject rule
@@ -475,7 +475,7 @@ b = ( B )
                 """
 module MyModule exposing (a, b)
 type Foo = Unused Int | B
-a = ( Unused, Unused ) == b
+a = ( Unused 0, Unused 1 ) == b
 b = ( B, B )
 """
                     |> Review.Test.runWithProjectData packageProject rule
@@ -485,7 +485,7 @@ b = ( B, B )
                 """
 module MyModule exposing (a, b)
 type Foo = Unused Int | B
-a = [ Unused ] == b
+a = [ Unused 0 ] == b
 b = [ B ]
 """
                     |> Review.Test.runWithProjectData packageProject rule
@@ -495,7 +495,7 @@ b = [ B ]
                 [ """
 module MyModule exposing (a, b)
 import Foo as F
-a = F.Unused == b
+a = F.Unused 0 == b
 b = F.B
 """, """
 module Foo exposing (Foo(..))
