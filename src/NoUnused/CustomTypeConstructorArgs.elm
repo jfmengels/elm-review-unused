@@ -96,6 +96,7 @@ type alias ProjectContext =
             , args : Dict String (List Range)
             }
     , usedArguments : Dict ( ModuleName, String ) (Set Int)
+    , customTypesNotToReport : Set String
     }
 
 
@@ -148,6 +149,7 @@ initialProjectContext =
     { exposedModules = Set.empty
     , customTypeArgs = Dict.empty
     , usedArguments = Dict.empty
+    , customTypesNotToReport = Set.singleton "Unused"
     }
 
 
@@ -189,6 +191,9 @@ fromModuleToProject =
                     )
                     Dict.empty
                     moduleContext.usedArguments
+
+            -- TODO
+            , customTypesNotToReport = Set.empty
             }
         )
         |> Rule.withModuleKey
@@ -249,6 +254,9 @@ foldProjectContexts newContext previousContext =
             newContext.usedArguments
             previousContext.usedArguments
             Dict.empty
+
+    -- TODO
+    , customTypesNotToReport = Set.empty
     }
 
 
@@ -467,11 +475,6 @@ isWildcard node =
 
 finalEvaluation : ProjectContext -> List (Error { useErrorForModule : () })
 finalEvaluation context =
-    let
-        customTypesNotToReport : Set String
-        customTypesNotToReport =
-            Set.singleton "Unused"
-    in
     context.customTypeArgs
         |> Dict.toList
         |> List.concatMap
@@ -480,7 +483,7 @@ finalEvaluation context =
                     |> Dict.toList
                     |> List.concatMap
                         (\( name, ranges ) ->
-                            if Set.member name customTypesNotToReport then
+                            if Set.member name context.customTypesNotToReport then
                                 []
 
                             else
