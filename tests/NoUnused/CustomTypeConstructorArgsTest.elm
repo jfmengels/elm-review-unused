@@ -460,6 +460,16 @@ b = B
                             , under = "Int"
                             }
                         ]
+        , test "should not report args for type constructors used in an equality expression with parenthesized expressions" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused Int | B
+a = ( Unused ) == b
+b = ( B )
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectNoErrors
         , test "should not report args for type constructors used in an equality expression with tuples" <|
             \() ->
                 """
