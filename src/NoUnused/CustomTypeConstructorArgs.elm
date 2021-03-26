@@ -441,6 +441,9 @@ findCustomTypes lookupTable node =
             else
                 Set.empty
 
+        Expression.TupledExpression expressions ->
+            List.foldl (findCustomTypes lookupTable >> Set.union) Set.empty expressions
+
         _ ->
             Set.empty
 
