@@ -479,8 +479,14 @@ finalEvaluation context =
                                 Just usedArgumentPositions ->
                                     ranges
                                         |> List.indexedMap Tuple.pair
-                                        |> List.filter (\( index, _ ) -> not <| Set.member index usedArgumentPositions)
-                                        |> List.map (Tuple.second >> error moduleKey)
+                                        |> List.filterMap
+                                            (\( index, range ) ->
+                                                if Set.member index usedArgumentPositions then
+                                                    Nothing
+
+                                                else
+                                                    Just (error moduleKey range)
+                                            )
 
                                 Nothing ->
                                     List.map (error moduleKey) ranges
