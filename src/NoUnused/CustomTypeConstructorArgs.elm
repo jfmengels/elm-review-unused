@@ -149,7 +149,7 @@ initialProjectContext =
     { exposedModules = Set.empty
     , customTypeArgs = Dict.empty
     , usedArguments = Dict.empty
-    , customTypesNotToReport = Dict.singleton [ "MyModule" ] (Set.singleton "Unused")
+    , customTypesNotToReport = Dict.empty
     }
 
 
@@ -195,7 +195,7 @@ fromModuleToProject =
                 Dict.singleton
                     (Rule.moduleNameFromMetadata metadata)
                     -- TODO
-                    Set.empty
+                    (Set.singleton "Unused")
             }
         )
         |> Rule.withModuleKey
