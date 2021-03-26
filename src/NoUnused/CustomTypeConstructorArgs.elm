@@ -475,21 +475,25 @@ finalEvaluation context =
                     |> Dict.toList
                     |> List.concatMap
                         (\( name, ranges ) ->
-                            case Dict.get ( moduleName, name ) context.usedArguments of
-                                Just usedArgumentPositions ->
-                                    ranges
-                                        |> List.indexedMap Tuple.pair
-                                        |> List.filterMap
-                                            (\( index, range ) ->
-                                                if Set.member index usedArgumentPositions then
-                                                    Nothing
+                            if name == "Unused" then
+                                []
 
-                                                else
-                                                    Just (error moduleKey range)
-                                            )
+                            else
+                                case Dict.get ( moduleName, name ) context.usedArguments of
+                                    Just usedArgumentPositions ->
+                                        ranges
+                                            |> List.indexedMap Tuple.pair
+                                            |> List.filterMap
+                                                (\( index, range ) ->
+                                                    if Set.member index usedArgumentPositions then
+                                                        Nothing
 
-                                Nothing ->
-                                    List.map (error moduleKey) ranges
+                                                    else
+                                                        Just (error moduleKey range)
+                                                )
+
+                                    Nothing ->
+                                        List.map (error moduleKey) ranges
                         )
             )
 
