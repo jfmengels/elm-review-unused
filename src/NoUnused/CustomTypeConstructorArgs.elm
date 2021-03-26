@@ -106,6 +106,7 @@ type alias ModuleContext =
     , exposed : Exposing
     , customTypeArgs : Dict String (Dict String (List Range))
     , usedArguments : Dict ( ModuleName, String ) (Set Int)
+    , customTypesNotToReport : Set String
     }
 
 
@@ -162,6 +163,7 @@ fromProjectToModule =
             , exposed = Exposing.Explicit []
             , customTypeArgs = Dict.empty
             , usedArguments = Dict.empty
+            , customTypesNotToReport = Set.singleton "Unused"
             }
         )
         |> Rule.withModuleNameLookupTable
@@ -194,8 +196,7 @@ fromModuleToProject =
             , customTypesNotToReport =
                 Dict.singleton
                     (Rule.moduleNameFromMetadata metadata)
-                    -- TODO
-                    (Set.singleton "Unused")
+                    moduleContext.customTypesNotToReport
             }
         )
         |> Rule.withModuleKey
