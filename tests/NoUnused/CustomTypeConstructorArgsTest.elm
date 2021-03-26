@@ -460,6 +460,19 @@ b = B
                             , under = "Int"
                             }
                         ]
+        , test "should not report args for type constructors used in an equality expression (==) in a different module" <|
+            \() ->
+                [ """
+module MyModule exposing (a, b)
+import Foo as F
+a = F.Unused == b
+b = F.B
+""", """
+module Foo exposing (Foo(..))
+type Foo = Unused Int | B
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData packageProject rule
+                    |> Review.Test.expectNoErrors
         ]
 
 
