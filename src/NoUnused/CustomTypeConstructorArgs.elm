@@ -96,7 +96,7 @@ type alias ProjectContext =
             , args : Dict String (List Range)
             }
     , usedArguments : Dict ( ModuleName, String ) (Set Int)
-    , customTypesNotToReport : Dict ModuleName (Set String)
+    , customTypesNotToReport : Set ( ModuleName, String )
     }
 
 
@@ -106,7 +106,7 @@ type alias ModuleContext =
     , exposed : Exposing
     , customTypeArgs : Dict String (Dict String (List Range))
     , usedArguments : Dict ( ModuleName, String ) (Set Int)
-    , customTypesNotToReport : Set String
+    , customTypesNotToReport : Set ( ModuleName, String )
     }
 
 
@@ -150,7 +150,7 @@ initialProjectContext =
     { exposedModules = Set.empty
     , customTypeArgs = Dict.empty
     , usedArguments = Dict.empty
-    , customTypesNotToReport = Dict.empty
+    , customTypesNotToReport = Set.empty
     }
 
 
@@ -182,14 +182,25 @@ fromModuleToProject =
                     , args = getNonExposedCustomTypes moduleContext
                     }
             , usedArguments = replaceLocalModuleNameForDict (Rule.moduleNameFromMetadata metadata) moduleContext.usedArguments
-            , customTypesNotToReport =
-                Dict.singleton
-                    (Rule.moduleNameFromMetadata metadata)
-                    moduleContext.customTypesNotToReport
+            , customTypesNotToReport = replaceLocalModuleNameForSet (Rule.moduleNameFromMetadata metadata) moduleContext.customTypesNotToReport
             }
         )
         |> Rule.withModuleKey
         |> Rule.withMetadata
+
+
+replaceLocalModuleNameForSet : ModuleName -> Set ( ModuleName, comparable ) -> Set ( ModuleName, comparable )
+replaceLocalModuleNameForSet moduleName set =
+    Set.map
+        (\( moduleNameForType, name ) ->
+            case moduleNameForType of
+                [] ->
+                    ( moduleName, name )
+
+                _ ->
+                    ( moduleNameForType, name )
+        )
+        set
 
 
 replaceLocalModuleNameForDict : ModuleName -> Dict ( ModuleName, comparable ) b -> Dict ( ModuleName, comparable ) b
@@ -261,7 +272,7 @@ foldProjectContexts newContext previousContext =
             newContext.usedArguments
             previousContext.usedArguments
             Dict.empty
-    , customTypesNotToReport = Dict.union newContext.customTypesNotToReport previousContext.customTypesNotToReport
+    , customTypesNotToReport = Set.union newContext.customTypesNotToReport previousContext.customTypesNotToReport
     }
 
 
@@ -398,7 +409,7 @@ expressionVisitor node context =
             )
 
         Expression.OperatorApplication operator _ left right ->
-            ( [], { context | customTypesNotToReport = Set.insert "Unused" context.customTypesNotToReport } )
+            ( [], { context | customTypesNotToReport = Set.insert ( [] {- TODO -}, "Unused" ) context.customTypesNotToReport } )
 
         _ ->
             ( [], context )
@@ -487,17 +498,11 @@ finalEvaluation context =
         |> Dict.toList
         |> List.concatMap
             (\( moduleName, { moduleKey, args } ) ->
-                let
-                    customTypesNotToReport : Set String
-                    customTypesNotToReport =
-                        Dict.get moduleName context.customTypesNotToReport
-                            |> Maybe.withDefault Set.empty
-                in
                 args
                     |> Dict.toList
                     |> List.concatMap
                         (\( name, ranges ) ->
-                            if Set.member name customTypesNotToReport then
+                            if Set.member ( moduleName, name ) context.customTypesNotToReport then
                                 []
 
                             else
