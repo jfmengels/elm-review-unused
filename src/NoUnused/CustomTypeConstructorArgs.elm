@@ -409,7 +409,11 @@ expressionVisitor node context =
             )
 
         Expression.OperatorApplication operator _ left right ->
-            ( [], { context | customTypesNotToReport = Set.insert ( [] {- TODO -}, "Unused" ) context.customTypesNotToReport } )
+            if operator == "==" || operator == "/=" then
+                ( [], { context | customTypesNotToReport = Set.insert ( [] {- TODO -}, "Unused" ) context.customTypesNotToReport } )
+
+            else
+                ( [], context )
 
         _ ->
             ( [], context )
