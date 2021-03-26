@@ -393,6 +393,9 @@ expressionVisitor node context =
               }
             )
 
+        Expression.OperatorApplication operator _ left right ->
+            ( [], { context | customTypesNotToReport = Set.insert "Unused" context.customTypesNotToReport } )
+
         _ ->
             ( [], context )
 
