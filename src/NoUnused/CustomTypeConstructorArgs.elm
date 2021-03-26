@@ -410,13 +410,39 @@ expressionVisitor node context =
 
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
-                ( [], { context | customTypesNotToReport = Set.insert ( [] {- TODO -}, "Unused" ) context.customTypesNotToReport } )
+                let
+                    customTypesNotToReport : Set ( ModuleName, String )
+                    customTypesNotToReport =
+                        Set.union
+                            (findCustomTypes context.lookupTable left)
+                            (findCustomTypes context.lookupTable right)
+                in
+                ( [], { context | customTypesNotToReport = Set.union customTypesNotToReport context.customTypesNotToReport } )
 
             else
                 ( [], context )
 
         _ ->
             ( [], context )
+
+
+findCustomTypes : ModuleNameLookupTable -> Node Expression -> Set ( ModuleName, String )
+findCustomTypes lookupTable node =
+    case Node.value node of
+        Expression.FunctionOrValue rawModuleName functionName ->
+            if String.toList functionName |> List.take 1 |> List.all Char.isUpper then
+                case ModuleNameLookupTable.moduleNameFor lookupTable node of
+                    Just moduleName ->
+                        Set.singleton ( moduleName, functionName )
+
+                    Nothing ->
+                        Set.singleton ( rawModuleName, functionName )
+
+            else
+                Set.empty
+
+        _ ->
+            Set.empty
 
 
 registerUsedPatterns : List ( ( ModuleName, String ), Set Int ) -> Dict ( ModuleName, String ) (Set Int) -> Dict ( ModuleName, String ) (Set Int)
