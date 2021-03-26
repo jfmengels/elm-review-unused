@@ -163,7 +163,7 @@ fromProjectToModule =
             , exposed = Exposing.Explicit []
             , customTypeArgs = Dict.empty
             , usedArguments = Dict.empty
-            , customTypesNotToReport = Set.singleton "Unused"
+            , customTypesNotToReport = Set.empty
             }
         )
         |> Rule.withModuleNameLookupTable
