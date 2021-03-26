@@ -467,6 +467,11 @@ isWildcard node =
 
 finalEvaluation : ProjectContext -> List (Error { useErrorForModule : () })
 finalEvaluation context =
+    let
+        customTypesNotToReport : Set String
+        customTypesNotToReport =
+            Set.singleton "Unused"
+    in
     context.customTypeArgs
         |> Dict.toList
         |> List.concatMap
@@ -475,7 +480,7 @@ finalEvaluation context =
                     |> Dict.toList
                     |> List.concatMap
                         (\( name, ranges ) ->
-                            if name == "Unused" then
+                            if Set.member name customTypesNotToReport then
                                 []
 
                             else
