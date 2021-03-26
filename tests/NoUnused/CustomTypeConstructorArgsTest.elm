@@ -503,22 +503,22 @@ type Foo = Unused Int | B
 """ ]
                     |> Review.Test.runOnModulesWithProjectData packageProject rule
                     |> Review.Test.expectNoErrors
-        , test "unknown" <|
+        , test "should report args for type constructors used in an equality expression when value is passed to a function" <|
             \() ->
-                """module Simple exposing (fn)
-
-type Version
-    = LatestVersion String
-    | OutOfDateVersion
-
-fn value =
-    if value == LatestVersion "" then
-        1
-    else
-        2
+                """
+module MyModule exposing (a, b)
+type Foo = Unused Int | B
+a = foo (Unused 0) == b
+b = B
 """
                     |> Review.Test.runWithProjectData packageProject rule
-                    |> Review.Test.expectNoErrors
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = message
+                            , details = details
+                            , under = "Int"
+                            }
+                        ]
         ]
 
 
