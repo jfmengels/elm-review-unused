@@ -181,18 +181,7 @@ fromModuleToProject =
                     { moduleKey = moduleKey
                     , args = getNonExposedCustomTypes moduleContext
                     }
-            , usedArguments =
-                Dict.foldl
-                    (\( moduleNameForType, name ) value dict ->
-                        case moduleNameForType of
-                            [] ->
-                                Dict.insert ( Rule.moduleNameFromMetadata metadata, name ) value dict
-
-                            _ ->
-                                Dict.insert ( moduleNameForType, name ) value dict
-                    )
-                    Dict.empty
-                    moduleContext.usedArguments
+            , usedArguments = replaceLocalModuleNameForDict (Rule.moduleNameFromMetadata metadata) moduleContext.usedArguments
             , customTypesNotToReport =
                 Dict.singleton
                     (Rule.moduleNameFromMetadata metadata)
@@ -201,6 +190,21 @@ fromModuleToProject =
         )
         |> Rule.withModuleKey
         |> Rule.withMetadata
+
+
+replaceLocalModuleNameForDict : ModuleName -> Dict ( ModuleName, comparable ) b -> Dict ( ModuleName, comparable ) b
+replaceLocalModuleNameForDict moduleName dict =
+    Dict.foldl
+        (\( moduleNameForType, name ) value acc ->
+            case moduleNameForType of
+                [] ->
+                    Dict.insert ( moduleName, name ) value acc
+
+                _ ->
+                    Dict.insert ( moduleNameForType, name ) value acc
+        )
+        Dict.empty
+        dict
 
 
 getNonExposedCustomTypes : ModuleContext -> Dict String (List Range)
