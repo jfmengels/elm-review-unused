@@ -452,8 +452,8 @@ findCustomTypes lookupTable node =
         Expression.Application [] ->
             Set.empty
 
-        Expression.Application expressions ->
-            List.foldl (findCustomTypes lookupTable >> Set.union) Set.empty expressions
+        Expression.Application (((Node _ (Expression.FunctionOrValue _ functionName)) as first) :: expressions) ->
+            List.foldl (findCustomTypes lookupTable >> Set.union) Set.empty (first :: expressions)
 
         Expression.OperatorApplication _ _ left right ->
             Set.union
