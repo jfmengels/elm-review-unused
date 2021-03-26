@@ -503,9 +503,10 @@ type Foo = Unused Int | B
 """ ]
                     |> Review.Test.runOnModulesWithProjectData packageProject rule
                     |> Review.Test.expectNoErrors
-        , test "unknown" <|
-            \() ->
-                """module Simple exposing (fn)
+        , Test.only <|
+            test "unknown" <|
+                \() ->
+                    """module Simple exposing (fn)
 
 type Version
     = LatestVersion String
@@ -517,8 +518,8 @@ fn value =
     else
         2
 """
-                    |> Review.Test.runWithProjectData packageProject rule
-                    |> Review.Test.expectNoErrors
+                        |> Review.Test.runWithProjectData packageProject rule
+                        |> Review.Test.expectNoErrors
         ]
 
 
