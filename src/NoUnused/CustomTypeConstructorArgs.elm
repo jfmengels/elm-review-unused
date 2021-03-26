@@ -432,7 +432,7 @@ findCustomTypes : ModuleNameLookupTable -> Node Expression -> Set ( ModuleName, 
 findCustomTypes lookupTable node =
     case Node.value node of
         Expression.FunctionOrValue rawModuleName functionName ->
-            if String.toList functionName |> List.take 1 |> List.all Char.isUpper then
+            if isCustomTypeConstructor functionName then
                 case ModuleNameLookupTable.moduleNameFor lookupTable node of
                     Just moduleName ->
                         Set.singleton ( moduleName, functionName )
@@ -468,6 +468,13 @@ findCustomTypes lookupTable node =
 
         _ ->
             Set.empty
+
+
+isCustomTypeConstructor : String -> Bool
+isCustomTypeConstructor functionName =
+    String.toList functionName
+        |> List.take 1
+        |> List.all Char.isUpper
 
 
 registerUsedPatterns : List ( ( ModuleName, String ), Set Int ) -> Dict ( ModuleName, String ) (Set Int) -> Dict ( ModuleName, String ) (Set Int)
