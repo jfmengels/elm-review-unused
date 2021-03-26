@@ -34,8 +34,10 @@ This rule will warn arguments that are always pattern matched using a wildcard (
 
 For package projects, custom types whose constructors are exposed as part of the package API are not reported.
 
-Note that this rule may report false positives if you compare custom types with the `==`/`/=` operators (and never destructure the custom type), like when you do `value == Just 0`.
-If you have a solution in mind to better handle these cases in a manageable way, please open an issue so we can talk about it.
+Note that this rule **may report false positives** if you compare custom types with the `==` or `/=` operators
+(and never destructure the custom type), like when you do `value == Just 0`, or store them in lists for instance with
+[`assoc-list`](https://package.elm-lang.org/packages/pzp1997/assoc-list/latest).
+This rule attempts to detect when the custom type is used in comparisons, but it may still result in false positives.
 
 
 ## Fail
