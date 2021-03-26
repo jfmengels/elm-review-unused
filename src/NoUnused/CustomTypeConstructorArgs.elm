@@ -96,7 +96,7 @@ type alias ProjectContext =
             , args : Dict String (List Range)
             }
     , usedArguments : Dict ( ModuleName, String ) (Set Int)
-    , customTypesNotToReport : Set String
+    , customTypesNotToReport : Dict ModuleName (Set String)
     }
 
 
@@ -149,7 +149,7 @@ initialProjectContext =
     { exposedModules = Set.empty
     , customTypeArgs = Dict.empty
     , usedArguments = Dict.empty
-    , customTypesNotToReport = Set.singleton "Unused"
+    , customTypesNotToReport = Dict.singleton [ "MyModule" ] (Set.singleton "Unused")
     }
 
 
@@ -191,9 +191,11 @@ fromModuleToProject =
                     )
                     Dict.empty
                     moduleContext.usedArguments
-
-            -- TODO
-            , customTypesNotToReport = Set.empty
+            , customTypesNotToReport =
+                Dict.singleton
+                    (Rule.moduleNameFromMetadata metadata)
+                    -- TODO
+                    Set.empty
             }
         )
         |> Rule.withModuleKey
@@ -254,9 +256,7 @@ foldProjectContexts newContext previousContext =
             newContext.usedArguments
             previousContext.usedArguments
             Dict.empty
-
-    -- TODO
-    , customTypesNotToReport = Set.empty
+    , customTypesNotToReport = Dict.union newContext.customTypesNotToReport previousContext.customTypesNotToReport
     }
 
 
@@ -479,11 +479,17 @@ finalEvaluation context =
         |> Dict.toList
         |> List.concatMap
             (\( moduleName, { moduleKey, args } ) ->
+                let
+                    customTypesNotToReport : Set String
+                    customTypesNotToReport =
+                        Dict.get moduleName context.customTypesNotToReport
+                            |> Maybe.withDefault Set.empty
+                in
                 args
                     |> Dict.toList
                     |> List.concatMap
                         (\( name, ranges ) ->
-                            if Set.member name context.customTypesNotToReport then
+                            if Set.member name customTypesNotToReport then
                                 []
 
                             else
