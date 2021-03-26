@@ -447,6 +447,21 @@ findCustomTypes lookupTable node =
         Expression.ParenthesizedExpression expression ->
             findCustomTypes lookupTable expression
 
+        Expression.Application _ ->
+            -- We explicitly don't want to handle accept applications
+            Set.empty
+
+        Expression.OperatorApplication _ _ left right ->
+            Set.union
+                (findCustomTypes lookupTable left)
+                (findCustomTypes lookupTable right)
+
+        Expression.Negation expression ->
+            findCustomTypes lookupTable expression
+
+        Expression.ListExpr expressions ->
+            List.foldl (findCustomTypes lookupTable >> Set.union) Set.empty expressions
+
         _ ->
             Set.empty
 
