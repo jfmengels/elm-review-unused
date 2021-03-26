@@ -424,6 +424,16 @@ type CustomType
                             , under = "SomeData"
                             }
                         ]
+        , test "should not report args for type constructors used in an equality expression (==)" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused Int | B
+a = Unused == b
+b = B
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectNoErrors
         ]
 
 
