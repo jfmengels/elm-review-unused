@@ -486,7 +486,7 @@ declarationVisitor node context =
                                     constructorInformation =
                                         { name = constructorName
                                         , rangeToReport = Node.range nameNode
-                                        , rangeToRemove = findRangeToRemove prev constructor next |> Debug.log "range to remove"
+                                        , rangeToRemove = findRangeToRemove prev constructor next
                                         }
                                 in
                                 ( Just constructor
