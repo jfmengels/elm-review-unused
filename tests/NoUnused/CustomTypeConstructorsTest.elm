@@ -156,11 +156,19 @@ type Foo = Bar | Baz"""
                             , details = [ defaultDetails ]
                             , under = "Bar"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (Foo)
+type Foo = Baz"""
                         , Review.Test.error
                             { message = "Type constructor `Baz` is not used."
                             , details = [ defaultDetails ]
                             , under = "Baz"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (Foo)
+type Foo = Bar"""
                         ]
         , test "should report type constructors that are only used inside pattern matches that require themselves" <|
             \() ->
