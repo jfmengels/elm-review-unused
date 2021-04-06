@@ -126,24 +126,25 @@ a = Bar
 b = Baz"""
                     |> Review.Test.runWithProjectData project (rule [])
                     |> Review.Test.expectNoErrors
-        , test "should report unused type constructors" <|
-            \() ->
-                """
+        , Test.only <|
+            test "should report unused type constructors" <|
+                \() ->
+                    """
 module MyModule exposing (b)
 type Foo = Bar | Baz"""
-                    |> Review.Test.runWithProjectData project (rule [])
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Type constructor `Bar` is not used."
-                            , details = [ defaultDetails ]
-                            , under = "Bar"
-                            }
-                        , Review.Test.error
-                            { message = "Type constructor `Baz` is not used."
-                            , details = [ defaultDetails ]
-                            , under = "Baz"
-                            }
-                        ]
+                        |> Review.Test.runWithProjectData project (rule [])
+                        |> Review.Test.expectErrors
+                            [ Review.Test.error
+                                { message = "Type constructor `Bar` is not used."
+                                , details = [ defaultDetails ]
+                                , under = "Bar"
+                                }
+                            , Review.Test.error
+                                { message = "Type constructor `Baz` is not used."
+                                , details = [ defaultDetails ]
+                                , under = "Baz"
+                                }
+                            ]
         , test "should report unused type constructors, even if the type is exposed" <|
             \() ->
                 """
