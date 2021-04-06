@@ -486,7 +486,7 @@ declarationVisitor node context =
                                     constructorInformation =
                                         { name = constructorName
                                         , rangeToReport = Node.range nameNode
-                                        , rangeToRemove = findRangeToRemove prev constructor next nameNode
+                                        , rangeToRemove = findRangeToRemove prev constructor next |> Debug.log "range to remove"
                                         }
                                 in
                                 ( Just constructor
@@ -524,8 +524,8 @@ declarationVisitor node context =
             ( [], context )
 
 
-findRangeToRemove : Maybe (Node a) -> Node b -> Maybe (Node c) -> Node d -> Maybe { start : Elm.Syntax.Range.Location, end : Elm.Syntax.Range.Location }
-findRangeToRemove previousConstructor constructor nextConstructor nameNode =
+findRangeToRemove : Maybe (Node a) -> Node Type.ValueConstructor -> Maybe (Node c) -> Maybe { start : Elm.Syntax.Range.Location, end : Elm.Syntax.Range.Location }
+findRangeToRemove previousConstructor constructor nextConstructor =
     case previousConstructor of
         Just prev ->
             Just
@@ -537,7 +537,7 @@ findRangeToRemove previousConstructor constructor nextConstructor nameNode =
             case nextConstructor of
                 Just next ->
                     Just
-                        { start = (Node.range nameNode).start
+                        { start = constructor |> Node.value |> .name |> Node.range |> .start
                         , end = (Node.range next).start
                         }
 
