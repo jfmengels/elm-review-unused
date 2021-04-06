@@ -824,10 +824,11 @@ defaultDetails =
 
 errorForModule : Rule.ModuleKey -> { wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool } -> ConstructorInformation -> Error scope
 errorForModule moduleKey conditions constructorInformation =
-    Rule.errorForModule
+    Rule.errorForModuleWithFix
         moduleKey
         (errorInformation conditions constructorInformation.name)
         constructorInformation.rangeToReport
+        []
 
 
 
