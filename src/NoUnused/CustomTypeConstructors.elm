@@ -179,7 +179,7 @@ type alias ConstructorInformation =
 
 type alias ProjectContext =
     { exposedModules : Set ModuleNameAsString
-    , exposedConstructors : Dict ModuleNameAsString ExposedConstructors
+    , declaredConstructors : Dict ModuleNameAsString ExposedConstructors
     , usedConstructors : Dict ModuleNameAsString (Set ConstructorName)
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
     , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
@@ -207,7 +207,7 @@ type alias ModuleContext =
 initialProjectContext : List { moduleName : String, typeName : String, index : Int } -> ProjectContext
 initialProjectContext phantomTypes =
     { exposedModules = Set.empty
-    , exposedConstructors = Dict.empty
+    , declaredConstructors = Dict.empty
     , usedConstructors = Dict.empty
     , phantomVariables =
         List.foldl
@@ -228,7 +228,7 @@ fromProjectToModule lookupTable metadata projectContext =
     { lookupTable = lookupTable
     , exposedCustomTypesWithConstructors = Set.empty
     , isExposed = Set.member (Rule.moduleNameFromMetadata metadata |> String.join ".") projectContext.exposedModules
-    , exposedConstructors = projectContext.exposedConstructors
+    , exposedConstructors = projectContext.declaredConstructors
     , exposesEverything = False
     , declaredTypesWithConstructors = Dict.empty
     , usedFunctionsOrValues = Dict.empty
@@ -265,7 +265,7 @@ fromModuleToProject moduleKey metadata moduleContext =
             String.join "." moduleName
     in
     { exposedModules = Set.empty
-    , exposedConstructors =
+    , declaredConstructors =
         if moduleContext.isExposed then
             if moduleContext.exposesEverything then
                 Dict.empty
@@ -320,7 +320,7 @@ fromModuleToProject moduleKey metadata moduleContext =
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
     { exposedModules = previousContext.exposedModules
-    , exposedConstructors = Dict.union newContext.exposedConstructors previousContext.exposedConstructors
+    , declaredConstructors = Dict.union newContext.declaredConstructors previousContext.declaredConstructors
     , usedConstructors =
         Dict.merge
             Dict.insert
@@ -796,7 +796,7 @@ isCapitalized name =
 
 finalProjectEvaluation : ProjectContext -> List (Error { useErrorForModule : () })
 finalProjectEvaluation projectContext =
-    projectContext.exposedConstructors
+    projectContext.declaredConstructors
         |> Dict.toList
         |> List.concatMap
             (\( moduleName, ExposedConstructors { moduleKey, customTypes } ) ->
