@@ -819,6 +819,7 @@ finalProjectEvaluation projectContext =
                                             moduleKey
                                             { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInLocationThatNeedsItself
                                             , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
+                                            , isExposed = True
                                             }
                                             constructorInformation
                                     )
@@ -830,7 +831,7 @@ finalProjectEvaluation projectContext =
 -- ERROR
 
 
-errorInformation : { wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool } -> String -> { message : String, details : List String }
+errorInformation : { a | wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool } -> String -> { message : String, details : List String }
 errorInformation { wasUsedInLocationThatNeedsItself, wasUsedInComparisons } name =
     { message = "Type constructor `" ++ name ++ "` is not used."
     , details =
@@ -848,7 +849,7 @@ defaultDetails =
     "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created."
 
 
-errorForModule : Rule.ModuleKey -> { wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool } -> ConstructorInformation -> Error scope
+errorForModule : Rule.ModuleKey -> { wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool, isExposed : Bool } -> ConstructorInformation -> Error scope
 errorForModule moduleKey conditions constructorInformation =
     Rule.errorForModuleWithFix
         moduleKey
@@ -856,7 +857,11 @@ errorForModule moduleKey conditions constructorInformation =
         constructorInformation.rangeToReport
         (case constructorInformation.rangeToRemove of
             Just rangeToRemove ->
-                [ Fix.removeRange rangeToRemove ]
+                if conditions.isExposed then
+                    []
+
+                else
+                    [ Fix.removeRange rangeToRemove ]
 
             Nothing ->
                 []
