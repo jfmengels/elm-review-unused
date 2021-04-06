@@ -144,32 +144,33 @@ type Foo = Bar | Baz"""
                             , under = "Baz"
                             }
                         ]
-        , test "should report unused type constructors, even if the type is exposed" <|
-            \() ->
-                """
+        , Test.only <|
+            test "should report unused type constructors, even if the type is exposed" <|
+                \() ->
+                    """
 module MyModule exposing (Foo)
 type Foo = Bar | Baz"""
-                    |> Review.Test.runWithProjectData project (rule [])
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "Type constructor `Bar` is not used."
-                            , details = [ defaultDetails ]
-                            , under = "Bar"
-                            }
-                            |> Review.Test.whenFixed
-                                """
+                        |> Review.Test.runWithProjectData project (rule [])
+                        |> Review.Test.expectErrors
+                            [ Review.Test.error
+                                { message = "Type constructor `Bar` is not used."
+                                , details = [ defaultDetails ]
+                                , under = "Bar"
+                                }
+                                |> Review.Test.whenFixed
+                                    """
 module MyModule exposing (Foo)
 type Foo = Baz"""
-                        , Review.Test.error
-                            { message = "Type constructor `Baz` is not used."
-                            , details = [ defaultDetails ]
-                            , under = "Baz"
-                            }
-                            |> Review.Test.whenFixed
-                                """
+                            , Review.Test.error
+                                { message = "Type constructor `Baz` is not used."
+                                , details = [ defaultDetails ]
+                                , under = "Baz"
+                                }
+                                |> Review.Test.whenFixed
+                                    """
 module MyModule exposing (Foo)
 type Foo = Bar"""
-                        ]
+                            ]
         , test "should report type constructors that are only used inside pattern matches that require themselves" <|
             \() ->
                 """
