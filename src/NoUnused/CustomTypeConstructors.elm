@@ -466,7 +466,7 @@ declarationVisitor node context =
                     constructorsAndNext : List ( Maybe (Node Type.ValueConstructor), Node Type.ValueConstructor )
                     constructorsAndNext =
                         List.map2 Tuple.pair
-                            (Nothing :: List.map Just constructors)
+                            (List.map Just (List.drop 1 constructors) ++ [ Nothing ])
                             constructors
 
                     constructorsForCustomType : Dict String ConstructorInformation
