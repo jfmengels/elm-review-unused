@@ -463,10 +463,16 @@ declarationVisitor node context =
 
             else
                 let
+                    constructorsAndNext : List ( Maybe (Node Type.ValueConstructor), Node Type.ValueConstructor )
+                    constructorsAndNext =
+                        List.map2 Tuple.pair
+                            (Nothing :: List.map Just constructors)
+                            constructors
+
                     constructorsForCustomType : Dict String ConstructorInformation
                     constructorsForCustomType =
                         List.foldl
-                            (\( index, constructor ) ( prev, dict ) ->
+                            (\( next, constructor ) ( prev, dict ) ->
                                 let
                                     nameNode : Node String
                                     nameNode =
@@ -480,7 +486,7 @@ declarationVisitor node context =
                                     constructorInformation =
                                         { name = constructorName
                                         , rangeToReport = Node.range nameNode
-                                        , rangeToRemove = findRangeToRemove prev constructor Nothing nameNode
+                                        , rangeToRemove = findRangeToRemove prev constructor next nameNode
                                         }
                                 in
                                 ( Just constructor
@@ -491,7 +497,7 @@ declarationVisitor node context =
                                 )
                             )
                             ( Nothing, Dict.empty )
-                            (List.indexedMap Tuple.pair constructors)
+                            constructorsAndNext
                             |> Tuple.second
                 in
                 ( []
