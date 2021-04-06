@@ -1,11 +1,11 @@
 module NoUnused.CustomTypeConstructorArgsTest exposing (all)
 
-import Dependencies.ElmCore
 import Elm.Project
 import Json.Decode as Decode
 import NoUnused.CustomTypeConstructorArgs exposing (rule)
 import Review.Project as Project exposing (Project)
 import Review.Test
+import Review.Test.Dependencies
 import Test exposing (Test, describe, test)
 
 
@@ -524,9 +524,8 @@ b = B
 
 packageProject : Project
 packageProject =
-    Project.new
+    Review.Test.Dependencies.projectWithElmCore
         |> Project.addElmJson (createElmJson packageElmJson)
-        |> Project.addDependency Dependencies.ElmCore.dependency
 
 
 packageElmJson : String
