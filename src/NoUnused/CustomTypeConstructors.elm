@@ -165,8 +165,12 @@ type alias ConstructorName =
 type ExposedConstructors
     = ExposedConstructors
         { moduleKey : Rule.ModuleKey
-        , customTypes : Dict CustomTypeName (Dict ConstructorName (Node ConstructorName))
+        , customTypes : Dict CustomTypeName (Dict ConstructorName ConstructorInformation)
         }
+
+
+type alias ConstructorInformation =
+    Node ConstructorName
 
 
 type alias ProjectContext =
