@@ -170,7 +170,8 @@ type ExposedConstructors
 
 
 type alias ConstructorInformation =
-    { rangeToReport : Node ConstructorName
+    { name : String
+    , rangeToReport : Range
     }
 
 
@@ -465,14 +466,23 @@ declarationVisitor node context =
                         List.foldl
                             (\constructor dict ->
                                 let
-                                    nameNode : ConstructorInformation
+                                    nameNode : Node String
                                     nameNode =
-                                        { rangeToReport = (Node.value constructor).name
+                                        (Node.value constructor).name
+
+                                    constructorName : String
+                                    constructorName =
+                                        Node.value nameNode
+
+                                    constructorInformation : ConstructorInformation
+                                    constructorInformation =
+                                        { name = constructorName
+                                        , rangeToReport = Node.range nameNode
                                         }
                                 in
                                 Dict.insert
-                                    (Node.value nameNode.rangeToReport)
-                                    nameNode
+                                    constructorName
+                                    constructorInformation
                                     dict
                             )
                             Dict.empty
@@ -771,13 +781,13 @@ finalProjectEvaluation projectContext =
                                 |> Dict.filter (\constructorName _ -> not <| Set.member constructorName usedConstructors)
                                 |> Dict.values
                                 |> List.map
-                                    (\{ rangeToReport } ->
+                                    (\{ name, rangeToReport } ->
                                         errorForModule
                                             moduleKey
-                                            { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, Node.value rangeToReport ) projectContext.wasUsedInLocationThatNeedsItself
-                                            , wasUsedInComparisons = Set.member ( moduleName, Node.value rangeToReport ) projectContext.wasUsedInComparisons
+                                            { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, name ) projectContext.wasUsedInLocationThatNeedsItself
+                                            , wasUsedInComparisons = Set.member ( moduleName, name ) projectContext.wasUsedInComparisons
                                             }
-                                            rangeToReport
+                                            (Node rangeToReport name)
                                     )
                         )
             )
