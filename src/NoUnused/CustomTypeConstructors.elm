@@ -480,13 +480,7 @@ declarationVisitor node context =
                                     constructorInformation =
                                         { name = constructorName
                                         , rangeToReport = Node.range nameNode
-
-                                        -- TODO Check that we don't remove it if there is only a single constructor
-                                        , rangeToRemove =
-                                            Just
-                                                { start = (Node.range nameNode).start
-                                                , end = (Node.range constructor).end
-                                                }
+                                        , rangeToRemove = findRangeToRemove index constructor nameNode
                                         }
                                 in
                                 Dict.insert
@@ -519,6 +513,14 @@ declarationVisitor node context =
 
         _ ->
             ( [], context )
+
+
+findRangeToRemove index constructor nameNode =
+    -- TODO Check that we don't remove it if there is only a single constructor
+    Just
+        { start = (Node.range nameNode).start
+        , end = (Node.range constructor).end
+        }
 
 
 isPhantomCustomType : Node String -> List (Node Type.ValueConstructor) -> Bool
