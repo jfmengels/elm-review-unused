@@ -788,13 +788,13 @@ finalProjectEvaluation projectContext =
                                 |> Dict.filter (\constructorName _ -> not <| Set.member constructorName usedConstructors)
                                 |> Dict.values
                                 |> List.map
-                                    (\{ name, rangeToReport } ->
+                                    (\constructorInformation ->
                                         errorForModule
                                             moduleKey
-                                            { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, name ) projectContext.wasUsedInLocationThatNeedsItself
-                                            , wasUsedInComparisons = Set.member ( moduleName, name ) projectContext.wasUsedInComparisons
+                                            { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInLocationThatNeedsItself
+                                            , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
                                             }
-                                            (Node rangeToReport name)
+                                            constructorInformation
                                     )
                         )
             )
@@ -822,12 +822,12 @@ defaultDetails =
     "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created."
 
 
-errorForModule : Rule.ModuleKey -> { wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool } -> Node String -> Error scope
-errorForModule moduleKey conditions node =
+errorForModule : Rule.ModuleKey -> { wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool } -> ConstructorInformation -> Error scope
+errorForModule moduleKey conditions constructorInformation =
     Rule.errorForModule
         moduleKey
-        (errorInformation conditions (Node.value node))
-        (Node.range node)
+        (errorInformation conditions constructorInformation.name)
+        constructorInformation.rangeToReport
 
 
 
