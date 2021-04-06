@@ -172,6 +172,7 @@ type ExposedConstructors
 type alias ConstructorInformation =
     { name : String
     , rangeToReport : Range
+    , rangeToRemove : Range
     }
 
 
@@ -478,6 +479,12 @@ declarationVisitor node context =
                                     constructorInformation =
                                         { name = constructorName
                                         , rangeToReport = Node.range nameNode
+
+                                        -- TODO Check that we don't remove it if there is only a single constructor
+                                        , rangeToRemove =
+                                            { start = (Node.range nameNode).start
+                                            , end = (Node.range constructor).end
+                                            }
                                         }
                                 in
                                 Dict.insert
