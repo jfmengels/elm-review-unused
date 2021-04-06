@@ -173,7 +173,7 @@ type ExposedConstructors
 type alias ConstructorInformation =
     { name : String
     , rangeToReport : Range
-    , rangeToRemove : Range
+    , rangeToRemove : Maybe Range
     }
 
 
@@ -483,9 +483,10 @@ declarationVisitor node context =
 
                                         -- TODO Check that we don't remove it if there is only a single constructor
                                         , rangeToRemove =
-                                            { start = (Node.range nameNode).start
-                                            , end = (Node.range constructor).end
-                                            }
+                                            Just
+                                                { start = (Node.range nameNode).start
+                                                , end = (Node.range constructor).end
+                                                }
                                         }
                                 in
                                 Dict.insert
@@ -829,7 +830,13 @@ errorForModule moduleKey conditions constructorInformation =
         moduleKey
         (errorInformation conditions constructorInformation.name)
         constructorInformation.rangeToReport
-        [ Fix.removeRange constructorInformation.rangeToRemove ]
+        (case constructorInformation.rangeToRemove of
+            Just rangeToRemove ->
+                [ Fix.removeRange rangeToRemove ]
+
+            Nothing ->
+                []
+        )
 
 
 
