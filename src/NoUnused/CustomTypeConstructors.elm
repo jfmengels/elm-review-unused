@@ -23,6 +23,7 @@ import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Type as Type
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import NoUnused.RangeDict as RangeDict exposing (RangeDict)
+import Review.Fix as Fix
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -828,7 +829,7 @@ errorForModule moduleKey conditions constructorInformation =
         moduleKey
         (errorInformation conditions constructorInformation.name)
         constructorInformation.rangeToReport
-        []
+        [ Fix.removeRange constructorInformation.rangeToRemove ]
 
 
 
