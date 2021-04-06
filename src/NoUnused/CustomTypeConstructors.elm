@@ -480,7 +480,7 @@ declarationVisitor node context =
                                     constructorInformation =
                                         { name = constructorName
                                         , rangeToReport = Node.range nameNode
-                                        , rangeToRemove = findRangeToRemove index constructor nameNode
+                                        , rangeToRemove = findRangeToRemove Nothing constructor Nothing nameNode
                                         }
                                 in
                                 Dict.insert
@@ -515,12 +515,25 @@ declarationVisitor node context =
             ( [], context )
 
 
-findRangeToRemove index constructor nameNode =
-    -- TODO Check that we don't remove it if there is only a single constructor
-    Just
-        { start = (Node.range nameNode).start
-        , end = (Node.range constructor).end
-        }
+findRangeToRemove : Maybe (Node a) -> Node b -> Maybe (Node c) -> Node d -> Maybe { start : Elm.Syntax.Range.Location, end : Elm.Syntax.Range.Location }
+findRangeToRemove previousConstructor constructor nextConstructor nameNode =
+    case previousConstructor of
+        Just prev ->
+            Just
+                { start = (Node.range prev).end
+                , end = (Node.range constructor).end
+                }
+
+        Nothing ->
+            case nextConstructor of
+                Just next ->
+                    Just
+                        { start = (Node.range nameNode).start
+                        , end = (Node.range next).start
+                        }
+
+                Nothing ->
+                    Nothing
 
 
 isPhantomCustomType : Node String -> List (Node Type.ValueConstructor) -> Bool
