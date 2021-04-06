@@ -464,7 +464,7 @@ declarationVisitor node context =
                     constructorsForCustomType : Dict String ConstructorInformation
                     constructorsForCustomType =
                         List.foldl
-                            (\constructor dict ->
+                            (\( index, constructor ) dict ->
                                 let
                                     nameNode : Node String
                                     nameNode =
@@ -486,7 +486,7 @@ declarationVisitor node context =
                                     dict
                             )
                             Dict.empty
-                            constructors
+                            (List.indexedMap Tuple.pair constructors)
                 in
                 ( []
                 , { context
