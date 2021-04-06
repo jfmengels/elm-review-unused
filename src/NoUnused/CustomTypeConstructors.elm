@@ -170,7 +170,8 @@ type ExposedConstructors
 
 
 type alias ConstructorInformation =
-    Node ConstructorName
+    { rangeToReport : Node ConstructorName
+    }
 
 
 type alias ProjectContext =
@@ -189,7 +190,7 @@ type alias ModuleContext =
     , isExposed : Bool
     , exposesEverything : Bool
     , exposedConstructors : Dict ModuleNameAsString ExposedConstructors
-    , declaredTypesWithConstructors : Dict CustomTypeName (Dict ConstructorName (Node ConstructorName))
+    , declaredTypesWithConstructors : Dict CustomTypeName (Dict ConstructorName ConstructorInformation)
     , usedFunctionsOrValues : Dict ModuleNameAsString (Set ConstructorName)
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
     , ignoreBlocks : List (RangeDict (Set ( ModuleName, String )))
@@ -459,17 +460,18 @@ declarationVisitor node context =
 
             else
                 let
-                    constructorsForCustomType : Dict String (Node String)
+                    constructorsForCustomType : Dict String ConstructorInformation
                     constructorsForCustomType =
                         List.foldl
                             (\constructor dict ->
                                 let
-                                    nameNode : Node String
+                                    nameNode : ConstructorInformation
                                     nameNode =
-                                        (Node.value constructor).name
+                                        { rangeToReport = (Node.value constructor).name
+                                        }
                                 in
                                 Dict.insert
-                                    (Node.value nameNode)
+                                    (Node.value nameNode.rangeToReport)
                                     nameNode
                                     dict
                             )
@@ -769,13 +771,13 @@ finalProjectEvaluation projectContext =
                                 |> Dict.filter (\constructorName _ -> not <| Set.member constructorName usedConstructors)
                                 |> Dict.values
                                 |> List.map
-                                    (\constructorName ->
+                                    (\{ rangeToReport } ->
                                         errorForModule
                                             moduleKey
-                                            { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, Node.value constructorName ) projectContext.wasUsedInLocationThatNeedsItself
-                                            , wasUsedInComparisons = Set.member ( moduleName, Node.value constructorName ) projectContext.wasUsedInComparisons
+                                            { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, Node.value rangeToReport ) projectContext.wasUsedInLocationThatNeedsItself
+                                            , wasUsedInComparisons = Set.member ( moduleName, Node.value rangeToReport ) projectContext.wasUsedInComparisons
                                             }
-                                            constructorName
+                                            rangeToReport
                                     )
                         )
             )
