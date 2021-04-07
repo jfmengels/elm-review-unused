@@ -185,6 +185,7 @@ type alias ProjectContext =
     , locationsThatNeedsItself : Dict ( ModuleNameAsString, ConstructorName ) (List Range)
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInOtherModules : Set ( ModuleNameAsString, ConstructorName )
+    , fixesForRemovingConstructor : Dict ( ModuleNameAsString, ConstructorName ) (List Range)
     }
 
 
@@ -223,6 +224,7 @@ initialProjectContext phantomTypes =
     , locationsThatNeedsItself = Dict.empty
     , wasUsedInComparisons = Set.empty
     , wasUsedInOtherModules = Set.empty
+    , fixesForRemovingConstructor = Dict.empty
     }
 
 
@@ -327,6 +329,16 @@ fromModuleToProject moduleKey metadata moduleContext =
             )
             Set.empty
             (Dict.toList <| Dict.remove "" moduleContext.usedFunctionsOrValues)
+    , fixesForRemovingConstructor =
+        mapDictKeys
+            (\(( moduleName_, constructorName ) as untouched) ->
+                if moduleName_ == "" then
+                    ( moduleNameAsString, constructorName )
+
+                else
+                    untouched
+            )
+            moduleContext.fixesForRemovingConstructor
     }
 
 
@@ -346,6 +358,7 @@ foldProjectContexts newContext previousContext =
     , locationsThatNeedsItself = Dict.union newContext.locationsThatNeedsItself previousContext.locationsThatNeedsItself
     , wasUsedInComparisons = Set.union newContext.wasUsedInComparisons previousContext.wasUsedInComparisons
     , wasUsedInOtherModules = Set.union newContext.wasUsedInOtherModules previousContext.wasUsedInOtherModules
+    , fixesForRemovingConstructor = Dict.union newContext.fixesForRemovingConstructor previousContext.fixesForRemovingConstructor
     }
 
 
