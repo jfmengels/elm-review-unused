@@ -196,6 +196,13 @@ a = case () of
                                 , under = "Unused"
                                 }
                                 |> Review.Test.atExactly { start = { row = 3, column = 19 }, end = { row = 3, column = 25 } }
+                                |> Review.Test.whenFixed
+                                    """
+module MyModule exposing (a)
+type Foo = Used
+a = case () of
+        Used -> Used
+"""
                             ]
         , test "should report type constructors that are only used inside deep pattern matches that require themselves" <|
             \() ->
