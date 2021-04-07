@@ -695,38 +695,7 @@ expressionVisitorHelp node moduleContext =
 
         Expression.CaseExpression { cases } ->
             let
-                casesAndConstructors : List ( { bodyRange : Range, nodeRange : Range }, Set ( ModuleName, String ) )
-                casesAndConstructors =
-                    List.map
-                        (\( pattern, body ) ->
-                            ( { bodyRange = Node.range body
-                              , nodeRange =
-                                    { start = (Node.range pattern).start
-                                    , end = (Node.range body).end
-                                    }
-                              }
-                            , constructorsInPattern moduleContext.lookupTable pattern
-                            )
-                        )
-                        cases
-
-                newCases : RangeDict (Set ( ModuleName, String ))
-                newCases =
-                    casesAndConstructors
-                        |> List.map (Tuple.mapFirst .bodyRange)
-                        |> RangeDict.fromList
-
-                constructorsAndRangesToRemove : List ( Range, ( ModuleNameAsString, ConstructorName ) )
-                constructorsAndRangesToRemove =
-                    List.concatMap
-                        (\( ranges, constructors ) ->
-                            constructors
-                                |> Set.toList
-                                |> List.map (\( moduleName, constructorName ) -> ( ranges.nodeRange, ( String.join "." moduleName, constructorName ) ))
-                        )
-                        casesAndConstructors
-
-                found : List { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) Fix }
+                found : List { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) (List Fix) }
                 found =
                     List.map (forOne moduleContext.lookupTable) cases
 
@@ -736,47 +705,38 @@ expressionVisitorHelp node moduleContext =
                         |> RangeDict.fromList
             in
             ( []
-            , List.foldl
-                (\{ fixes } ctx ->
-                    { ctx
-                        | fixesForRemovingConstructor =
-                            List.foldl
-                                (\( nodeRange, constructor ) acc ->
-                                    Dict.update
-                                        constructor
-                                        (Maybe.withDefault [] >> (\list -> Just (Fix.removeRange nodeRange :: list)))
-                                        acc
-                                )
-                                moduleContext.fixesForRemovingConstructor
-                                constructorsAndRangesToRemove
-                    }
-                )
-                { moduleContext | ignoreBlocks = ignoredBlocks :: moduleContext.ignoreBlocks }
-                found
+            , { moduleContext
+                | ignoreBlocks = ignoredBlocks :: moduleContext.ignoreBlocks
+                , fixesForRemovingConstructor =
+                    List.foldl
+                        mergeDictsWithLists
+                        moduleContext.fixesForRemovingConstructor
+                        (List.map .fixes found)
+              }
             )
 
         _ ->
             ( [], moduleContext )
 
 
-forOne : ModuleNameLookupTable -> ( Node Pattern, Node a ) -> { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) Fix }
+forOne : ModuleNameLookupTable -> ( Node Pattern, Node a ) -> { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) (List Fix) }
 forOne lookupTable ( pattern, body ) =
     let
         constructors : Set ( ModuleName, String )
         constructors =
             constructorsInPattern lookupTable pattern
 
-        fixes : Dict ( ModuleNameAsString, ConstructorName ) Fix
+        fixes : Dict ( ModuleNameAsString, ConstructorName ) (List Fix)
         fixes =
             List.foldl
                 (\( moduleName, constructorName ) acc ->
                     Dict.insert
                         ( String.join "." moduleName, constructorName )
-                        (Fix.removeRange
+                        [ Fix.removeRange
                             { start = (Node.range pattern).start
                             , end = (Node.range body).end
                             }
-                        )
+                        ]
                         acc
                 )
                 Dict.empty
