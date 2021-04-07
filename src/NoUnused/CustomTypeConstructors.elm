@@ -358,15 +358,19 @@ foldProjectContexts newContext previousContext =
     , wasUsedInLocationThatNeedsItself = Set.union newContext.wasUsedInLocationThatNeedsItself previousContext.wasUsedInLocationThatNeedsItself
     , wasUsedInComparisons = Set.union newContext.wasUsedInComparisons previousContext.wasUsedInComparisons
     , wasUsedInOtherModules = Set.union newContext.wasUsedInOtherModules previousContext.wasUsedInOtherModules
-    , fixesForRemovingConstructor =
-        Dict.merge
-            (\key a dict -> Dict.insert key a dict)
-            (\key a b dict -> Dict.insert key (a ++ b) dict)
-            (\key b dict -> Dict.insert key b dict)
-            newContext.fixesForRemovingConstructor
-            previousContext.fixesForRemovingConstructor
-            Dict.empty
+    , fixesForRemovingConstructor = mergeDictsWithLists newContext.fixesForRemovingConstructor previousContext.fixesForRemovingConstructor
     }
+
+
+mergeDictsWithLists : Dict comparable appendable -> Dict comparable appendable -> Dict comparable appendable
+mergeDictsWithLists left right =
+    Dict.merge
+        (\key a dict -> Dict.insert key a dict)
+        (\key a b dict -> Dict.insert key (a ++ b) dict)
+        (\key b dict -> Dict.insert key b dict)
+        left
+        right
+        Dict.empty
 
 
 
