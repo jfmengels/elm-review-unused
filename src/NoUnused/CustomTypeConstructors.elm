@@ -199,7 +199,7 @@ type alias ModuleContext =
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
     , ignoreBlocks : List (RangeDict (Set ( ModuleName, String )))
     , constructorsToIgnore : List (Set ( ModuleName, String ))
-    , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
+    , locationsThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
     , ignoredComparisonRanges : List Range
     }
@@ -237,7 +237,7 @@ fromProjectToModule lookupTable metadata projectContext =
     , phantomVariables = projectContext.phantomVariables
     , ignoreBlocks = []
     , constructorsToIgnore = []
-    , wasUsedInLocationThatNeedsItself = Set.empty
+    , locationsThatNeedsItself = Set.empty
     , wasUsedInComparisons = Set.empty
     , ignoredComparisonRanges = []
     }
@@ -305,7 +305,7 @@ fromModuleToProject moduleKey metadata moduleContext =
                 else
                     untouched
             )
-            moduleContext.wasUsedInLocationThatNeedsItself
+            moduleContext.locationsThatNeedsItself
     , wasUsedInComparisons =
         Set.map
             (\(( moduleName_, constructorName ) as untouched) ->
@@ -777,10 +777,10 @@ registerUsedFunctionOrValue range moduleName name moduleContext =
 
     else if List.any (Set.member ( moduleName, name )) moduleContext.constructorsToIgnore then
         { moduleContext
-            | wasUsedInLocationThatNeedsItself =
+            | locationsThatNeedsItself =
                 Set.insert
                     ( String.join "." moduleName, name )
-                    moduleContext.wasUsedInLocationThatNeedsItself
+                    moduleContext.locationsThatNeedsItself
         }
 
     else
