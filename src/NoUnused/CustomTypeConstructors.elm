@@ -23,7 +23,7 @@ import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Type as Type
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import NoUnused.RangeDict as RangeDict exposing (RangeDict)
-import Review.Fix as Fix
+import Review.Fix as Fix exposing (Fix)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -185,7 +185,7 @@ type alias ProjectContext =
     , locationsThatNeedsItself : Dict ( ModuleNameAsString, ConstructorName ) (List Range)
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInOtherModules : Set ( ModuleNameAsString, ConstructorName )
-    , fixesForRemovingConstructor : Dict ( ModuleNameAsString, ConstructorName ) (List Range)
+    , fixesForRemovingConstructor : Dict ( ModuleNameAsString, ConstructorName ) (List Fix)
     }
 
 
@@ -202,7 +202,7 @@ type alias ModuleContext =
     , constructorsToIgnore : List (Set ( ModuleName, String ))
     , locationsThatNeedsItself : Dict ( ModuleNameAsString, ConstructorName ) (List Range)
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
-    , fixesForRemovingConstructor : Dict ( ModuleNameAsString, ConstructorName ) (List Range)
+    , fixesForRemovingConstructor : Dict ( ModuleNameAsString, ConstructorName ) (List Fix)
     , ignoredComparisonRanges : List Range
     }
 
@@ -723,7 +723,7 @@ expressionVisitorHelp node moduleContext =
                         (\( nodeRange, constructor ) acc ->
                             Dict.update
                                 constructor
-                                (Maybe.withDefault [] >> (\list -> Just (nodeRange :: list)))
+                                (Maybe.withDefault [] >> (\list -> Just (Fix.removeRange nodeRange :: list)))
                                 acc
                         )
                         moduleContext.fixesForRemovingConstructor
