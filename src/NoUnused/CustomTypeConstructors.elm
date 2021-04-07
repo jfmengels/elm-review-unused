@@ -182,7 +182,7 @@ type alias ProjectContext =
     , declaredConstructors : Dict ModuleNameAsString ExposedConstructors
     , usedConstructors : Dict ModuleNameAsString (Set ConstructorName)
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
-    , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
+    , locationsThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInOtherModules : Set ( ModuleNameAsString, ConstructorName )
     }
@@ -219,7 +219,7 @@ initialProjectContext phantomTypes =
             )
             Dict.empty
             phantomTypes
-    , wasUsedInLocationThatNeedsItself = Set.empty
+    , locationsThatNeedsItself = Set.empty
     , wasUsedInComparisons = Set.empty
     , wasUsedInOtherModules = Set.empty
     }
@@ -296,7 +296,7 @@ fromModuleToProject moduleKey metadata moduleContext =
             |> Dict.remove ""
             |> Dict.insert moduleNameAsString localUsed
     , phantomVariables = Dict.singleton moduleName localPhantomTypes
-    , wasUsedInLocationThatNeedsItself =
+    , locationsThatNeedsItself =
         Set.map
             (\(( moduleName_, constructorName ) as untouched) ->
                 if moduleName_ == "" then
@@ -341,7 +341,7 @@ foldProjectContexts newContext previousContext =
             previousContext.usedConstructors
             Dict.empty
     , phantomVariables = Dict.union newContext.phantomVariables previousContext.phantomVariables
-    , wasUsedInLocationThatNeedsItself = Set.union newContext.wasUsedInLocationThatNeedsItself previousContext.wasUsedInLocationThatNeedsItself
+    , locationsThatNeedsItself = Set.union newContext.locationsThatNeedsItself previousContext.locationsThatNeedsItself
     , wasUsedInComparisons = Set.union newContext.wasUsedInComparisons previousContext.wasUsedInComparisons
     , wasUsedInOtherModules = Set.union newContext.wasUsedInOtherModules previousContext.wasUsedInOtherModules
     }
@@ -829,7 +829,7 @@ finalProjectEvaluation projectContext =
                                     (\constructorInformation ->
                                         errorForModule
                                             moduleKey
-                                            { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInLocationThatNeedsItself
+                                            { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, constructorInformation.name ) projectContext.locationsThatNeedsItself
                                             , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
                                             , isUsedInOtherModules = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInOtherModules
                                             }
