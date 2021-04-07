@@ -201,6 +201,7 @@ type alias ModuleContext =
     , constructorsToIgnore : List (Set ( ModuleName, String ))
     , locationsThatNeedsItself : Dict ( ModuleNameAsString, ConstructorName ) (List Range)
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
+    , fixesForRemovingConstructor : Dict ( ModuleNameAsString, ConstructorName ) (List Range)
     , ignoredComparisonRanges : List Range
     }
 
@@ -239,6 +240,7 @@ fromProjectToModule lookupTable metadata projectContext =
     , constructorsToIgnore = []
     , locationsThatNeedsItself = Dict.empty
     , wasUsedInComparisons = Set.empty
+    , fixesForRemovingConstructor = Dict.empty
     , ignoredComparisonRanges = []
     }
 
@@ -703,7 +705,7 @@ expressionVisitorHelp node moduleContext =
             ( []
             , { moduleContext
                 | ignoreBlocks = newCases :: moduleContext.ignoreBlocks
-                , locationsThatNeedsItself =
+                , fixesForRemovingConstructor =
                     List.foldl
                         (\( nodeRange, constructor ) acc ->
                             Dict.update
@@ -711,7 +713,7 @@ expressionVisitorHelp node moduleContext =
                                 (Maybe.withDefault [] >> (\list -> Just (nodeRange :: list)))
                                 acc
                         )
-                        moduleContext.locationsThatNeedsItself
+                        moduleContext.fixesForRemovingConstructor
                         constructorsAndRangesToRemove
               }
             )
