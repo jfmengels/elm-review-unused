@@ -178,33 +178,32 @@ type Foo = Baz"""
 module MyModule exposing (Foo)
 type Foo = Bar"""
                         ]
-        , Test.only <|
-            test "should report type constructors that are only used inside pattern matches that require themselves" <|
-                \() ->
-                    """
+        , test "should report type constructors that are only used inside pattern matches that require themselves" <|
+            \() ->
+                """
 module MyModule exposing (a)
 type Foo = Used | Unused
 a = case () of
         Unused -> Unused + Used
         Used -> Used
 """
-                        |> Review.Test.runWithProjectData project (rule [])
-                        |> Review.Test.expectErrors
-                            [ Review.Test.error
-                                { message = "Type constructor `Unused` is not used."
-                                , details = [ defaultDetails, recursiveNeedDetails ]
-                                , under = "Unused"
-                                }
-                                |> Review.Test.atExactly { start = { row = 3, column = 19 }, end = { row = 3, column = 25 } }
-                                |> Review.Test.whenFixed
-                                    ("""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Unused` is not used."
+                            , details = [ defaultDetails, recursiveNeedDetails ]
+                            , under = "Unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 19 }, end = { row = 3, column = 25 } }
+                            |> Review.Test.whenFixed
+                                ("""
 module MyModule exposing (a)
 type Foo = Used
 a = case () of
        $
         Used -> Used
 """ |> String.replace "$" " ")
-                            ]
+                        ]
         , test "should report type constructors that are only used inside deep pattern matches that require themselves" <|
             \() ->
                 """
