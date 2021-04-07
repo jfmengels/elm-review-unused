@@ -138,11 +138,19 @@ type Foo = Bar | Baz"""
                             , details = [ defaultDetails ]
                             , under = "Bar"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (b)
+type Foo = Baz"""
                         , Review.Test.error
                             { message = "Type constructor `Baz` is not used."
                             , details = [ defaultDetails ]
                             , under = "Baz"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (b)
+type Foo = Bar"""
                         ]
         , test "should report unused type constructors, even if the type is exposed" <|
             \() ->
@@ -345,11 +353,29 @@ id = Id
                             , details = [ defaultDetails ]
                             , under = "A"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (id)
+type Something = B
+type Id a = Id
+
+id : Id Something
+id = Id
+"""
                         , Review.Test.error
                             { message = "Type constructor `B` is not used."
                             , details = [ defaultDetails ]
                             , under = "B"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (id)
+type Something = A
+type Id a = Id
+
+id : Id Something
+id = Id
+"""
                         ]
         , test "should report a custom type with one constructor, when there is a phantom type available but it isn't used" <|
             \() ->
@@ -473,11 +499,29 @@ id = Id
                             , under = "User"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 17 } }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (id)
+type User = Other
+type Id a = Id a
+
+id : Id User
+id = Id
+"""
                         , Review.Test.error
                             { message = "Type constructor `Other` is not used."
                             , details = [ defaultDetails ]
                             , under = "Other"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (id)
+type User = User Never
+type Id a = Id a
+
+id : Id User
+id = Id
+"""
                         ]
         , test "should not report a phantom type if it is used in another module (directly imported)" <|
             \() ->
@@ -609,11 +653,21 @@ type Foo = Bar | Baz
                             , details = [ defaultDetails ]
                             , under = "Bar"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (..)
+type Foo = Baz
+"""
                         , Review.Test.error
                             { message = "Type constructor `Baz` is not used."
                             , details = [ defaultDetails ]
                             , under = "Baz"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (..)
+type Foo = Bar
+"""
                         ]
         , test "should report unused type constructors when a package module is exposing all and module is exposed but types are not" <|
             \() ->
@@ -660,11 +714,21 @@ type Foo = Bar | Baz
                             , details = [ defaultDetails ]
                             , under = "Bar"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (..)
+type Foo = Baz
+"""
                         , Review.Test.error
                             { message = "Type constructor `Baz` is not used."
                             , details = [ defaultDetails ]
                             , under = "Baz"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (..)
+type Foo = Bar
+"""
                         ]
         , test "should not report unused type constructors when package module is exposing the constructors of that type and module is exposed" <|
             \() ->
@@ -687,11 +751,21 @@ type Foo = Bar | Baz
                             , details = [ defaultDetails ]
                             , under = "Bar"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (Foo(..))
+type Foo = Baz
+"""
                         , Review.Test.error
                             { message = "Type constructor `Baz` is not used."
                             , details = [ defaultDetails ]
                             , under = "Baz"
                             }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (Foo(..))
+type Foo = Bar
+"""
                         ]
         , test "should report unused type constructors when application module is exposing the constructors" <|
             \() ->
