@@ -721,29 +721,42 @@ expressionVisitorHelp node moduleContext =
                                 |> List.map (\( moduleName, constructorName ) -> ( ranges.nodeRange, ( String.join "." moduleName, constructorName ) ))
                         )
                         casesAndConstructors
+
+                found : List { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) Fix }
+                found =
+                    List.map (forOne moduleContext.lookupTable) cases
+
+                ignoredBlocks : RangeDict (Set ( ModuleName, String ))
+                ignoredBlocks =
+                    List.map .ignoreBlock found
+                        |> RangeDict.fromList
             in
             ( []
-            , { moduleContext
-                | ignoreBlocks = newCases :: moduleContext.ignoreBlocks
-                , fixesForRemovingConstructor =
-                    List.foldl
-                        (\( nodeRange, constructor ) acc ->
-                            Dict.update
-                                constructor
-                                (Maybe.withDefault [] >> (\list -> Just (Fix.removeRange nodeRange :: list)))
-                                acc
-                        )
-                        moduleContext.fixesForRemovingConstructor
-                        constructorsAndRangesToRemove
-              }
+            , List.foldl
+                (\{ fixes } ctx ->
+                    { ctx
+                        | fixesForRemovingConstructor =
+                            List.foldl
+                                (\( nodeRange, constructor ) acc ->
+                                    Dict.update
+                                        constructor
+                                        (Maybe.withDefault [] >> (\list -> Just (Fix.removeRange nodeRange :: list)))
+                                        acc
+                                )
+                                moduleContext.fixesForRemovingConstructor
+                                constructorsAndRangesToRemove
+                    }
+                )
+                { moduleContext | ignoreBlocks = ignoredBlocks :: moduleContext.ignoreBlocks }
+                found
             )
 
         _ ->
             ( [], moduleContext )
 
 
-forOne : ( Node Pattern, Node a ) -> ModuleNameLookupTable -> { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) Fix }
-forOne ( pattern, body ) lookupTable =
+forOne : ModuleNameLookupTable -> ( Node Pattern, Node a ) -> { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) Fix }
+forOne lookupTable ( pattern, body ) =
     let
         constructors : Set ( ModuleName, String )
         constructors =
