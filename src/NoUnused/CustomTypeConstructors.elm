@@ -669,10 +669,16 @@ expressionVisitorHelp node moduleContext =
 
         Expression.CaseExpression { cases } ->
             let
+                casesAndConstructors : List ( { bodyRange : Range }, Set ( ModuleName, String ) )
+                casesAndConstructors =
+                    List.map
+                        (\( pattern, body ) -> ( { bodyRange = Node.range body }, constructorsInPattern moduleContext.lookupTable pattern ))
+                        cases
+
                 newCases : RangeDict (Set ( ModuleName, String ))
                 newCases =
-                    cases
-                        |> List.map (\( pattern, body ) -> ( Node.range body, constructorsInPattern moduleContext.lookupTable pattern ))
+                    casesAndConstructors
+                        |> List.map (Tuple.mapFirst .bodyRange)
                         |> RangeDict.fromList
             in
             ( []
