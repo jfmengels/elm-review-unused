@@ -182,7 +182,7 @@ type alias ProjectContext =
     , declaredConstructors : Dict ModuleNameAsString ExposedConstructors
     , usedConstructors : Dict ModuleNameAsString (Set ConstructorName)
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
-    , locationsThatNeedsItself : Dict ( ModuleNameAsString, ConstructorName ) (List Range)
+    , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInOtherModules : Set ( ModuleNameAsString, ConstructorName )
     , fixesForRemovingConstructor : Dict ( ModuleNameAsString, ConstructorName ) (List Fix)
@@ -200,7 +200,7 @@ type alias ModuleContext =
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
     , ignoreBlocks : List (RangeDict (Set ( ModuleName, String )))
     , constructorsToIgnore : List (Set ( ModuleName, String ))
-    , locationsThatNeedsItself : Dict ( ModuleNameAsString, ConstructorName ) (List Range)
+    , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
     , fixesForRemovingConstructor : Dict ( ModuleNameAsString, ConstructorName ) (List Fix)
     , ignoredComparisonRanges : List Range
@@ -221,7 +221,7 @@ initialProjectContext phantomTypes =
             )
             Dict.empty
             phantomTypes
-    , locationsThatNeedsItself = Dict.empty
+    , wasUsedInLocationThatNeedsItself = Set.empty
     , wasUsedInComparisons = Set.empty
     , wasUsedInOtherModules = Set.empty
     , fixesForRemovingConstructor = Dict.empty
@@ -240,7 +240,7 @@ fromProjectToModule lookupTable metadata projectContext =
     , phantomVariables = projectContext.phantomVariables
     , ignoreBlocks = []
     , constructorsToIgnore = []
-    , locationsThatNeedsItself = Dict.empty
+    , wasUsedInLocationThatNeedsItself = Set.empty
     , wasUsedInComparisons = Set.empty
     , fixesForRemovingConstructor = Dict.empty
     , ignoredComparisonRanges = []
@@ -300,8 +300,8 @@ fromModuleToProject moduleKey metadata moduleContext =
             |> Dict.remove ""
             |> Dict.insert moduleNameAsString localUsed
     , phantomVariables = Dict.singleton moduleName localPhantomTypes
-    , locationsThatNeedsItself =
-        mapDictKeys
+    , wasUsedInLocationThatNeedsItself =
+        Set.map
             (\(( moduleName_, constructorName ) as untouched) ->
                 if moduleName_ == "" then
                     ( moduleNameAsString, constructorName )
@@ -309,7 +309,7 @@ fromModuleToProject moduleKey metadata moduleContext =
                 else
                     untouched
             )
-            moduleContext.locationsThatNeedsItself
+            moduleContext.wasUsedInLocationThatNeedsItself
     , wasUsedInComparisons =
         Set.map
             (\(( moduleName_, constructorName ) as untouched) ->
@@ -355,7 +355,7 @@ foldProjectContexts newContext previousContext =
             previousContext.usedConstructors
             Dict.empty
     , phantomVariables = Dict.union newContext.phantomVariables previousContext.phantomVariables
-    , locationsThatNeedsItself = Dict.union newContext.locationsThatNeedsItself previousContext.locationsThatNeedsItself
+    , wasUsedInLocationThatNeedsItself = Set.union newContext.wasUsedInLocationThatNeedsItself previousContext.wasUsedInLocationThatNeedsItself
     , wasUsedInComparisons = Set.union newContext.wasUsedInComparisons previousContext.wasUsedInComparisons
     , wasUsedInOtherModules = Set.union newContext.wasUsedInOtherModules previousContext.wasUsedInOtherModules
     , fixesForRemovingConstructor = Dict.union newContext.fixesForRemovingConstructor previousContext.fixesForRemovingConstructor
@@ -828,13 +828,7 @@ registerUsedFunctionOrValue range moduleName name moduleContext =
         }
 
     else if List.any (Set.member ( moduleName, name )) moduleContext.constructorsToIgnore then
-        { moduleContext
-            | locationsThatNeedsItself =
-                Dict.update
-                    ( String.join "." moduleName, name )
-                    (Maybe.withDefault [] >> (\list -> Just (Elm.Syntax.Range.emptyRange :: list)))
-                    moduleContext.locationsThatNeedsItself
-        }
+        { moduleContext | wasUsedInLocationThatNeedsItself = Set.insert ( String.join "." moduleName, name ) moduleContext.wasUsedInLocationThatNeedsItself }
 
     else
         { moduleContext
@@ -882,9 +876,7 @@ finalProjectEvaluation projectContext =
                                     (\constructorInformation ->
                                         errorForModule
                                             moduleKey
-                                            { locationsWhereItUsedItself =
-                                                Dict.get ( moduleName, constructorInformation.name ) projectContext.locationsThatNeedsItself
-                                                    |> Maybe.withDefault []
+                                            { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInLocationThatNeedsItself
                                             , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
                                             , isUsedInOtherModules = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInOtherModules
                                             , fixesForRemovingConstructor = Dict.get ( moduleName, constructorInformation.name ) projectContext.fixesForRemovingConstructor |> Maybe.withDefault []
@@ -920,7 +912,7 @@ defaultDetails =
 errorForModule :
     Rule.ModuleKey
     ->
-        { locationsWhereItUsedItself : List Range
+        { wasUsedInLocationThatNeedsItself : Bool
         , wasUsedInComparisons : Bool
         , isUsedInOtherModules : Bool
         , fixesForRemovingConstructor : List Fix
@@ -931,7 +923,7 @@ errorForModule moduleKey params constructorInformation =
     Rule.errorForModuleWithFix
         moduleKey
         (errorInformation
-            { wasUsedInLocationThatNeedsItself = List.isEmpty params.locationsWhereItUsedItself
+            { wasUsedInLocationThatNeedsItself = params.wasUsedInLocationThatNeedsItself
             , wasUsedInComparisons = params.wasUsedInComparisons
             }
             constructorInformation.name
