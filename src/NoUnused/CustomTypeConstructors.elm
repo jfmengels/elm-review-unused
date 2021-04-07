@@ -742,6 +742,34 @@ expressionVisitorHelp node moduleContext =
             ( [], moduleContext )
 
 
+forOne : ( Node Pattern, Node a ) -> ModuleNameLookupTable -> { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) Fix }
+forOne ( pattern, body ) lookupTable =
+    let
+        constructors : Set ( ModuleName, String )
+        constructors =
+            constructorsInPattern lookupTable pattern
+
+        fixes : Dict ( ModuleNameAsString, ConstructorName ) Fix
+        fixes =
+            List.foldl
+                (\( moduleName, constructorName ) acc ->
+                    Dict.insert
+                        ( String.join "." moduleName, constructorName )
+                        (Fix.removeRange
+                            { start = (Node.range pattern).start
+                            , end = (Node.range body).end
+                            }
+                        )
+                        acc
+                )
+                Dict.empty
+                (Set.toList constructors)
+    in
+    { ignoreBlock = ( Node.range body, constructors )
+    , fixes = fixes
+    }
+
+
 staticRanges : Node Expression -> List Range
 staticRanges node =
     case Node.value node of
