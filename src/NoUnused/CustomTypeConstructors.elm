@@ -182,7 +182,7 @@ type alias ProjectContext =
     , declaredConstructors : Dict ModuleNameAsString ExposedConstructors
     , usedConstructors : Dict ModuleNameAsString (Set ConstructorName)
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
-    , locationsThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
+    , locationsThatNeedsItself : Dict ( ModuleNameAsString, ConstructorName ) (List Range)
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInOtherModules : Set ( ModuleNameAsString, ConstructorName )
     }
@@ -219,7 +219,7 @@ initialProjectContext phantomTypes =
             )
             Dict.empty
             phantomTypes
-    , locationsThatNeedsItself = Set.empty
+    , locationsThatNeedsItself = Dict.empty
     , wasUsedInComparisons = Set.empty
     , wasUsedInOtherModules = Set.empty
     }
@@ -297,7 +297,7 @@ fromModuleToProject moduleKey metadata moduleContext =
             |> Dict.insert moduleNameAsString localUsed
     , phantomVariables = Dict.singleton moduleName localPhantomTypes
     , locationsThatNeedsItself =
-        Set.map
+        mapDictKeys
             (\(( moduleName_, constructorName ) as untouched) ->
                 if moduleName_ == "" then
                     ( moduleNameAsString, constructorName )
@@ -305,7 +305,7 @@ fromModuleToProject moduleKey metadata moduleContext =
                 else
                     untouched
             )
-            (Set.fromList <| Dict.keys moduleContext.locationsThatNeedsItself)
+            moduleContext.locationsThatNeedsItself
     , wasUsedInComparisons =
         Set.map
             (\(( moduleName_, constructorName ) as untouched) ->
@@ -341,7 +341,7 @@ foldProjectContexts newContext previousContext =
             previousContext.usedConstructors
             Dict.empty
     , phantomVariables = Dict.union newContext.phantomVariables previousContext.phantomVariables
-    , locationsThatNeedsItself = Set.union newContext.locationsThatNeedsItself previousContext.locationsThatNeedsItself
+    , locationsThatNeedsItself = Dict.union newContext.locationsThatNeedsItself previousContext.locationsThatNeedsItself
     , wasUsedInComparisons = Set.union newContext.wasUsedInComparisons previousContext.wasUsedInComparisons
     , wasUsedInOtherModules = Set.union newContext.wasUsedInOtherModules previousContext.wasUsedInOtherModules
     }
@@ -830,7 +830,7 @@ finalProjectEvaluation projectContext =
                                     (\constructorInformation ->
                                         errorForModule
                                             moduleKey
-                                            { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, constructorInformation.name ) projectContext.locationsThatNeedsItself
+                                            { wasUsedInLocationThatNeedsItself = Dict.member ( moduleName, constructorInformation.name ) projectContext.locationsThatNeedsItself
                                             , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
                                             , isUsedInOtherModules = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInOtherModules
                                             }
@@ -1016,3 +1016,11 @@ listAtIndex index list =
 
         ( n, _ :: rest ) ->
             listAtIndex (n - 1) rest
+
+
+mapDictKeys : (comparable -> comparable1) -> Dict comparable v -> Dict comparable1 v
+mapDictKeys keyMapper dict =
+    Dict.foldl
+        (\key value acc -> Dict.insert (keyMapper key) value acc)
+        Dict.empty
+        dict
