@@ -830,7 +830,7 @@ finalProjectEvaluation projectContext =
                                     (\constructorInformation ->
                                         errorForModule
                                             moduleKey
-                                            { wasUsedInLocationThatNeedsItself = Dict.member ( moduleName, constructorInformation.name ) projectContext.locationsThatNeedsItself
+                                            { locationsWhereItUsedItself = Dict.member ( moduleName, constructorInformation.name ) projectContext.locationsThatNeedsItself
                                             , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
                                             , isUsedInOtherModules = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInOtherModules
                                             }
@@ -844,7 +844,7 @@ finalProjectEvaluation projectContext =
 -- ERROR
 
 
-errorInformation : { a | wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool } -> String -> { message : String, details : List String }
+errorInformation : { wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool } -> String -> { message : String, details : List String }
 errorInformation { wasUsedInLocationThatNeedsItself, wasUsedInComparisons } name =
     { message = "Type constructor `" ++ name ++ "` is not used."
     , details =
@@ -862,11 +862,16 @@ defaultDetails =
     "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created."
 
 
-errorForModule : Rule.ModuleKey -> { wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool, isUsedInOtherModules : Bool } -> ConstructorInformation -> Error scope
+errorForModule : Rule.ModuleKey -> { locationsWhereItUsedItself : Bool, wasUsedInComparisons : Bool, isUsedInOtherModules : Bool } -> ConstructorInformation -> Error scope
 errorForModule moduleKey conditions constructorInformation =
     Rule.errorForModuleWithFix
         moduleKey
-        (errorInformation conditions constructorInformation.name)
+        (errorInformation
+            { wasUsedInLocationThatNeedsItself = conditions.locationsWhereItUsedItself
+            , wasUsedInComparisons = conditions.wasUsedInComparisons
+            }
+            constructorInformation.name
+        )
         constructorInformation.rangeToReport
         (case constructorInformation.rangeToRemove of
             Just rangeToRemove ->
