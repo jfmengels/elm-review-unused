@@ -184,6 +184,7 @@ type alias ProjectContext =
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
     , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
+    , wasUsedInOtherModules : Set ( ModuleNameAsString, ConstructorName )
     }
 
 
@@ -220,6 +221,7 @@ initialProjectContext phantomTypes =
             phantomTypes
     , wasUsedInLocationThatNeedsItself = Set.empty
     , wasUsedInComparisons = Set.empty
+    , wasUsedInOtherModules = Set.empty
     }
 
 
@@ -314,6 +316,15 @@ fromModuleToProject moduleKey metadata moduleContext =
                     untouched
             )
             moduleContext.wasUsedInComparisons
+    , wasUsedInOtherModules =
+        List.foldl
+            (\( moduleName_, constructors ) acc ->
+                Set.union
+                    (Set.map (Tuple.pair moduleName_) constructors)
+                    acc
+            )
+            Set.empty
+            (Dict.toList moduleContext.usedFunctionsOrValues)
     }
 
 
@@ -332,6 +343,7 @@ foldProjectContexts newContext previousContext =
     , phantomVariables = Dict.union newContext.phantomVariables previousContext.phantomVariables
     , wasUsedInLocationThatNeedsItself = Set.union newContext.wasUsedInLocationThatNeedsItself previousContext.wasUsedInLocationThatNeedsItself
     , wasUsedInComparisons = Set.union newContext.wasUsedInComparisons previousContext.wasUsedInComparisons
+    , wasUsedInOtherModules = Set.union newContext.wasUsedInOtherModules previousContext.wasUsedInOtherModules
     }
 
 
@@ -819,7 +831,7 @@ finalProjectEvaluation projectContext =
                                             moduleKey
                                             { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInLocationThatNeedsItself
                                             , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
-                                            , isUsedInOtherModules = True
+                                            , isUsedInOtherModules = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInOtherModules
                                             }
                                             constructorInformation
                                     )
