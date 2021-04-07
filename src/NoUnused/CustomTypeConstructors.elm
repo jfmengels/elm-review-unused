@@ -691,7 +691,10 @@ expressionVisitorHelp node moduleContext =
                         |> RangeDict.fromList
             in
             ( []
-            , { moduleContext | ignoreBlocks = newCases :: moduleContext.ignoreBlocks }
+            , { moduleContext
+                | ignoreBlocks = newCases :: moduleContext.ignoreBlocks
+                , locationsThatNeedsItself = moduleContext.locationsThatNeedsItself
+              }
             )
 
         _ ->
