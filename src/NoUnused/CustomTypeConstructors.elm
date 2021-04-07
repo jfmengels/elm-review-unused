@@ -324,7 +324,7 @@ fromModuleToProject moduleKey metadata moduleContext =
                     acc
             )
             Set.empty
-            (Dict.toList moduleContext.usedFunctionsOrValues)
+            (Dict.toList <| Dict.remove "" moduleContext.usedFunctionsOrValues)
     }
 
 
