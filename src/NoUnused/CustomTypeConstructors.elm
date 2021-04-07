@@ -819,7 +819,7 @@ finalProjectEvaluation projectContext =
                                             moduleKey
                                             { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInLocationThatNeedsItself
                                             , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
-                                            , isExposed = True
+                                            , isUsedInOtherModules = True
                                             }
                                             constructorInformation
                                     )
@@ -849,7 +849,7 @@ defaultDetails =
     "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created."
 
 
-errorForModule : Rule.ModuleKey -> { wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool, isExposed : Bool } -> ConstructorInformation -> Error scope
+errorForModule : Rule.ModuleKey -> { wasUsedInLocationThatNeedsItself : Bool, wasUsedInComparisons : Bool, isUsedInOtherModules : Bool } -> ConstructorInformation -> Error scope
 errorForModule moduleKey conditions constructorInformation =
     Rule.errorForModuleWithFix
         moduleKey
@@ -857,7 +857,7 @@ errorForModule moduleKey conditions constructorInformation =
         constructorInformation.rangeToReport
         (case constructorInformation.rangeToRemove of
             Just rangeToRemove ->
-                if conditions.isExposed then
+                if conditions.isUsedInOtherModules then
                     []
 
                 else
