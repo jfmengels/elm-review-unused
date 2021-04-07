@@ -887,6 +887,7 @@ finalProjectEvaluation projectContext =
                                                     |> Maybe.withDefault []
                                             , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
                                             , isUsedInOtherModules = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInOtherModules
+                                            , fixesForRemovingConstructor = Dict.get ( moduleName, constructorInformation.name ) projectContext.fixesForRemovingConstructor |> Maybe.withDefault []
                                             }
                                             constructorInformation
                                     )
@@ -916,7 +917,16 @@ defaultDetails =
     "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created."
 
 
-errorForModule : Rule.ModuleKey -> { locationsWhereItUsedItself : List Range, wasUsedInComparisons : Bool, isUsedInOtherModules : Bool } -> ConstructorInformation -> Error scope
+errorForModule :
+    Rule.ModuleKey
+    ->
+        { locationsWhereItUsedItself : List Range
+        , wasUsedInComparisons : Bool
+        , isUsedInOtherModules : Bool
+        , fixesForRemovingConstructor : List Fix
+        }
+    -> ConstructorInformation
+    -> Error scope
 errorForModule moduleKey params constructorInformation =
     Rule.errorForModuleWithFix
         moduleKey
@@ -933,7 +943,7 @@ errorForModule moduleKey params constructorInformation =
                     []
 
                 else
-                    Fix.removeRange rangeToRemove :: List.map Fix.removeRange params.locationsWhereItUsedItself
+                    Fix.removeRange rangeToRemove :: params.fixesForRemovingConstructor
 
             Nothing ->
                 []
