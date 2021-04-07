@@ -695,9 +695,24 @@ expressionVisitorHelp node moduleContext =
 
         Expression.CaseExpression { cases } ->
             let
+                firstElementRange : Elm.Syntax.Range.Location
+                firstElementRange =
+                    case List.head cases of
+                        Just head ->
+                            head
+                                |> Tuple.first
+                                |> Node.range
+                                |> .start
+
+                        Nothing ->
+                            Elm.Syntax.Range.emptyRange.start
+
                 found : List { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) (List Fix) }
                 found =
-                    List.map (forOne moduleContext.lookupTable) cases
+                    List.map2
+                        (forOne moduleContext.lookupTable)
+                        (firstElementRange :: List.map (Tuple.first >> Node.range >> .start) cases)
+                        cases
 
                 ignoredBlocks : RangeDict (Set ( ModuleName, String ))
                 ignoredBlocks =
@@ -719,8 +734,8 @@ expressionVisitorHelp node moduleContext =
             ( [], moduleContext )
 
 
-forOne : ModuleNameLookupTable -> ( Node Pattern, Node a ) -> { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) (List Fix) }
-forOne lookupTable ( pattern, body ) =
+forOne : ModuleNameLookupTable -> Elm.Syntax.Range.Location -> ( Node Pattern, Node a ) -> { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) (List Fix) }
+forOne lookupTable previousLocation ( pattern, body ) =
     let
         constructors : Set ( ModuleName, String )
         constructors =
@@ -733,7 +748,7 @@ forOne lookupTable ( pattern, body ) =
                     Dict.insert
                         ( String.join "." moduleName, constructorName )
                         [ Fix.removeRange
-                            { start = (Node.range pattern).start
+                            { start = previousLocation
                             , end = (Node.range body).end
                             }
                         ]
