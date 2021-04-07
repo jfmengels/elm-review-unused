@@ -830,7 +830,9 @@ finalProjectEvaluation projectContext =
                                     (\constructorInformation ->
                                         errorForModule
                                             moduleKey
-                                            { locationsWhereItUsedItself = Dict.member ( moduleName, constructorInformation.name ) projectContext.locationsThatNeedsItself
+                                            { locationsWhereItUsedItself =
+                                                Dict.get ( moduleName, constructorInformation.name ) projectContext.locationsThatNeedsItself
+                                                    |> Maybe.withDefault []
                                             , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
                                             , isUsedInOtherModules = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInOtherModules
                                             }
@@ -862,24 +864,24 @@ defaultDetails =
     "This type constructor is never used. It might be handled everywhere it might appear, but there is no location where this value actually gets created."
 
 
-errorForModule : Rule.ModuleKey -> { locationsWhereItUsedItself : Bool, wasUsedInComparisons : Bool, isUsedInOtherModules : Bool } -> ConstructorInformation -> Error scope
-errorForModule moduleKey conditions constructorInformation =
+errorForModule : Rule.ModuleKey -> { locationsWhereItUsedItself : List Range, wasUsedInComparisons : Bool, isUsedInOtherModules : Bool } -> ConstructorInformation -> Error scope
+errorForModule moduleKey params constructorInformation =
     Rule.errorForModuleWithFix
         moduleKey
         (errorInformation
-            { wasUsedInLocationThatNeedsItself = conditions.locationsWhereItUsedItself
-            , wasUsedInComparisons = conditions.wasUsedInComparisons
+            { wasUsedInLocationThatNeedsItself = List.isEmpty params.locationsWhereItUsedItself
+            , wasUsedInComparisons = params.wasUsedInComparisons
             }
             constructorInformation.name
         )
         constructorInformation.rangeToReport
         (case constructorInformation.rangeToRemove of
             Just rangeToRemove ->
-                if conditions.isUsedInOtherModules then
+                if params.isUsedInOtherModules then
                     []
 
                 else
-                    [ Fix.removeRange rangeToRemove ]
+                    Fix.removeRange rangeToRemove :: List.map Fix.removeRange params.locationsWhereItUsedItself
 
             Nothing ->
                 []
