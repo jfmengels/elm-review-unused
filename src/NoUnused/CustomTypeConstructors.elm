@@ -689,11 +689,30 @@ expressionVisitorHelp node moduleContext =
                     casesAndConstructors
                         |> List.map (Tuple.mapFirst .bodyRange)
                         |> RangeDict.fromList
+
+                constructorsAndRangesToRemove : List ( { bodyRange : Range, nodeRange : Range }, ( ModuleNameAsString, ConstructorName ) )
+                constructorsAndRangesToRemove =
+                    List.concatMap
+                        (\( ranges, constructors ) ->
+                            constructors
+                                |> Set.toList
+                                |> List.map (\( moduleName, constructorName ) -> ( ranges, ( String.join "." moduleName, constructorName ) ))
+                        )
+                        casesAndConstructors
             in
             ( []
             , { moduleContext
                 | ignoreBlocks = newCases :: moduleContext.ignoreBlocks
-                , locationsThatNeedsItself = moduleContext.locationsThatNeedsItself
+                , locationsThatNeedsItself =
+                    List.foldl
+                        (\( { nodeRange }, constructor ) acc ->
+                            Dict.update
+                                constructor
+                                (Maybe.withDefault [] >> (\list -> Just (nodeRange :: list)))
+                                acc
+                        )
+                        moduleContext.locationsThatNeedsItself
+                        constructorsAndRangesToRemove
               }
             )
 
