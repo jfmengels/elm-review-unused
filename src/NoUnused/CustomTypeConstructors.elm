@@ -199,7 +199,7 @@ type alias ModuleContext =
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
     , ignoreBlocks : List (RangeDict (Set ( ModuleName, String )))
     , constructorsToIgnore : List (Set ( ModuleName, String ))
-    , locationsThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
+    , locationsThatNeedsItself : Dict ( ModuleNameAsString, ConstructorName ) (List Range)
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
     , ignoredComparisonRanges : List Range
     }
@@ -237,7 +237,7 @@ fromProjectToModule lookupTable metadata projectContext =
     , phantomVariables = projectContext.phantomVariables
     , ignoreBlocks = []
     , constructorsToIgnore = []
-    , locationsThatNeedsItself = Set.empty
+    , locationsThatNeedsItself = Dict.empty
     , wasUsedInComparisons = Set.empty
     , ignoredComparisonRanges = []
     }
@@ -305,7 +305,7 @@ fromModuleToProject moduleKey metadata moduleContext =
                 else
                     untouched
             )
-            moduleContext.locationsThatNeedsItself
+            (Set.fromList <| Dict.keys moduleContext.locationsThatNeedsItself)
     , wasUsedInComparisons =
         Set.map
             (\(( moduleName_, constructorName ) as untouched) ->
@@ -778,8 +778,9 @@ registerUsedFunctionOrValue range moduleName name moduleContext =
     else if List.any (Set.member ( moduleName, name )) moduleContext.constructorsToIgnore then
         { moduleContext
             | locationsThatNeedsItself =
-                Set.insert
+                Dict.update
                     ( String.join "." moduleName, name )
+                    (Maybe.withDefault [] >> (\list -> Just (Elm.Syntax.Range.emptyRange :: list)))
                     moduleContext.locationsThatNeedsItself
         }
 
