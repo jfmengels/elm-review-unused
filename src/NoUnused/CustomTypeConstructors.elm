@@ -202,7 +202,7 @@ type alias ModuleContext =
     , constructorsToIgnore : List (Set ( ModuleName, String ))
     , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
-    , fixesForRemovingConstructor : Dict ( ModuleNameAsString, ConstructorName ) (List Fix)
+    , fixesForRemovingConstructor : Dict ConstructorName (List Fix)
     , ignoredComparisonRanges : List Range
     }
 
@@ -332,12 +332,8 @@ fromModuleToProject moduleKey metadata moduleContext =
             (Dict.toList <| Dict.remove "" moduleContext.usedFunctionsOrValues)
     , fixesForRemovingConstructor =
         mapDictKeys
-            (\(( moduleName_, constructorName ) as untouched) ->
-                if moduleName_ == "" then
-                    ( moduleNameAsString, constructorName )
-
-                else
-                    untouched
+            (\constructorName ->
+                ( moduleNameAsString, constructorName )
             )
             moduleContext.fixesForRemovingConstructor
     }
@@ -708,7 +704,7 @@ expressionVisitorHelp node moduleContext =
                         Nothing ->
                             Elm.Syntax.Range.emptyRange.start
 
-                found : List { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) (List Fix) }
+                found : List { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ConstructorName (List Fix) }
                 found =
                     List.map2
                         (forOne moduleContext.lookupTable)
@@ -735,24 +731,28 @@ expressionVisitorHelp node moduleContext =
             ( [], moduleContext )
 
 
-forOne : ModuleNameLookupTable -> Elm.Syntax.Range.Location -> ( Node Pattern, Node a ) -> { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ( ModuleNameAsString, ConstructorName ) (List Fix) }
+forOne : ModuleNameLookupTable -> Elm.Syntax.Range.Location -> ( Node Pattern, Node a ) -> { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ConstructorName (List Fix) }
 forOne lookupTable previousLocation ( pattern, body ) =
     let
         constructors : Set ( ModuleName, String )
         constructors =
             constructorsInPattern lookupTable pattern
 
-        fixes : Dict ( ModuleNameAsString, ConstructorName ) (List Fix)
+        fixes : Dict ConstructorName (List Fix)
         fixes =
             List.foldl
                 (\( moduleName, constructorName ) acc ->
-                    Dict.insert
-                        ( String.join "." moduleName, constructorName )
-                        [ Fix.removeRange
-                            { start = previousLocation
-                            , end = (Node.range body).end
-                            }
-                        ]
+                    if moduleName == [] then
+                        Dict.insert
+                            constructorName
+                            [ Fix.removeRange
+                                { start = previousLocation
+                                , end = (Node.range body).end
+                                }
+                            ]
+                            acc
+
+                    else
                         acc
                 )
                 Dict.empty
