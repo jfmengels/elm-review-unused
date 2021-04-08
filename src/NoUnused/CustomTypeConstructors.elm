@@ -844,18 +844,44 @@ findConstructors lookupTable node =
 
         Expression.Application ((Node _ (Expression.FunctionOrValue _ name)) :: restOfArgs) ->
             if isCapitalized name then
-                case ModuleNameLookupTable.moduleNameFor lookupTable node of
-                    Just [] ->
-                        List.foldl
-                            (findConstructors lookupTable >> Set.union)
-                            (Set.singleton name)
-                            restOfArgs
+                List.foldl
+                    (findConstructors lookupTable >> Set.union)
+                    (case ModuleNameLookupTable.moduleNameFor lookupTable node of
+                        Just [] ->
+                            Set.singleton name
 
-                    _ ->
-                        Set.empty
+                        _ ->
+                            Set.empty
+                    )
+                    restOfArgs
 
             else
                 Set.empty
+
+        Expression.OperatorApplication operator _ left right ->
+            if List.member operator [ "+", "-" ] then
+                List.foldl (findConstructors lookupTable >> Set.union) Set.empty [ left, right ]
+
+            else
+                Set.empty
+
+        Expression.ListExpr nodes ->
+            List.foldl (findConstructors lookupTable >> Set.union) Set.empty nodes
+
+        Expression.TupledExpression nodes ->
+            List.foldl (findConstructors lookupTable >> Set.union) Set.empty nodes
+
+        Expression.ParenthesizedExpression expr ->
+            findConstructors lookupTable expr
+
+        Expression.RecordExpr fields ->
+            List.foldl (Node.value >> Tuple.second >> findConstructors lookupTable >> Set.union) Set.empty fields
+
+        Expression.RecordUpdateExpression _ fields ->
+            List.foldl (Node.value >> Tuple.second >> findConstructors lookupTable >> Set.union) Set.empty fields
+
+        Expression.RecordAccess expr _ ->
+            findConstructors lookupTable expr
 
         _ ->
             Set.empty
