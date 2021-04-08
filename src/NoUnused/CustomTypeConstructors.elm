@@ -668,7 +668,7 @@ expressionVisitorHelp node moduleContext =
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
                 let
-                    constructors : Set ( ModuleName, ConstructorName )
+                    constructors : Set ( ModuleNameAsString, ConstructorName )
                     constructors =
                         Set.union
                             (findConstructors moduleContext.lookupTable left)
@@ -685,7 +685,7 @@ expressionVisitorHelp node moduleContext =
                     ( fromThisModule, fromOtherModules ) =
                         constructors
                             |> Set.toList
-                            |> List.partition (\( moduleName, _ ) -> moduleName == [])
+                            |> List.partition (\( moduleName, _ ) -> moduleName == "")
 
                     fixes : Dict ConstructorName (List Fix)
                     fixes =
@@ -697,6 +697,7 @@ expressionVisitorHelp node moduleContext =
                 , { moduleContext
                     | ignoredComparisonRanges = staticRanges node ++ moduleContext.ignoredComparisonRanges
                     , fixesForRemovingConstructor = mergeDictsWithLists fixes moduleContext.fixesForRemovingConstructor
+                    , wasUsedInOtherModules = Set.union (Set.fromList fromOtherModules) moduleContext.wasUsedInOtherModules
                   }
                 )
 
@@ -833,14 +834,14 @@ staticRanges node =
             []
 
 
-findConstructors : ModuleNameLookupTable -> Node Expression -> Set ( ModuleName, ConstructorName )
+findConstructors : ModuleNameLookupTable -> Node Expression -> Set ( ModuleNameAsString, ConstructorName )
 findConstructors lookupTable node =
     case Node.value node of
         Expression.FunctionOrValue _ name ->
             if isCapitalized name then
                 case ModuleNameLookupTable.moduleNameFor lookupTable node of
                     Just realModuleName ->
-                        Set.singleton ( realModuleName, name )
+                        Set.singleton ( String.join "." realModuleName, name )
 
                     Nothing ->
                         Set.empty
@@ -854,7 +855,7 @@ findConstructors lookupTable node =
                     (findConstructors lookupTable >> Set.union)
                     (case ModuleNameLookupTable.moduleNameFor lookupTable node of
                         Just realModuleName ->
-                            Set.singleton ( realModuleName, name )
+                            Set.singleton ( String.join "." realModuleName, name )
 
                         Nothing ->
                             Set.empty
