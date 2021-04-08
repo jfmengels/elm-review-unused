@@ -203,6 +203,7 @@ type alias ModuleContext =
     , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
     , fixesForRemovingConstructor : Dict ConstructorName (List Fix)
+    , wasUsedInOtherModules : Set ( ModuleNameAsString, ConstructorName )
     , ignoredComparisonRanges : List Range
     }
 
@@ -242,6 +243,7 @@ fromProjectToModule lookupTable metadata projectContext =
     , constructorsToIgnore = []
     , wasUsedInLocationThatNeedsItself = Set.empty
     , wasUsedInComparisons = Set.empty
+    , wasUsedInOtherModules = Set.empty
     , fixesForRemovingConstructor = Dict.empty
     , ignoredComparisonRanges = []
     }
@@ -327,7 +329,7 @@ fromModuleToProject moduleKey metadata moduleContext =
                     (Set.map (Tuple.pair moduleName_) constructors)
                     acc
             )
-            Set.empty
+            moduleContext.wasUsedInOtherModules
             -- TODO add test to make sure we don't fix something that is pattern matched in other modules
             (Dict.toList <| Dict.remove "" moduleContext.usedFunctionsOrValues)
     , fixesForRemovingConstructor =
