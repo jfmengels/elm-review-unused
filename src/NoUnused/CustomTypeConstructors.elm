@@ -666,11 +666,33 @@ expressionVisitorHelp node moduleContext =
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
                 let
-                    ranges : List Range
-                    ranges =
-                        List.concatMap staticRanges [ left, right ]
+                    constructors : Set ConstructorName
+                    constructors =
+                        Set.union
+                            (findConstructors moduleContext.lookupTable left)
+                            (findConstructors moduleContext.lookupTable right)
+
+                    replacement : String
+                    replacement =
+                        if operator == "==" then
+                            "True"
+
+                        else
+                            "False"
+
+                    fixes : Dict ConstructorName (List Fix)
+                    fixes =
+                        constructors
+                            |> Set.toList
+                            |> List.map (\constructor -> Dict.singleton constructor [ Fix.replaceRangeBy (Node.range node) replacement ])
+                            |> List.foldl mergeDictsWithLists Dict.empty
                 in
-                ( [], { moduleContext | ignoredComparisonRanges = ranges ++ moduleContext.ignoredComparisonRanges } )
+                ( []
+                , { moduleContext
+                    | ignoredComparisonRanges = staticRanges node ++ moduleContext.ignoredComparisonRanges
+                    , fixesForRemovingConstructor = mergeDictsWithLists fixes moduleContext.fixesForRemovingConstructor
+                  }
+                )
 
             else
                 ( [], moduleContext )
@@ -803,6 +825,40 @@ staticRanges node =
 
         _ ->
             []
+
+
+findConstructors : ModuleNameLookupTable -> Node Expression -> Set ConstructorName
+findConstructors lookupTable node =
+    case Node.value node of
+        Expression.FunctionOrValue _ name ->
+            if isCapitalized name then
+                case ModuleNameLookupTable.moduleNameFor lookupTable node of
+                    Just [] ->
+                        Set.singleton name
+
+                    _ ->
+                        Set.empty
+
+            else
+                Set.empty
+
+        Expression.Application ((Node _ (Expression.FunctionOrValue _ name)) :: restOfArgs) ->
+            if isCapitalized name then
+                case ModuleNameLookupTable.moduleNameFor lookupTable node of
+                    Just [] ->
+                        List.foldl
+                            (findConstructors lookupTable >> Set.union)
+                            (Set.singleton name)
+                            restOfArgs
+
+                    _ ->
+                        Set.empty
+
+            else
+                Set.empty
+
+        _ ->
+            Set.empty
 
 
 constructorsInPattern : ModuleNameLookupTable -> Node Pattern -> Set ( ModuleName, String )
