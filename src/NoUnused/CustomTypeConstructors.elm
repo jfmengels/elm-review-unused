@@ -328,6 +328,7 @@ fromModuleToProject moduleKey metadata moduleContext =
                     acc
             )
             Set.empty
+            -- TODO add test to make sure we don't fix something that is pattern matched in other modules
             (Dict.toList <| Dict.remove "" moduleContext.usedFunctionsOrValues)
     , fixesForRemovingConstructor =
         mapDictKeys
