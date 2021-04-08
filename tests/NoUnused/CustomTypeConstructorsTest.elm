@@ -330,6 +330,13 @@ b = B
                             , under = "Unused"
                             }
                             |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (a, b)
+type Foo = B
+a = False
+b = B
+"""
                         ]
         ]
 
