@@ -721,23 +721,11 @@ expressionVisitorHelp node moduleContext =
 
         Expression.CaseExpression { cases } ->
             let
-                firstElementRange : Elm.Syntax.Range.Location
-                firstElementRange =
-                    case List.head cases of
-                        Just head ->
-                            head
-                                |> Tuple.first
-                                |> Node.range
-                                |> .start
-
-                        Nothing ->
-                            Elm.Syntax.Range.emptyRange.start
-
                 found : List { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ConstructorName (List Fix) }
                 found =
                     List.map2
                         (forOne moduleContext.lookupTable)
-                        (firstElementRange :: List.map (Tuple.first >> Node.range >> .start) cases)
+                        (Nothing :: List.map (Tuple.second >> Node.range >> .end >> Just) cases)
                         cases
 
                 ignoredBlocks : RangeDict (Set ( ModuleName, String ))
@@ -760,7 +748,7 @@ expressionVisitorHelp node moduleContext =
             ( [], moduleContext )
 
 
-forOne : ModuleNameLookupTable -> Elm.Syntax.Range.Location -> ( Node Pattern, Node a ) -> { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ConstructorName (List Fix) }
+forOne : ModuleNameLookupTable -> Maybe Elm.Syntax.Range.Location -> ( Node Pattern, Node a ) -> { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ConstructorName (List Fix) }
 forOne lookupTable previousLocation ( pattern, body ) =
     let
         constructors : Set ( ModuleName, String )
@@ -775,7 +763,7 @@ forOne lookupTable previousLocation ( pattern, body ) =
                         Dict.insert
                             constructorName
                             [ Fix.removeRange
-                                { start = previousLocation
+                                { start = Maybe.withDefault (Node.range pattern).start previousLocation
                                 , end = (Node.range body).end
                                 }
                             ]
