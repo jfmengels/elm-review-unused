@@ -933,6 +933,27 @@ type Msg = NoOp
                             ]
                           )
                         ]
+        , test "should report but not fix if constructor is handled in a pattern" <|
+            \() ->
+                [ """module A exposing (main)
+import Other exposing (Msg(..))
+a = Used
+main = case foo of
+  Unused -> 1
+""", """module Other exposing (Msg(..))
+type Msg = Unused | Used
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData project (rule [])
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Other"
+                          , [ Review.Test.error
+                                { message = "Type constructor `Unused` is not used."
+                                , details = [ defaultDetails ]
+                                , under = "Unused"
+                                }
+                            ]
+                          )
+                        ]
         , test "should not report type constructors in confusing situations" <|
             \() ->
                 [ """module A exposing (A(..))

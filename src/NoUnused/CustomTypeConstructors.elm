@@ -721,7 +721,7 @@ expressionVisitorHelp node moduleContext =
 
         Expression.CaseExpression { cases } ->
             let
-                found : List { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ConstructorName (List Fix) }
+                found : List { ignoreBlock : ( Range, Set ( ModuleName, ConstructorName ) ), fixes : Dict ConstructorName (List Fix) }
                 found =
                     List.map2
                         (forOne moduleContext.lookupTable)
@@ -732,10 +732,17 @@ expressionVisitorHelp node moduleContext =
                 ignoredBlocks =
                     List.map .ignoreBlock found
                         |> RangeDict.fromList
+
+                wasUsedInOtherModules : Set ( ModuleNameAsString, ConstructorName )
+                wasUsedInOtherModules =
+                    found
+                        |> List.map (.ignoreBlock >> Tuple.second >> toSetOfModuleNameAsString)
+                        |> List.foldl Set.union moduleContext.wasUsedInOtherModules
             in
             ( []
             , { moduleContext
                 | ignoreBlocks = ignoredBlocks :: moduleContext.ignoreBlocks
+                , wasUsedInOtherModules = wasUsedInOtherModules
                 , fixesForRemovingConstructor =
                     List.foldl
                         mergeDictsWithLists
@@ -746,6 +753,13 @@ expressionVisitorHelp node moduleContext =
 
         _ ->
             ( [], moduleContext )
+
+
+toSetOfModuleNameAsString : Set ( ModuleName, ConstructorName ) -> Set ( ModuleNameAsString, ConstructorName )
+toSetOfModuleNameAsString set =
+    set
+        |> Set.map (Tuple.mapFirst (String.join "."))
+        |> Set.filter (\( moduleName, _ ) -> moduleName /= "")
 
 
 forOne : ModuleNameLookupTable -> Maybe Elm.Syntax.Range.Location -> ( Node Pattern, Node a ) -> { ignoreBlock : ( Range, Set ( ModuleName, String ) ), fixes : Dict ConstructorName (List Fix) }
