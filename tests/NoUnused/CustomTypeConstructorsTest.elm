@@ -301,7 +301,7 @@ b = B
                                 """
 module MyModule exposing (a, b)
 type Foo = B
-a = True
+a = False
 b = B
 """
                         ]
@@ -325,7 +325,7 @@ b = B
                                 """
 module MyModule exposing (a, b)
 type Foo = B
-a = False
+a = True
 b = B
 """
                         ]
@@ -359,7 +359,7 @@ b = B
                                 """
 module MyModule exposing (a, b)
 type Foo = B
-a = False
+a = True
 b = B
 """
                         ]

@@ -677,10 +677,10 @@ expressionVisitorHelp node moduleContext =
                     replacement : String
                     replacement =
                         if operator == "==" then
-                            "True"
+                            "False"
 
                         else
-                            "False"
+                            "True"
 
                     ( fromThisModule, fromOtherModules ) =
                         constructors
