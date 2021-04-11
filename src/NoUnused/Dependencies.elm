@@ -13,13 +13,11 @@ import Dict exposing (Dict)
 import Elm.Package
 import Elm.Project exposing (Project)
 import Elm.Syntax.Import exposing (Import)
-import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node)
 import Elm.Syntax.Range exposing (Range)
 import Review.Project.Dependency as Dependency exposing (Dependency)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
-import Vendor.ListExtra
 
 
 {-| Forbid the use of dependencies that are never used in your project.
@@ -286,6 +284,22 @@ error elmJsonKey packageName =
                         |> Just
         )
 
+{-| Find the first element that satisfies a predicate and return
+Just that element. If none match, return Nothing.
+find (\\num -> num > 5) [2, 4, 6, 8] == Just 6
+-}
+find : (a -> Bool) -> List a -> Maybe a
+find predicate list =
+    case list of
+        [] ->
+            Nothing
+
+        first :: rest ->
+            if predicate first then
+                Just first
+
+            else
+                find predicate rest
 
 onlyTestDependencyError : Rule.ElmJsonKey -> String -> Error scope
 onlyTestDependencyError elmJsonKey packageName =
@@ -306,7 +320,7 @@ onlyTestDependencyError elmJsonKey packageName =
 
                 Elm.Project.Package packageInfo ->
                     case
-                        Vendor.ListExtra.find
+                        find
                             (\( packageName_, _ ) -> packageName == Elm.Package.toString packageName_)
                             packageInfo.deps
                     of
