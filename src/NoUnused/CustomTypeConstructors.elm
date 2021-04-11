@@ -704,6 +704,46 @@ expressionVisitorHelp node moduleContext =
             else
                 ( [], moduleContext )
 
+        Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: arguments) ->
+            if operator == "==" || operator == "/=" then
+                let
+                    constructors : Set ( ModuleNameAsString, ConstructorName )
+                    constructors =
+                        List.foldl
+                            (findConstructors moduleContext.lookupTable >> Set.union)
+                            Set.empty
+                            arguments
+
+                    replacement : String
+                    replacement =
+                        if operator == "==" then
+                            "False"
+
+                        else
+                            "True"
+
+                    ( fromThisModule, fromOtherModules ) =
+                        constructors
+                            |> Set.toList
+                            |> List.partition (\( moduleName, _ ) -> moduleName == "")
+
+                    fixes : Dict ConstructorName (List Fix)
+                    fixes =
+                        fromThisModule
+                            |> List.map (\( _, constructor ) -> Dict.singleton constructor [ Fix.replaceRangeBy (Node.range node) replacement ])
+                            |> List.foldl mergeDictsWithLists Dict.empty
+                in
+                ( []
+                , { moduleContext
+                    | ignoredComparisonRanges = staticRanges node ++ moduleContext.ignoredComparisonRanges
+                    , fixesForRemovingConstructor = mergeDictsWithLists fixes moduleContext.fixesForRemovingConstructor
+                    , wasUsedInOtherModules = Set.union (Set.fromList fromOtherModules) moduleContext.wasUsedInOtherModules
+                  }
+                )
+
+            else
+                ( [], moduleContext )
+
         Expression.LetExpression { declarations } ->
             ( []
             , declarations
@@ -803,6 +843,13 @@ staticRanges node =
         Expression.Application ((Node _ (Expression.FunctionOrValue _ name)) :: restOfArgs) ->
             if isCapitalized name then
                 Node.range node :: List.concatMap staticRanges restOfArgs
+
+            else
+                []
+
+        Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: restOfArgs) ->
+            if List.member operator [ "+", "-", "==", "/=" ] then
+                List.concatMap staticRanges restOfArgs
 
             else
                 []
