@@ -772,6 +772,18 @@ import Html.Styled.Attributes
 a = Html.Styled.Attributes.href"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should not report used import (let destructuring)" <|
+        \() ->
+            [ """module SomeModule exposing (a)
+import B
+a = let (B.B ()) = x
+    in 1
+"""
+            , """module B exposing (B)
+type B = B ()"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
     , test "should not report unused import if it is aliased" <|
         \() ->
             """module SomeModule exposing (a)

@@ -634,7 +634,7 @@ expressionEnterVisitorHelp (Node range value) context =
                         HasMultipleDeclarations
             in
             List.foldl
-                (\declaration (( errors, foldContext ) as unchangedResult) ->
+                (\declaration ( errors, foldContext ) ->
                     case Node.value declaration of
                         Expression.LetFunction function ->
                             let
@@ -692,7 +692,15 @@ expressionEnterVisitorHelp (Node range value) context =
                                     )
 
                                 _ ->
-                                    unchangedResult
+                                    let
+                                        namesUsedInPattern : { types : List String, modules : List ( ModuleName, ModuleName ) }
+                                        namesUsedInPattern =
+                                            getUsedVariablesFromPattern context pattern
+                                    in
+                                    ( []
+                                    , List.foldl markValueAsUsed foldContext namesUsedInPattern.types
+                                        |> markAllModulesAsUsed namesUsedInPattern.modules
+                                    )
                 )
                 ( [], { context | scopes = NonemptyList.cons emptyScope context.scopes } )
                 declarations
