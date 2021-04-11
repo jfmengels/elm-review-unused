@@ -424,6 +424,21 @@ expressionVisitor node context =
             else
                 ( [], context )
 
+        Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: restOfArgs) ->
+            if operator == "==" || operator == "/=" then
+                let
+                    customTypesNotToReport : Set ( ModuleName, String )
+                    customTypesNotToReport =
+                        List.foldl
+                            (findCustomTypes context.lookupTable >> Set.union)
+                            Set.empty
+                            restOfArgs
+                in
+                ( [], { context | customTypesNotToReport = Set.union customTypesNotToReport context.customTypesNotToReport } )
+
+            else
+                ( [], context )
+
         _ ->
             ( [], context )
 
