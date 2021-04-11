@@ -14,8 +14,10 @@ createProject : Maybe String -> String -> Project
 createProject maybeTestModule rawElmJson =
     Project.new
         |> Project.addElmJson (createElmJson rawElmJson)
-        |> Project.addDependency packageWithFoo
         |> Project.addDependency packageWithBar
+        |> Project.addDependency packageWithFoo
+        |> Project.addDependency packageWithTestBar
+        |> Project.addDependency packageWithTestFoo
         |> (case maybeTestModule of
                 Just testModule ->
                     Project.addModule { path = "tests/TestModule.elm", source = testModule }
@@ -67,58 +69,6 @@ applicationElmJson =
 
 packageElmJson : String
 packageElmJson =
-    """
-{
-    "type": "package",
-    "name": "author/package",
-    "summary": "Summary",
-    "license": "BSD-3-Clause",
-    "version": "1.0.0",
-    "exposed-modules": [
-        "Exposed"
-    ],
-    "elm-version": "0.19.0 <= v < 0.20.0",
-    "dependencies": {
-        "elm/core": "1.0.0 <= v < 2.0.0",
-        "author/package-with-foo": "1.0.0 <= v < 2.0.0",
-        "author/package-with-bar": "1.0.0 <= v < 2.0.0"
-    },
-    "test-dependencies": {
-        "author/package-with-test-foo": "1.0.0 <= v < 2.0.0",
-        "author/package-with-test-bar": "1.0.0 <= v < 2.0.0"
-    }
-}"""
-
-
-applicationElmJsonWithTests : String
-applicationElmJsonWithTests =
-    """
-{
-    "type": "application",
-    "source-directories": [
-        "src"
-    ],
-    "elm-version": "0.19.1",
-    "dependencies": {
-        "direct": {
-            "elm/core": "1.0.0",
-            "author/package-with-foo": "1.0.0",
-            "author/package-with-bar": "1.0.0"
-        },
-        "indirect": {}
-    },
-    "test-dependencies": {
-        "direct": {
-            "author/package-with-test-foo": "1.0.0",
-            "author/package-with-test-bar": "1.0.0"
-        },
-        "indirect": {}
-    }
-}"""
-
-
-packageElmJsonWithTests : String
-packageElmJsonWithTests =
     """
 {
     "type": "package",
@@ -254,7 +204,7 @@ packageWithTestFoo =
   }"""
     in
     Dependency.create
-        "author/package-with-foo"
+        "author/package-with-test-foo"
         elmJson
         modules
 
@@ -293,94 +243,105 @@ packageWithTestBar =
 }"""
     in
     Dependency.create
-        "author/package-with-bar"
+        "author/package-with-test-bar"
         elmJson
         modules
 
 
 all : Test
 all =
-    Test.only <|
-        describe "NoUnused.Dependencies"
-            [ test "should not report anything if there is no `elm.json` file" <|
-                \() ->
-                    """
+    describe "NoUnused.Dependencies"
+        [ test "should not report anything if there is no `elm.json` file" <|
+            \() ->
+                """
 module A exposing (a)
 a = 1
 """
-                        |> String.replace "\u{000D}" ""
-                        |> Review.Test.run rule
-                        |> Review.Test.expectNoErrors
-            , test "should report unused dependencies for an application when none of their modules are imported" <|
-                \() ->
-                    """
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
+        , test "should report unused dependencies for an application when none of their modules are imported" <|
+            \() ->
+                """
 module A exposing (a)
 a = 1
 """
-                        |> String.replace "\u{000D}" ""
-                        |> Review.Test.runWithProjectData (createProject Nothing applicationElmJson) rule
-                        |> Review.Test.expectErrorsForElmJson
-                            [ Review.Test.error
-                                { message = "Unused dependency `author/package-with-bar`"
-                                , details =
-                                    [ "To remove it, I recommend running the following command:"
-                                    , "    elm-json uninstall author/package-with-bar"
-                                    ]
-                                , under = "author/package-with-bar"
-                                }
-                            , Review.Test.error
-                                { message = "Unused dependency `author/package-with-foo`"
-                                , details =
-                                    [ "To remove it, I recommend running the following command:"
-                                    , "    elm-json uninstall author/package-with-foo"
-                                    ]
-                                , under = "author/package-with-foo"
-                                }
-                            , Review.Test.error
-                                { message = "Unused test dependency `author/package-with-test-bar`"
-                                , details =
-                                    [ "To remove it, I recommend running the following command:"
-                                    , "    elm-json uninstall author/package-with-bar"
-                                    ]
-                                , under = "author/package-with-bar"
-                                }
-                            , Review.Test.error
-                                { message = "Unused test dependency `author/package-with-test-foo`"
-                                , details =
-                                    [ "To remove it, I recommend running the following command:"
-                                    , "    elm-json uninstall author/package-with-foo"
-                                    ]
-                                , under = "author/package-with-foo"
-                                }
-                            ]
-            , test "should not report dependencies for an application whose modules are imported" <|
-                \() ->
-                    let
-                        testModule =
-                            """module TestModule exposing (suite)
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.runWithProjectData (createProject Nothing applicationElmJson) rule
+                    |> Review.Test.expectErrorsForElmJson
+                        [ Review.Test.error
+                            { message = "Unused dependency `author/package-with-bar`"
+                            , details =
+                                [ "To remove it, I recommend running the following command:"
+                                , "    elm-json uninstall author/package-with-bar"
+                                ]
+                            , under = "author/package-with-bar"
+                            }
+                        , Review.Test.error
+                            { message = "Unused dependency `author/package-with-foo`"
+                            , details =
+                                [ "To remove it, I recommend running the following command:"
+                                , "    elm-json uninstall author/package-with-foo"
+                                ]
+                            , under = "author/package-with-foo"
+                            }
+                        , Review.Test.error
+                            { message = "Unused test dependency `author/package-with-test-bar`"
+                            , details =
+                                [ "To remove it, I recommend running the following command:"
+                                , "    elm-json uninstall author/package-with-test-bar"
+                                ]
+                            , under = "author/package-with-test-bar"
+                            }
+                        , Review.Test.error
+                            { message = "Unused test dependency `author/package-with-test-foo`"
+                            , details =
+                                [ "To remove it, I recommend running the following command:"
+                                , "    elm-json uninstall author/package-with-test-foo"
+                                ]
+                            , under = "author/package-with-test-foo"
+                            }
+                        ]
+        , test "should not report dependencies for an application whose modules are imported" <|
+            \() ->
+                let
+                    testModule =
+                        """module TestModule exposing (suite)
 
 import TestFoo
 import TestBar
 
 suite = 0
 """
-                                |> String.replace "\u{000D}" ""
-                    in
-                    """
+                            |> String.replace "\u{000D}" ""
+                in
+                """
 module A exposing (a)
 import Foo
 import Bar
 a = 1
 """
-                        |> String.replace "\u{000D}" ""
-                        |> Review.Test.runWithProjectData (createProject (Just testModule) applicationElmJson) rule
-                        |> Review.Test.expectNoErrors
-            , test "should report unused dependencies for a package when none of their modules are imported" <|
-                \() ->
-                    let
-                        expected =
-                            """
-{
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.runWithProjectData (createProject (Just testModule) applicationElmJson) rule
+                    |> Review.Test.expectNoErrors
+        , test "should report unused dependencies for a package when none of their modules are imported" <|
+            \() ->
+                """
+module A exposing (a)
+a = 1
+"""
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.runWithProjectData (createProject Nothing packageElmJson) rule
+                    |> Review.Test.expectErrorsForElmJson
+                        [ Review.Test.error
+                            { message = "Unused dependency `author/package-with-bar`"
+                            , details =
+                                [ "To remove it, I recommend running the following command:"
+                                , "    elm-json uninstall author/package-with-bar"
+                                ]
+                            , under = "author/package-with-bar"
+                            }
+                            |> Review.Test.whenFixed ("""{
     "type": "package",
     "name": "author/package",
     "summary": "Summary",
@@ -391,123 +352,24 @@ a = 1
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
     "dependencies": {
+        "author/package-with-foo": "1.0.0 <= v < 2.0.0",
         "elm/core": "1.0.0 <= v < 2.0.0"
     },
     "test-dependencies": {
+        "author/package-with-test-bar": "1.0.0 <= v < 2.0.0",
+        "author/package-with-test-foo": "1.0.0 <= v < 2.0.0"
     }
-}"""
-                    in
-                    """
-module A exposing (a)
-a = 1
-"""
-                        |> String.replace "\u{000D}" ""
-                        |> Review.Test.runWithProjectData (createProject Nothing packageElmJson) rule
-                        |> Review.Test.expectErrorsForElmJson
-                            [ Review.Test.error
-                                { message = "Unused dependency `author/package-with-bar`"
-                                , details =
-                                    [ "To remove it, I recommend running the following command:"
-                                    , "    elm-json uninstall author/package-with-bar"
-                                    ]
-                                , under = "author/package-with-bar"
-                                }
-                            , Review.Test.error
-                                { message = "Unused dependency `author/package-with-foo`"
-                                , details =
-                                    [ "To remove it, I recommend running the following command:"
-                                    , "    elm-json uninstall author/package-with-foo"
-                                    ]
-                                , under = "author/package-with-foo"
-                                }
-                            , Review.Test.error
-                                { message = "Unused test dependency `author/package-with-test-bar`"
-                                , details =
-                                    [ "To remove it, I recommend running the following command:"
-                                    , "    elm-json uninstall author/package-with-bar"
-                                    ]
-                                , under = "author/package-with-bar"
-                                }
-                            , Review.Test.error
-                                { message = "Unused test dependency `author/package-with-test-foo`"
-                                , details =
-                                    [ "To remove it, I recommend running the following command:"
-                                    , "    elm-json uninstall author/package-with-foo"
-                                    ]
-                                , under = "author/package-with-foo"
-                                }
-                            ]
-            , test "should not report dependencies for a package whose modules are imported" <|
-                \() ->
-                    let
-                        testModule =
-                            """module TestModule exposing (suite)
-
-import TestFoo
-import TestBar
-
-suite = 0
-"""
-                                |> String.replace "\u{000D}" ""
-                    in
-                    """
-module A exposing (a)
-import Foo
-import Bar
-a = 1
-"""
-                        |> String.replace "\u{000D}" ""
-                        |> Review.Test.runWithProjectData (createProject (Just testModule) packageElmJson) rule
-                        |> Review.Test.expectNoErrors
-            , test "should report dependencies that's only used in tests" <|
-                \() ->
-                    let
-                        testModule =
-                            """module TestModule exposing (suite)
-
-import Foo
-import TestFoo
-import TestBar
-
-suite = 0
-"""
-                                |> String.replace "\u{000D}" ""
-                    in
-                    """
-module A exposing (a)
-import Bar
-a = 1
-"""
-                        |> String.replace "\u{000D}" ""
-                        |> Review.Test.runWithProjectData (createProject (Just testModule) applicationElmJson) rule
-                        |> Review.Test.expectErrorsForElmJson
-                            [ Review.Test.error
-                                { message = "`author/package-with-foo` should be moved to test-dependencies"
-                                , details =
-                                    [ "This package is not used in the source code, but it is used in tests, and should therefore be moved to the test dependencies. To do so, I recommend running the following commands:"
-                                    , "    elm-json uninstall author/package-with-foo\n"
-                                        ++ "    elm-json install --test author/package-with-foo"
-                                    ]
-                                , under = "author/package-with-foo"
-                                }
-                            ]
-            , test "should report dependencies that's only used in tests and fix it when it's a package elm.json" <|
-                \() ->
-                    let
-                        testModule =
-                            """module TestModule exposing (suite)
-
-import Foo
-import TestFoo
-import TestBar
-
-suite = 0
-"""
-                                |> String.replace "\u{000D}" ""
-
-                        expected =
-                            """
-{
+}
+""" |> String.replace "\u{000D}" "")
+                        , Review.Test.error
+                            { message = "Unused dependency `author/package-with-foo`"
+                            , details =
+                                [ "To remove it, I recommend running the following command:"
+                                , "    elm-json uninstall author/package-with-foo"
+                                ]
+                            , under = "author/package-with-foo"
+                            }
+                            |> Review.Test.whenFixed ("""{
     "type": "package",
     "name": "author/package",
     "summary": "Summary",
@@ -518,33 +380,181 @@ suite = 0
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
     "dependencies": {
-        "elm/core": "1.0.0 <= v < 2.0.0",
-        "author/package-with-bar": "1.0.0 <= v < 2.0.0"
+        "author/package-with-bar": "1.0.0 <= v < 2.0.0",
+        "elm/core": "1.0.0 <= v < 2.0.0"
     },
     "test-dependencies": {
+        "author/package-with-test-bar": "1.0.0 <= v < 2.0.0",
+        "author/package-with-test-foo": "1.0.0 <= v < 2.0.0"
+    }
+}
+""" |> String.replace "\u{000D}" "")
+                        , Review.Test.error
+                            { message = "Unused test dependency `author/package-with-test-bar`"
+                            , details =
+                                [ "To remove it, I recommend running the following command:"
+                                , "    elm-json uninstall author/package-with-test-bar"
+                                ]
+                            , under = "author/package-with-test-bar"
+                            }
+                            |> Review.Test.whenFixed ("""{
+    "type": "package",
+    "name": "author/package",
+    "summary": "Summary",
+    "license": "BSD-3-Clause",
+    "version": "1.0.0",
+    "exposed-modules": [
+        "Exposed"
+    ],
+    "elm-version": "0.19.0 <= v < 0.20.0",
+    "dependencies": {
+        "author/package-with-bar": "1.0.0 <= v < 2.0.0",
         "author/package-with-foo": "1.0.0 <= v < 2.0.0",
-        "author/package-with-test-foo": "1.0.0 <= v < 2.0.0",
+        "elm/core": "1.0.0 <= v < 2.0.0"
+    },
+    "test-dependencies": {
+        "author/package-with-test-foo": "1.0.0 <= v < 2.0.0"
+    }
+}
+""" |> String.replace "\u{000D}" "")
+                        , Review.Test.error
+                            { message = "Unused test dependency `author/package-with-test-foo`"
+                            , details =
+                                [ "To remove it, I recommend running the following command:"
+                                , "    elm-json uninstall author/package-with-test-foo"
+                                ]
+                            , under = "author/package-with-test-foo"
+                            }
+                            |> Review.Test.whenFixed ("""{
+    "type": "package",
+    "name": "author/package",
+    "summary": "Summary",
+    "license": "BSD-3-Clause",
+    "version": "1.0.0",
+    "exposed-modules": [
+        "Exposed"
+    ],
+    "elm-version": "0.19.0 <= v < 0.20.0",
+    "dependencies": {
+        "author/package-with-bar": "1.0.0 <= v < 2.0.0",
+        "author/package-with-foo": "1.0.0 <= v < 2.0.0",
+        "elm/core": "1.0.0 <= v < 2.0.0"
+    },
+    "test-dependencies": {
         "author/package-with-test-bar": "1.0.0 <= v < 2.0.0"
     }
-}"""
-                    in
-                    """
+}
+""" |> String.replace "\u{000D}" "")
+                        ]
+        , test "should not report dependencies for a package whose modules are imported" <|
+            \() ->
+                let
+                    testModule =
+                        """module TestModule exposing (suite)
+
+import TestFoo
+import TestBar
+
+suite = 0
+"""
+                            |> String.replace "\u{000D}" ""
+                in
+                """
+module A exposing (a)
+import Foo
+import Bar
+a = 1
+"""
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.runWithProjectData (createProject (Just testModule) packageElmJson) rule
+                    |> Review.Test.expectNoErrors
+        , test "should report dependencies that's only used in tests" <|
+            \() ->
+                let
+                    testModule =
+                        """module TestModule exposing (suite)
+
+import Foo
+import TestFoo
+import TestBar
+
+suite = 0
+"""
+                            |> String.replace "\u{000D}" ""
+                in
+                """
 module A exposing (a)
 import Bar
 a = 1
 """
-                        |> String.replace "\u{000D}" ""
-                        |> Review.Test.runWithProjectData (createProject (Just testModule) packageElmJson) rule
-                        |> Review.Test.expectErrorsForElmJson
-                            [ Review.Test.error
-                                { message = "`author/package-with-foo` should be moved to test-dependencies"
-                                , details =
-                                    [ "This package is not used in the source code, but it is used in tests, and should therefore be moved to the test dependencies."
-                                    , "    elm-json uninstall author/package-with-foo\n"
-                                        ++ "    elm-json install --test author/package-with-foo"
-                                    ]
-                                , under = "author/package-with-foo"
-                                }
-                                |> Review.Test.whenFixed expected
-                            ]
-            ]
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.runWithProjectData (createProject (Just testModule) applicationElmJson) rule
+                    |> Review.Test.expectErrorsForElmJson
+                        [ Review.Test.error
+                            { message = "`author/package-with-foo` should be moved to test-dependencies"
+                            , details =
+                                [ "This package is not used in the source code, but it is used in tests, and should therefore be moved to the test dependencies. To do so, I recommend running the following commands:"
+                                , "    elm-json uninstall author/package-with-foo\n"
+                                    ++ "    elm-json install --test author/package-with-foo"
+                                ]
+                            , under = "author/package-with-foo"
+                            }
+                        ]
+        , test "should report dependencies that's only used in tests and fix it when it's a package elm.json" <|
+            \() ->
+                let
+                    testModule =
+                        """module TestModule exposing (suite)
+
+import Foo
+import TestFoo
+import TestBar
+
+suite = 0
+"""
+                            |> String.replace "\u{000D}" ""
+
+                    expected =
+                        """{
+    "type": "package",
+    "name": "author/package",
+    "summary": "Summary",
+    "license": "BSD-3-Clause",
+    "version": "1.0.0",
+    "exposed-modules": [
+        "Exposed"
+    ],
+    "elm-version": "0.19.0 <= v < 0.20.0",
+    "dependencies": {
+        "author/package-with-bar": "1.0.0 <= v < 2.0.0",
+        "elm/core": "1.0.0 <= v < 2.0.0"
+    },
+    "test-dependencies": {
+        "author/package-with-foo": "1.0.0 <= v < 2.0.0",
+        "author/package-with-test-bar": "1.0.0 <= v < 2.0.0",
+        "author/package-with-test-foo": "1.0.0 <= v < 2.0.0"
+    }
+}
+"""
+                            |> String.replace "\u{000D}" ""
+                in
+                """
+module A exposing (a)
+import Bar
+a = 1
+"""
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.runWithProjectData (createProject (Just testModule) packageElmJson) rule
+                    |> Review.Test.expectErrorsForElmJson
+                        [ Review.Test.error
+                            { message = "`author/package-with-foo` should be moved to test-dependencies"
+                            , details =
+                                [ "This package is not used in the source code, but it is used in tests, and should therefore be moved to the test dependencies. To do so, I recommend running the following commands:"
+                                , "    elm-json uninstall author/package-with-foo\n"
+                                    ++ "    elm-json install --test author/package-with-foo"
+                                ]
+                            , under = "author/package-with-foo"
+                            }
+                            |> Review.Test.whenFixed expected
+                        ]
+        ]

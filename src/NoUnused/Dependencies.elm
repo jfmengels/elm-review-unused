@@ -19,6 +19,7 @@ import Elm.Syntax.Range exposing (Range)
 import Review.Project.Dependency as Dependency exposing (Dependency)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
+import Vendor.ListExtra
 
 
 {-| Forbid the use of dependencies that are never used in your project.
@@ -141,7 +142,7 @@ foldProjectContexts newContext previousContext =
     , directProjectDependencies = previousContext.directProjectDependencies
     , directTestDependencies = previousContext.directTestDependencies
     , importedModuleNames = Set.union previousContext.importedModuleNames newContext.importedModuleNames
-    , importedModuleNamesFromTest = Set.union previousContext.importedModuleNames newContext.importedModuleNames
+    , importedModuleNamesFromTest = Set.union previousContext.importedModuleNamesFromTest newContext.importedModuleNamesFromTest
     , elmJsonKey = previousContext.elmJsonKey
     }
 
@@ -178,10 +179,8 @@ elmJsonVisitor maybeProject projectContext =
             ( []
             , { projectContext
                 | elmJsonKey = Just elmJsonKey
-                , directProjectDependencies =
-                    Set.filter ((/=) "elm/core") directProjectDependencies
-                , directTestDependencies =
-                    Set.filter ((/=) "elm/core") directTestDependencies
+                , directProjectDependencies = directProjectDependencies
+                , directTestDependencies = directTestDependencies
               }
             )
 
@@ -218,25 +217,42 @@ finalEvaluationForProject projectContext =
     case projectContext.elmJsonKey of
         Just elmJsonKey ->
             let
-                depsNotUsedInSrc : List String
+                depsNotUsedInSrc : Set String
                 depsNotUsedInSrc =
                     projectContext.importedModuleNames
                         |> Set.toList
                         |> List.filterMap (\importedModuleName -> Dict.get importedModuleName projectContext.moduleNameToDependency)
                         |> Set.fromList
                         |> Set.diff projectContext.directProjectDependencies
+
+                depsNotUsedInSrcErrors : List String
+                depsNotUsedInSrcErrors =
+                    Set.diff depsNotUsedInSrc depsNotUsedInSrcButUsedInTests
+                        |> Set.remove "elm/core"
                         |> Set.toList
 
-                testDepsNotUsedInTests : List String
-                testDepsNotUsedInTests =
+                testDeps : Set String
+                testDeps =
                     projectContext.importedModuleNamesFromTest
                         |> Set.toList
                         |> List.filterMap (\importedModuleName -> Dict.get importedModuleName projectContext.moduleNameToDependency)
                         |> Set.fromList
+
+                depsNotUsedInSrcButUsedInTests : Set String
+                depsNotUsedInSrcButUsedInTests =
+                    Set.intersect depsNotUsedInSrc testDeps
+                        |> Set.remove "elm/core"
+
+                testDepsNotUsedInTests : List String
+                testDepsNotUsedInTests =
+                    testDeps
                         |> Set.diff projectContext.directTestDependencies
+                        |> Set.remove "elm/core"
                         |> Set.toList
             in
-            List.map (error elmJsonKey) depsNotUsedInSrc
+            List.map (error elmJsonKey) depsNotUsedInSrcErrors
+                ++ List.map (testError elmJsonKey) testDepsNotUsedInTests
+                ++ List.map (onlyTestDependencyError elmJsonKey) (Set.toList depsNotUsedInSrcButUsedInTests)
 
         Nothing ->
             []
@@ -244,7 +260,7 @@ finalEvaluationForProject projectContext =
 
 error : Rule.ElmJsonKey -> String -> Error scope
 error elmJsonKey packageName =
-    Rule.errorForElmJson elmJsonKey
+    Rule.errorForElmJsonWithFix elmJsonKey
         (\elmJson ->
             { message = "Unused dependency `" ++ packageName ++ "`"
             , details =
@@ -254,11 +270,65 @@ error elmJsonKey packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
+        (\project ->
+            case project of
+                Elm.Project.Application _ ->
+                    Nothing
+
+                Elm.Project.Package packageInfo ->
+                    Elm.Project.Package
+                        { packageInfo
+                            | deps =
+                                List.filter
+                                    (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
+                                    packageInfo.deps
+                        }
+                        |> Just
+        )
+
+
+onlyTestDependencyError : Rule.ElmJsonKey -> String -> Error scope
+onlyTestDependencyError elmJsonKey packageName =
+    Rule.errorForElmJsonWithFix elmJsonKey
+        (\elmJson ->
+            { message = "`" ++ packageName ++ "` should be moved to test-dependencies"
+            , details =
+                [ "This package is not used in the source code, but it is used in tests, and should therefore be moved to the test dependencies. To do so, I recommend running the following commands:"
+                , "    elm-json uninstall " ++ packageName ++ "\n" ++ "    elm-json install --test " ++ packageName
+                ]
+            , range = findPackageNameInElmJson packageName elmJson
+            }
+        )
+        (\project ->
+            case project of
+                Elm.Project.Application _ ->
+                    Nothing
+
+                Elm.Project.Package packageInfo ->
+                    case
+                        Vendor.ListExtra.find
+                            (\( packageName_, _ ) -> packageName == Elm.Package.toString packageName_)
+                            packageInfo.deps
+                    of
+                        Just packageDep ->
+                            Elm.Project.Package
+                                { packageInfo
+                                    | deps =
+                                        List.filter
+                                            (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
+                                            packageInfo.deps
+                                    , testDeps = packageDep :: packageInfo.testDeps
+                                }
+                                |> Just
+
+                        Nothing ->
+                            Nothing
+        )
 
 
 testError : Rule.ElmJsonKey -> String -> Error scope
 testError elmJsonKey packageName =
-    Rule.errorForElmJson elmJsonKey
+    Rule.errorForElmJsonWithFix elmJsonKey
         (\elmJson ->
             { message = "Unused test dependency `" ++ packageName ++ "`"
             , details =
@@ -267,6 +337,21 @@ testError elmJsonKey packageName =
                 ]
             , range = findPackageNameInElmJson packageName elmJson
             }
+        )
+        (\project ->
+            case project of
+                Elm.Project.Application _ ->
+                    Nothing
+
+                Elm.Project.Package packageInfo ->
+                    Elm.Project.Package
+                        { packageInfo
+                            | testDeps =
+                                List.filter
+                                    (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
+                                    packageInfo.testDeps
+                        }
+                        |> Just
         )
 
 
