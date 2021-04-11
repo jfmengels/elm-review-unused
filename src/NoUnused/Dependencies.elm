@@ -285,6 +285,7 @@ error elmJsonKey packageName =
                         |> Just
         )
 
+
 {-| Find the first element that satisfies a predicate and return
 Just that element. If none match, return Nothing.
 find (\\num -> num > 5) [2, 4, 6, 8] == Just 6
@@ -301,6 +302,7 @@ find predicate list =
 
             else
                 find predicate rest
+
 
 onlyTestDependencyError : Rule.ElmJsonKey -> String -> Error scope
 onlyTestDependencyError elmJsonKey packageName =
