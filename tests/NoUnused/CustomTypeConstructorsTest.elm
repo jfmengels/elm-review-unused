@@ -411,6 +411,54 @@ a = True
 b = B
 """
                         ]
+        , test "should not count type constructors used as arguments to a prefix (==) operator (with 1 argument)" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused | B
+a = (==) Unused
+b = B
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Unused` is not used."
+                            , details = [ defaultDetails, conditionDetails ]
+                            , under = "Unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (a, b)
+type Foo = B
+a = always False
+b = B
+"""
+                        ]
+        , test "should not count type constructors used as arguments to a prefix (/=) operator (with 1 argument)" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused | B
+a = (/=) Unused
+b = B
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Unused` is not used."
+                            , details = [ defaultDetails, conditionDetails ]
+                            , under = "Unused"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 18 } }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (a, b)
+type Foo = B
+a = always True
+b = B
+"""
+                        ]
         ]
 
 

@@ -714,13 +714,21 @@ expressionVisitorHelp node moduleContext =
                             Set.empty
                             arguments
 
-                    replacement : String
-                    replacement =
+                    replacementBoolean : String
+                    replacementBoolean =
                         if operator == "==" then
                             "False"
 
                         else
                             "True"
+
+                    replacement : String
+                    replacement =
+                        if List.length arguments == 2 then
+                            replacementBoolean
+
+                        else
+                            "always " ++ replacementBoolean
 
                     ( fromThisModule, fromOtherModules ) =
                         constructors
