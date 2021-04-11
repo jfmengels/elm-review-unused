@@ -112,6 +112,7 @@ fromProjectToModule projectContext =
 fromModuleToProject : Rule.Metadata -> ModuleContext -> ProjectContext
 fromModuleToProject metadata importedModuleNames =
     let
+        isSourceDir : Bool
         isSourceDir =
             Rule.isInSourceDirectories metadata
     in

@@ -305,6 +305,7 @@ a = 1
         , test "should not report dependencies for an application whose modules are imported" <|
             \() ->
                 let
+                    testModule : String
                     testModule =
                         """module TestModule exposing (suite)
 
@@ -449,6 +450,7 @@ a = 1
         , test "should not report dependencies for a package whose modules are imported" <|
             \() ->
                 let
+                    testModule : String
                     testModule =
                         """module TestModule exposing (suite)
 
@@ -471,6 +473,7 @@ a = 1
         , test "should report dependencies that's only used in tests" <|
             \() ->
                 let
+                    testModule : String
                     testModule =
                         """module TestModule exposing (suite)
 
@@ -503,6 +506,7 @@ a = 1
         , test "should report dependencies that's only used in tests and fix it when it's a package elm.json" <|
             \() ->
                 let
+                    testModule : String
                     testModule =
                         """module TestModule exposing (suite)
 
@@ -514,6 +518,7 @@ suite = 0
 """
                             |> String.replace "\u{000D}" ""
 
+                    expected : String
                     expected =
                         """{
     "type": "package",
