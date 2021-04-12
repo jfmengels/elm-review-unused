@@ -45,8 +45,8 @@ rule =
         |> Rule.withDependenciesProjectVisitor dependenciesVisitor
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
-            { fromProjectToModule = Rule.initContextCreator fromProjectToModule
-            , fromModuleToProject = Rule.initContextCreator fromModuleToProject |> Rule.withMetadata
+            { fromProjectToModule = fromProjectToModule
+            , fromModuleToProject = fromModuleToProject
             , foldProjectContexts = foldProjectContexts
             }
         |> Rule.withFinalProjectEvaluation finalEvaluationForProject
@@ -104,35 +104,39 @@ initialProjectContext =
     }
 
 
-fromProjectToModule : ProjectContext -> ModuleContext
-fromProjectToModule projectContext =
-    projectContext.importedModuleNames
+fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
+fromProjectToModule =
+    Rule.initContextCreator (\projectContext -> projectContext.importedModuleNames)
 
 
-fromModuleToProject : Rule.Metadata -> ModuleContext -> ProjectContext
-fromModuleToProject metadata importedModuleNames =
-    let
-        isSourceDir : Bool
-        isSourceDir =
-            Rule.isInSourceDirectories metadata
-    in
-    { moduleNameToDependency = Dict.empty
-    , directProjectDependencies = Set.empty
-    , directTestDependencies = Set.empty
-    , importedModuleNames =
-        if isSourceDir then
-            importedModuleNames
+fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
+fromModuleToProject =
+    Rule.initContextCreator
+        (\metadata importedModuleNames ->
+            let
+                isSourceDir : Bool
+                isSourceDir =
+                    Rule.isInSourceDirectories metadata
+            in
+            { moduleNameToDependency = Dict.empty
+            , directProjectDependencies = Set.empty
+            , directTestDependencies = Set.empty
+            , importedModuleNames =
+                if isSourceDir then
+                    importedModuleNames
 
-        else
-            Set.empty
-    , importedModuleNamesFromTest =
-        if isSourceDir then
-            Set.empty
+                else
+                    Set.empty
+            , importedModuleNamesFromTest =
+                if isSourceDir then
+                    Set.empty
 
-        else
-            importedModuleNames
-    , elmJsonKey = Nothing
-    }
+                else
+                    importedModuleNames
+            , elmJsonKey = Nothing
+            }
+        )
+        |> Rule.withMetadata
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
