@@ -336,6 +336,23 @@ onlyTestDependencyError elmJsonKey packageName =
                             application.depsDirect
                     of
                         Just packageDep ->
+                            let
+                                dependencies : Dict String Dependency
+                                dependencies =
+                                    Dict.empty
+
+                                isInIndirectDependencies =
+                                    List.any
+                                        (\dep ->
+                                            case Dependency.elmJson dep of
+                                                Elm.Project.Application { depsDirect, depsIndirect } ->
+                                                    False
+
+                                                Elm.Project.Package packageInfo ->
+                                                    False
+                                        )
+                                        (Dict.values dependencies)
+                            in
                             Elm.Project.Application
                                 { application
                                     | depsDirect =
