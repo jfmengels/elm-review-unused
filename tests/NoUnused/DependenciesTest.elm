@@ -51,16 +51,16 @@ applicationElmJson =
     "elm-version": "0.19.1",
     "dependencies": {
         "direct": {
-            "author/package-with-foo": "1.0.0",
             "author/package-with-bar": "1.0.0",
+            "author/package-with-foo": "1.0.0",
             "elm/core": "1.0.0"
         },
         "indirect": {}
     },
     "test-dependencies": {
         "direct": {
-            "author/package-with-test-foo": "1.0.0",
-            "author/package-with-test-bar": "1.0.0"
+            "author/package-with-test-bar": "1.0.0",
+            "author/package-with-test-foo": "1.0.0"
         },
         "indirect": {}
     }
@@ -562,8 +562,8 @@ a = 1
     "test-dependencies": {
         "direct": {
             "author/package-with-foo": "1.0.0",
-            "author/package-with-test-foo": "1.0.0",
-            "author/package-with-test-bar": "1.0.0"
+            "author/package-with-test-bar": "1.0.0",
+            "author/package-with-test-foo": "1.0.0"
         },
         "indirect": {}
     }

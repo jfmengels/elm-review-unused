@@ -329,8 +329,25 @@ onlyTestDependencyError elmJsonKey packageName =
         )
         (\project ->
             case project of
-                Elm.Project.Application _ ->
-                    Nothing
+                Elm.Project.Application application ->
+                    case
+                        find
+                            (\( packageName_, _ ) -> packageName == Elm.Package.toString packageName_)
+                            application.depsDirect
+                    of
+                        Just packageDep ->
+                            Elm.Project.Application
+                                { application
+                                    | depsDirect =
+                                        List.filter
+                                            (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
+                                            application.depsDirect
+                                    , testDepsDirect = packageDep :: application.testDepsDirect
+                                }
+                                |> Just
+
+                        Nothing ->
+                            Nothing
 
                 Elm.Project.Package packageInfo ->
                     case
