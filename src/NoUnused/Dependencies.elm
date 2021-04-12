@@ -275,8 +275,9 @@ error elmJsonKey packageName =
         )
         (\project ->
             case project of
-                Elm.Project.Application _ ->
-                    Nothing
+                Elm.Project.Application application ->
+                    Elm.Project.Application application
+                        |> Just
 
                 Elm.Project.Package packageInfo ->
                     Elm.Project.Package

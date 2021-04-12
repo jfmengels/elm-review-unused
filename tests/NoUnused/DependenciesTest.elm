@@ -51,9 +51,9 @@ applicationElmJson =
     "elm-version": "0.19.1",
     "dependencies": {
         "direct": {
-            "elm/core": "1.0.0",
             "author/package-with-foo": "1.0.0",
-            "author/package-with-bar": "1.0.0"
+            "author/package-with-bar": "1.0.0",
+            "elm/core": "1.0.0"
         },
         "indirect": {}
     },
@@ -277,6 +277,29 @@ a = 1
                                 ]
                             , under = "author/package-with-bar"
                             }
+                            |> Review.Test.whenFixed """{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "author/package-with-foo": "1.0.0",
+            "author/package-with-bar": "1.0.0",
+            "elm/core": "1.0.0"
+        },
+        "indirect": {}
+    },
+    "test-dependencies": {
+        "direct": {
+            "author/package-with-test-foo": "1.0.0",
+            "author/package-with-test-bar": "1.0.0"
+        },
+        "indirect": {}
+    }
+}
+"""
                         , Review.Test.error
                             { message = "Unused dependency `author/package-with-foo`"
                             , details =
@@ -285,6 +308,29 @@ a = 1
                                 ]
                             , under = "author/package-with-foo"
                             }
+                            |> Review.Test.whenFixed """{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "author/package-with-foo": "1.0.0",
+            "author/package-with-bar": "1.0.0",
+            "elm/core": "1.0.0"
+        },
+        "indirect": {}
+    },
+    "test-dependencies": {
+        "direct": {
+            "author/package-with-test-foo": "1.0.0",
+            "author/package-with-test-bar": "1.0.0"
+        },
+        "indirect": {}
+    }
+}
+"""
                         , Review.Test.error
                             { message = "Unused test dependency `author/package-with-test-bar`"
                             , details =
