@@ -276,7 +276,13 @@ error elmJsonKey packageName =
         (\project ->
             case project of
                 Elm.Project.Application application ->
-                    Elm.Project.Application application
+                    Elm.Project.Application
+                        { application
+                            | depsDirect =
+                                List.filter
+                                    (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
+                                    application.depsDirect
+                        }
                         |> Just
 
                 Elm.Project.Package packageInfo ->
