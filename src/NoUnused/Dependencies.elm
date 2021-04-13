@@ -546,7 +546,7 @@ onlyTestDependencyError elmJsonKey dependencies packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (addTestDependency packageName >> removeProjectDependency dependencies packageName >> Just)
+        (fromProject packageName >> Maybe.map (removeProjectDependency2 dependencies >> addTestDependency2 >> toProject))
 
 
 testError : Rule.ElmJsonKey -> String -> Error scope
