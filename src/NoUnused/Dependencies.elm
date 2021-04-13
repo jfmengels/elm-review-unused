@@ -407,6 +407,28 @@ addTestDependency2 projectAndDependencyIdentifier =
                 }
 
 
+removeTestDependency2 : ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
+removeTestDependency2 projectAndDependencyIdentifier =
+    case projectAndDependencyIdentifier of
+        ApplicationProject ({ application } as project) ->
+            ApplicationProject
+                { project
+                    | application =
+                        { application
+                            | testDepsDirect = List.filter (isPackageWithName (Elm.Package.toString project.name) >> not) application.testDepsDirect
+                        }
+                }
+
+        PackageProject ({ package } as project) ->
+            PackageProject
+                { project
+                    | package =
+                        { package
+                            | testDeps = List.filter (isPackageWithName (Elm.Package.toString project.name) >> not) package.testDeps
+                        }
+                }
+
+
 removeProjectDependency : Dict String Dependency -> String -> Project -> Project
 removeProjectDependency dependencies packageNameStr project =
     case project of
@@ -567,7 +589,7 @@ testError elmJsonKey packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (removeTestDependency packageName >> Just)
+        (fromProject packageName >> Maybe.map (removeTestDependency2 >> toProject))
 
 
 findPackageNameInElmJson : String -> String -> Range
