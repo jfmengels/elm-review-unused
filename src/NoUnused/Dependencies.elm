@@ -272,6 +272,10 @@ finalEvaluationForProject projectContext =
             []
 
 
+
+-- ERROR FUNCTIONS
+
+
 unusedProjectDependencyError : Rule.ElmJsonKey -> Dict String Dependency -> String -> Error scope
 unusedProjectDependencyError elmJsonKey dependencies packageName =
     Rule.errorForElmJsonWithFix elmJsonKey
@@ -285,6 +289,67 @@ unusedProjectDependencyError elmJsonKey dependencies packageName =
             }
         )
         (fromProject InProjectDeps packageName >> Maybe.map (removeProjectDependency dependencies >> toProject))
+
+
+moveDependencyToTestError : Rule.ElmJsonKey -> Dict String Dependency -> String -> Error scope
+moveDependencyToTestError elmJsonKey dependencies packageName =
+    Rule.errorForElmJsonWithFix elmJsonKey
+        (\elmJson ->
+            { message = "`" ++ packageName ++ "` should be moved to test-dependencies"
+            , details =
+                [ "This package is not used in the source code, but it is used in tests, and should therefore be moved to the test dependencies. To do so, I recommend running the following commands:"
+                , "    elm-json uninstall " ++ packageName ++ "\n" ++ "    elm-json install --test " ++ packageName
+                ]
+            , range = findPackageNameInElmJson packageName elmJson
+            }
+        )
+        (fromProject InProjectDeps packageName >> Maybe.map (removeProjectDependency dependencies >> addTestDependency >> toProject))
+
+
+unusedTestDependencyError : Rule.ElmJsonKey -> String -> Error scope
+unusedTestDependencyError elmJsonKey packageName =
+    Rule.errorForElmJsonWithFix elmJsonKey
+        (\elmJson ->
+            { message = "Unused test dependency `" ++ packageName ++ "`"
+            , details =
+                [ "To remove it, I recommend running the following command:"
+                , "    elm-json uninstall " ++ packageName
+                ]
+            , range = findPackageNameInElmJson packageName elmJson
+            }
+        )
+        (fromProject InTestDeps packageName >> Maybe.map (removeTestDependency >> toProject))
+
+
+findPackageNameInElmJson : String -> String -> Range
+findPackageNameInElmJson packageName elmJson =
+    elmJson
+        |> String.lines
+        |> List.indexedMap Tuple.pair
+        |> List.filterMap
+            (\( row, line ) ->
+                case String.indexes ("\"" ++ packageName ++ "\"") line of
+                    [] ->
+                        Nothing
+
+                    column :: _ ->
+                        Just
+                            { start =
+                                { row = row + 1
+                                , column = column + 2
+                                }
+                            , end =
+                                { row = row + 1
+                                , column = column + String.length packageName + 2
+                                }
+                            }
+            )
+        |> List.head
+        |> Maybe.withDefault { start = { row = 1, column = 1 }, end = { row = 10000, column = 1 } }
+
+
+
+-- FIX
 
 
 type ProjectAndDependencyIdentifier
@@ -466,60 +531,3 @@ find predicate list =
 
             else
                 find predicate rest
-
-
-moveDependencyToTestError : Rule.ElmJsonKey -> Dict String Dependency -> String -> Error scope
-moveDependencyToTestError elmJsonKey dependencies packageName =
-    Rule.errorForElmJsonWithFix elmJsonKey
-        (\elmJson ->
-            { message = "`" ++ packageName ++ "` should be moved to test-dependencies"
-            , details =
-                [ "This package is not used in the source code, but it is used in tests, and should therefore be moved to the test dependencies. To do so, I recommend running the following commands:"
-                , "    elm-json uninstall " ++ packageName ++ "\n" ++ "    elm-json install --test " ++ packageName
-                ]
-            , range = findPackageNameInElmJson packageName elmJson
-            }
-        )
-        (fromProject InProjectDeps packageName >> Maybe.map (removeProjectDependency dependencies >> addTestDependency >> toProject))
-
-
-unusedTestDependencyError : Rule.ElmJsonKey -> String -> Error scope
-unusedTestDependencyError elmJsonKey packageName =
-    Rule.errorForElmJsonWithFix elmJsonKey
-        (\elmJson ->
-            { message = "Unused test dependency `" ++ packageName ++ "`"
-            , details =
-                [ "To remove it, I recommend running the following command:"
-                , "    elm-json uninstall " ++ packageName
-                ]
-            , range = findPackageNameInElmJson packageName elmJson
-            }
-        )
-        (fromProject InTestDeps packageName >> Maybe.map (removeTestDependency >> toProject))
-
-
-findPackageNameInElmJson : String -> String -> Range
-findPackageNameInElmJson packageName elmJson =
-    elmJson
-        |> String.lines
-        |> List.indexedMap Tuple.pair
-        |> List.filterMap
-            (\( row, line ) ->
-                case String.indexes ("\"" ++ packageName ++ "\"") line of
-                    [] ->
-                        Nothing
-
-                    column :: _ ->
-                        Just
-                            { start =
-                                { row = row + 1
-                                , column = column + 2
-                                }
-                            , end =
-                                { row = row + 1
-                                , column = column + String.length packageName + 2
-                                }
-                            }
-            )
-        |> List.head
-        |> Maybe.withDefault { start = { row = 1, column = 1 }, end = { row = 10000, column = 1 } }
