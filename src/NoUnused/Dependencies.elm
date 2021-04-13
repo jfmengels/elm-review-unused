@@ -318,12 +318,26 @@ type ProjectAndDependencyIdentifier
     | PackageProject { package : Elm.Project.PackageInfo, name : Elm.Package.Name, constraint : Elm.Constraint.Constraint }
 
 
-fromProject : String -> Project -> Maybe ProjectAndDependencyIdentifier
-fromProject packageNameStr project =
+type DependencyLocation
+    = InProjectDeps
+    | InTestDeps
+
+
+fromProject : DependencyLocation -> String -> Project -> Maybe ProjectAndDependencyIdentifier
+fromProject dependencyLocation packageNameStr project =
     case project of
         Elm.Project.Application application ->
-            -- TODO Make it possible to look at test dependencies
-            case find (isPackageWithName packageNameStr) application.depsDirect of
+            let
+                dependencies : Elm.Project.Deps Elm.Version.Version
+                dependencies =
+                    case dependencyLocation of
+                        InProjectDeps ->
+                            application.depsDirect
+
+                        InTestDeps ->
+                            application.testDepsDirect
+            in
+            case find (isPackageWithName packageNameStr) dependencies of
                 Just ( packageName, version ) ->
                     Just (ApplicationProject { application = application, name = packageName, version = version })
 
@@ -331,8 +345,17 @@ fromProject packageNameStr project =
                     Nothing
 
         Elm.Project.Package packageInfo ->
-            -- TODO Make it possible to look at test dependencies
-            case find (isPackageWithName packageNameStr) packageInfo.deps of
+            let
+                dependencies : Elm.Project.Deps Elm.Constraint.Constraint
+                dependencies =
+                    case dependencyLocation of
+                        InProjectDeps ->
+                            packageInfo.deps
+
+                        InTestDeps ->
+                            packageInfo.testDeps
+            in
+            case find (isPackageWithName packageNameStr) dependencies of
                 Just ( packageName, constraint ) ->
                     Just (PackageProject { package = packageInfo, name = packageName, constraint = constraint })
 
@@ -574,7 +597,7 @@ onlyTestDependencyError elmJsonKey dependencies packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (fromProject packageName >> Maybe.map (removeProjectDependency2 dependencies >> addTestDependency2 >> toProject))
+        (fromProject InProjectDeps packageName >> Maybe.map (removeProjectDependency2 dependencies >> addTestDependency2 >> toProject))
 
 
 testError : Rule.ElmJsonKey -> String -> Error scope
@@ -589,7 +612,7 @@ testError elmJsonKey packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (fromProject packageName >> Maybe.map (removeTestDependency2 >> toProject))
+        (fromProject InTestDeps packageName >> Maybe.map (removeTestDependency2 >> toProject))
 
 
 findPackageNameInElmJson : String -> String -> Range
