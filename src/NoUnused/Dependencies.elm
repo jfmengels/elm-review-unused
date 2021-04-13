@@ -10,11 +10,13 @@ module NoUnused.Dependencies exposing (rule)
 -}
 
 import Dict exposing (Dict)
+import Elm.Constraint
 import Elm.Package
 import Elm.Project exposing (Project)
 import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Node as Node exposing (Node)
 import Elm.Syntax.Range exposing (Range)
+import Elm.Version
 import Review.Project.Dependency as Dependency exposing (Dependency)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -309,6 +311,21 @@ error elmJsonKey dependencies packageNameStr =
                         }
                         |> Just
         )
+
+
+type ProjectAndDependencyIdentifier
+    = ApplicationProject ( Elm.Project.ApplicationInfo, Elm.Version.Version )
+    | PackageProject ( Elm.Project.PackageInfo, Elm.Constraint.Constraint )
+
+
+toProject : ProjectAndDependencyIdentifier -> Elm.Project.Project
+toProject projectAndDependencyIdentifier =
+    case projectAndDependencyIdentifier of
+        ApplicationProject ( applicationInfo, _ ) ->
+            Elm.Project.Application applicationInfo
+
+        PackageProject ( packageInfo, _ ) ->
+            Elm.Project.Package packageInfo
 
 
 removeProjectDependency : Dict String Dependency -> String -> Project -> Project
