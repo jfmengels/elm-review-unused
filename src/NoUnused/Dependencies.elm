@@ -264,16 +264,16 @@ finalEvaluationForProject projectContext =
                         |> Set.remove "elm/core"
                         |> Set.toList
             in
-            List.map (error elmJsonKey projectContext.dependencies) depsNotUsedInSrcErrors
-                ++ List.map (testError elmJsonKey) testDepsNotUsedInTests
-                ++ List.map (onlyTestDependencyError elmJsonKey projectContext.dependencies) (Set.toList depsNotUsedInSrcButUsedInTests)
+            List.map (unusedProjectDependencyError elmJsonKey projectContext.dependencies) depsNotUsedInSrcErrors
+                ++ List.map (unusedTestDependencyError elmJsonKey) testDepsNotUsedInTests
+                ++ List.map (moveDependencyToTestError elmJsonKey projectContext.dependencies) (Set.toList depsNotUsedInSrcButUsedInTests)
 
         Nothing ->
             []
 
 
-error : Rule.ElmJsonKey -> Dict String Dependency -> String -> Error scope
-error elmJsonKey dependencies packageName =
+unusedProjectDependencyError : Rule.ElmJsonKey -> Dict String Dependency -> String -> Error scope
+unusedProjectDependencyError elmJsonKey dependencies packageName =
     Rule.errorForElmJsonWithFix elmJsonKey
         (\elmJson ->
             { message = "Unused dependency `" ++ packageName ++ "`"
@@ -468,8 +468,8 @@ find predicate list =
                 find predicate rest
 
 
-onlyTestDependencyError : Rule.ElmJsonKey -> Dict String Dependency -> String -> Error scope
-onlyTestDependencyError elmJsonKey dependencies packageName =
+moveDependencyToTestError : Rule.ElmJsonKey -> Dict String Dependency -> String -> Error scope
+moveDependencyToTestError elmJsonKey dependencies packageName =
     Rule.errorForElmJsonWithFix elmJsonKey
         (\elmJson ->
             { message = "`" ++ packageName ++ "` should be moved to test-dependencies"
@@ -483,8 +483,8 @@ onlyTestDependencyError elmJsonKey dependencies packageName =
         (fromProject InProjectDeps packageName >> Maybe.map (removeProjectDependency dependencies >> addTestDependency >> toProject))
 
 
-testError : Rule.ElmJsonKey -> String -> Error scope
-testError elmJsonKey packageName =
+unusedTestDependencyError : Rule.ElmJsonKey -> String -> Error scope
+unusedTestDependencyError elmJsonKey packageName =
     Rule.errorForElmJsonWithFix elmJsonKey
         (\elmJson ->
             { message = "Unused test dependency `" ++ packageName ++ "`"
