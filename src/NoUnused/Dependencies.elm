@@ -99,7 +99,8 @@ type alias ProjectContext =
 
 
 type alias ModuleContext =
-    Set String
+    { importedModuleNames : Set String
+    }
 
 
 initialProjectContext : ProjectContext
@@ -118,13 +119,17 @@ initialProjectContext =
 
 fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
 fromProjectToModule =
-    Rule.initContextCreator (\projectContext -> projectContext.importedModuleNames)
+    Rule.initContextCreator
+        (\projectContext ->
+            { importedModuleNames = projectContext.importedModuleNames
+            }
+        )
 
 
 fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
 fromModuleToProject =
     Rule.initContextCreator
-        (\metadata importedModuleNames ->
+        (\metadata { importedModuleNames } ->
             let
                 isSourceDir : Bool
                 isSourceDir =
@@ -214,9 +219,11 @@ elmJsonVisitor maybeProject projectContext =
 
 
 importVisitor : Node Import -> ModuleContext -> ( List nothing, ModuleContext )
-importVisitor node importedModuleNames =
+importVisitor node context =
     ( []
-    , Set.insert (moduleNameForImport node) importedModuleNames
+    , { context
+        | importedModuleNames = Set.insert (moduleNameForImport node) context.importedModuleNames
+      }
     )
 
 
