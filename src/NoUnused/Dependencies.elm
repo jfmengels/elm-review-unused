@@ -312,18 +312,23 @@ error elmJsonKey dependencies packageNameStr =
 
 
 removeProjectDependency : Dict String Dependency -> String -> Project -> Project
-removeProjectDependency dependencies packageName project =
+removeProjectDependency dependencies packageNameStr project =
     case project of
         Elm.Project.Application application ->
-            Elm.Project.Application
-                { application
-                    | depsDirect = List.filter (isPackageWithName packageName >> not) application.depsDirect
-                }
+            case find (isPackageWithName packageNameStr) application.depsDirect of
+                Just ( packageName, version ) ->
+                    Elm.Project.Application
+                        { application
+                            | depsDirect = List.filter (isPackageWithName packageNameStr >> not) application.depsDirect
+                        }
+
+                Nothing ->
+                    project
 
         Elm.Project.Package packageInfo ->
             Elm.Project.Package
                 { packageInfo
-                    | deps = List.filter (isPackageWithName packageName >> not) packageInfo.deps
+                    | deps = List.filter (isPackageWithName packageNameStr >> not) packageInfo.deps
                 }
 
 
