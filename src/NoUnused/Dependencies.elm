@@ -314,8 +314,8 @@ error elmJsonKey dependencies packageNameStr =
 
 
 type ProjectAndDependencyIdentifier
-    = ApplicationProject { project : Elm.Project.ApplicationInfo, name : Elm.Package.Name, version : Elm.Version.Version }
-    | PackageProject { project : Elm.Project.PackageInfo, name : Elm.Package.Name, constraint : Elm.Constraint.Constraint }
+    = ApplicationProject { application : Elm.Project.ApplicationInfo, name : Elm.Package.Name, version : Elm.Version.Version }
+    | PackageProject { package : Elm.Project.PackageInfo, name : Elm.Package.Name, constraint : Elm.Constraint.Constraint }
 
 
 fromProject : Project -> String -> Maybe ProjectAndDependencyIdentifier
@@ -325,7 +325,7 @@ fromProject project packageNameStr =
             -- TODO Make it possible to look at test dependencies
             case find (isPackageWithName packageNameStr) application.depsDirect of
                 Just ( packageName, version ) ->
-                    Just (ApplicationProject { project = application, name = packageName, version = version })
+                    Just (ApplicationProject { application = application, name = packageName, version = version })
 
                 Nothing ->
                     Nothing
@@ -334,7 +334,7 @@ fromProject project packageNameStr =
             -- TODO Make it possible to look at test dependencies
             case find (isPackageWithName packageNameStr) packageInfo.deps of
                 Just ( packageName, constraint ) ->
-                    Just (PackageProject { project = packageInfo, name = packageName, constraint = constraint })
+                    Just (PackageProject { package = packageInfo, name = packageName, constraint = constraint })
 
                 Nothing ->
                     Nothing
@@ -343,37 +343,37 @@ fromProject project packageNameStr =
 toProject : ProjectAndDependencyIdentifier -> Elm.Project.Project
 toProject projectAndDependencyIdentifier =
     case projectAndDependencyIdentifier of
-        ApplicationProject { project } ->
-            Elm.Project.Application project
+        ApplicationProject { application } ->
+            Elm.Project.Application application
 
-        PackageProject { project } ->
-            Elm.Project.Package project
+        PackageProject { package } ->
+            Elm.Project.Package package
 
 
 removeProjectDependency2 : Dict String Dependency -> ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
 removeProjectDependency2 dependencies projectAndDependencyIdentifier =
     case projectAndDependencyIdentifier of
-        ApplicationProject ({ project } as application) ->
+        ApplicationProject ({ application } as project) ->
             ApplicationProject
-                { application
-                    | project =
-                        { project
-                            | depsDirect = List.filter (isPackageWithName (Elm.Package.toString application.name) >> not) project.depsDirect
+                { project
+                    | application =
+                        { application
+                            | depsDirect = List.filter (isPackageWithName (Elm.Package.toString project.name) >> not) application.depsDirect
                             , depsIndirect =
-                                if isADependencyOfAnotherDependency application.name (project.depsDirect ++ project.depsIndirect) dependencies then
-                                    ( application.name, application.version ) :: project.depsIndirect
+                                if isADependencyOfAnotherDependency project.name (application.depsDirect ++ application.depsIndirect) dependencies then
+                                    ( project.name, project.version ) :: application.depsIndirect
 
                                 else
-                                    project.depsIndirect
+                                    application.depsIndirect
                         }
                 }
 
-        PackageProject ({ project } as package) ->
+        PackageProject ({ package } as project) ->
             PackageProject
-                { package
-                    | project =
-                        { project
-                            | deps = List.filter (isPackageWithName (Elm.Package.toString package.name) >> not) project.deps
+                { project
+                    | package =
+                        { package
+                            | deps = List.filter (isPackageWithName (Elm.Package.toString project.name) >> not) package.deps
                         }
                 }
 
