@@ -273,44 +273,18 @@ finalEvaluationForProject projectContext =
 
 
 error : Rule.ElmJsonKey -> Dict String Dependency -> String -> Error scope
-error elmJsonKey dependencies packageNameStr =
+error elmJsonKey dependencies packageName =
     Rule.errorForElmJsonWithFix elmJsonKey
         (\elmJson ->
-            { message = "Unused dependency `" ++ packageNameStr ++ "`"
+            { message = "Unused dependency `" ++ packageName ++ "`"
             , details =
                 [ "To remove it, I recommend running the following command:"
-                , "    elm-json uninstall " ++ packageNameStr
+                , "    elm-json uninstall " ++ packageName
                 ]
-            , range = findPackageNameInElmJson packageNameStr elmJson
+            , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (\project ->
-            case project of
-                Elm.Project.Application application ->
-                    case find (isPackageWithName packageNameStr) application.depsDirect of
-                        Just ( packageName, version ) ->
-                            Elm.Project.Application
-                                { application
-                                    | depsDirect = List.filter (isPackageWithName packageNameStr >> not) application.depsDirect
-                                    , depsIndirect =
-                                        if isADependencyOfAnotherDependency packageName application.depsDirect dependencies then
-                                            ( packageName, version ) :: application.depsIndirect
-
-                                        else
-                                            application.depsIndirect
-                                }
-                                |> Just
-
-                        Nothing ->
-                            Nothing
-
-                Elm.Project.Package packageInfo ->
-                    Elm.Project.Package
-                        { packageInfo
-                            | deps = List.filter (isPackageWithName packageNameStr >> not) packageInfo.deps
-                        }
-                        |> Just
-        )
+        (fromProject InProjectDeps packageName >> Maybe.map (removeProjectDependency dependencies >> toProject))
 
 
 type ProjectAndDependencyIdentifier
