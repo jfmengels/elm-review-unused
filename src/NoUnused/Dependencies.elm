@@ -262,39 +262,68 @@ finalEvaluationForProject projectContext =
 
 
 error : Rule.ElmJsonKey -> String -> Error scope
-error elmJsonKey packageName =
+error elmJsonKey packageNameStr =
     Rule.errorForElmJsonWithFix elmJsonKey
         (\elmJson ->
-            { message = "Unused dependency `" ++ packageName ++ "`"
+            { message = "Unused dependency `" ++ packageNameStr ++ "`"
             , details =
                 [ "To remove it, I recommend running the following command:"
-                , "    elm-json uninstall " ++ packageName
+                , "    elm-json uninstall " ++ packageNameStr
                 ]
-            , range = findPackageNameInElmJson packageName elmJson
+            , range = findPackageNameInElmJson packageNameStr elmJson
             }
         )
         (\project ->
             case project of
                 Elm.Project.Application application ->
-                    Elm.Project.Application
-                        { application
-                            | depsDirect =
-                                List.filter
-                                    (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
-                                    application.depsDirect
-                        }
-                        |> Just
+                    case
+                        find
+                            (\( packageName_, _ ) -> packageNameStr == Elm.Package.toString packageName_)
+                            application.depsDirect
+                    of
+                        Just ( packageName, version ) ->
+                            Elm.Project.Application
+                                { application
+                                    | depsDirect =
+                                        List.filter
+                                            (\( packageName_, _ ) -> packageName /= packageName_)
+                                            application.depsDirect
+                                    , depsIndirect =
+                                        if isADependencyOfAnotherDependency packageNameStr Dict.empty then
+                                            ( packageName, version ) :: application.depsIndirect
+
+                                        else
+                                            application.depsIndirect
+                                }
+                                |> Just
+
+                        Nothing ->
+                            Nothing
 
                 Elm.Project.Package packageInfo ->
                     Elm.Project.Package
                         { packageInfo
                             | deps =
                                 List.filter
-                                    (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
+                                    (\( packageName_, _ ) -> packageNameStr /= Elm.Package.toString packageName_)
                                     packageInfo.deps
                         }
                         |> Just
         )
+
+
+isADependencyOfAnotherDependency : String -> Dict String Dependency -> Bool
+isADependencyOfAnotherDependency packageName dependencies =
+    List.any
+        (\dep ->
+            case Dependency.elmJson dep of
+                Elm.Project.Application { depsIndirect } ->
+                    False
+
+                Elm.Project.Package packageInfo ->
+                    False
+        )
+        (Dict.values dependencies)
 
 
 {-| Find the first element that satisfies a predicate and return
@@ -340,18 +369,6 @@ onlyTestDependencyError elmJsonKey packageName =
                                 dependencies : Dict String Dependency
                                 dependencies =
                                     Dict.empty
-
-                                isInIndirectDependencies =
-                                    List.any
-                                        (\dep ->
-                                            case Dependency.elmJson dep of
-                                                Elm.Project.Application { depsDirect, depsIndirect } ->
-                                                    False
-
-                                                Elm.Project.Package packageInfo ->
-                                                    False
-                                        )
-                                        (Dict.values dependencies)
                             in
                             Elm.Project.Application
                                 { application
@@ -359,7 +376,7 @@ onlyTestDependencyError elmJsonKey packageName =
                                         List.filter
                                             (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
                                             application.depsDirect
-                                    , testDepsDirect = packageDep :: application.testDepsDirect
+                                    , depsIndirect = packageDep :: application.testDepsDirect
                                 }
                                 |> Just
 
