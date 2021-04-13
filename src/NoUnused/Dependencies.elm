@@ -413,33 +413,23 @@ onlyTestDependencyError elmJsonKey packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (\project ->
-            case project of
-                Elm.Project.Application application ->
-                    case find (isPackageWithName packageName) application.depsDirect of
-                        Just packageDep ->
+        (addTestDependency packageName
+            >> (\project ->
+                    case project of
+                        Elm.Project.Application application ->
                             Elm.Project.Application
                                 { application
                                     | depsDirect = List.filter (isPackageWithName packageName >> not) application.depsDirect
-                                    , testDepsDirect = packageDep :: application.testDepsDirect
                                 }
                                 |> Just
 
-                        Nothing ->
-                            Nothing
-
-                Elm.Project.Package packageInfo ->
-                    case find (isPackageWithName packageName) packageInfo.deps of
-                        Just packageDep ->
+                        Elm.Project.Package packageInfo ->
                             Elm.Project.Package
                                 { packageInfo
                                     | deps = List.filter (isPackageWithName packageName >> not) packageInfo.deps
-                                    , testDeps = packageDep :: packageInfo.testDeps
                                 }
                                 |> Just
-
-                        Nothing ->
-                            Nothing
+               )
         )
 
 
