@@ -264,7 +264,7 @@ finalEvaluationForProject projectContext =
             in
             List.map (error elmJsonKey projectContext.dependencies) depsNotUsedInSrcErrors
                 ++ List.map (testError elmJsonKey) testDepsNotUsedInTests
-                ++ List.map (onlyTestDependencyError elmJsonKey) (Set.toList depsNotUsedInSrcButUsedInTests)
+                ++ List.map (onlyTestDependencyError elmJsonKey projectContext.dependencies) (Set.toList depsNotUsedInSrcButUsedInTests)
 
         Nothing ->
             []
@@ -311,8 +311,8 @@ error elmJsonKey dependencies packageNameStr =
         )
 
 
-removeProjectDependency : String -> Project -> Project
-removeProjectDependency packageName project =
+removeProjectDependency : Dict String Dependency -> String -> Project -> Project
+removeProjectDependency dependencies packageName project =
     case project of
         Elm.Project.Application application ->
             Elm.Project.Application
@@ -433,8 +433,8 @@ find predicate list =
                 find predicate rest
 
 
-onlyTestDependencyError : Rule.ElmJsonKey -> String -> Error scope
-onlyTestDependencyError elmJsonKey packageName =
+onlyTestDependencyError : Rule.ElmJsonKey -> Dict String Dependency -> String -> Error scope
+onlyTestDependencyError elmJsonKey dependencies packageName =
     Rule.errorForElmJsonWithFix elmJsonKey
         (\elmJson ->
             { message = "`" ++ packageName ++ "` should be moved to test-dependencies"
@@ -445,7 +445,7 @@ onlyTestDependencyError elmJsonKey packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (addTestDependency packageName >> removeProjectDependency packageName >> Just)
+        (addTestDependency packageName >> removeProjectDependency dependencies packageName >> Just)
 
 
 testError : Rule.ElmJsonKey -> String -> Error scope
