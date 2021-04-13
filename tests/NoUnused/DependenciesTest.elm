@@ -131,6 +131,46 @@ packageWithFoo =
         modules
 
 
+packageWithFooDependingOnBar : Dependency
+packageWithFooDependingOnBar =
+    let
+        modules : List Elm.Docs.Module
+        modules =
+            [ { name = "Foo"
+              , comment = ""
+              , unions = []
+              , aliases = []
+              , values = []
+              , binops = []
+              }
+            ]
+
+        elmJson : Elm.Project.Project
+        elmJson =
+            .project <| createElmJson """
+  {
+      "type": "package",
+      "name": "author/package-with-foo",
+      "summary": "Summary",
+      "license": "BSD-3-Clause",
+      "version": "1.0.0",
+      "exposed-modules": [
+          "Foo"
+      ],
+      "elm-version": "0.19.0 <= v < 0.20.0",
+      "dependencies": {
+          "elm/core": "1.0.0 <= v < 2.0.0",
+          "author/package-with-bar": "1.0.0 <= v < 2.0.0"
+      },
+      "test-dependencies": {}
+  }"""
+    in
+    Dependency.create
+        "author/package-with-foo"
+        elmJson
+        modules
+
+
 packageWithBar : Dependency
 packageWithBar =
     let
@@ -562,6 +602,67 @@ a = 1
     "test-dependencies": {
         "direct": {
             "author/package-with-foo": "1.0.0",
+            "author/package-with-test-bar": "1.0.0",
+            "author/package-with-test-foo": "1.0.0"
+        },
+        "indirect": {}
+    }
+}
+"""
+                        ]
+        , test "should move unused dependencies to indirect dependencies if it's an indirect dependency of a direct dependency" <|
+            \() ->
+                let
+                    testModule : String
+                    testModule =
+                        """module TestModule exposing (suite)
+
+import Foo
+import TestFoo
+import TestBar
+
+suite = 0
+"""
+                            |> String.replace "\u{000D}" ""
+                in
+                """
+module A exposing (a)
+import Bar
+a = 1
+"""
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.runWithProjectData
+                        (createProject (Just testModule) applicationElmJson
+                            |> Project.addDependency packageWithFooDependingOnBar
+                        )
+                        rule
+                    |> Review.Test.expectErrorsForElmJson
+                        [ Review.Test.error
+                            { message = "`author/package-with-foo` should be moved to test-dependencies"
+                            , details =
+                                [ "This package is not used in the source code, but it is used in tests, and should therefore be moved to the test dependencies. To do so, I recommend running the following commands:"
+                                , "    elm-json uninstall author/package-with-foo\n"
+                                    ++ "    elm-json install --test author/package-with-foo"
+                                ]
+                            , under = "author/package-with-foo"
+                            }
+                            |> Review.Test.whenFixed """{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "author/package-with-bar": "1.0.0",
+            "elm/core": "1.0.0"
+        },
+        "indirect": {
+            "author/package-with-foo": "1.0.0"
+        }
+    },
+    "test-dependencies": {
+        "direct": {
             "author/package-with-test-bar": "1.0.0",
             "author/package-with-test-foo": "1.0.0"
         },
