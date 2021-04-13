@@ -350,6 +350,34 @@ toProject projectAndDependencyIdentifier =
             Elm.Project.Package project
 
 
+removeProjectDependency2 : Dict String Dependency -> ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
+removeProjectDependency2 dependencies projectAndDependencyIdentifier =
+    case projectAndDependencyIdentifier of
+        ApplicationProject ({ project } as application) ->
+            ApplicationProject
+                { application
+                    | project =
+                        { project
+                            | depsDirect = List.filter (isPackageWithName (Elm.Package.toString application.name) >> not) project.depsDirect
+                            , depsIndirect =
+                                if isADependencyOfAnotherDependency application.name (project.depsDirect ++ project.depsIndirect) dependencies then
+                                    ( application.name, application.version ) :: project.depsIndirect
+
+                                else
+                                    project.depsIndirect
+                        }
+                }
+
+        PackageProject ({ project } as package) ->
+            PackageProject
+                { package
+                    | project =
+                        { project
+                            | deps = List.filter (isPackageWithName (Elm.Package.toString package.name) >> not) project.deps
+                        }
+                }
+
+
 removeProjectDependency : Dict String Dependency -> String -> Project -> Project
 removeProjectDependency dependencies packageNameStr project =
     case project of
