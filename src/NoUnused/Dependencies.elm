@@ -321,6 +321,48 @@ error elmJsonKey dependencies packageNameStr =
         )
 
 
+removeDependencyFromDirect : String -> Elm.Project.ApplicationInfo -> Elm.Project.ApplicationInfo
+removeDependencyFromDirect packageName application =
+    { application
+        | depsDirect =
+            List.filter
+                (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
+                application.depsDirect
+    }
+
+
+isPackageWithName : String -> ( Elm.Package.Name, a ) -> Bool
+isPackageWithName packageName ( packageName_, _ ) =
+    packageName == Elm.Package.toString packageName_
+
+
+thing : Dict String Dependency -> String -> Elm.Project.ApplicationInfo -> Maybe Project
+thing dependencies packageNameStr application =
+    case
+        find
+            (\( packageName_, _ ) -> packageNameStr == Elm.Package.toString packageName_)
+            application.depsDirect
+    of
+        Just ( packageName, version ) ->
+            Elm.Project.Application
+                { application
+                    | depsDirect =
+                        List.filter
+                            (\( packageName_, _ ) -> packageName /= packageName_)
+                            application.depsDirect
+                    , depsIndirect =
+                        if isADependencyOfAnotherDependency packageName application.depsDirect dependencies then
+                            ( packageName, version ) :: application.depsIndirect
+
+                        else
+                            application.depsIndirect
+                }
+                |> Just
+
+        Nothing ->
+            Nothing
+
+
 isADependencyOfAnotherDependency : Elm.Package.Name -> Elm.Project.Deps a -> Dict String Dependency -> Bool
 isADependencyOfAnotherDependency packageName deps dependencies =
     List.any
