@@ -373,8 +373,8 @@ toProject projectAndDependencyIdentifier =
             Elm.Project.Package package
 
 
-removeProjectDependency2 : Dict String Dependency -> ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
-removeProjectDependency2 dependencies projectAndDependencyIdentifier =
+removeProjectDependency : Dict String Dependency -> ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
+removeProjectDependency dependencies projectAndDependencyIdentifier =
     case projectAndDependencyIdentifier of
         ApplicationProject ({ application } as project) ->
             ApplicationProject
@@ -407,8 +407,8 @@ removeProjectDependency2 dependencies projectAndDependencyIdentifier =
                 }
 
 
-addTestDependency2 : ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
-addTestDependency2 projectAndDependencyIdentifier =
+addTestDependency : ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
+addTestDependency projectAndDependencyIdentifier =
     case projectAndDependencyIdentifier of
         ApplicationProject ({ application } as project) ->
             ApplicationProject
@@ -430,8 +430,8 @@ addTestDependency2 projectAndDependencyIdentifier =
                 }
 
 
-removeTestDependency2 : ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
-removeTestDependency2 projectAndDependencyIdentifier =
+removeTestDependency : ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
+removeTestDependency projectAndDependencyIdentifier =
     case projectAndDependencyIdentifier of
         ApplicationProject ({ application } as project) ->
             ApplicationProject
@@ -452,100 +452,9 @@ removeTestDependency2 projectAndDependencyIdentifier =
                 }
 
 
-removeProjectDependency : Dict String Dependency -> String -> Project -> Project
-removeProjectDependency dependencies packageNameStr project =
-    case project of
-        Elm.Project.Application application ->
-            case find (isPackageWithName packageNameStr) application.depsDirect of
-                Just ( packageName, version ) ->
-                    Elm.Project.Application
-                        { application
-                            | depsDirect = List.filter (isPackageWithName packageNameStr >> not) application.depsDirect
-                            , depsIndirect =
-                                if isADependencyOfAnotherDependency packageName (application.depsDirect ++ application.depsIndirect) dependencies then
-                                    ( packageName, version ) :: application.depsIndirect
-
-                                else
-                                    application.depsIndirect
-                        }
-
-                Nothing ->
-                    project
-
-        Elm.Project.Package packageInfo ->
-            Elm.Project.Package
-                { packageInfo
-                    | deps = List.filter (isPackageWithName packageNameStr >> not) packageInfo.deps
-                }
-
-
-removeTestDependency : String -> Project -> Project
-removeTestDependency packageName project =
-    case project of
-        Elm.Project.Application application ->
-            Elm.Project.Application
-                { application
-                    | testDepsDirect = List.filter (isPackageWithName packageName >> not) application.testDepsDirect
-                }
-
-        Elm.Project.Package packageInfo ->
-            Elm.Project.Package
-                { packageInfo
-                    | testDeps = List.filter (isPackageWithName packageName >> not) packageInfo.testDeps
-                }
-
-
-addTestDependency : String -> Project -> Project
-addTestDependency packageName project =
-    case project of
-        Elm.Project.Application application ->
-            case find (isPackageWithName packageName) application.depsDirect of
-                Just packageDep ->
-                    Elm.Project.Application
-                        { application
-                            | depsDirect = List.filter (isPackageWithName packageName >> not) application.depsDirect
-                            , testDepsDirect = packageDep :: application.testDepsDirect
-                        }
-
-                Nothing ->
-                    project
-
-        Elm.Project.Package packageInfo ->
-            case find (isPackageWithName packageName) packageInfo.deps of
-                Just packageDep ->
-                    Elm.Project.Package
-                        { packageInfo
-                            | deps = List.filter (isPackageWithName packageName >> not) packageInfo.deps
-                            , testDeps = packageDep :: packageInfo.testDeps
-                        }
-
-                Nothing ->
-                    project
-
-
 isPackageWithName : String -> ( Elm.Package.Name, a ) -> Bool
 isPackageWithName packageName ( packageName_, _ ) =
     packageName == Elm.Package.toString packageName_
-
-
-thing : Dict String Dependency -> String -> Elm.Project.ApplicationInfo -> Maybe Project
-thing dependencies packageNameStr application =
-    case find (isPackageWithName packageNameStr) application.depsDirect of
-        Just ( packageName, version ) ->
-            Elm.Project.Application
-                { application
-                    | depsDirect = List.filter (isPackageWithName packageNameStr >> not) application.depsDirect
-                    , depsIndirect =
-                        if isADependencyOfAnotherDependency packageName application.depsDirect dependencies then
-                            ( packageName, version ) :: application.depsIndirect
-
-                        else
-                            application.depsIndirect
-                }
-                |> Just
-
-        Nothing ->
-            Nothing
 
 
 isADependencyOfAnotherDependency : Elm.Package.Name -> Elm.Project.Deps a -> Dict String Dependency -> Bool
@@ -597,7 +506,7 @@ onlyTestDependencyError elmJsonKey dependencies packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (fromProject InProjectDeps packageName >> Maybe.map (removeProjectDependency2 dependencies >> addTestDependency2 >> toProject))
+        (fromProject InProjectDeps packageName >> Maybe.map (removeProjectDependency dependencies >> addTestDependency >> toProject))
 
 
 testError : Rule.ElmJsonKey -> String -> Error scope
@@ -612,7 +521,7 @@ testError elmJsonKey packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (fromProject InTestDeps packageName >> Maybe.map (removeTestDependency2 >> toProject))
+        (fromProject InTestDeps packageName >> Maybe.map (removeTestDependency >> toProject))
 
 
 findPackageNameInElmJson : String -> String -> Range
