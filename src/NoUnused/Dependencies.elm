@@ -15,6 +15,7 @@ import Elm.Project exposing (Project)
 import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Node as Node exposing (Node)
 import Elm.Syntax.Range exposing (Range)
+import Elm.Version
 import Review.Project.Dependency as Dependency exposing (Dependency)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -229,6 +230,13 @@ finalEvaluationForProject projectContext =
     case projectContext.elmJsonKey of
         Just elmJsonKey ->
             let
+                testDeps : Set String
+                testDeps =
+                    projectContext.importedModuleNamesFromTest
+                        |> Set.toList
+                        |> List.filterMap (\importedModuleName -> Dict.get importedModuleName projectContext.moduleNameToDependency)
+                        |> Set.fromList
+
                 depsNotUsedInSrc : Set String
                 depsNotUsedInSrc =
                     projectContext.importedModuleNames
@@ -237,23 +245,16 @@ finalEvaluationForProject projectContext =
                         |> Set.fromList
                         |> Set.diff projectContext.directProjectDependencies
 
+                depsNotUsedInSrcButUsedInTests : Set String
+                depsNotUsedInSrcButUsedInTests =
+                    Set.intersect depsNotUsedInSrc testDeps
+                        |> Set.remove "elm/core"
+
                 depsNotUsedInSrcErrors : List String
                 depsNotUsedInSrcErrors =
                     Set.diff depsNotUsedInSrc depsNotUsedInSrcButUsedInTests
                         |> Set.remove "elm/core"
                         |> Set.toList
-
-                testDeps : Set String
-                testDeps =
-                    projectContext.importedModuleNamesFromTest
-                        |> Set.toList
-                        |> List.filterMap (\importedModuleName -> Dict.get importedModuleName projectContext.moduleNameToDependency)
-                        |> Set.fromList
-
-                depsNotUsedInSrcButUsedInTests : Set String
-                depsNotUsedInSrcButUsedInTests =
-                    Set.intersect depsNotUsedInSrc testDeps
-                        |> Set.remove "elm/core"
 
                 testDepsNotUsedInTests : List String
                 testDepsNotUsedInTests =
@@ -309,14 +310,6 @@ error elmJsonKey dependencies packageNameStr =
                         }
                         |> Just
         )
-
-
-removeDependencyFromDirect : String -> Elm.Project.ApplicationInfo -> Elm.Project.ApplicationInfo
-removeDependencyFromDirect packageName application =
-    { application
-        | depsDirect =
-            List.filter (isPackageWithName packageName >> not) application.depsDirect
-    }
 
 
 isPackageWithName : String -> ( Elm.Package.Name, a ) -> Bool
