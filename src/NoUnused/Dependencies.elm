@@ -377,18 +377,13 @@ onlyTestDependencyError elmJsonKey packageName =
                             application.depsDirect
                     of
                         Just packageDep ->
-                            let
-                                dependencies : Dict String Dependency
-                                dependencies =
-                                    Dict.empty
-                            in
                             Elm.Project.Application
                                 { application
                                     | depsDirect =
                                         List.filter
                                             (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
                                             application.depsDirect
-                                    , depsIndirect = packageDep :: application.testDepsDirect
+                                    , testDepsDirect = packageDep :: application.testDepsDirect
                                 }
                                 |> Just
 
