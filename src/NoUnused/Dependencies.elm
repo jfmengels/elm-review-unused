@@ -262,27 +262,13 @@ finalEvaluationForProject projectContext =
     case projectContext.elmJsonKey of
         Just elmJsonKey ->
             let
-                testDeps : Set String
-                testDeps =
-                    Set.foldl
-                        (\importedModuleName acc ->
-                            case Dict.get importedModuleName projectContext.moduleNameToDependency of
-                                Just dep ->
-                                    Set.insert dep acc
-
-                                Nothing ->
-                                    acc
-                        )
-                        Set.empty
-                        projectContext.importedModuleNamesFromTest
-
                 depsNotUsedInSrc : Set String
                 depsNotUsedInSrc =
                     Set.diff projectContext.directProjectDependencies projectContext.usedDependencies
 
                 depsNotUsedInSrcButUsedInTests : Set String
                 depsNotUsedInSrcButUsedInTests =
-                    Set.intersect depsNotUsedInSrc testDeps
+                    Set.intersect depsNotUsedInSrc projectContext.usedDependenciesFromTest
                         |> Set.remove "elm/core"
 
                 depsNotUsedInSrcErrors : List String
@@ -293,8 +279,7 @@ finalEvaluationForProject projectContext =
 
                 testDepsNotUsedInTests : List String
                 testDepsNotUsedInTests =
-                    testDeps
-                        |> Set.diff projectContext.directTestDependencies
+                    Set.diff projectContext.directTestDependencies projectContext.usedDependenciesFromTest
                         |> Set.remove "elm/core"
                         |> Set.toList
             in
