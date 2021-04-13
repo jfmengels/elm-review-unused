@@ -421,6 +421,8 @@ removeProjectDependency dependencies projectAndDependencyIdentifier =
                     | application =
                         { application
                             | depsDirect = List.filter (isPackageWithName (Elm.Package.toString project.name) >> not) application.depsDirect
+
+                            -- TODO Instead recompute all the indirect dependencies
                             , depsIndirect =
                                 if isADependencyOfAnotherDependency project.name (application.depsDirect ++ application.depsIndirect) dependencies then
                                     ( project.name, project.version ) :: application.depsIndirect
@@ -477,6 +479,7 @@ removeTestDependency projectAndDependencyIdentifier =
                 { project
                     | application =
                         { application
+                          -- TODO Instead recompute all the indirect dependencies
                             | testDepsDirect = List.filter (isPackageWithName (Elm.Package.toString project.name) >> not) application.testDepsDirect
                         }
                 }
