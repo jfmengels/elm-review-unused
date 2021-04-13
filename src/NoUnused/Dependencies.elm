@@ -314,17 +314,39 @@ error elmJsonKey dependencies packageNameStr =
 
 
 type ProjectAndDependencyIdentifier
-    = ApplicationProject ( Elm.Project.ApplicationInfo, Elm.Version.Version )
-    | PackageProject ( Elm.Project.PackageInfo, Elm.Constraint.Constraint )
+    = ApplicationProject ( Elm.Project.ApplicationInfo, Elm.Package.Name, Elm.Version.Version )
+    | PackageProject ( Elm.Project.PackageInfo, Elm.Package.Name, Elm.Constraint.Constraint )
+
+
+fromProject : Project -> String -> Maybe ProjectAndDependencyIdentifier
+fromProject project packageNameStr =
+    case project of
+        Elm.Project.Application application ->
+            -- TODO Make it possible to look at test dependencies
+            case find (isPackageWithName packageNameStr) application.depsDirect of
+                Just ( packageName, version ) ->
+                    Just (ApplicationProject ( application, packageName, version ))
+
+                Nothing ->
+                    Nothing
+
+        Elm.Project.Package packageInfo ->
+            -- TODO Make it possible to look at test dependencies
+            case find (isPackageWithName packageNameStr) packageInfo.deps of
+                Just ( packageName, constraint ) ->
+                    Just (PackageProject ( packageInfo, packageName, constraint ))
+
+                Nothing ->
+                    Nothing
 
 
 toProject : ProjectAndDependencyIdentifier -> Elm.Project.Project
 toProject projectAndDependencyIdentifier =
     case projectAndDependencyIdentifier of
-        ApplicationProject ( applicationInfo, _ ) ->
+        ApplicationProject ( applicationInfo, _, _ ) ->
             Elm.Project.Application applicationInfo
 
-        PackageProject ( packageInfo, _ ) ->
+        PackageProject ( packageInfo, _, _ ) ->
             Elm.Project.Package packageInfo
 
 
