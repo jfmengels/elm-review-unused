@@ -285,18 +285,11 @@ error elmJsonKey dependencies packageNameStr =
         (\project ->
             case project of
                 Elm.Project.Application application ->
-                    case
-                        find
-                            (\( packageName_, _ ) -> packageNameStr == Elm.Package.toString packageName_)
-                            application.depsDirect
-                    of
+                    case find (isPackageWithName packageNameStr) application.depsDirect of
                         Just ( packageName, version ) ->
                             Elm.Project.Application
                                 { application
-                                    | depsDirect =
-                                        List.filter
-                                            (\( packageName_, _ ) -> packageName /= packageName_)
-                                            application.depsDirect
+                                    | depsDirect = List.filter (isPackageWithName packageNameStr >> not) application.depsDirect
                                     , depsIndirect =
                                         if isADependencyOfAnotherDependency packageName application.depsDirect dependencies then
                                             ( packageName, version ) :: application.depsIndirect
@@ -312,10 +305,7 @@ error elmJsonKey dependencies packageNameStr =
                 Elm.Project.Package packageInfo ->
                     Elm.Project.Package
                         { packageInfo
-                            | deps =
-                                List.filter
-                                    (\( packageName_, _ ) -> packageNameStr /= Elm.Package.toString packageName_)
-                                    packageInfo.deps
+                            | deps = List.filter (isPackageWithName packageNameStr >> not) packageInfo.deps
                         }
                         |> Just
         )
@@ -325,9 +315,7 @@ removeDependencyFromDirect : String -> Elm.Project.ApplicationInfo -> Elm.Projec
 removeDependencyFromDirect packageName application =
     { application
         | depsDirect =
-            List.filter
-                (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
-                application.depsDirect
+            List.filter (isPackageWithName packageName >> not) application.depsDirect
     }
 
 
@@ -338,18 +326,11 @@ isPackageWithName packageName ( packageName_, _ ) =
 
 thing : Dict String Dependency -> String -> Elm.Project.ApplicationInfo -> Maybe Project
 thing dependencies packageNameStr application =
-    case
-        find
-            (\( packageName_, _ ) -> packageNameStr == Elm.Package.toString packageName_)
-            application.depsDirect
-    of
+    case find (isPackageWithName packageNameStr) application.depsDirect of
         Just ( packageName, version ) ->
             Elm.Project.Application
                 { application
-                    | depsDirect =
-                        List.filter
-                            (\( packageName_, _ ) -> packageName /= packageName_)
-                            application.depsDirect
+                    | depsDirect = List.filter (isPackageWithName packageNameStr >> not) application.depsDirect
                     , depsIndirect =
                         if isADependencyOfAnotherDependency packageName application.depsDirect dependencies then
                             ( packageName, version ) :: application.depsIndirect
@@ -413,18 +394,11 @@ onlyTestDependencyError elmJsonKey packageName =
         (\project ->
             case project of
                 Elm.Project.Application application ->
-                    case
-                        find
-                            (\( packageName_, _ ) -> packageName == Elm.Package.toString packageName_)
-                            application.depsDirect
-                    of
+                    case find (isPackageWithName packageName) application.depsDirect of
                         Just packageDep ->
                             Elm.Project.Application
                                 { application
-                                    | depsDirect =
-                                        List.filter
-                                            (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
-                                            application.depsDirect
+                                    | depsDirect = List.filter (isPackageWithName packageName >> not) application.depsDirect
                                     , testDepsDirect = packageDep :: application.testDepsDirect
                                 }
                                 |> Just
@@ -433,18 +407,11 @@ onlyTestDependencyError elmJsonKey packageName =
                             Nothing
 
                 Elm.Project.Package packageInfo ->
-                    case
-                        find
-                            (\( packageName_, _ ) -> packageName == Elm.Package.toString packageName_)
-                            packageInfo.deps
-                    of
+                    case find (isPackageWithName packageName) packageInfo.deps of
                         Just packageDep ->
                             Elm.Project.Package
                                 { packageInfo
-                                    | deps =
-                                        List.filter
-                                            (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
-                                            packageInfo.deps
+                                    | deps = List.filter (isPackageWithName packageName >> not) packageInfo.deps
                                     , testDeps = packageDep :: packageInfo.testDeps
                                 }
                                 |> Just
@@ -473,12 +440,7 @@ testError elmJsonKey packageName =
 
                 Elm.Project.Package packageInfo ->
                     Elm.Project.Package
-                        { packageInfo
-                            | testDeps =
-                                List.filter
-                                    (\( packageName_, _ ) -> packageName /= Elm.Package.toString packageName_)
-                                    packageInfo.testDeps
-                        }
+                        { packageInfo | testDeps = List.filter (isPackageWithName packageName >> not) packageInfo.testDeps }
                         |> Just
         )
 
