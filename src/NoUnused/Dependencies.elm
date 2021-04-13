@@ -378,6 +378,29 @@ removeProjectDependency2 dependencies projectAndDependencyIdentifier =
                 }
 
 
+addTestDependency2 : ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
+addTestDependency2 projectAndDependencyIdentifier =
+    case projectAndDependencyIdentifier of
+        ApplicationProject ({ application } as project) ->
+            ApplicationProject
+                { project
+                    | application =
+                        { application
+                            | testDepsDirect = ( project.name, project.version ) :: application.testDepsDirect
+                            , testDepsIndirect = List.filter (isPackageWithName (Elm.Package.toString project.name) >> not) application.testDepsIndirect
+                        }
+                }
+
+        PackageProject ({ package } as project) ->
+            PackageProject
+                { project
+                    | package =
+                        { package
+                            | testDeps = ( project.name, project.constraint ) :: package.testDeps
+                        }
+                }
+
+
 removeProjectDependency : Dict String Dependency -> String -> Project -> Project
 removeProjectDependency dependencies packageNameStr project =
     case project of
