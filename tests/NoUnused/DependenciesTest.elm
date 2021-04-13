@@ -95,20 +95,9 @@ packageElmJson =
 packageWithFoo : Dependency
 packageWithFoo =
     let
-        modules : List Elm.Docs.Module
-        modules =
-            [ { name = "Foo"
-              , comment = ""
-              , unions = []
-              , aliases = []
-              , values = []
-              , binops = []
-              }
-            ]
-
-        elmJson : Elm.Project.Project
+        elmJson : { path : String, raw : String, project : Elm.Project.Project }
         elmJson =
-            .project <| createElmJson """
+            createElmJson """
   {
       "type": "package",
       "name": "author/package-with-foo",
@@ -127,27 +116,16 @@ packageWithFoo =
     in
     Dependency.create
         "author/package-with-foo"
-        elmJson
-        modules
+        elmJson.project
+        (dummyModules "Foo")
 
 
 packageWithFooDependingOnBar : Dependency
 packageWithFooDependingOnBar =
     let
-        modules : List Elm.Docs.Module
-        modules =
-            [ { name = "Foo"
-              , comment = ""
-              , unions = []
-              , aliases = []
-              , values = []
-              , binops = []
-              }
-            ]
-
-        elmJson : Elm.Project.Project
+        elmJson : { path : String, raw : String, project : Elm.Project.Project }
         elmJson =
-            .project <| createElmJson """
+            createElmJson """
   {
       "type": "package",
       "name": "author/package-with-foo",
@@ -167,27 +145,16 @@ packageWithFooDependingOnBar =
     in
     Dependency.create
         "author/package-with-foo"
-        elmJson
-        modules
+        elmJson.project
+        (dummyModules "Foo")
 
 
 packageWithBar : Dependency
 packageWithBar =
     let
-        modules : List Elm.Docs.Module
-        modules =
-            [ { name = "Bar"
-              , comment = ""
-              , unions = []
-              , aliases = []
-              , values = []
-              , binops = []
-              }
-            ]
-
-        elmJson : Elm.Project.Project
+        elmJson : { path : String, raw : String, project : Elm.Project.Project }
         elmJson =
-            .project <| createElmJson """
+            createElmJson """
 {
   "type": "package",
   "name": "author/package-with-bar",
@@ -206,27 +173,16 @@ packageWithBar =
     in
     Dependency.create
         "author/package-with-bar"
-        elmJson
-        modules
+        elmJson.project
+        (dummyModules "Bar")
 
 
 packageWithTestFoo : Dependency
 packageWithTestFoo =
     let
-        modules : List Elm.Docs.Module
-        modules =
-            [ { name = "TestFoo"
-              , comment = ""
-              , unions = []
-              , aliases = []
-              , values = []
-              , binops = []
-              }
-            ]
-
-        elmJson : Elm.Project.Project
+        elmJson : { path : String, raw : String, project : Elm.Project.Project }
         elmJson =
-            .project <| createElmJson """
+            createElmJson """
   {
       "type": "package",
       "name": "author/package-with-test-foo",
@@ -245,27 +201,16 @@ packageWithTestFoo =
     in
     Dependency.create
         "author/package-with-test-foo"
-        elmJson
-        modules
+        elmJson.project
+        (dummyModules "TestFoo")
 
 
 packageWithTestBar : Dependency
 packageWithTestBar =
     let
-        modules : List Elm.Docs.Module
-        modules =
-            [ { name = "TestBar"
-              , comment = ""
-              , unions = []
-              , aliases = []
-              , values = []
-              , binops = []
-              }
-            ]
-
-        elmJson : Elm.Project.Project
+        elmJson : { path : String, raw : String, project : Elm.Project.Project }
         elmJson =
-            .project <| createElmJson """
+            createElmJson """
 {
   "type": "package",
   "name": "author/package-with-test-bar",
@@ -284,8 +229,8 @@ packageWithTestBar =
     in
     Dependency.create
         "author/package-with-test-bar"
-        elmJson
-        modules
+        elmJson.project
+        (dummyModules "TestBar")
 
 
 all : Test
@@ -731,3 +676,15 @@ a = 1
                             |> Review.Test.whenFixed expected
                         ]
         ]
+
+
+dummyModules : String -> List Elm.Docs.Module
+dummyModules name =
+    [ { name = name
+      , comment = ""
+      , unions = []
+      , aliases = []
+      , values = []
+      , binops = []
+      }
+    ]
