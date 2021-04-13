@@ -311,6 +311,22 @@ error elmJsonKey dependencies packageNameStr =
         )
 
 
+removeProjectDependency : String -> Project -> Project
+removeProjectDependency packageName project =
+    case project of
+        Elm.Project.Application application ->
+            Elm.Project.Application
+                { application
+                    | depsDirect = List.filter (isPackageWithName packageName >> not) application.depsDirect
+                }
+
+        Elm.Project.Package packageInfo ->
+            Elm.Project.Package
+                { packageInfo
+                    | deps = List.filter (isPackageWithName packageName >> not) packageInfo.deps
+                }
+
+
 addTestDependency : String -> Project -> Project
 addTestDependency packageName project =
     case project of
@@ -413,24 +429,7 @@ onlyTestDependencyError elmJsonKey packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (addTestDependency packageName
-            >> (\project ->
-                    case project of
-                        Elm.Project.Application application ->
-                            Elm.Project.Application
-                                { application
-                                    | depsDirect = List.filter (isPackageWithName packageName >> not) application.depsDirect
-                                }
-                                |> Just
-
-                        Elm.Project.Package packageInfo ->
-                            Elm.Project.Package
-                                { packageInfo
-                                    | deps = List.filter (isPackageWithName packageName >> not) packageInfo.deps
-                                }
-                                |> Just
-               )
-        )
+        (addTestDependency packageName >> removeProjectDependency packageName >> Just)
 
 
 testError : Rule.ElmJsonKey -> String -> Error scope
