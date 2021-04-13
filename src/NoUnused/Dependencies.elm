@@ -318,8 +318,8 @@ type ProjectAndDependencyIdentifier
     | PackageProject { package : Elm.Project.PackageInfo, name : Elm.Package.Name, constraint : Elm.Constraint.Constraint }
 
 
-fromProject : Project -> String -> Maybe ProjectAndDependencyIdentifier
-fromProject project packageNameStr =
+fromProject : String -> Project -> Maybe ProjectAndDependencyIdentifier
+fromProject packageNameStr project =
     case project of
         Elm.Project.Application application ->
             -- TODO Make it possible to look at test dependencies
