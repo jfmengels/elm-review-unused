@@ -555,7 +555,7 @@ a = 1
 }
 """
                         ]
-        , test "should move unused dependencies to indirect dependencies if it's an indirect dependency of a direct dependency" <|
+        , test "should move unused dependencies to test deps and indirect deps if it's an indirect dependency of a direct dependency" <|
             \() ->
                 let
                     testModule : String
@@ -608,6 +608,7 @@ a = 1
     },
     "test-dependencies": {
         "direct": {
+            "author/package-with-foo": "1.0.0";
             "author/package-with-test-bar": "1.0.0",
             "author/package-with-test-foo": "1.0.0"
         },
