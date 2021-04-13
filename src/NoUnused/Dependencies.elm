@@ -101,7 +101,6 @@ type alias ProjectContext =
 type alias ModuleContext =
     { moduleNameToDependency : Dict String String
     , usedDependencies : Set String
-    , importedModuleNames : Set String
     }
 
 
@@ -125,7 +124,6 @@ fromProjectToModule =
         (\projectContext ->
             { moduleNameToDependency = projectContext.moduleNameToDependency
             , usedDependencies = Set.empty
-            , importedModuleNames = Set.empty
             }
         )
 
@@ -133,7 +131,7 @@ fromProjectToModule =
 fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
 fromModuleToProject =
     Rule.initContextCreator
-        (\metadata { importedModuleNames } ->
+        (\metadata { usedDependencies } ->
             let
                 isSourceDir : Bool
                 isSourceDir =
@@ -143,20 +141,32 @@ fromModuleToProject =
             , dependencies = Dict.empty
             , directProjectDependencies = Set.empty
             , directTestDependencies = Set.empty
-            , usedDependencies = Set.empty
-            , usedDependenciesFromTest = Set.empty
-            , importedModuleNames =
+            , usedDependencies =
                 if isSourceDir then
-                    importedModuleNames
+                    usedDependencies
+
+                else
+                    Set.empty
+            , usedDependenciesFromTest =
+                if isSourceDir then
+                    Set.empty
+
+                else
+                    usedDependencies
+            , importedModuleNames =
+                -- TODO Remove
+                if isSourceDir then
+                    Set.empty
 
                 else
                     Set.empty
             , importedModuleNamesFromTest =
+                -- TODO Remove
                 if isSourceDir then
                     Set.empty
 
                 else
-                    importedModuleNames
+                    Set.empty
             , elmJsonKey = Nothing
             }
         )
@@ -225,9 +235,12 @@ elmJsonVisitor maybeProject projectContext =
 importVisitor : Node Import -> ModuleContext -> ( List nothing, ModuleContext )
 importVisitor node context =
     ( []
-    , { context
-        | importedModuleNames = Set.insert (moduleNameForImport node) context.importedModuleNames
-      }
+    , case Dict.get (moduleNameForImport node) context.moduleNameToDependency of
+        Just dependency ->
+            { context | usedDependencies = Set.insert dependency context.usedDependencies }
+
+        Nothing ->
+            context
     )
 
 
