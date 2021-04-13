@@ -278,18 +278,7 @@ finalEvaluationForProject projectContext =
 
                 depsNotUsedInSrc : Set String
                 depsNotUsedInSrc =
-                    Set.foldl
-                        (\importedModuleName acc ->
-                            case Dict.get importedModuleName projectContext.moduleNameToDependency of
-                                Just dep ->
-                                    Set.insert dep acc
-
-                                Nothing ->
-                                    acc
-                        )
-                        Set.empty
-                        projectContext.importedModuleNames
-                        |> Set.diff projectContext.directProjectDependencies
+                    Set.diff projectContext.directProjectDependencies projectContext.usedDependencies
 
                 depsNotUsedInSrcButUsedInTests : Set String
                 depsNotUsedInSrcButUsedInTests =
