@@ -246,10 +246,17 @@ finalEvaluationForProject projectContext =
 
                 depsNotUsedInSrc : Set String
                 depsNotUsedInSrc =
-                    projectContext.importedModuleNames
-                        |> Set.toList
-                        |> List.filterMap (\importedModuleName -> Dict.get importedModuleName projectContext.moduleNameToDependency)
-                        |> Set.fromList
+                    Set.foldl
+                        (\importedModuleName acc ->
+                            case Dict.get importedModuleName projectContext.moduleNameToDependency of
+                                Just dep ->
+                                    Set.insert dep acc
+
+                                Nothing ->
+                                    acc
+                        )
+                        Set.empty
+                        projectContext.importedModuleNames
                         |> Set.diff projectContext.directProjectDependencies
 
                 depsNotUsedInSrcButUsedInTests : Set String
