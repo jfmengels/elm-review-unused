@@ -365,6 +365,12 @@ removeProjectDependency2 dependencies projectAndDependencyIdentifier =
 
                                 else
                                     application.depsIndirect
+                            , testDepsIndirect =
+                                if isADependencyOfAnotherDependency project.name (application.testDepsDirect ++ application.testDepsIndirect) dependencies then
+                                    ( project.name, project.version ) :: application.testDepsIndirect
+
+                                else
+                                    application.testDepsIndirect
                         }
                 }
 
