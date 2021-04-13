@@ -67,6 +67,30 @@ applicationElmJson =
 }"""
 
 
+applicationElmJsonWithoutTestDeps : String
+applicationElmJsonWithoutTestDeps =
+    """
+{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "author/package-with-bar": "1.0.0",
+            "author/package-with-foo": "1.0.0",
+            "elm/core": "1.0.0"
+        },
+        "indirect": {}
+    },
+    "test-dependencies": {
+        "direct": {},
+        "indirect": {}
+    }
+}"""
+
+
 packageElmJson : String
 packageElmJson =
     """
@@ -555,7 +579,51 @@ a = 1
 }
 """
                         ]
-        , test "should move unused dependencies to test deps and indirect deps if it's an indirect dependency of a direct dependency" <|
+        , test "should move unused dependencies to indirect deps if it's a dependency of a direct dependency" <|
+            \() ->
+                """
+module A exposing (a)
+import Foo
+a = 1
+"""
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.runWithProjectData
+                        (createProject Nothing applicationElmJsonWithoutTestDeps
+                            |> Project.addDependency packageWithFooDependingOnBar
+                        )
+                        rule
+                    |> Review.Test.expectErrorsForElmJson
+                        [ Review.Test.error
+                            { message = "Unused dependency `author/package-with-bar`"
+                            , details =
+                                [ "To remove it, I recommend running the following command:"
+                                , "    elm-json uninstall author/package-with-bar"
+                                ]
+                            , under = "author/package-with-bar"
+                            }
+                            |> Review.Test.whenFixed """{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "author/package-with-foo": "1.0.0",
+            "elm/core": "1.0.0"
+        },
+        "indirect": {
+            "author/package-with-bar": "1.0.0"
+        }
+    },
+    "test-dependencies": {
+        "direct": {},
+        "indirect": {}
+    }
+}
+"""
+                        ]
+        , test "should move unused dependencies to test deps and indirect deps if it's a dependency of a direct dependency" <|
             \() ->
                 let
                     testModule : String

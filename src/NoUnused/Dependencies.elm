@@ -298,7 +298,7 @@ error elmJsonKey dependencies packageNameStr =
                                             (\( packageName_, _ ) -> packageName /= packageName_)
                                             application.depsDirect
                                     , depsIndirect =
-                                        if isADependencyOfAnotherDependency packageNameStr dependencies then
+                                        if isADependencyOfAnotherDependency packageName application.depsDirect dependencies then
                                             ( packageName, version ) :: application.depsIndirect
 
                                         else
@@ -321,18 +321,21 @@ error elmJsonKey dependencies packageNameStr =
         )
 
 
-isADependencyOfAnotherDependency : String -> Dict String Dependency -> Bool
-isADependencyOfAnotherDependency packageName dependencies =
+isADependencyOfAnotherDependency : Elm.Package.Name -> Elm.Project.Deps a -> Dict String Dependency -> Bool
+isADependencyOfAnotherDependency packageName deps dependencies =
     List.any
-        (\dep ->
-            case Dependency.elmJson dep of
-                Elm.Project.Application { depsIndirect } ->
-                    False
+        (\( depName, _ ) ->
+            case
+                Dict.get (Elm.Package.toString depName) dependencies
+                    |> Maybe.map Dependency.elmJson
+            of
+                Just (Elm.Project.Package packageInfo) ->
+                    List.any (\( depDependencyName, _ ) -> depDependencyName == packageName) packageInfo.deps
 
-                Elm.Project.Package packageInfo ->
+                _ ->
                     False
         )
-        (Dict.values dependencies)
+        deps
 
 
 {-| Find the first element that satisfies a predicate and return
