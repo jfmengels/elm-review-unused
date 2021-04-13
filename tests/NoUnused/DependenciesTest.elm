@@ -346,6 +346,28 @@ a = 1
                                 ]
                             , under = "author/package-with-test-bar"
                             }
+                            |> Review.Test.whenFixed """{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "author/package-with-bar": "1.0.0",
+            "author/package-with-foo": "1.0.0",
+            "elm/core": "1.0.0"
+        },
+        "indirect": {}
+    },
+    "test-dependencies": {
+        "direct": {
+            "author/package-with-test-foo": "1.0.0"
+        },
+        "indirect": {}
+    }
+}
+"""
                         , Review.Test.error
                             { message = "Unused test dependency `author/package-with-test-foo`"
                             , details =
@@ -354,6 +376,28 @@ a = 1
                                 ]
                             , under = "author/package-with-test-foo"
                             }
+                            |> Review.Test.whenFixed """{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "author/package-with-bar": "1.0.0",
+            "author/package-with-foo": "1.0.0",
+            "elm/core": "1.0.0"
+        },
+        "indirect": {}
+    },
+    "test-dependencies": {
+        "direct": {
+            "author/package-with-test-bar": "1.0.0"
+        },
+        "indirect": {}
+    }
+}
+"""
                         ]
         , test "should not report dependencies for an application whose modules are imported" <|
             \() ->

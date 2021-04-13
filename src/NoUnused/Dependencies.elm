@@ -327,6 +327,22 @@ removeProjectDependency packageName project =
                 }
 
 
+removeTestDependency : String -> Project -> Project
+removeTestDependency packageName project =
+    case project of
+        Elm.Project.Application application ->
+            Elm.Project.Application
+                { application
+                    | testDepsDirect = List.filter (isPackageWithName packageName >> not) application.testDepsDirect
+                }
+
+        Elm.Project.Package packageInfo ->
+            Elm.Project.Package
+                { packageInfo
+                    | testDeps = List.filter (isPackageWithName packageName >> not) packageInfo.testDeps
+                }
+
+
 addTestDependency : String -> Project -> Project
 addTestDependency packageName project =
     case project of
@@ -444,16 +460,7 @@ testError elmJsonKey packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (\project ->
-            case project of
-                Elm.Project.Application _ ->
-                    Nothing
-
-                Elm.Project.Package packageInfo ->
-                    Elm.Project.Package
-                        { packageInfo | testDeps = List.filter (isPackageWithName packageName >> not) packageInfo.testDeps }
-                        |> Just
-        )
+        (removeTestDependency packageName >> Just)
 
 
 findPackageNameInElmJson : String -> String -> Range
