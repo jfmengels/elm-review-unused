@@ -72,7 +72,12 @@ dependenciesVisitor dependencies projectContext =
                     )
                 |> Dict.fromList
     in
-    ( [], { projectContext | moduleNameToDependency = moduleNameToDependency } )
+    ( []
+    , { projectContext
+        | dependencies = dependencies
+        , moduleNameToDependency = moduleNameToDependency
+      }
+    )
 
 
 
@@ -81,6 +86,7 @@ dependenciesVisitor dependencies projectContext =
 
 type alias ProjectContext =
     { moduleNameToDependency : Dict String String
+    , dependencies : Dict String Dependency
     , directProjectDependencies : Set String
     , directTestDependencies : Set String
     , importedModuleNames : Set String
@@ -96,6 +102,7 @@ type alias ModuleContext =
 initialProjectContext : ProjectContext
 initialProjectContext =
     { moduleNameToDependency = Dict.empty
+    , dependencies = Dict.empty
     , directProjectDependencies = Set.empty
     , directTestDependencies = Set.empty
     , importedModuleNames = Set.empty
@@ -119,6 +126,7 @@ fromModuleToProject =
                     Rule.isInSourceDirectories metadata
             in
             { moduleNameToDependency = Dict.empty
+            , dependencies = Dict.empty
             , directProjectDependencies = Set.empty
             , directTestDependencies = Set.empty
             , importedModuleNames =
@@ -142,6 +150,7 @@ fromModuleToProject =
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
     { moduleNameToDependency = previousContext.moduleNameToDependency
+    , dependencies = previousContext.dependencies
     , directProjectDependencies = previousContext.directProjectDependencies
     , directTestDependencies = previousContext.directTestDependencies
     , importedModuleNames = Set.union previousContext.importedModuleNames newContext.importedModuleNames
@@ -253,7 +262,7 @@ finalEvaluationForProject projectContext =
                         |> Set.remove "elm/core"
                         |> Set.toList
             in
-            List.map (error elmJsonKey) depsNotUsedInSrcErrors
+            List.map (error elmJsonKey projectContext.dependencies) depsNotUsedInSrcErrors
                 ++ List.map (testError elmJsonKey) testDepsNotUsedInTests
                 ++ List.map (onlyTestDependencyError elmJsonKey) (Set.toList depsNotUsedInSrcButUsedInTests)
 
@@ -261,8 +270,8 @@ finalEvaluationForProject projectContext =
             []
 
 
-error : Rule.ElmJsonKey -> String -> Error scope
-error elmJsonKey packageNameStr =
+error : Rule.ElmJsonKey -> Dict String Dependency -> String -> Error scope
+error elmJsonKey dependencies packageNameStr =
     Rule.errorForElmJsonWithFix elmJsonKey
         (\elmJson ->
             { message = "Unused dependency `" ++ packageNameStr ++ "`"
@@ -289,7 +298,7 @@ error elmJsonKey packageNameStr =
                                             (\( packageName_, _ ) -> packageName /= packageName_)
                                             application.depsDirect
                                     , depsIndirect =
-                                        if isADependencyOfAnotherDependency packageNameStr Dict.empty then
+                                        if isADependencyOfAnotherDependency packageNameStr dependencies then
                                             ( packageName, version ) :: application.depsIndirect
 
                                         else
