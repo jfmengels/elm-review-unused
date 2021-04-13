@@ -320,6 +320,12 @@ removeProjectDependency dependencies packageNameStr project =
                     Elm.Project.Application
                         { application
                             | depsDirect = List.filter (isPackageWithName packageNameStr >> not) application.depsDirect
+                            , depsIndirect =
+                                if isADependencyOfAnotherDependency packageName application.depsDirect dependencies then
+                                    ( packageName, version ) :: application.depsIndirect
+
+                                else
+                                    application.depsIndirect
                         }
 
                 Nothing ->
