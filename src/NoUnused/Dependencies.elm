@@ -100,6 +100,7 @@ type alias ProjectContext =
 
 type alias ModuleContext =
     { moduleNameToDependency : Dict String String
+    , usedDependencies : Set String
     , importedModuleNames : Set String
     }
 
@@ -123,6 +124,7 @@ fromProjectToModule =
     Rule.initContextCreator
         (\projectContext ->
             { moduleNameToDependency = projectContext.moduleNameToDependency
+            , usedDependencies = Set.empty
             , importedModuleNames = Set.empty
             }
         )
