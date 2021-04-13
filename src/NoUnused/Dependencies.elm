@@ -92,6 +92,8 @@ type alias ProjectContext =
     , directTestDependencies : Set String
     , importedModuleNames : Set String
     , importedModuleNamesFromTest : Set String
+    , usedDependencies : Set String
+    , usedDependenciesFromTest : Set String
     , elmJsonKey : Maybe Rule.ElmJsonKey
     }
 
@@ -108,6 +110,8 @@ initialProjectContext =
     , directTestDependencies = Set.empty
     , importedModuleNames = Set.empty
     , importedModuleNamesFromTest = Set.empty
+    , usedDependencies = Set.empty
+    , usedDependenciesFromTest = Set.empty
     , elmJsonKey = Nothing
     }
 
@@ -130,6 +134,8 @@ fromModuleToProject =
             , dependencies = Dict.empty
             , directProjectDependencies = Set.empty
             , directTestDependencies = Set.empty
+            , usedDependencies = Set.empty
+            , usedDependenciesFromTest = Set.empty
             , importedModuleNames =
                 if isSourceDir then
                     importedModuleNames
@@ -154,8 +160,10 @@ foldProjectContexts newContext previousContext =
     , dependencies = previousContext.dependencies
     , directProjectDependencies = previousContext.directProjectDependencies
     , directTestDependencies = previousContext.directTestDependencies
-    , importedModuleNames = Set.union previousContext.importedModuleNames newContext.importedModuleNames
-    , importedModuleNamesFromTest = Set.union previousContext.importedModuleNamesFromTest newContext.importedModuleNamesFromTest
+    , importedModuleNames = Set.union newContext.importedModuleNames previousContext.importedModuleNames
+    , importedModuleNamesFromTest = Set.union newContext.importedModuleNamesFromTest previousContext.importedModuleNamesFromTest
+    , usedDependencies = Set.union newContext.usedDependencies previousContext.usedDependencies
+    , usedDependenciesFromTest = Set.union newContext.usedDependenciesFromTest previousContext.usedDependenciesFromTest
     , elmJsonKey = previousContext.elmJsonKey
     }
 
