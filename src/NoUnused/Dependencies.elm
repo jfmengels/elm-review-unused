@@ -123,7 +123,7 @@ fromProjectToModule =
     Rule.initContextCreator
         (\projectContext ->
             { moduleNameToDependency = projectContext.moduleNameToDependency
-            , importedModuleNames = projectContext.importedModuleNames
+            , importedModuleNames = Set.empty
             }
         )
 
