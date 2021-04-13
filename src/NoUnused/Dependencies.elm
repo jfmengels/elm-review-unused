@@ -321,7 +321,7 @@ removeProjectDependency dependencies packageNameStr project =
                         { application
                             | depsDirect = List.filter (isPackageWithName packageNameStr >> not) application.depsDirect
                             , depsIndirect =
-                                if isADependencyOfAnotherDependency packageName application.depsDirect dependencies then
+                                if isADependencyOfAnotherDependency packageName (application.depsDirect ++ application.depsIndirect) dependencies then
                                     ( packageName, version ) :: application.depsIndirect
 
                                 else
