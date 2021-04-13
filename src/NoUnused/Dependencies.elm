@@ -15,7 +15,6 @@ import Elm.Project exposing (Project)
 import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Node as Node exposing (Node)
 import Elm.Syntax.Range exposing (Range)
-import Elm.Version
 import Review.Project.Dependency as Dependency exposing (Dependency)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -90,8 +89,6 @@ type alias ProjectContext =
     , dependencies : Dict String Dependency
     , directProjectDependencies : Set String
     , directTestDependencies : Set String
-    , importedModuleNames : Set String
-    , importedModuleNamesFromTest : Set String
     , usedDependencies : Set String
     , usedDependenciesFromTest : Set String
     , elmJsonKey : Maybe Rule.ElmJsonKey
@@ -110,8 +107,6 @@ initialProjectContext =
     , dependencies = Dict.empty
     , directProjectDependencies = Set.empty
     , directTestDependencies = Set.empty
-    , importedModuleNames = Set.empty
-    , importedModuleNamesFromTest = Set.empty
     , usedDependencies = Set.empty
     , usedDependenciesFromTest = Set.empty
     , elmJsonKey = Nothing
@@ -153,20 +148,6 @@ fromModuleToProject =
 
                 else
                     usedDependencies
-            , importedModuleNames =
-                -- TODO Remove
-                if isSourceDir then
-                    Set.empty
-
-                else
-                    Set.empty
-            , importedModuleNamesFromTest =
-                -- TODO Remove
-                if isSourceDir then
-                    Set.empty
-
-                else
-                    Set.empty
             , elmJsonKey = Nothing
             }
         )
@@ -179,8 +160,6 @@ foldProjectContexts newContext previousContext =
     , dependencies = previousContext.dependencies
     , directProjectDependencies = previousContext.directProjectDependencies
     , directTestDependencies = previousContext.directTestDependencies
-    , importedModuleNames = Set.union newContext.importedModuleNames previousContext.importedModuleNames
-    , importedModuleNamesFromTest = Set.union newContext.importedModuleNamesFromTest previousContext.importedModuleNamesFromTest
     , usedDependencies = Set.union newContext.usedDependencies previousContext.usedDependencies
     , usedDependenciesFromTest = Set.union newContext.usedDependenciesFromTest previousContext.usedDependenciesFromTest
     , elmJsonKey = previousContext.elmJsonKey
