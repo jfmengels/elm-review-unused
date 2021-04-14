@@ -667,44 +667,43 @@ a = 1
 }
 """
                         ]
-        , Test.skip <|
-            test "should move unused dependencies to test deps and indirect deps if it's a dependency of a direct dependency" <|
-                \() ->
-                    let
-                        testModule : String
-                        testModule =
-                            """module TestModule exposing (suite)
+        , test "should move unused dependencies to test deps and indirect deps if it's a dependency of a direct dependency" <|
+            \() ->
+                let
+                    testModule : String
+                    testModule =
+                        """module TestModule exposing (suite)
 
-import Foo
+import Bar
 import TestFoo
 import TestBar
 
 suite = 0
 """
-                                |> String.replace "\u{000D}" ""
-                    in
-                    """
+                            |> String.replace "\u{000D}" ""
+                in
+                """
 module A exposing (a)
-import Bar
+import Foo
 a = 1
 """
-                        |> String.replace "\u{000D}" ""
-                        |> Review.Test.runWithProjectData
-                            (createProject (Just testModule) applicationElmJson
-                                |> Project.addDependency packageWithFooDependingOnBar
-                            )
-                            rule
-                        |> Review.Test.expectErrorsForElmJson
-                            [ Review.Test.error
-                                { message = "`author/package-with-foo` should be moved to test-dependencies"
-                                , details =
-                                    [ "This package is not used in the source code, but it is used in tests, and should therefore be moved to the test dependencies. To do so, I recommend running the following commands:"
-                                    , "    elm-json uninstall author/package-with-foo\n"
-                                        ++ "    elm-json install --test author/package-with-foo"
-                                    ]
-                                , under = "author/package-with-foo"
-                                }
-                                |> Review.Test.whenFixed """{
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.runWithProjectData
+                        (createProject (Just testModule) applicationElmJson
+                            |> Project.addDependency packageWithFooDependingOnBar
+                        )
+                        rule
+                    |> Review.Test.expectErrorsForElmJson
+                        [ Review.Test.error
+                            { message = "`author/package-with-bar` should be moved to test-dependencies"
+                            , details =
+                                [ "This package is not used in the source code, but it is used in tests, and should therefore be moved to the test dependencies. To do so, I recommend running the following commands:"
+                                , "    elm-json uninstall author/package-with-bar\n"
+                                    ++ "    elm-json install --test author/package-with-bar"
+                                ]
+                            , under = "author/package-with-bar"
+                            }
+                            |> Review.Test.whenFixed """{
     "type": "application",
     "source-directories": [
         "src"
@@ -712,16 +711,16 @@ a = 1
     "elm-version": "0.19.1",
     "dependencies": {
         "direct": {
-            "author/package-with-bar": "1.0.0",
+            "author/package-with-foo": "1.0.0",
             "elm/core": "1.0.0"
         },
         "indirect": {
-            "author/package-with-foo": "1.0.0"
+            "author/package-with-bar": "1.0.0"
         }
     },
     "test-dependencies": {
         "direct": {
-            "author/package-with-foo": "1.0.0";
+            "author/package-with-bar": "1.0.0",
             "author/package-with-test-bar": "1.0.0",
             "author/package-with-test-foo": "1.0.0"
         },
@@ -729,7 +728,7 @@ a = 1
     }
 }
 """
-                            ]
+                        ]
         , test "should report dependencies that's only used in tests and fix it when it's a package elm.json" <|
             \() ->
                 let
