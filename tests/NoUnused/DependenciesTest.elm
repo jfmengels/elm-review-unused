@@ -67,6 +67,31 @@ applicationElmJson =
 }"""
 
 
+applicationElmJsonWithoutBar : String
+applicationElmJsonWithoutBar =
+    """
+{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "author/package-with-foo": "1.0.0",
+            "elm/core": "1.0.0"
+        },
+        "indirect": {
+            "author/package-with-bar": "1.0.0"
+        }
+    },
+    "test-dependencies": {
+        "direct": {},
+        "indirect": {}
+    }
+}"""
+
+
 applicationElmJsonWithoutTestDeps : String
 applicationElmJsonWithoutTestDeps =
     """
@@ -725,6 +750,62 @@ a = 1
             "author/package-with-test-foo": "1.0.0"
         },
         "indirect": {}
+    }
+}
+"""
+                        ]
+        , test "should re-organize the indirect dependencies when a dependency gets removed" <|
+            \() ->
+                let
+                    testModule : String
+                    testModule =
+                        """module TestModule exposing (suite)
+import Foo
+suite = 0
+"""
+                            |> String.replace "\u{000D}" ""
+                in
+                """
+module A exposing (a)
+a = 1
+"""
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.runWithProjectData
+                        (createProject (Just testModule) applicationElmJsonWithoutBar
+                            |> Project.addDependency packageWithFooDependingOnBar
+                            |> Project.removeDependency (Dependency.name packageWithTestFoo)
+                            |> Project.removeDependency (Dependency.name packageWithTestBar)
+                        )
+                        rule
+                    |> Review.Test.expectErrorsForElmJson
+                        [ Review.Test.error
+                            { message = "`author/package-with-foo` should be moved to test-dependencies"
+                            , details =
+                                [ "This package is not used in the source code, but it is used in tests, and should therefore be moved to the test dependencies. To do so, I recommend running the following commands:"
+                                , "    elm-json uninstall author/package-with-foo\n"
+                                    ++ "    elm-json install --test author/package-with-foo"
+                                ]
+                            , under = "author/package-with-foo"
+                            }
+                            |> Review.Test.whenFixed """{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "elm/core": "1.0.0"
+        },
+        "indirect": {}
+    },
+    "test-dependencies": {
+        "direct": {
+            "author/package-with-foo": "1.0.0"
+        },
+        "indirect": {
+            "author/package-with-bar": "1.0.0"
+        }
     }
 }
 """

@@ -265,7 +265,7 @@ finalEvaluationForProject projectContext =
                         |> Set.toList
             in
             List.map (unusedProjectDependencyError elmJsonKey projectContext.dependencies) depsNotUsedInSrcErrors
-                ++ List.map (unusedTestDependencyError elmJsonKey) testDepsNotUsedInTests
+                ++ List.map (unusedTestDependencyError elmJsonKey projectContext.dependencies) testDepsNotUsedInTests
                 ++ List.map (moveDependencyToTestError elmJsonKey projectContext.dependencies) (Set.toList depsNotUsedInSrcButUsedInTests)
 
         Nothing ->
@@ -303,11 +303,11 @@ moveDependencyToTestError elmJsonKey dependencies packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (fromProject InProjectDeps packageName >> Maybe.map (removeProjectDependency dependencies >> addTestDependency >> toProject))
+        (fromProject InProjectDeps packageName >> Maybe.map (removeProjectDependency dependencies >> addTestDependency dependencies >> toProject))
 
 
-unusedTestDependencyError : Rule.ElmJsonKey -> String -> Error scope
-unusedTestDependencyError elmJsonKey packageName =
+unusedTestDependencyError : Rule.ElmJsonKey -> Dict String Dependency -> String -> Error scope
+unusedTestDependencyError elmJsonKey dependencies packageName =
     Rule.errorForElmJsonWithFix elmJsonKey
         (\elmJson ->
             { message = "Unused test dependency `" ++ packageName ++ "`"
@@ -318,7 +318,7 @@ unusedTestDependencyError elmJsonKey packageName =
             , range = findPackageNameInElmJson packageName elmJson
             }
         )
-        (fromProject InTestDeps packageName >> Maybe.map (removeTestDependency >> toProject))
+        (fromProject InTestDeps packageName >> Maybe.map (removeTestDependency dependencies >> toProject))
 
 
 findPackageNameInElmJson : String -> String -> Range
@@ -353,8 +353,17 @@ findPackageNameInElmJson packageName elmJson =
 
 
 type ProjectAndDependencyIdentifier
-    = ApplicationProject { application : Elm.Project.ApplicationInfo, name : Elm.Package.Name, version : Elm.Version.Version }
-    | PackageProject { package : Elm.Project.PackageInfo, name : Elm.Package.Name, constraint : Elm.Constraint.Constraint }
+    = ApplicationProject
+        { application : Elm.Project.ApplicationInfo
+        , name : Elm.Package.Name
+        , version : Elm.Version.Version
+        , getVersion : Elm.Package.Name -> Maybe ( Elm.Package.Name, Elm.Version.Version )
+        }
+    | PackageProject
+        { package : Elm.Project.PackageInfo
+        , name : Elm.Package.Name
+        , constraint : Elm.Constraint.Constraint
+        }
 
 
 type DependencyLocation
@@ -375,10 +384,33 @@ fromProject dependencyLocation packageNameStr project =
 
                         InTestDeps ->
                             application.testDepsDirect
+
+                dependencyVersionDict : Dict String Elm.Version.Version
+                dependencyVersionDict =
+                    [ application.depsDirect
+                    , application.depsIndirect
+                    , application.testDepsDirect
+                    , application.testDepsIndirect
+                    ]
+                        |> List.concat
+                        |> List.map (\( name, version ) -> ( Elm.Package.toString name, version ))
+                        |> Dict.fromList
+
+                getVersion : Elm.Package.Name -> Maybe ( Elm.Package.Name, Elm.Version.Version )
+                getVersion name =
+                    Dict.get (Elm.Package.toString name) dependencyVersionDict
+                        |> Maybe.map (Tuple.pair name)
             in
             case find (isPackageWithName packageNameStr) dependencies of
                 Just ( packageName, version ) ->
-                    Just (ApplicationProject { application = application, name = packageName, version = version })
+                    Just
+                        (ApplicationProject
+                            { application = application
+                            , name = packageName
+                            , version = version
+                            , getVersion = getVersion
+                            }
+                        )
 
                 Nothing ->
                     Nothing
@@ -416,25 +448,31 @@ removeProjectDependency : Dict String Dependency -> ProjectAndDependencyIdentifi
 removeProjectDependency dependencies projectAndDependencyIdentifier =
     case projectAndDependencyIdentifier of
         ApplicationProject ({ application } as project) ->
+            let
+                directDependencies : List ( Elm.Package.Name, Elm.Version.Version )
+                directDependencies =
+                    List.filter (isPackageWithName (Elm.Package.toString project.name) >> not) application.depsDirect
+
+                depsIndirect : Elm.Project.Deps Elm.Version.Version
+                depsIndirect =
+                    listIndirectDependencies
+                        project.getVersion
+                        dependencies
+                        directDependencies
+            in
             ApplicationProject
                 { project
                     | application =
                         { application
-                            | depsDirect = List.filter (isPackageWithName (Elm.Package.toString project.name) >> not) application.depsDirect
-
-                            -- TODO Instead recompute all the indirect dependencies
+                            | depsDirect = directDependencies
                             , depsIndirect =
-                                if isADependencyOfAnotherDependency project.name (application.depsDirect ++ application.depsIndirect) dependencies then
-                                    ( project.name, project.version ) :: application.depsIndirect
-
-                                else
-                                    application.depsIndirect
+                                depsIndirect
                             , testDepsIndirect =
-                                if isADependencyOfAnotherDependency project.name (application.testDepsDirect ++ application.testDepsIndirect) dependencies then
-                                    ( project.name, project.version ) :: application.testDepsIndirect
-
-                                else
-                                    application.testDepsIndirect
+                                listIndirectDependencies
+                                    project.getVersion
+                                    dependencies
+                                    application.testDepsDirect
+                                    |> List.filter (\dep -> not (List.member dep application.depsDirect || List.member dep depsIndirect))
                         }
                 }
 
@@ -448,16 +486,70 @@ removeProjectDependency dependencies projectAndDependencyIdentifier =
                 }
 
 
-addTestDependency : ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
-addTestDependency projectAndDependencyIdentifier =
+listIndirectDependencies : (Elm.Package.Name -> Maybe ( Elm.Package.Name, Elm.Version.Version )) -> Dict String Dependency -> Elm.Project.Deps Elm.Version.Version -> Elm.Project.Deps Elm.Version.Version
+listIndirectDependencies getVersion dependenciesDict baseDependencies =
+    listIndirectDependenciesHelp getVersion dependenciesDict baseDependencies [] []
+        |> List.filter (\dep -> not (List.member dep baseDependencies))
+
+
+listIndirectDependenciesHelp : (Elm.Package.Name -> Maybe ( Elm.Package.Name, Elm.Version.Version )) -> Dict String Dependency -> Elm.Project.Deps Elm.Version.Version -> List Elm.Package.Name -> Elm.Project.Deps Elm.Version.Version -> Elm.Project.Deps Elm.Version.Version
+listIndirectDependenciesHelp getVersion dependenciesDict dependenciesToLookAt visited indirectDependencies =
+    case List.filter (\( name, _ ) -> not (List.member name visited)) dependenciesToLookAt of
+        [] ->
+            indirectDependencies
+
+        ( name, version ) :: restOfDependenciesToLookAt ->
+            let
+                newDependencies : Elm.Project.Deps Elm.Version.Version
+                newDependencies =
+                    case Dict.get (Elm.Package.toString name) dependenciesDict of
+                        Just deps ->
+                            deps
+                                |> Dependency.elmJson
+                                |> packageDependencies
+                                |> List.filterMap getVersion
+
+                        Nothing ->
+                            []
+            in
+            listIndirectDependenciesHelp
+                getVersion
+                dependenciesDict
+                (newDependencies ++ restOfDependenciesToLookAt)
+                (name :: visited)
+                (( name, version ) :: indirectDependencies)
+
+
+packageDependencies : Project -> List Elm.Package.Name
+packageDependencies project =
+    case project of
+        Elm.Project.Application _ ->
+            []
+
+        Elm.Project.Package package ->
+            List.map Tuple.first package.deps
+
+
+addTestDependency : Dict String Dependency -> ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
+addTestDependency dependencies projectAndDependencyIdentifier =
     case projectAndDependencyIdentifier of
         ApplicationProject ({ application } as project) ->
+            let
+                testDepsDirect : List ( Elm.Package.Name, Elm.Version.Version )
+                testDepsDirect =
+                    ( project.name, project.version ) :: application.testDepsDirect
+            in
             ApplicationProject
                 { project
                     | application =
                         { application
-                            | testDepsDirect = ( project.name, project.version ) :: application.testDepsDirect
-                            , testDepsIndirect = List.filter (isPackageWithName (Elm.Package.toString project.name) >> not) application.testDepsIndirect
+                            | testDepsDirect = testDepsDirect
+                            , testDepsIndirect =
+                                listIndirectDependencies
+                                    project.getVersion
+                                    dependencies
+                                    testDepsDirect
+                                    |> List.filter (\dep -> not (List.member dep application.depsDirect || List.member dep application.depsIndirect))
                         }
                 }
 
@@ -471,16 +563,26 @@ addTestDependency projectAndDependencyIdentifier =
                 }
 
 
-removeTestDependency : ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
-removeTestDependency projectAndDependencyIdentifier =
+removeTestDependency : Dict String Dependency -> ProjectAndDependencyIdentifier -> ProjectAndDependencyIdentifier
+removeTestDependency dependencies projectAndDependencyIdentifier =
     case projectAndDependencyIdentifier of
         ApplicationProject ({ application } as project) ->
+            let
+                testDepsDirect : List ( Elm.Package.Name, Elm.Version.Version )
+                testDepsDirect =
+                    List.filter (isPackageWithName (Elm.Package.toString project.name) >> not) application.testDepsDirect
+            in
             ApplicationProject
                 { project
                     | application =
                         { application
-                          -- TODO Instead recompute all the indirect dependencies
-                            | testDepsDirect = List.filter (isPackageWithName (Elm.Package.toString project.name) >> not) application.testDepsDirect
+                            | testDepsDirect = testDepsDirect
+                            , testDepsIndirect =
+                                listIndirectDependencies
+                                    project.getVersion
+                                    dependencies
+                                    testDepsDirect
+                                    |> List.filter (\dep -> not (List.member dep application.depsDirect || List.member dep application.depsIndirect))
                         }
                 }
 
@@ -497,23 +599,6 @@ removeTestDependency projectAndDependencyIdentifier =
 isPackageWithName : String -> ( Elm.Package.Name, a ) -> Bool
 isPackageWithName packageName ( packageName_, _ ) =
     packageName == Elm.Package.toString packageName_
-
-
-isADependencyOfAnotherDependency : Elm.Package.Name -> Elm.Project.Deps a -> Dict String Dependency -> Bool
-isADependencyOfAnotherDependency packageName deps dependencies =
-    List.any
-        (\( depName, _ ) ->
-            case
-                Dict.get (Elm.Package.toString depName) dependencies
-                    |> Maybe.map Dependency.elmJson
-            of
-                Just (Elm.Project.Package packageInfo) ->
-                    List.any (\( depDependencyName, _ ) -> depDependencyName == packageName) packageInfo.deps
-
-                _ ->
-                    False
-        )
-        deps
 
 
 {-| Find the first element that satisfies a predicate and return
