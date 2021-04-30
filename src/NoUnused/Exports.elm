@@ -572,8 +572,8 @@ typesUsedInDeclaration moduleContext declaration =
         Declaration.AliasDeclaration alias_ ->
             ( collectTypesFromTypeAnnotation moduleContext alias_.typeAnnotation, False )
 
-        Declaration.PortDeclaration _ ->
-            ( [], False )
+        Declaration.PortDeclaration signature ->
+            ( collectTypesFromTypeAnnotation moduleContext signature.typeAnnotation, False )
 
         Declaration.InfixDeclaration _ ->
             ( [], False )

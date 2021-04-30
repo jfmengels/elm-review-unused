@@ -517,6 +517,28 @@ type Type1 = Type1
 """ ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
+        , test "should not report an exposed type if it is used in a port (input)" <|
+            \() ->
+                [ """module Main exposing (main)
+import B
+main = somePort
+port somePort : (B.Type1 -> msg) -> Sub msg
+""", """module B exposing (Type1)
+type alias Type1 = { user : String }
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report an exposed type if it is used in a port (output)" <|
+            \() ->
+                [ """module Main exposing (main)
+import B
+main = somePort
+port somePort : B.Type1 -> Cmd msg
+""", """module B exposing (Type1)
+type alias Type1 = { user : String }
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
         ]
 
 
