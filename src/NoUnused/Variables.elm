@@ -392,6 +392,56 @@ importVisitor ((Node importRange import_) as node) context =
             )
 
 
+importVisitor2 : Node Import -> ModuleContext -> ModuleContext
+importVisitor2 ((Node importRange import_) as node) context =
+    case import_.exposingList of
+        Nothing ->
+            registerModuleNameOrAlias node { context | imports = node :: context.imports }
+
+        Just declaredImports ->
+            let
+                contextWithAlias : ModuleContext
+                contextWithAlias =
+                    case import_.moduleAlias of
+                        Just moduleAlias ->
+                            registerModuleAlias node moduleAlias { context | imports = node :: context.imports }
+
+                        Nothing ->
+                            { context | imports = node :: context.imports }
+            in
+            case Node.value declaredImports of
+                Exposing.All _ ->
+                    if Dict.member (Node.value import_.moduleName) context.customTypes then
+                        { contextWithAlias
+                            | exposingAllModules =
+                                { name = Node.value import_.moduleName
+                                , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
+                                , moduleNameRange = Node.range import_.moduleName
+                                , exposingRange = Node.range declaredImports
+                                , importRange = importRange
+                                , wasUsedImplicitly = False
+                                , wasUsedWithModuleName = False
+                                }
+                                    :: context.exposingAllModules
+                        }
+
+                    else
+                        contextWithAlias
+
+                Exposing.Explicit list ->
+                    let
+                        customTypesFromModule : Dict String (List String)
+                        customTypesFromModule =
+                            context.customTypes
+                                |> Dict.get (Node.value import_.moduleName)
+                                |> Maybe.withDefault Dict.empty
+                    in
+                    List.foldl
+                        (registerExposedElements customTypesFromModule)
+                        contextWithAlias
+                        (collectExplicitlyExposedElements (Node.range declaredImports) list)
+
+
 registerExposedElements : Dict String (List String) -> ExposedElement -> ModuleContext -> ModuleContext
 registerExposedElements customTypesFromModule importedElement context =
     case importedElement of
