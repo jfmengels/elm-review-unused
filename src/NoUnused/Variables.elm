@@ -1041,12 +1041,12 @@ declarationVisitor node context =
                         |> markAllModulesAsUsed namesUsedInSignature.modules
                         |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
 
-                shadowingImportError : List (Error {})
-                shadowingImportError =
+                shadowImportErrors : List ( String, VariableInfo )
+                shadowImportErrors =
                     case Dict.get functionName (NonemptyList.head context.scopes).declared of
                         Just existingVariable ->
                             if existingVariable.typeName == "Imported variable" then
-                                [ error existingVariable functionName ]
+                                [ ( functionName, existingVariable ) ]
 
                             else
                                 []
@@ -1054,7 +1054,7 @@ declarationVisitor node context =
                         _ ->
                             []
             in
-            ( shadowingImportError, newContext )
+            ( [], { newContext | shadowImportErrors = shadowImportErrors ++ newContext.shadowImportErrors } )
 
         Declaration.CustomTypeDeclaration { name, constructors } ->
             let
