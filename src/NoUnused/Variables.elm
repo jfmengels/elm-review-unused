@@ -113,6 +113,7 @@ type alias ModuleContext =
     , importedCustomTypeLookup : Dict String String
     , localCustomTypes : Dict String CustomTypeData
     , customTypes : Dict ModuleName (Dict String (List String))
+    , shadowImportErrors : List ( String, VariableInfo )
     }
 
 
@@ -201,6 +202,7 @@ fromProjectToModule =
             , importedCustomTypeLookup = Dict.empty
             , localCustomTypes = Dict.empty
             , customTypes = customTypes
+            , shadowImportErrors = []
             }
         )
         |> Rule.withModuleNameLookupTable
@@ -1181,7 +1183,7 @@ finalEvaluation context =
 
         shadowingImportError : List (Error {})
         shadowingImportError =
-            List.map (\{ existingVariable, functionName } -> error existingVariable functionName) []
+            List.map (\( functionName, existingVariable ) -> error existingVariable functionName) context.shadowImportErrors
 
         importedTypeErrors : List (Error {})
         importedTypeErrors =
