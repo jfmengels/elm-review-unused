@@ -396,7 +396,7 @@ importVisitor2 : Node Import -> ModuleContext -> ModuleContext
 importVisitor2 ((Node importRange import_) as node) context =
     case import_.exposingList of
         Nothing ->
-            registerModuleNameOrAlias node { context | imports = node :: context.imports }
+            registerModuleNameOrAlias node context
 
         Just declaredImports ->
             let
@@ -407,7 +407,7 @@ importVisitor2 ((Node importRange import_) as node) context =
                             { context | declaredModules = moduleAliasDeclaredModule node moduleAlias :: context.declaredModules }
 
                         Nothing ->
-                            { context | imports = node :: context.imports }
+                            context
             in
             case Node.value declaredImports of
                 Exposing.All _ ->
