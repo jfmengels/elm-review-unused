@@ -1179,6 +1179,10 @@ finalEvaluation context =
         usedLocally =
             Dict.get [] rootScope.used |> Maybe.withDefault Set.empty
 
+        shadowingImportError : List (Error {})
+        shadowingImportError =
+            List.map (\{ existingVariable, functionName } -> error existingVariable functionName) []
+
         importedTypeErrors : List (Error {})
         importedTypeErrors =
             context.unusedImportedCustomTypes
@@ -1313,6 +1317,7 @@ finalEvaluation context =
         [ newRootScope
             |> makeReport
             |> Tuple.first
+        , shadowingImportError
         , importedTypeErrors
         , moduleErrors
         , List.filterMap Tuple.first moduleThatExposeEverythingErrors
