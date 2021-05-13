@@ -1034,8 +1034,8 @@ declarationVisitor node context =
                 newContext : ModuleContext
                 newContext =
                     { newContextWhereFunctionIsRegistered | inTheDeclarationOf = [ functionName ], declarations = Dict.empty }
-                        |> (\ctx -> List.foldl markAsUsed ctx namesUsedInSignature.types)
                         |> (\ctx -> List.foldl markValueAsUsed ctx namesUsedInArgumentPatterns.types)
+                        |> markAllAsUsed namesUsedInSignature.types
                         |> markAllModulesAsUsed namesUsedInSignature.modules
                         |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
 
