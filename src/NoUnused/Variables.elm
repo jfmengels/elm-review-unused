@@ -1185,6 +1185,10 @@ finalEvaluation context =
         shadowingImportError =
             List.map error context.shadowImportErrors
 
+        importErrors : List (Error {})
+        importErrors =
+            []
+
         importedTypeErrors : List (Error {})
         importedTypeErrors =
             context.unusedImportedCustomTypes
@@ -1320,6 +1324,7 @@ finalEvaluation context =
             |> makeReport
             |> Tuple.first
         , shadowingImportError
+        , importErrors
         , importedTypeErrors
         , moduleErrors
         , List.filterMap Tuple.first moduleThatExposeEverythingErrors
