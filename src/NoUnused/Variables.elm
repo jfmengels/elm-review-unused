@@ -598,6 +598,27 @@ registerModuleAlias ((Node range { exposingList, moduleName }) as node) moduleAl
         context
 
 
+moduleAliasDeclaredModule : Node Import -> Node ModuleName -> DeclaredModule
+moduleAliasDeclaredModule ((Node range { exposingList, moduleName }) as node) moduleAlias =
+    { moduleName = Node.value moduleName
+    , alias = Just (getModuleName (Node.value moduleAlias))
+    , variableType =
+        ModuleAlias
+            { originalNameOfTheImport = getModuleName <| Node.value moduleName
+            , exposesSomething = exposingList /= Nothing
+            }
+    , typeName = "Module alias"
+    , under = Node.range moduleAlias
+    , rangeToRemove =
+        case exposingList of
+            Nothing ->
+                untilStartOfNextLine range
+
+            Just _ ->
+                moduleAliasRange (Node.value node) (Node.range moduleAlias)
+    }
+
+
 moduleAliasRange : Import -> Range -> Range
 moduleAliasRange { moduleName } range =
     { range | start = (Node.range moduleName).end }
