@@ -404,7 +404,7 @@ importVisitor2 ((Node importRange import_) as node) context =
                 contextWithAlias =
                     case import_.moduleAlias of
                         Just moduleAlias ->
-                            registerModuleAlias node moduleAlias { context | imports = node :: context.imports }
+                            { context | declaredModules = moduleAliasDeclaredModule node moduleAlias :: context.declaredModules }
 
                         Nothing ->
                             { context | imports = node :: context.imports }
