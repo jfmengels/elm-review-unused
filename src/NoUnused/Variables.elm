@@ -342,29 +342,9 @@ getExposingName node =
 
 importVisitor : Node Import -> ModuleContext -> ( List (Error {}), ModuleContext )
 importVisitor ((Node importRange import_) as node) context =
-    let
-        errors : List (Error {})
-        errors =
-            case import_.moduleAlias of
-                Just moduleAlias ->
-                    if Node.value moduleAlias == Node.value import_.moduleName then
-                        [ Rule.errorWithFix
-                            { message = "Module `" ++ String.join "." (Node.value moduleAlias) ++ "` is aliased as itself"
-                            , details = [ "The alias is the same as the module name, and brings no useful value" ]
-                            }
-                            (Node.range moduleAlias)
-                            [ Fix.removeRange <| moduleAliasRange node (Node.range moduleAlias) ]
-                        ]
-
-                    else
-                        []
-
-                Nothing ->
-                    []
-    in
     case import_.exposingList of
         Nothing ->
-            ( errors, registerModuleNameOrAlias node { context | imports = node :: context.imports } )
+            ( [], registerModuleNameOrAlias node { context | imports = node :: context.imports } )
 
         Just declaredImports ->
             let
@@ -377,7 +357,7 @@ importVisitor ((Node importRange import_) as node) context =
                         Nothing ->
                             { context | imports = node :: context.imports }
             in
-            ( errors
+            ( []
             , case Node.value declaredImports of
                 Exposing.All _ ->
                     if Dict.member (Node.value import_.moduleName) context.customTypes then
@@ -563,13 +543,13 @@ registerModuleAlias ((Node range { exposingList, moduleName }) as node) moduleAl
                     untilStartOfNextLine range
 
                 Just _ ->
-                    moduleAliasRange node (Node.range moduleAlias)
+                    moduleAliasRange (Node.value node) (Node.range moduleAlias)
         }
         context
 
 
-moduleAliasRange : Node Import -> Range -> Range
-moduleAliasRange (Node _ { moduleName }) range =
+moduleAliasRange : Import -> Range -> Range
+moduleAliasRange { moduleName } range =
     { range | start = (Node.range moduleName).end }
 
 
@@ -1189,7 +1169,27 @@ finalEvaluation context =
 
         importErrors : List (Error {})
         importErrors =
-            []
+            context.imports
+                |> List.filterMap
+                    (\(Node _ import_) ->
+                        case import_.moduleAlias of
+                            Just moduleAlias ->
+                                if Node.value moduleAlias == Node.value import_.moduleName then
+                                    Just
+                                        (Rule.errorWithFix
+                                            { message = "Module `" ++ String.join "." (Node.value moduleAlias) ++ "` is aliased as itself"
+                                            , details = [ "The alias is the same as the module name, and brings no useful value" ]
+                                            }
+                                            (Node.range moduleAlias)
+                                            [ Fix.removeRange <| moduleAliasRange import_ (Node.range moduleAlias) ]
+                                        )
+
+                                else
+                                    Nothing
+
+                            Nothing ->
+                                Nothing
+                    )
 
         importedTypeErrors : List (Error {})
         importedTypeErrors =
