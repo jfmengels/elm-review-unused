@@ -340,7 +340,7 @@ getExposingName node =
             name
 
 
-importVisitor : Node Import -> ModuleContext -> ( List (Error {}), ModuleContext )
+importVisitor : Node Import -> ModuleContext -> ( List nothing, ModuleContext )
 importVisitor ((Node importRange import_) as node) context =
     case import_.exposingList of
         Nothing ->
