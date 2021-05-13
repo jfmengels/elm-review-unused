@@ -113,6 +113,7 @@ type alias ModuleContext =
     , importedCustomTypeLookup : Dict String String
     , localCustomTypes : Dict String CustomTypeData
     , customTypes : Dict ModuleName (Dict String (List String))
+    , imports : List (Node Import)
     , shadowImportErrors : List ( String, VariableInfo )
     }
 
@@ -202,6 +203,7 @@ fromProjectToModule =
             , importedCustomTypeLookup = Dict.empty
             , localCustomTypes = Dict.empty
             , customTypes = customTypes
+            , imports = []
             , shadowImportErrors = []
             }
         )
