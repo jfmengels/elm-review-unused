@@ -238,8 +238,8 @@ emptyScope =
     }
 
 
-error : VariableInfo -> String -> Error {}
-error variableInfo name =
+error : ( String, VariableInfo ) -> Error {}
+error ( name, variableInfo ) =
     Rule.errorWithFix
         { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used" ++ variableInfo.warning
         , details = details
@@ -1183,7 +1183,7 @@ finalEvaluation context =
 
         shadowingImportError : List (Error {})
         shadowingImportError =
-            List.map (\( functionName, existingVariable ) -> error existingVariable functionName) context.shadowImportErrors
+            List.map error context.shadowImportErrors
 
         importedTypeErrors : List (Error {})
         importedTypeErrors =
@@ -1579,7 +1579,7 @@ makeReport { declared, used } =
         errors =
             Dict.filter (\key _ -> not <| Set.member key usedLocally) declared
                 |> Dict.toList
-                |> List.map (\( key, variableInfo ) -> error variableInfo key)
+                |> List.map error
     in
     ( errors, nonUsedVars )
 
