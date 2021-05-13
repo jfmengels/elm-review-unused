@@ -364,7 +364,7 @@ importVisitor ((Node importRange import_) as node) context =
     in
     case import_.exposingList of
         Nothing ->
-            ( errors, registerModuleNameOrAlias node context )
+            ( errors, registerModuleNameOrAlias node { context | imports = node :: context.imports } )
 
         Just declaredImports ->
             let
@@ -372,10 +372,10 @@ importVisitor ((Node importRange import_) as node) context =
                 contextWithAlias =
                     case import_.moduleAlias of
                         Just moduleAlias ->
-                            registerModuleAlias node moduleAlias context
+                            registerModuleAlias node moduleAlias { context | imports = node :: context.imports }
 
                         Nothing ->
-                            context
+                            { context | imports = node :: context.imports }
             in
             ( errors
             , case Node.value declaredImports of
