@@ -396,7 +396,7 @@ importVisitor2 : Node Import -> ModuleContext -> ModuleContext
 importVisitor2 ((Node importRange import_) as node) context =
     case import_.exposingList of
         Nothing ->
-            registerModuleNameOrAlias node context
+            { context | declaredModules = moduleNameOrAliasDeclaredModule node :: context.declaredModules }
 
         Just declaredImports ->
             let
@@ -596,6 +596,22 @@ registerModuleAlias ((Node range { exposingList, moduleName }) as node) moduleAl
                     moduleAliasRange (Node.value node) (Node.range moduleAlias)
         }
         context
+
+
+moduleNameOrAliasDeclaredModule : Node Import -> DeclaredModule
+moduleNameOrAliasDeclaredModule ((Node range { moduleAlias, moduleName }) as node) =
+    case moduleAlias of
+        Just moduleAlias_ ->
+            moduleAliasDeclaredModule node moduleAlias_
+
+        Nothing ->
+            { moduleName = Node.value moduleName
+            , alias = Nothing
+            , typeName = "Imported module"
+            , variableType = ImportedModule
+            , under = Node.range moduleName
+            , rangeToRemove = untilStartOfNextLine range
+            }
 
 
 moduleAliasDeclaredModule : Node Import -> Node ModuleName -> DeclaredModule
