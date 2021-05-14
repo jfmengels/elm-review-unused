@@ -393,10 +393,10 @@ importVisitor ((Node importRange import_) as node) context =
 
 
 importVisitor2 : Node Import -> ModuleContext -> ModuleContext
-importVisitor2 ((Node importRange import_) as node) context =
+importVisitor2 ((Node importRange import_) as node) importData =
     case import_.exposingList of
         Nothing ->
-            { context | declaredModules = moduleNameOrAliasDeclaredModule node :: context.declaredModules }
+            { importData | declaredModules = moduleNameOrAliasDeclaredModule node :: importData.declaredModules }
 
         Just declaredImports ->
             let
@@ -404,14 +404,14 @@ importVisitor2 ((Node importRange import_) as node) context =
                 contextWithAlias =
                     case import_.moduleAlias of
                         Just moduleAlias ->
-                            { context | declaredModules = moduleAliasDeclaredModule node moduleAlias :: context.declaredModules }
+                            { importData | declaredModules = moduleAliasDeclaredModule node moduleAlias :: importData.declaredModules }
 
                         Nothing ->
-                            context
+                            importData
             in
             case Node.value declaredImports of
                 Exposing.All _ ->
-                    if Dict.member (Node.value import_.moduleName) context.customTypes then
+                    if Dict.member (Node.value import_.moduleName) importData.customTypes then
                         { contextWithAlias
                             | exposingAllModules =
                                 { name = Node.value import_.moduleName
@@ -422,7 +422,7 @@ importVisitor2 ((Node importRange import_) as node) context =
                                 , wasUsedImplicitly = False
                                 , wasUsedWithModuleName = False
                                 }
-                                    :: context.exposingAllModules
+                                    :: importData.exposingAllModules
                         }
 
                     else
@@ -432,7 +432,7 @@ importVisitor2 ((Node importRange import_) as node) context =
                     let
                         customTypesFromModule : Dict String (List String)
                         customTypesFromModule =
-                            context.customTypes
+                            importData.customTypes
                                 |> Dict.get (Node.value import_.moduleName)
                                 |> Maybe.withDefault Dict.empty
                     in
