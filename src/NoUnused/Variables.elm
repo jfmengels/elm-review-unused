@@ -1256,6 +1256,19 @@ finalEvaluation context =
 
         importErrors : List (Error {})
         importErrors =
+            List.map
+                (\err ->
+                    Rule.errorWithFix
+                        { message = err.message
+                        , details = err.details
+                        }
+                        err.range
+                        err.fix
+                )
+                moduleAliasImportErrors
+
+        moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
+        moduleAliasImportErrors =
             context.imports
                 |> List.filterMap
                     (\(Node _ import_) ->
@@ -1263,13 +1276,11 @@ finalEvaluation context =
                             Just moduleAlias ->
                                 if Node.value moduleAlias == Node.value import_.moduleName then
                                     Just
-                                        (Rule.errorWithFix
-                                            { message = "Module `" ++ String.join "." (Node.value moduleAlias) ++ "` is aliased as itself"
-                                            , details = [ "The alias is the same as the module name, and brings no useful value" ]
-                                            }
-                                            (Node.range moduleAlias)
-                                            [ Fix.removeRange <| moduleAliasRange import_ (Node.range moduleAlias) ]
-                                        )
+                                        { message = "Module `" ++ String.join "." (Node.value moduleAlias) ++ "` is aliased as itself"
+                                        , details = [ "The alias is the same as the module name, and brings no useful value" ]
+                                        , range = Node.range moduleAlias
+                                        , fix = [ Fix.removeRange <| moduleAliasRange import_ (Node.range moduleAlias) ]
+                                        }
 
                                 else
                                     Nothing
