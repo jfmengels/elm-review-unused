@@ -1267,6 +1267,9 @@ finalEvaluation context =
                 )
                 moduleAliasImportErrors
 
+        tmpImportErrors =
+            []
+
         moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
         moduleAliasImportErrors =
             context.imports
@@ -1425,6 +1428,7 @@ finalEvaluation context =
             |> Tuple.first
         , shadowingImportError
         , importErrors
+        , tmpImportErrors
         , importedTypeErrors
         , moduleErrors
         , List.filterMap Tuple.first moduleThatExposeEverythingErrors
