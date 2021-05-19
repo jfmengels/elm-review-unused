@@ -110,6 +110,7 @@ type alias ModuleContext =
     , exposingAllModules : List ModuleThatExposesEverything
     , usedModules : Set ( ModuleName, ModuleName )
     , unusedImportedCustomTypes : Dict String ImportedCustomType
+    , usedImportedCustomTypes : Set String
     , importedCustomTypeLookup : Dict String String
     , localCustomTypes : Dict String CustomTypeData
     , customTypes : Dict ModuleName (Dict String (List String))
@@ -200,6 +201,7 @@ fromProjectToModule =
             , exposingAllModules = []
             , usedModules = Set.empty
             , unusedImportedCustomTypes = Dict.empty
+            , usedImportedCustomTypes = Set.empty
             , importedCustomTypeLookup = Dict.empty
             , localCustomTypes = Dict.empty
             , customTypes = customTypes
