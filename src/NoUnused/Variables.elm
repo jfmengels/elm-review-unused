@@ -1764,7 +1764,7 @@ markValueAsUsed name context =
     else
         case Dict.get name context.importedCustomTypeLookup of
             Just customTypeName ->
-                { context | importedCustomTypes = Dict.remove customTypeName context.importedCustomTypes }
+                { context | usedImportedCustomTypes = Set.insert customTypeName context.usedImportedCustomTypes }
 
             _ ->
                 markAsUsed name context
