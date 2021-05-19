@@ -638,32 +638,30 @@ collectExplicitlyExposedElements2 context customTypesFromModule topLevelDeclared
                     Exposing.TypeExpose { name, open } ->
                         case open of
                             Just openRange ->
-                                case Dict.get name customTypesFromModule of
-                                    Just constructorNames ->
-                                        if Set.member name context.usedImportedCustomTypes then
-                                            Nothing
+                                if Dict.member name customTypesFromModule then
+                                    if Set.member name context.usedImportedCustomTypes then
+                                        Nothing
 
-                                        else if Set.member name usedLocally && not (Dict.member name context.localCustomTypes) then
-                                            Just
-                                                (Rule.errorWithFix
-                                                    { message = "Imported constructors for `" ++ name ++ "` are not used"
-                                                    , details = details
-                                                    }
-                                                    (untilEndOfVariable name range)
-                                                    -- If the constructors are not used but the type itself is, then only remove the `(..)`
-                                                    [ Fix.removeRange openRange ]
-                                                )
+                                    else if Set.member name usedLocally && not (Dict.member name context.localCustomTypes) then
+                                        Just
+                                            (Rule.errorWithFix
+                                                { message = "Imported constructors for `" ++ name ++ "` are not used"
+                                                , details = details
+                                                }
+                                                (untilEndOfVariable name range)
+                                                -- If the constructors are not used but the type itself is, then only remove the `(..)`
+                                                [ Fix.removeRange openRange ]
+                                            )
 
-                                        else
-                                            Just
-                                                (Rule.errorWithFix
-                                                    { message = "Imported type `" ++ name ++ "` is not used"
-                                                    , details = details
-                                                    }
-                                                    (untilEndOfVariable name range)
-                                                    [ Fix.removeRange rangeToRemove ]
-                                                )
-
+                                    else
+                                        Just
+                                            (Rule.errorWithFix
+                                                { message = "Imported type `" ++ name ++ "` is not used"
+                                                , details = details
+                                                }
+                                                (untilEndOfVariable name range)
+                                                [ Fix.removeRange rangeToRemove ]
+                                            )
                                     --if List.any (\constructorName -> Set.member constructorName usedLocally) constructorNames then
                                     --    Nothing
                                     --
@@ -678,8 +676,9 @@ collectExplicitlyExposedElements2 context customTypesFromModule topLevelDeclared
                                     --              }
                                     --            )
                                     --        )
-                                    Nothing ->
-                                        Nothing
+
+                                else
+                                    Nothing
 
                             Nothing ->
                                 -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
