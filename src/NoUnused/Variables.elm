@@ -462,9 +462,6 @@ registerExposedElements customTypesFromModule importedElement context =
                 Nothing ->
                     context
 
-        TypeOrValue name variableInfo ->
-            registerVariable variableInfo name context
-
 
 collectExplicitlyExposedElements : Range -> List (Node Exposing.TopLevelExpose) -> List ExposedElement
 collectExplicitlyExposedElements exposingNodeRange list =
@@ -1597,7 +1594,6 @@ registerFunction letBlockContext function context =
 
 type ExposedElement
     = CustomType String ImportedCustomType
-    | TypeOrValue String VariableInfo
 
 
 untilEndOfVariable : String -> Range -> Range
