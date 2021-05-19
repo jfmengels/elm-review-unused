@@ -390,148 +390,47 @@ importVisitor ((Node importRange import_) as node) context =
                     List.foldl
                         (registerExposedElements customTypesFromModule)
                         contextWithAlias
-                        (collectExplicitlyExposedElements (Node.range declaredImports) list)
+                        (collectExplicitlyExposedElements list)
             )
 
 
-importVisitor2 : Node Import -> ModuleContext -> ModuleContext
-importVisitor2 ((Node importRange import_) as node) importData =
-    case import_.exposingList of
-        Nothing ->
-            { importData | declaredModules = moduleNameOrAliasDeclaredModule node :: importData.declaredModules }
+registerExposedElements : Dict String (List String) -> String -> ModuleContext -> ModuleContext
+registerExposedElements customTypesFromModule name context =
+    case Dict.get name customTypesFromModule of
+        Just constructorNames ->
+            { context
+                | importedCustomTypeLookup =
+                    Dict.union
+                        (constructorNames
+                            |> List.map (\constructorName -> ( constructorName, name ))
+                            |> Dict.fromList
+                        )
+                        context.importedCustomTypeLookup
+            }
 
-        Just declaredImports ->
-            let
-                contextWithAlias : ModuleContext
-                contextWithAlias =
-                    case import_.moduleAlias of
-                        Just moduleAlias ->
-                            { importData | declaredModules = moduleAliasDeclaredModule node moduleAlias :: importData.declaredModules }
+        Nothing ->
+            context
+
+
+collectExplicitlyExposedElements : List (Node Exposing.TopLevelExpose) -> List String
+collectExplicitlyExposedElements list =
+    List.filterMap
+        (\node ->
+            case Node.value node of
+                Exposing.TypeExpose { name, open } ->
+                    case open of
+                        Just _ ->
+                            Just name
 
                         Nothing ->
-                            importData
-            in
-            case Node.value declaredImports of
-                Exposing.All _ ->
-                    if Dict.member (Node.value import_.moduleName) importData.customTypes then
-                        { contextWithAlias
-                            | exposingAllModules =
-                                { name = Node.value import_.moduleName
-                                , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
-                                , moduleNameRange = Node.range import_.moduleName
-                                , exposingRange = Node.range declaredImports
-                                , importRange = importRange
-                                , wasUsedImplicitly = False
-                                , wasUsedWithModuleName = False
-                                }
-                                    :: importData.exposingAllModules
-                        }
+                            -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
+                            -- `Exposing.TypeOrAliasExpose`, not a `Exposing.TypeExpose`.
+                            Nothing
 
-                    else
-                        contextWithAlias
-
-                Exposing.Explicit list ->
-                    let
-                        customTypesFromModule : Dict String (List String)
-                        customTypesFromModule =
-                            importData.customTypes
-                                |> Dict.get (Node.value import_.moduleName)
-                                |> Maybe.withDefault Dict.empty
-                    in
-                    List.foldl
-                        (registerExposedElements customTypesFromModule)
-                        contextWithAlias
-                        (collectExplicitlyExposedElements (Node.range declaredImports) list)
-
-
-registerExposedElements : Dict String (List String) -> ExposedElement -> ModuleContext -> ModuleContext
-registerExposedElements customTypesFromModule importedElement context =
-    case importedElement of
-        CustomType name variableInfo ->
-            case Dict.get name customTypesFromModule of
-                Just constructorNames ->
-                    { context
-                        | importedCustomTypeLookup =
-                            Dict.union
-                                (constructorNames
-                                    |> List.map (\constructorName -> ( constructorName, name ))
-                                    |> Dict.fromList
-                                )
-                                context.importedCustomTypeLookup
-                    }
-
-                Nothing ->
-                    context
-
-
-collectExplicitlyExposedElements : Range -> List (Node Exposing.TopLevelExpose) -> List ExposedElement
-collectExplicitlyExposedElements exposingNodeRange list =
-    let
-        listWithPreviousRange : List (Maybe Range)
-        listWithPreviousRange =
-            Nothing
-                :: (list
-                        |> List.map (Node.range >> Just)
-                        |> List.take (List.length list - 1)
-                   )
-
-        listWithNextRange : List Range
-        listWithNextRange =
-            (list
-                |> List.map Node.range
-                |> List.drop 1
-            )
-                ++ [ { start = { row = 0, column = 0 }, end = { row = 0, column = 0 } } ]
-    in
-    list
-        |> List.map3 (\prev next current -> ( prev, current, next )) listWithPreviousRange listWithNextRange
-        |> List.indexedMap
-            (\index ( maybePreviousRange, Node range value, nextRange ) ->
-                let
-                    rangeToRemove : Range
-                    rangeToRemove =
-                        if List.length list == 1 then
-                            exposingNodeRange
-
-                        else if index == 0 then
-                            { range | end = nextRange.start }
-
-                        else
-                            case maybePreviousRange of
-                                Nothing ->
-                                    range
-
-                                Just previousRange ->
-                                    { range | start = previousRange.end }
-                in
-                case value of
-                    Exposing.FunctionExpose name ->
-                        Nothing
-
-                    Exposing.InfixExpose name ->
-                        Nothing
-
-                    Exposing.TypeOrAliasExpose name ->
-                        Nothing
-
-                    Exposing.TypeExpose { name, open } ->
-                        case open of
-                            Just openRange ->
-                                CustomType
-                                    name
-                                    { typeName = "Imported type"
-                                    , under = range
-                                    , rangeToRemove = rangeToRemove
-                                    , openRange = openRange
-                                    }
-                                    |> Just
-
-                            Nothing ->
-                                -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
-                                -- `Exposing.TypeOrAliasExpose`, not a `Exposing.TypeExpose`.
-                                Nothing
-            )
-        |> List.filterMap identity
+                _ ->
+                    Nothing
+        )
+        list
 
 
 collectExplicitlyExposedElements2 : ModuleContext -> Dict String (List String) -> Set String -> Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List (Error {})
