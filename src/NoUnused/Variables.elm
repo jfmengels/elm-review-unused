@@ -543,8 +543,8 @@ collectExplicitlyExposedElements exposingNodeRange list =
         |> List.filterMap identity
 
 
-collectExplicitlyExposedElements2 : Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List (Error {})
-collectExplicitlyExposedElements2 usedLocally exposingNodeRange list =
+collectExplicitlyExposedElements2 : Set String -> Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List (Error {})
+collectExplicitlyExposedElements2 topLevelDeclared usedLocally exposingNodeRange list =
     let
         listWithPreviousRange : List (Maybe Range)
         listWithPreviousRange =
@@ -1378,7 +1378,7 @@ finalEvaluation context =
                                         []
 
                                     Exposing.Explicit list ->
-                                        collectExplicitlyExposedElements2 usedLocally (Node.range declaredImports) list
+                                        collectExplicitlyExposedElements2 topLevelDeclared usedLocally (Node.range declaredImports) list
                     )
 
         moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
