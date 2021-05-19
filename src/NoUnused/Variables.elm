@@ -1269,7 +1269,28 @@ finalEvaluation context =
 
         tmpImportErrors =
             context.imports
-                |> List.concatMap (\(Node _ import_) -> [])
+                |> List.concatMap
+                    (\(Node _ import_) ->
+                        case import_.exposingList of
+                            Nothing ->
+                                []
+
+                            Just declaredImports ->
+                                case Node.value declaredImports of
+                                    Exposing.All _ ->
+                                        []
+
+                                    Exposing.Explicit list ->
+                                        []
+                     --let
+                     --    customTypesFromModule : Dict String (List String)
+                     --    customTypesFromModule =
+                     --        context.customTypes
+                     --            |> Dict.get (Node.value import_.moduleName)
+                     --            |> Maybe.withDefault Dict.empty
+                     --in
+                     --collectExplicitlyExposedElements (Node.range declaredImports) list
+                    )
 
         moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
         moduleAliasImportErrors =
