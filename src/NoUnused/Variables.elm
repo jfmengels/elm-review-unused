@@ -1268,7 +1268,8 @@ finalEvaluation context =
                 moduleAliasImportErrors
 
         tmpImportErrors =
-            []
+            context.imports
+                |> List.concatMap (\(Node _ import_) -> [])
 
         moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
         moduleAliasImportErrors =
