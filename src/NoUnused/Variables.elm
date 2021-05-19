@@ -451,8 +451,7 @@ registerExposedElements customTypesFromModule importedElement context =
             case Dict.get name customTypesFromModule of
                 Just constructorNames ->
                     { context
-                        | importedCustomTypes = Dict.insert name variableInfo context.importedCustomTypes
-                        , importedCustomTypeLookup =
+                        | importedCustomTypeLookup =
                             Dict.union
                                 (constructorNames
                                     |> List.map (\constructorName -> ( constructorName, name ))
@@ -535,8 +534,8 @@ collectExplicitlyExposedElements exposingNodeRange list =
         |> List.filterMap identity
 
 
-collectExplicitlyExposedElements2 : Dict String (List String) -> Set String -> Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List (Error {})
-collectExplicitlyExposedElements2 customTypesFromModule topLevelDeclared usedLocally exposingNodeRange list =
+collectExplicitlyExposedElements2 : ModuleContext -> Set String -> Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List (Error {})
+collectExplicitlyExposedElements2 context topLevelDeclared usedLocally exposingNodeRange list =
     let
         listWithPreviousRange : List (Maybe Range)
         listWithPreviousRange =
@@ -639,26 +638,48 @@ collectExplicitlyExposedElements2 customTypesFromModule topLevelDeclared usedLoc
                     Exposing.TypeExpose { name, open } ->
                         case open of
                             Just openRange ->
-                                case Dict.get name customTypesFromModule of
-                                    Just constructorNames ->
-                                        if List.any (\constructorName -> Set.member constructorName usedLocally) constructorNames then
-                                            Nothing
+                                if Set.member name context.usedImportedCustomTypes then
+                                    Nothing
 
-                                        else
-                                            Just
-                                                (error
-                                                    ( name
-                                                    , { typeName = "Imported type"
-                                                      , under = untilEndOfVariable name range
-                                                      , rangeToRemove = Just openRange
-                                                      , warning = ""
-                                                      }
-                                                    )
-                                                )
+                                else if Set.member name usedLocally && not (Dict.member name context.localCustomTypes) then
+                                    Just
+                                        (Rule.errorWithFix
+                                            { message = "Imported constructors for `" ++ name ++ "` are not used"
+                                            , details = details
+                                            }
+                                            (untilEndOfVariable name range)
+                                            -- If the constructors are not used but the type itself is, then only remove the `(..)`
+                                            [ Fix.removeRange openRange ]
+                                        )
 
-                                    Nothing ->
-                                        Nothing
+                                else
+                                    Just
+                                        (Rule.errorWithFix
+                                            { message = "Imported type `" ++ name ++ "` is not used"
+                                            , details = details
+                                            }
+                                            (untilEndOfVariable name range)
+                                            [ Fix.removeRange rangeToRemove ]
+                                        )
 
+                            --case Dict.get name customTypesFromModule of
+                            --    Just constructorNames ->
+                            --if List.any (\constructorName -> Set.member constructorName usedLocally) constructorNames then
+                            --    Nothing
+                            --
+                            --else
+                            --    Just
+                            --        (error
+                            --            ( name
+                            --            , { typeName = "Imported type"
+                            --              , under = untilEndOfVariable name range
+                            --              , rangeToRemove = Just openRange
+                            --              , warning = ""
+                            --              }
+                            --            )
+                            --        )
+                            --Nothing ->
+                            --    Nothing
                             Nothing ->
                                 -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
                                 -- `Exposing.TypeOrAliasExpose`, not a `Exposing.TypeExpose`.
@@ -1406,7 +1427,7 @@ finalEvaluation context =
                                                     |> Dict.get (Node.value import_.moduleName)
                                                     |> Maybe.withDefault Dict.empty
                                         in
-                                        collectExplicitlyExposedElements2 customTypesFromModule topLevelDeclared usedLocally (Node.range declaredImports) list
+                                        collectExplicitlyExposedElements2 context topLevelDeclared usedLocally (Node.range declaredImports) list
                     )
 
         moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
