@@ -1341,6 +1341,12 @@ finalEvaluation context =
         usedLocally =
             Dict.get [] rootScope.used |> Maybe.withDefault Set.empty
 
+        topLevelDeclared : Set String
+        topLevelDeclared =
+            rootScope.declared
+                |> Dict.keys
+                |> Set.fromList
+
         shadowingImportError : List (Error {})
         shadowingImportError =
             List.map error context.shadowImportErrors
