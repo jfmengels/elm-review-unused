@@ -422,8 +422,8 @@ registerExposedElements customTypesFromModule node context =
             context
 
 
-collectExplicitlyExposedElements2 : ModuleContext -> Dict String (List String) -> Set String -> Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List (Error {})
-collectExplicitlyExposedElements2 context customTypesFromModule topLevelDeclared usedLocally exposingNodeRange list =
+collectExplicitlyExposedElements : ModuleContext -> Dict String (List String) -> Set String -> Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List (Error {})
+collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared usedLocally exposingNodeRange list =
     let
         listWithPreviousRange : List (Maybe Range)
         listWithPreviousRange =
@@ -1311,7 +1311,7 @@ finalEvaluation context =
                                                     |> Dict.get (Node.value import_.moduleName)
                                                     |> Maybe.withDefault Dict.empty
                                         in
-                                        collectExplicitlyExposedElements2 context customTypesFromModule topLevelDeclared usedLocally (Node.range declaredImports) list
+                                        collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared usedLocally (Node.range declaredImports) list
                     )
 
         moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
