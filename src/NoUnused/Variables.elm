@@ -613,22 +613,6 @@ registerModuleAlias ((Node range { exposingList, moduleName }) as node) moduleAl
         context
 
 
-moduleNameOrAliasDeclaredModule : Node Import -> DeclaredModule
-moduleNameOrAliasDeclaredModule ((Node range { moduleAlias, moduleName }) as node) =
-    case moduleAlias of
-        Just moduleAlias_ ->
-            moduleAliasDeclaredModule node moduleAlias_
-
-        Nothing ->
-            { moduleName = Node.value moduleName
-            , alias = Nothing
-            , typeName = "Imported module"
-            , variableType = ImportedModule
-            , under = Node.range moduleName
-            , rangeToRemove = untilStartOfNextLine range
-            }
-
-
 moduleAliasDeclaredModule : Node Import -> Node ModuleName -> DeclaredModule
 moduleAliasDeclaredModule ((Node range { exposingList, moduleName }) as node) moduleAlias =
     { moduleName = Node.value moduleName
@@ -1523,10 +1507,6 @@ registerFunction letBlockContext function context =
             , warning = ""
             }
             (Node.value declaration.name)
-
-
-type ExposedElement
-    = CustomType String ImportedCustomType
 
 
 untilEndOfVariable : String -> Range -> Range
