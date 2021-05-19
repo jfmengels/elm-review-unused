@@ -1284,8 +1284,12 @@ finalEvaluation context =
                                         List.concatMap
                                             (\node ->
                                                 case Node.value node of
-                                                    Exposing.InfixExpose _ ->
-                                                        []
+                                                    Exposing.InfixExpose name ->
+                                                        if Set.member name usedLocally then
+                                                            []
+
+                                                        else
+                                                            []
 
                                                     Exposing.FunctionExpose string ->
                                                         []
