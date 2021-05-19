@@ -1281,7 +1281,22 @@ finalEvaluation context =
                                         []
 
                                     Exposing.Explicit list ->
-                                        []
+                                        List.concatMap
+                                            (\node ->
+                                                case Node.value node of
+                                                    Exposing.InfixExpose _ ->
+                                                        []
+
+                                                    Exposing.FunctionExpose string ->
+                                                        []
+
+                                                    Exposing.TypeOrAliasExpose string ->
+                                                        []
+
+                                                    Exposing.TypeExpose exposedType ->
+                                                        []
+                                            )
+                                            list
                      --let
                      --    customTypesFromModule : Dict String (List String)
                      --    customTypesFromModule =
