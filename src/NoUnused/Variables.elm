@@ -390,47 +390,36 @@ importVisitor ((Node importRange import_) as node) context =
                     List.foldl
                         (registerExposedElements customTypesFromModule)
                         contextWithAlias
-                        (collectExplicitlyExposedElements list)
+                        list
             )
 
 
-registerExposedElements : Dict String (List String) -> String -> ModuleContext -> ModuleContext
-registerExposedElements customTypesFromModule name context =
-    case Dict.get name customTypesFromModule of
-        Just constructorNames ->
-            { context
-                | importedCustomTypeLookup =
-                    Dict.union
-                        (constructorNames
-                            |> List.map (\constructorName -> ( constructorName, name ))
-                            |> Dict.fromList
-                        )
-                        context.importedCustomTypeLookup
-            }
-
-        Nothing ->
-            context
-
-
-collectExplicitlyExposedElements : List (Node Exposing.TopLevelExpose) -> List String
-collectExplicitlyExposedElements list =
-    List.filterMap
-        (\node ->
-            case Node.value node of
-                Exposing.TypeExpose { name, open } ->
-                    case open of
-                        Just _ ->
-                            Just name
+registerExposedElements : Dict String (List String) -> Node Exposing.TopLevelExpose -> ModuleContext -> ModuleContext
+registerExposedElements customTypesFromModule node context =
+    case Node.value node of
+        Exposing.TypeExpose { name, open } ->
+            case open of
+                Just _ ->
+                    case Dict.get name customTypesFromModule of
+                        Just constructorNames ->
+                            { context
+                                | importedCustomTypeLookup =
+                                    Dict.union
+                                        (constructorNames
+                                            |> List.map (\constructorName -> ( constructorName, name ))
+                                            |> Dict.fromList
+                                        )
+                                        context.importedCustomTypeLookup
+                            }
 
                         Nothing ->
-                            -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
-                            -- `Exposing.TypeOrAliasExpose`, not a `Exposing.TypeExpose`.
-                            Nothing
+                            context
 
-                _ ->
-                    Nothing
-        )
-        list
+                Nothing ->
+                    context
+
+        _ ->
+            context
 
 
 collectExplicitlyExposedElements2 : ModuleContext -> Dict String (List String) -> Set String -> Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List (Error {})
