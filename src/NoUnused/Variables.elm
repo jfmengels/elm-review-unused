@@ -638,48 +638,44 @@ collectExplicitlyExposedElements2 context customTypesFromModule topLevelDeclared
                     Exposing.TypeExpose { name, open } ->
                         case open of
                             Just openRange ->
-                                if Dict.member name customTypesFromModule then
-                                    if Set.member name context.usedImportedCustomTypes then
-                                        Nothing
-
-                                    else if Set.member name usedLocally && not (Dict.member name context.localCustomTypes) then
-                                        Just
-                                            (Rule.errorWithFix
-                                                { message = "Imported constructors for `" ++ name ++ "` are not used"
-                                                , details = details
-                                                }
-                                                (untilEndOfVariable name range)
-                                                -- If the constructors are not used but the type itself is, then only remove the `(..)`
-                                                [ Fix.removeRange openRange ]
-                                            )
-
-                                    else
-                                        Just
-                                            (Rule.errorWithFix
-                                                { message = "Imported type `" ++ name ++ "` is not used"
-                                                , details = details
-                                                }
-                                                (untilEndOfVariable name range)
-                                                [ Fix.removeRange rangeToRemove ]
-                                            )
-                                    --if List.any (\constructorName -> Set.member constructorName usedLocally) constructorNames then
-                                    --    Nothing
-                                    --
-                                    --else
-                                    --    Just
-                                    --        (error
-                                    --            ( name
-                                    --            , { typeName = "Imported type"
-                                    --              , under = untilEndOfVariable name range
-                                    --              , rangeToRemove = Just openRange
-                                    --              , warning = ""
-                                    --              }
-                                    --            )
-                                    --        )
-
-                                else
+                                if not (Dict.member name customTypesFromModule) || Set.member name context.usedImportedCustomTypes then
                                     Nothing
 
+                                else if Set.member name usedLocally && not (Dict.member name context.localCustomTypes) then
+                                    Just
+                                        (Rule.errorWithFix
+                                            { message = "Imported constructors for `" ++ name ++ "` are not used"
+                                            , details = details
+                                            }
+                                            (untilEndOfVariable name range)
+                                            -- If the constructors are not used but the type itself is, then only remove the `(..)`
+                                            [ Fix.removeRange openRange ]
+                                        )
+
+                                else
+                                    Just
+                                        (Rule.errorWithFix
+                                            { message = "Imported type `" ++ name ++ "` is not used"
+                                            , details = details
+                                            }
+                                            (untilEndOfVariable name range)
+                                            [ Fix.removeRange rangeToRemove ]
+                                        )
+
+                            --if List.any (\constructorName -> Set.member constructorName usedLocally) constructorNames then
+                            --    Nothing
+                            --
+                            --else
+                            --    Just
+                            --        (error
+                            --            ( name
+                            --            , { typeName = "Imported type"
+                            --              , under = untilEndOfVariable name range
+                            --              , rangeToRemove = Just openRange
+                            --              , warning = ""
+                            --              }
+                            --            )
+                            --        )
                             Nothing ->
                                 -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
                                 -- `Exposing.TypeOrAliasExpose`, not a `Exposing.TypeExpose`.
