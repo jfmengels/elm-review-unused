@@ -641,7 +641,7 @@ collectExplicitlyExposedElements2 customTypesFromModule topLevelDeclared usedLoc
                             Just openRange ->
                                 case Dict.get name customTypesFromModule of
                                     Just constructorNames ->
-                                        if List.any (\constructorName -> List.member constructorName constructorNames) constructorNames then
+                                        if List.any (\constructorName -> Set.member constructorName usedLocally) constructorNames then
                                             Nothing
 
                                         else
