@@ -514,14 +514,7 @@ collectExplicitlyExposedElements exposingNodeRange list =
                         Nothing
 
                     Exposing.TypeOrAliasExpose name ->
-                        TypeOrValue
-                            name
-                            { typeName = "Imported type"
-                            , under = untilEndOfVariable name range
-                            , rangeToRemove = Just rangeToRemove
-                            , warning = ""
-                            }
-                            |> Just
+                        Nothing
 
                     Exposing.TypeExpose { name, open } ->
                         case open of
@@ -629,15 +622,20 @@ collectExplicitlyExposedElements2 topLevelDeclared usedLocally exposingNodeRange
                                 )
 
                     Exposing.TypeOrAliasExpose name ->
-                        --TypeOrValue
-                        --    name
-                        --    { typeName = "Imported type"
-                        --    , under = untilEndOfVariable name range
-                        --    , rangeToRemove = Just rangeToRemove
-                        --    , warning = ""
-                        --    }
-                        --    |> Just
-                        Nothing
+                        if Set.member name usedLocally then
+                            Nothing
+
+                        else
+                            Just
+                                (error
+                                    ( name
+                                    , { typeName = "Imported type"
+                                      , under = untilEndOfVariable name range
+                                      , rangeToRemove = Just rangeToRemove
+                                      , warning = ""
+                                      }
+                                    )
+                                )
 
                     Exposing.TypeExpose { name, open } ->
                         case open of
