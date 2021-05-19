@@ -258,6 +258,21 @@ error ( name, variableInfo ) =
         )
 
 
+importError : ( String, VariableInfo ) -> { message : String, details : List String, range : Range, fix : List Fix }
+importError ( name, variableInfo ) =
+    { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used" ++ variableInfo.warning
+    , details = details
+    , range = variableInfo.under
+    , fix =
+        case variableInfo.rangeToRemove of
+            Just rangeToRemove ->
+                [ Fix.removeRange rangeToRemove ]
+
+            Nothing ->
+                []
+    }
+
+
 details : List String
 details =
     [ "You should either use this value somewhere, or remove it at the location I pointed at."
