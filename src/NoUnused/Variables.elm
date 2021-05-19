@@ -550,6 +550,106 @@ collectExplicitlyExposedElements exposingNodeRange list =
         |> List.filterMap identity
 
 
+collectExplicitlyExposedElements2 : Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List (Error {})
+collectExplicitlyExposedElements2 usedLocally exposingNodeRange list =
+    let
+        listWithPreviousRange : List (Maybe Range)
+        listWithPreviousRange =
+            Nothing
+                :: (list
+                        |> List.map (Node.range >> Just)
+                        |> List.take (List.length list - 1)
+                   )
+
+        listWithNextRange : List Range
+        listWithNextRange =
+            (list
+                |> List.map Node.range
+                |> List.drop 1
+            )
+                ++ [ { start = { row = 0, column = 0 }, end = { row = 0, column = 0 } } ]
+    in
+    list
+        |> List.map3 (\prev next current -> ( prev, current, next )) listWithPreviousRange listWithNextRange
+        |> List.indexedMap
+            (\index ( maybePreviousRange, Node range value, nextRange ) ->
+                let
+                    rangeToRemove : Range
+                    rangeToRemove =
+                        if List.length list == 1 then
+                            exposingNodeRange
+
+                        else if index == 0 then
+                            { range | end = nextRange.start }
+
+                        else
+                            case maybePreviousRange of
+                                Nothing ->
+                                    range
+
+                                Just previousRange ->
+                                    { range | start = previousRange.end }
+                in
+                case value of
+                    Exposing.FunctionExpose name ->
+                        --TypeOrValue
+                        --    name
+                        --    { typeName = "Imported variable"
+                        --    , under = untilEndOfVariable name range
+                        --    , rangeToRemove = Just rangeToRemove
+                        --    , warning = ""
+                        --    }
+                        --    |> Just
+                        Nothing
+
+                    Exposing.InfixExpose name ->
+                        if Set.member name usedLocally then
+                            Nothing
+
+                        else
+                            Just
+                                (error
+                                    ( name
+                                    , { typeName = "Imported operator"
+                                      , under = untilEndOfVariable name range
+                                      , rangeToRemove = Just rangeToRemove
+                                      , warning = ""
+                                      }
+                                    )
+                                )
+
+                    Exposing.TypeOrAliasExpose name ->
+                        --TypeOrValue
+                        --    name
+                        --    { typeName = "Imported type"
+                        --    , under = untilEndOfVariable name range
+                        --    , rangeToRemove = Just rangeToRemove
+                        --    , warning = ""
+                        --    }
+                        --    |> Just
+                        Nothing
+
+                    Exposing.TypeExpose { name, open } ->
+                        case open of
+                            Just openRange ->
+                                --CustomType
+                                --    name
+                                --    { typeName = "Imported type"
+                                --    , under = range
+                                --    , rangeToRemove = rangeToRemove
+                                --    , openRange = openRange
+                                --    }
+                                --    |> Just
+                                Nothing
+
+                            Nothing ->
+                                -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
+                                -- `Exposing.TypeOrAliasExpose`, not a `Exposing.TypeExpose`.
+                                Nothing
+            )
+        |> List.filterMap identity
+
+
 registerModuleNameOrAlias : Node Import -> ModuleContext -> ModuleContext
 registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) context =
     case moduleAlias of
@@ -1274,42 +1374,7 @@ finalEvaluation context =
                                         []
 
                                     Exposing.Explicit list ->
-                                        List.concatMap
-                                            (\node ->
-                                                case Node.value node of
-                                                    Exposing.InfixExpose name ->
-                                                        if Set.member name usedLocally then
-                                                            []
-
-                                                        else
-                                                            [ error
-                                                                ( name
-                                                                , { typeName = "Imported operator"
-                                                                  , under = untilEndOfVariable name (Node.range node)
-                                                                  , rangeToRemove = Nothing -- rangeToRemove
-                                                                  , warning = ""
-                                                                  }
-                                                                )
-                                                            ]
-
-                                                    Exposing.FunctionExpose string ->
-                                                        []
-
-                                                    Exposing.TypeOrAliasExpose string ->
-                                                        []
-
-                                                    Exposing.TypeExpose exposedType ->
-                                                        []
-                                            )
-                                            list
-                     --let
-                     --    customTypesFromModule : Dict String (List String)
-                     --    customTypesFromModule =
-                     --        context.customTypes
-                     --            |> Dict.get (Node.value import_.moduleName)
-                     --            |> Maybe.withDefault Dict.empty
-                     --in
-                     --collectExplicitlyExposedElements (Node.range declaredImports) list
+                                        collectExplicitlyExposedElements2 usedLocally (Node.range declaredImports) list
                     )
 
         moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
