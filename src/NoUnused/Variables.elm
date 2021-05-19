@@ -109,7 +109,7 @@ type alias ModuleContext =
     , declaredModules : List DeclaredModule
     , exposingAllModules : List ModuleThatExposesEverything
     , usedModules : Set ( ModuleName, ModuleName )
-    , unusedImportedCustomTypes : Dict String ImportedCustomType
+    , importedCustomTypes : Dict String ImportedCustomType
     , usedImportedCustomTypes : Set String
     , importedCustomTypeLookup : Dict String String
     , localCustomTypes : Dict String CustomTypeData
@@ -200,7 +200,7 @@ fromProjectToModule =
             , declaredModules = []
             , exposingAllModules = []
             , usedModules = Set.empty
-            , unusedImportedCustomTypes = Dict.empty
+            , importedCustomTypes = Dict.empty
             , usedImportedCustomTypes = Set.empty
             , importedCustomTypeLookup = Dict.empty
             , localCustomTypes = Dict.empty
@@ -451,7 +451,7 @@ registerExposedElements customTypesFromModule importedElement context =
             case Dict.get name customTypesFromModule of
                 Just constructorNames ->
                     { context
-                        | unusedImportedCustomTypes = Dict.insert name variableInfo context.unusedImportedCustomTypes
+                        | importedCustomTypes = Dict.insert name variableInfo context.importedCustomTypes
                         , importedCustomTypeLookup =
                             Dict.union
                                 (constructorNames
@@ -1416,7 +1416,7 @@ finalEvaluation context =
 
         importedTypeErrors : List (Error {})
         importedTypeErrors =
-            context.unusedImportedCustomTypes
+            context.importedCustomTypes
                 |> Dict.toList
                 |> List.filterMap
                     (\( name, { under, rangeToRemove, openRange } ) ->
@@ -1730,7 +1730,7 @@ markValueAsUsed name context =
     else
         case Dict.get name context.importedCustomTypeLookup of
             Just customTypeName ->
-                { context | unusedImportedCustomTypes = Dict.remove customTypeName context.unusedImportedCustomTypes }
+                { context | importedCustomTypes = Dict.remove customTypeName context.importedCustomTypes }
 
             _ ->
                 markAsUsed name context
