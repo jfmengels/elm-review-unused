@@ -535,8 +535,8 @@ collectExplicitlyExposedElements exposingNodeRange list =
         |> List.filterMap identity
 
 
-collectExplicitlyExposedElements2 : Set String -> Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List (Error {})
-collectExplicitlyExposedElements2 topLevelDeclared usedLocally exposingNodeRange list =
+collectExplicitlyExposedElements2 : Dict String (List String) -> Set String -> Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List (Error {})
+collectExplicitlyExposedElements2 customTypesFromModule topLevelDeclared usedLocally exposingNodeRange list =
     let
         listWithPreviousRange : List (Maybe Range)
         listWithPreviousRange =
@@ -639,15 +639,25 @@ collectExplicitlyExposedElements2 topLevelDeclared usedLocally exposingNodeRange
                     Exposing.TypeExpose { name, open } ->
                         case open of
                             Just openRange ->
-                                --CustomType
-                                --    name
-                                --    { typeName = "Imported type"
-                                --    , under = range
-                                --    , rangeToRemove = rangeToRemove
-                                --    , openRange = openRange
-                                --    }
-                                --    |> Just
-                                Nothing
+                                case Dict.get name customTypesFromModule of
+                                    Just constructorNames ->
+                                        if List.any (\constructorName -> List.member constructorName constructorNames) constructorNames then
+                                            Nothing
+
+                                        else
+                                            Just
+                                                (error
+                                                    ( name
+                                                    , { typeName = "Imported type"
+                                                      , under = untilEndOfVariable name range
+                                                      , rangeToRemove = Just openRange
+                                                      , warning = ""
+                                                      }
+                                                    )
+                                                )
+
+                                    Nothing ->
+                                        Nothing
 
                             Nothing ->
                                 -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
@@ -1389,7 +1399,14 @@ finalEvaluation context =
                                         []
 
                                     Exposing.Explicit list ->
-                                        collectExplicitlyExposedElements2 topLevelDeclared usedLocally (Node.range declaredImports) list
+                                        let
+                                            customTypesFromModule : Dict String (List String)
+                                            customTypesFromModule =
+                                                context.customTypes
+                                                    |> Dict.get (Node.value import_.moduleName)
+                                                    |> Maybe.withDefault Dict.empty
+                                        in
+                                        collectExplicitlyExposedElements2 customTypesFromModule topLevelDeclared usedLocally (Node.range declaredImports) list
                     )
 
         moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
