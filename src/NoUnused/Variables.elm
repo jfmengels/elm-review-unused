@@ -518,14 +518,7 @@ collectExplicitlyExposedElements exposingNodeRange list =
                             |> Just
 
                     Exposing.InfixExpose name ->
-                        TypeOrValue
-                            name
-                            { typeName = "Imported operator"
-                            , under = untilEndOfVariable name range
-                            , rangeToRemove = Just rangeToRemove
-                            , warning = ""
-                            }
-                            |> Just
+                        Nothing
 
                     Exposing.TypeOrAliasExpose name ->
                         TypeOrValue
@@ -1286,6 +1279,9 @@ finalEvaluation context =
                                                 case Node.value node of
                                                     Exposing.InfixExpose name ->
                                                         if Set.member name usedLocally then
+                                                            []
+
+                                                        else
                                                             [ error
                                                                 ( name
                                                                 , { typeName = "Imported operator"
@@ -1295,9 +1291,6 @@ finalEvaluation context =
                                                                   }
                                                                 )
                                                             ]
-
-                                                        else
-                                                            []
 
                                                     Exposing.FunctionExpose string ->
                                                         []
