@@ -1286,7 +1286,15 @@ finalEvaluation context =
                                                 case Node.value node of
                                                     Exposing.InfixExpose name ->
                                                         if Set.member name usedLocally then
-                                                            []
+                                                            [ error
+                                                                ( name
+                                                                , { typeName = "Imported operator"
+                                                                  , under = untilEndOfVariable name (Node.range node)
+                                                                  , rangeToRemove = Nothing -- rangeToRemove
+                                                                  , warning = ""
+                                                                  }
+                                                                )
+                                                            ]
 
                                                         else
                                                             []
