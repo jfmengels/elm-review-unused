@@ -585,7 +585,19 @@ collectExplicitlyExposedElements2 topLevelDeclared usedLocally exposingNodeRange
                 in
                 case value of
                     Exposing.FunctionExpose name ->
-                        if Set.member name usedLocally then
+                        if Set.member name topLevelDeclared then
+                            Just
+                                (error
+                                    ( name
+                                    , { typeName = "Imported variable"
+                                      , under = untilEndOfVariable name range
+                                      , rangeToRemove = Just rangeToRemove
+                                      , warning = ""
+                                      }
+                                    )
+                                )
+
+                        else if Set.member name usedLocally then
                             Nothing
 
                         else
