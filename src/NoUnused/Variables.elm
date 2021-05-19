@@ -508,14 +508,7 @@ collectExplicitlyExposedElements exposingNodeRange list =
                 in
                 case value of
                     Exposing.FunctionExpose name ->
-                        TypeOrValue
-                            name
-                            { typeName = "Imported variable"
-                            , under = untilEndOfVariable name range
-                            , rangeToRemove = Just rangeToRemove
-                            , warning = ""
-                            }
-                            |> Just
+                        Nothing
 
                     Exposing.InfixExpose name ->
                         Nothing
@@ -592,15 +585,20 @@ collectExplicitlyExposedElements2 usedLocally exposingNodeRange list =
                 in
                 case value of
                     Exposing.FunctionExpose name ->
-                        --TypeOrValue
-                        --    name
-                        --    { typeName = "Imported variable"
-                        --    , under = untilEndOfVariable name range
-                        --    , rangeToRemove = Just rangeToRemove
-                        --    , warning = ""
-                        --    }
-                        --    |> Just
-                        Nothing
+                        if Set.member name usedLocally then
+                            Nothing
+
+                        else
+                            Just
+                                (error
+                                    ( name
+                                    , { typeName = "Imported variable"
+                                      , under = untilEndOfVariable name range
+                                      , rangeToRemove = Just rangeToRemove
+                                      , warning = ""
+                                      }
+                                    )
+                                )
 
                     Exposing.InfixExpose name ->
                         if Set.member name usedLocally then
