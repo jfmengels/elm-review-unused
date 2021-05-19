@@ -767,10 +767,7 @@ expressionEnterVisitorHelp (Node range value) context =
                     case Dict.get name context.importedCustomTypeLookup of
                         Just customTypeName ->
                             ( []
-                            , { context
-                                | unusedImportedCustomTypes = Dict.remove customTypeName context.unusedImportedCustomTypes
-                                , usedImportedCustomTypes = Set.insert customTypeName context.usedImportedCustomTypes
-                              }
+                            , { context | usedImportedCustomTypes = Set.insert customTypeName context.usedImportedCustomTypes }
                             )
 
                         Nothing ->
@@ -1421,24 +1418,31 @@ finalEvaluation context =
         importedTypeErrors =
             context.unusedImportedCustomTypes
                 |> Dict.toList
-                |> List.map
+                |> List.filterMap
                     (\( name, { under, rangeToRemove, openRange } ) ->
-                        if Set.member name usedLocally && not (Dict.member name context.localCustomTypes) then
-                            Rule.errorWithFix
-                                { message = "Imported constructors for `" ++ name ++ "` are not used"
-                                , details = details
-                                }
-                                under
-                                -- If the constructors are not used but the type itself is, then only remove the `(..)`
-                                [ Fix.removeRange openRange ]
+                        if Set.member name context.usedImportedCustomTypes then
+                            Nothing
+
+                        else if Set.member name usedLocally && not (Dict.member name context.localCustomTypes) then
+                            Just
+                                (Rule.errorWithFix
+                                    { message = "Imported constructors for `" ++ name ++ "` are not used"
+                                    , details = details
+                                    }
+                                    under
+                                    -- If the constructors are not used but the type itself is, then only remove the `(..)`
+                                    [ Fix.removeRange openRange ]
+                                )
 
                         else
-                            Rule.errorWithFix
-                                { message = "Imported type `" ++ name ++ "` is not used"
-                                , details = details
-                                }
-                                under
-                                [ Fix.removeRange rangeToRemove ]
+                            Just
+                                (Rule.errorWithFix
+                                    { message = "Imported type `" ++ name ++ "` is not used"
+                                    , details = details
+                                    }
+                                    under
+                                    [ Fix.removeRange rangeToRemove ]
+                                )
                     )
 
         moduleThatExposeEverythingErrors : List ( Maybe (Error {}), Maybe ( ModuleName, ModuleName ) )
