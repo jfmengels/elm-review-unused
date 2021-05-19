@@ -766,7 +766,12 @@ expressionEnterVisitorHelp (Node range value) context =
                 Nothing ->
                     case Dict.get name context.importedCustomTypeLookup of
                         Just customTypeName ->
-                            ( [], { context | unusedImportedCustomTypes = Dict.remove customTypeName context.unusedImportedCustomTypes } )
+                            ( []
+                            , { context
+                                | unusedImportedCustomTypes = Dict.remove customTypeName context.unusedImportedCustomTypes
+                                , usedImportedCustomTypes = Set.insert customTypeName context.usedImportedCustomTypes
+                              }
+                            )
 
                         Nothing ->
                             case ModuleNameLookupTable.moduleNameAt context.lookupTable range of
