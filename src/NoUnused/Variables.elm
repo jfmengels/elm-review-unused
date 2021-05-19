@@ -437,7 +437,7 @@ registerExposedElements customTypesFromModule node context =
             context
 
 
-collectExplicitlyExposedElements : ModuleContext -> Dict String (List String) -> Set String -> Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List (Error {})
+collectExplicitlyExposedElements : ModuleContext -> Dict String (List String) -> Set String -> Set String -> Range -> List (Node Exposing.TopLevelExpose) -> List { message : String, details : List String, range : Range, fix : List Fix }
 collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared usedLocally exposingNodeRange list =
     let
         listWithPreviousRange : List (Maybe Range)
@@ -481,7 +481,7 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
                     Exposing.FunctionExpose name ->
                         if Set.member name topLevelDeclared then
                             Just
-                                (error
+                                (importError
                                     ( name
                                     , { typeName = "Imported variable"
                                       , under = untilEndOfVariable name range
@@ -496,7 +496,7 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
 
                         else
                             Just
-                                (error
+                                (importError
                                     ( name
                                     , { typeName = "Imported variable"
                                       , under = untilEndOfVariable name range
@@ -512,7 +512,7 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
 
                         else
                             Just
-                                (error
+                                (importError
                                     ( name
                                     , { typeName = "Imported operator"
                                       , under = untilEndOfVariable name range
@@ -528,7 +528,7 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
 
                         else
                             Just
-                                (error
+                                (importError
                                     ( name
                                     , { typeName = "Imported type"
                                       , under = untilEndOfVariable name range
@@ -545,25 +545,21 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
                                     Nothing
 
                                 else if Set.member name usedLocally && not (Dict.member name context.localCustomTypes) then
+                                    -- If the constructors are not used but the type itself is, then only remove the `(..)`
                                     Just
-                                        (Rule.errorWithFix
-                                            { message = "Imported constructors for `" ++ name ++ "` are not used"
-                                            , details = details
-                                            }
-                                            (untilEndOfVariable name range)
-                                            -- If the constructors are not used but the type itself is, then only remove the `(..)`
-                                            [ Fix.removeRange openRange ]
-                                        )
+                                        { message = "Imported constructors for `" ++ name ++ "` are not used"
+                                        , details = details
+                                        , range = untilEndOfVariable name range
+                                        , fix = [ Fix.removeRange openRange ]
+                                        }
 
                                 else
                                     Just
-                                        (Rule.errorWithFix
-                                            { message = "Imported type `" ++ name ++ "` is not used"
-                                            , details = details
-                                            }
-                                            (untilEndOfVariable name range)
-                                            [ Fix.removeRange rangeToRemove ]
-                                        )
+                                        { message = "Imported type `" ++ name ++ "` is not used"
+                                        , details = details
+                                        , range = untilEndOfVariable name range
+                                        , fix = [ Fix.removeRange rangeToRemove ]
+                                        }
 
                             Nothing ->
                                 -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
@@ -1252,8 +1248,9 @@ finalEvaluation context =
                         err.range
                         err.fix
                 )
-                moduleAliasImportErrors
+                (moduleAliasImportErrors ++ tmpImportErrors)
 
+        tmpImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
         tmpImportErrors =
             context.imports
                 |> List.concatMap
@@ -1443,7 +1440,6 @@ finalEvaluation context =
             |> Tuple.first
         , shadowingImportError
         , importErrors
-        , tmpImportErrors
         , importedTypeErrors
         , moduleErrors
         , List.filterMap Tuple.first moduleThatExposeEverythingErrors
