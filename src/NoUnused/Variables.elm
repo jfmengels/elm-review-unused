@@ -550,20 +550,6 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
                                             [ Fix.removeRange rangeToRemove ]
                                         )
 
-                            --if List.any (\constructorName -> Set.member constructorName usedLocally) constructorNames then
-                            --    Nothing
-                            --
-                            --else
-                            --    Just
-                            --        (error
-                            --            ( name
-                            --            , { typeName = "Imported type"
-                            --              , under = untilEndOfVariable name range
-                            --              , rangeToRemove = Just openRange
-                            --              , warning = ""
-                            --              }
-                            --            )
-                            --        )
                             Nothing ->
                                 -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
                                 -- `Exposing.TypeOrAliasExpose`, not a `Exposing.TypeExpose`.
