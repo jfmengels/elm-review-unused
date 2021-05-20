@@ -1245,10 +1245,22 @@ findImportErrors context rootScope usedLocally =
                 |> Dict.keys
                 |> Set.fromList
 
+        modulesThatExposeEverything : List ( ModuleName, ModuleName )
+        modulesThatExposeEverything =
+            List.filterMap
+                (\{ importRange, exposingRange, name, moduleNameRange, alias, wasUsedImplicitly, wasUsedWithModuleName } ->
+                    if not wasUsedImplicitly && not wasUsedWithModuleName then
+                        Maybe.map (\moduleAlias -> ( name, [ moduleAlias ] )) alias
+
+                    else
+                        Nothing
+                )
+                context.exposingAllModules
+
         usedModules : Set ( ModuleName, ModuleName )
         usedModules =
             Set.union
-                (Set.fromList moduleThatExposeEverythingErrors)
+                (Set.fromList modulesThatExposeEverything)
                 context.usedModules
 
         importErrors : List (Error {})
@@ -1263,18 +1275,6 @@ findImportErrors context rootScope usedLocally =
                         err.fix
                 )
                 (findErrorsForImports context topLevelDeclared usedLocally)
-
-        moduleThatExposeEverythingErrors : List ( ModuleName, ModuleName )
-        moduleThatExposeEverythingErrors =
-            List.filterMap
-                (\{ importRange, exposingRange, name, moduleNameRange, alias, wasUsedImplicitly, wasUsedWithModuleName } ->
-                    if not wasUsedImplicitly && not wasUsedWithModuleName then
-                        Maybe.map (\moduleAlias -> ( name, [ moduleAlias ] )) alias
-
-                    else
-                        Nothing
-                )
-                context.exposingAllModules
 
         moduleErrors : List (Error {})
         moduleErrors =
