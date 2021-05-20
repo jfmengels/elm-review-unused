@@ -399,14 +399,14 @@ importVisitor ((Node importRange import_) as node) context =
                                 |> Maybe.withDefault Dict.empty
                     in
                     List.foldl
-                        (registerExposedElements customTypesFromModule)
+                        (registerImportedCustomTypeConstructors customTypesFromModule)
                         contextWithAlias
                         list
             )
 
 
-registerExposedElements : Dict String (List String) -> Node Exposing.TopLevelExpose -> ModuleContext -> ModuleContext
-registerExposedElements customTypesFromModule node context =
+registerImportedCustomTypeConstructors : Dict String (List String) -> Node Exposing.TopLevelExpose -> ModuleContext -> ModuleContext
+registerImportedCustomTypeConstructors customTypesFromModule node context =
     case Node.value node of
         Exposing.TypeExpose { name, open } ->
             case open of
