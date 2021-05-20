@@ -243,9 +243,9 @@ error ( name, variableInfo ) =
         )
 
 
-importError : String -> VariableInfo -> { message : String, details : List String, range : Range, fix : List Fix }
+importError : String -> { typeName : String, under : Range, rangeToRemove : Maybe Range } -> { message : String, details : List String, range : Range, fix : List Fix }
 importError name variableInfo =
-    { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used" ++ variableInfo.warning
+    { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used"
     , details = details
     , range = variableInfo.under
     , fix =
@@ -468,7 +468,6 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
                                     { typeName = "Imported variable"
                                     , under = untilEndOfVariable name range
                                     , rangeToRemove = Just rangeToRemove
-                                    , warning = ""
                                     }
                                 )
 
@@ -482,7 +481,6 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
                                     { typeName = "Imported variable"
                                     , under = untilEndOfVariable name range
                                     , rangeToRemove = Just rangeToRemove
-                                    , warning = ""
                                     }
                                 )
 
@@ -497,7 +495,6 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
                                     { typeName = "Imported operator"
                                     , under = untilEndOfVariable name range
                                     , rangeToRemove = Just rangeToRemove
-                                    , warning = ""
                                     }
                                 )
 
@@ -512,7 +509,6 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
                                     { typeName = "Imported type"
                                     , under = untilEndOfVariable name range
                                     , rangeToRemove = Just rangeToRemove
-                                    , warning = ""
                                     }
                                 )
 
