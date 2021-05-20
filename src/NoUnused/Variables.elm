@@ -1392,26 +1392,7 @@ findErrorsForImports context topLevelDeclared usedLocally =
         importErrors : List { message : String, details : List String, range : Range, fix : List Fix }
         importErrors =
             List.concatMap
-                (\(Node _ import_) ->
-                    case import_.exposingList of
-                        Nothing ->
-                            []
-
-                        Just declaredImports ->
-                            case Node.value declaredImports of
-                                Exposing.All _ ->
-                                    []
-
-                                Exposing.Explicit list ->
-                                    let
-                                        customTypesFromModule : Dict String (List String)
-                                        customTypesFromModule =
-                                            context.customTypes
-                                                |> Dict.get (Node.value import_.moduleName)
-                                                |> Maybe.withDefault Dict.empty
-                                    in
-                                    collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared usedLocally (Node.range declaredImports) list
-                )
+                (\(Node _ import_) -> exposingListErrors context topLevelDeclared usedLocally import_)
                 context.imports
 
         moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
@@ -1419,6 +1400,28 @@ findErrorsForImports context topLevelDeclared usedLocally =
             List.concatMap (\(Node _ import_) -> moduleAliasImportError import_) context.imports
     in
     moduleAliasImportErrors ++ importErrors
+
+
+exposingListErrors : ModuleContext -> Set String -> Set String -> Import -> List { message : String, details : List String, range : Range, fix : List Fix }
+exposingListErrors context topLevelDeclared usedLocally import_ =
+    case import_.exposingList of
+        Nothing ->
+            []
+
+        Just declaredImports ->
+            case Node.value declaredImports of
+                Exposing.All _ ->
+                    []
+
+                Exposing.Explicit list ->
+                    let
+                        customTypesFromModule : Dict String (List String)
+                        customTypesFromModule =
+                            context.customTypes
+                                |> Dict.get (Node.value import_.moduleName)
+                                |> Maybe.withDefault Dict.empty
+                    in
+                    collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared usedLocally (Node.range declaredImports) list
 
 
 moduleAliasImportError : Import -> List { message : String, details : List String, range : Range, fix : List Fix }
