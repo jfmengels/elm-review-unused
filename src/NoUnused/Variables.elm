@@ -1264,54 +1264,7 @@ findImportErrors context rootScope usedLocally =
                         err.range
                         err.fix
                 )
-                (moduleAliasImportErrors ++ tmpImportErrors)
-
-        tmpImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
-        tmpImportErrors =
-            List.concatMap
-                (\(Node _ import_) ->
-                    case import_.exposingList of
-                        Nothing ->
-                            []
-
-                        Just declaredImports ->
-                            case Node.value declaredImports of
-                                Exposing.All _ ->
-                                    []
-
-                                Exposing.Explicit list ->
-                                    let
-                                        customTypesFromModule : Dict String (List String)
-                                        customTypesFromModule =
-                                            context.customTypes
-                                                |> Dict.get (Node.value import_.moduleName)
-                                                |> Maybe.withDefault Dict.empty
-                                    in
-                                    collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared usedLocally (Node.range declaredImports) list
-                )
-                context.imports
-
-        moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
-        moduleAliasImportErrors =
-            List.filterMap
-                (\(Node _ import_) ->
-                    case import_.moduleAlias of
-                        Just moduleAlias ->
-                            if Node.value moduleAlias == Node.value import_.moduleName then
-                                Just
-                                    { message = "Module `" ++ String.join "." (Node.value moduleAlias) ++ "` is aliased as itself"
-                                    , details = [ "The alias is the same as the module name, and brings no useful value" ]
-                                    , range = Node.range moduleAlias
-                                    , fix = [ Fix.removeRange <| moduleAliasRange import_ (Node.range moduleAlias) ]
-                                    }
-
-                            else
-                                Nothing
-
-                        Nothing ->
-                            Nothing
-                )
-                context.imports
+                (findErrorsForImports context topLevelDeclared usedLocally)
 
         importedTypeErrors : List (Error {})
         importedTypeErrors =
@@ -1431,6 +1384,59 @@ findImportErrors context rootScope usedLocally =
         , moduleErrors
         , List.filterMap Tuple.first moduleThatExposeEverythingErrors
         ]
+
+
+findErrorsForImports : ModuleContext -> Set String -> Set String -> List { message : String, details : List String, range : Range, fix : List Fix }
+findErrorsForImports context topLevelDeclared usedLocally =
+    let
+        importErrors : List { message : String, details : List String, range : Range, fix : List Fix }
+        importErrors =
+            List.concatMap
+                (\(Node _ import_) ->
+                    case import_.exposingList of
+                        Nothing ->
+                            []
+
+                        Just declaredImports ->
+                            case Node.value declaredImports of
+                                Exposing.All _ ->
+                                    []
+
+                                Exposing.Explicit list ->
+                                    let
+                                        customTypesFromModule : Dict String (List String)
+                                        customTypesFromModule =
+                                            context.customTypes
+                                                |> Dict.get (Node.value import_.moduleName)
+                                                |> Maybe.withDefault Dict.empty
+                                    in
+                                    collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared usedLocally (Node.range declaredImports) list
+                )
+                context.imports
+
+        moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
+        moduleAliasImportErrors =
+            List.filterMap
+                (\(Node _ import_) ->
+                    case import_.moduleAlias of
+                        Just moduleAlias ->
+                            if Node.value moduleAlias == Node.value import_.moduleName then
+                                Just
+                                    { message = "Module `" ++ String.join "." (Node.value moduleAlias) ++ "` is aliased as itself"
+                                    , details = [ "The alias is the same as the module name, and brings no useful value" ]
+                                    , range = Node.range moduleAlias
+                                    , fix = [ Fix.removeRange <| moduleAliasRange import_ (Node.range moduleAlias) ]
+                                    }
+
+                            else
+                                Nothing
+
+                        Nothing ->
+                            Nothing
+                )
+                context.imports
+    in
+    moduleAliasImportErrors ++ importErrors
 
 
 registerFunction : LetBlockContext -> Function -> ModuleContext -> ModuleContext
