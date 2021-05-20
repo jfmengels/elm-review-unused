@@ -105,12 +105,12 @@ type alias ModuleContext =
     , declarations : RangeDict String
     , exposesEverything : Bool
     , isApplication : Bool
-    , constructorNameToTypeName : Dict String String
+    , localCustomTypeLookup : Dict String String
+    , importedCustomTypeLookup : Dict String String
     , declaredModules : List DeclaredModule
     , exposingAllModules : List ModuleThatExposesEverything
     , usedModules : Set ( ModuleName, ModuleName )
     , usedImportedCustomTypes : Set String
-    , importedCustomTypeLookup : Dict String String
     , localCustomTypes : Dict String CustomTypeData
     , customTypes : Dict ModuleName (Dict String (List String))
     , imports : List (Node Import)
@@ -194,12 +194,12 @@ fromProjectToModule =
             , declarations = Dict.empty
             , exposesEverything = False
             , isApplication = isApplication
-            , constructorNameToTypeName = Dict.empty
+            , localCustomTypeLookup = Dict.empty
+            , importedCustomTypeLookup = Dict.empty
             , declaredModules = []
             , exposingAllModules = []
             , usedModules = Set.empty
             , usedImportedCustomTypes = Set.empty
-            , importedCustomTypeLookup = Dict.empty
             , localCustomTypes = Dict.empty
             , customTypes = customTypes
             , imports = []
@@ -630,7 +630,7 @@ expressionEnterVisitorHelp : Node Expression -> ModuleContext -> ( List (Error {
 expressionEnterVisitorHelp (Node range value) context =
     case value of
         Expression.FunctionOrValue [] name ->
-            case Dict.get name context.constructorNameToTypeName of
+            case Dict.get name context.localCustomTypeLookup of
                 Just typeName ->
                     ( [], markValueAsUsed typeName context )
 
@@ -843,7 +843,7 @@ expressionExitVisitorHelp node context =
 
 getUsedVariablesFromPattern : ModuleContext -> Node Pattern -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 getUsedVariablesFromPattern context patternNode =
-    { types = getUsedTypesFromPattern context.constructorNameToTypeName patternNode
+    { types = getUsedTypesFromPattern context.localCustomTypeLookup patternNode
     , modules = getUsedModulesFromPattern context.lookupTable patternNode
     }
 
@@ -993,7 +993,7 @@ declarationListVisitor nodes context =
                                 (Node.value name)
                                 customType
                                 ctx.localCustomTypes
-                        , constructorNameToTypeName = Dict.union constructorsForType ctx.constructorNameToTypeName
+                        , localCustomTypeLookup = Dict.union constructorsForType ctx.localCustomTypeLookup
                       }
                     )
 
@@ -1179,7 +1179,7 @@ finalEvaluation context =
 
         namesOfCustomTypesUsedByCallingAConstructor : Set String
         namesOfCustomTypesUsedByCallingAConstructor =
-            context.constructorNameToTypeName
+            context.localCustomTypeLookup
                 |> Dict.filter (\usedName _ -> Set.member usedName (Dict.get [] rootScope.used |> Maybe.withDefault Set.empty))
                 |> Dict.values
                 |> Set.fromList
@@ -1560,7 +1560,7 @@ markAllAsUsed names context =
 
 markValueAsUsed : String -> ModuleContext -> ModuleContext
 markValueAsUsed name context =
-    if Dict.member name context.constructorNameToTypeName then
+    if Dict.member name context.localCustomTypeLookup then
         markAsUsed name context
 
     else
