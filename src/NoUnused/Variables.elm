@@ -109,7 +109,6 @@ type alias ModuleContext =
     , declaredModules : List DeclaredModule
     , exposingAllModules : List ModuleThatExposesEverything
     , usedModules : Set ( ModuleName, ModuleName )
-    , importedCustomTypes : Dict String ImportedCustomType
     , usedImportedCustomTypes : Set String
     , importedCustomTypeLookup : Dict String String
     , localCustomTypes : Dict String CustomTypeData
@@ -199,7 +198,6 @@ fromProjectToModule =
             , declaredModules = []
             , exposingAllModules = []
             , usedModules = Set.empty
-            , importedCustomTypes = Dict.empty
             , usedImportedCustomTypes = Set.empty
             , importedCustomTypeLookup = Dict.empty
             , localCustomTypes = Dict.empty
@@ -1266,37 +1264,6 @@ findImportErrors context rootScope usedLocally =
                 )
                 (findErrorsForImports context topLevelDeclared usedLocally)
 
-        importedTypeErrors : List (Error {})
-        importedTypeErrors =
-            context.importedCustomTypes
-                |> Dict.toList
-                |> List.filterMap
-                    (\( name, { under, rangeToRemove, openRange } ) ->
-                        if Set.member name context.usedImportedCustomTypes then
-                            Nothing
-
-                        else if Set.member name usedLocally && not (Dict.member name context.localCustomTypes) then
-                            Just
-                                (Rule.errorWithFix
-                                    { message = "Imported constructors for `" ++ name ++ "` are not used"
-                                    , details = details
-                                    }
-                                    under
-                                    -- If the constructors are not used but the type itself is, then only remove the `(..)`
-                                    [ Fix.removeRange openRange ]
-                                )
-
-                        else
-                            Just
-                                (Rule.errorWithFix
-                                    { message = "Imported type `" ++ name ++ "` is not used"
-                                    , details = details
-                                    }
-                                    under
-                                    [ Fix.removeRange rangeToRemove ]
-                                )
-                    )
-
         moduleThatExposeEverythingErrors : List ( Maybe (Error {}), Maybe ( ModuleName, ModuleName ) )
         moduleThatExposeEverythingErrors =
             List.map
@@ -1380,7 +1347,6 @@ findImportErrors context rootScope usedLocally =
     in
     List.concat
         [ importErrors
-        , importedTypeErrors
         , moduleErrors
         , List.filterMap Tuple.first moduleThatExposeEverythingErrors
         ]
