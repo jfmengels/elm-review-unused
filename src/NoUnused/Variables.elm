@@ -1262,9 +1262,7 @@ findImportErrors context rootScope usedLocally =
                         err.range
                         err.fix
                 )
-                (findErrorsForImports context topLevelDeclared usedLocally
-                    ++ List.filterMap Tuple.first moduleThatExposeEverythingErrors
-                )
+                (findErrorsForImports context topLevelDeclared usedLocally)
 
         moduleThatExposeEverythingErrors : List ( Maybe { message : String, details : List String, range : Range, fix : List Fix }, Maybe ( ModuleName, ModuleName ) )
         moduleThatExposeEverythingErrors =
@@ -1352,17 +1350,17 @@ findImportErrors context rootScope usedLocally =
 findErrorsForImports : ModuleContext -> Set String -> Set String -> List { message : String, details : List String, range : Range, fix : List Fix }
 findErrorsForImports context topLevelDeclared usedLocally =
     List.concatMap
-        (\(Node _ import_) ->
+        (\import_ ->
             List.concat
-                [ moduleAliasImportError import_
+                [ moduleAliasImportError (Node.value import_)
                 , exposingListErrors context topLevelDeclared usedLocally import_
                 ]
         )
         context.imports
 
 
-exposingListErrors : ModuleContext -> Set String -> Set String -> Import -> List { message : String, details : List String, range : Range, fix : List Fix }
-exposingListErrors context topLevelDeclared usedLocally import_ =
+exposingListErrors : ModuleContext -> Set String -> Set String -> Node Import -> List { message : String, details : List String, range : Range, fix : List Fix }
+exposingListErrors context topLevelDeclared usedLocally (Node importRange import_) =
     case import_.exposingList of
         Nothing ->
             []
@@ -1370,7 +1368,61 @@ exposingListErrors context topLevelDeclared usedLocally import_ =
         Just declaredImports ->
             case Node.value declaredImports of
                 Exposing.All _ ->
-                    []
+                    if Dict.member (Node.value import_.moduleName) context.customTypes then
+                        let
+                            name =
+                                Node.value import_.moduleName
+
+                            alias =
+                                Maybe.map (Node.value >> String.join ".") import_.moduleAlias
+
+                            moduleNameRange =
+                                Node.range import_.moduleName
+
+                            exposingRange =
+                                Node.range declaredImports
+
+                            { wasUsedImplicitly, wasUsedWithModuleName } =
+                                Set.foldl
+                                    (\( realModuleName, aliasName ) acc ->
+                                        if name == realModuleName then
+                                            if name == aliasName || Just (String.join "." aliasName) == alias then
+                                                { acc | wasUsedWithModuleName = True }
+
+                                            else if aliasName == [] then
+                                                { acc | wasUsedImplicitly = True }
+
+                                            else
+                                                acc
+
+                                        else
+                                            acc
+                                    )
+                                    { wasUsedImplicitly = False, wasUsedWithModuleName = False }
+                                    context.usedModules
+                        in
+                        if not wasUsedImplicitly then
+                            if wasUsedWithModuleName then
+                                [ { message = "No imported elements from `" ++ String.join "." name ++ "` are used"
+                                  , details = details
+                                  , range = exposingRange
+                                  , fix = [ Fix.removeRange exposingRange ]
+                                  }
+                                ]
+
+                            else
+                                [ { message = "Imported module `" ++ String.join "." name ++ "` is not used"
+                                  , details = details
+                                  , range = moduleNameRange
+                                  , fix = [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
+                                  }
+                                ]
+
+                        else
+                            []
+
+                    else
+                        []
 
                 Exposing.Explicit list ->
                     let
