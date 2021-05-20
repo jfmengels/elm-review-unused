@@ -1268,28 +1268,28 @@ findImportErrors context rootScope usedLocally =
 
         tmpImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
         tmpImportErrors =
-            context.imports
-                |> List.concatMap
-                    (\(Node _ import_) ->
-                        case import_.exposingList of
-                            Nothing ->
-                                []
+            List.concatMap
+                (\(Node _ import_) ->
+                    case import_.exposingList of
+                        Nothing ->
+                            []
 
-                            Just declaredImports ->
-                                case Node.value declaredImports of
-                                    Exposing.All _ ->
-                                        []
+                        Just declaredImports ->
+                            case Node.value declaredImports of
+                                Exposing.All _ ->
+                                    []
 
-                                    Exposing.Explicit list ->
-                                        let
-                                            customTypesFromModule : Dict String (List String)
-                                            customTypesFromModule =
-                                                context.customTypes
-                                                    |> Dict.get (Node.value import_.moduleName)
-                                                    |> Maybe.withDefault Dict.empty
-                                        in
-                                        collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared usedLocally (Node.range declaredImports) list
-                    )
+                                Exposing.Explicit list ->
+                                    let
+                                        customTypesFromModule : Dict String (List String)
+                                        customTypesFromModule =
+                                            context.customTypes
+                                                |> Dict.get (Node.value import_.moduleName)
+                                                |> Maybe.withDefault Dict.empty
+                                    in
+                                    collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared usedLocally (Node.range declaredImports) list
+                )
+                context.imports
 
         moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
         moduleAliasImportErrors =
