@@ -1262,34 +1262,32 @@ findImportErrors context rootScope usedLocally =
                         err.range
                         err.fix
                 )
-                (findErrorsForImports context topLevelDeclared usedLocally)
+                (findErrorsForImports context topLevelDeclared usedLocally
+                    ++ List.filterMap Tuple.first moduleThatExposeEverythingErrors
+                )
 
-        moduleThatExposeEverythingErrors : List ( Maybe (Error {}), Maybe ( ModuleName, ModuleName ) )
+        moduleThatExposeEverythingErrors : List ( Maybe { message : String, details : List String, range : Range, fix : List Fix }, Maybe ( ModuleName, ModuleName ) )
         moduleThatExposeEverythingErrors =
             List.map
                 (\{ importRange, exposingRange, name, moduleNameRange, alias, wasUsedImplicitly, wasUsedWithModuleName } ->
                     if not wasUsedImplicitly then
                         if wasUsedWithModuleName then
                             ( Just
-                                (Rule.errorWithFix
-                                    { message = "No imported elements from `" ++ String.join "." name ++ "` are used"
-                                    , details = details
-                                    }
-                                    exposingRange
-                                    [ Fix.removeRange exposingRange ]
-                                )
+                                { message = "No imported elements from `" ++ String.join "." name ++ "` are used"
+                                , details = details
+                                , range = exposingRange
+                                , fix = [ Fix.removeRange exposingRange ]
+                                }
                             , Nothing
                             )
 
                         else
                             ( Just
-                                (Rule.errorWithFix
-                                    { message = "Imported module `" ++ String.join "." name ++ "` is not used"
-                                    , details = details
-                                    }
-                                    moduleNameRange
-                                    [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
-                                )
+                                { message = "Imported module `" ++ String.join "." name ++ "` is not used"
+                                , details = details
+                                , range = moduleNameRange
+                                , fix = [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
+                                }
                             , Maybe.map (\moduleAlias -> ( name, [ moduleAlias ] )) alias
                             )
 
@@ -1348,7 +1346,6 @@ findImportErrors context rootScope usedLocally =
     List.concat
         [ importErrors
         , moduleErrors
-        , List.filterMap Tuple.first moduleThatExposeEverythingErrors
         ]
 
 
