@@ -115,7 +115,6 @@ type alias ModuleContext =
     , localCustomTypes : Dict String CustomTypeData
     , customTypes : Dict ModuleName (Dict String (List String))
     , imports : List (Node Import)
-    , shadowImportErrors : List ( String, VariableInfo )
     }
 
 
@@ -206,7 +205,6 @@ fromProjectToModule =
             , localCustomTypes = Dict.empty
             , customTypes = customTypes
             , imports = []
-            , shadowImportErrors = []
             }
         )
         |> Rule.withModuleNameLookupTable
@@ -1078,29 +1076,14 @@ declarationVisitor node context =
                             }
                             functionName
                             context
-
-                newContext : ModuleContext
-                newContext =
-                    { newContextWhereFunctionIsRegistered | inTheDeclarationOf = [ functionName ], declarations = Dict.empty }
-                        |> (\ctx -> List.foldl markValueAsUsed ctx namesUsedInArgumentPatterns.types)
-                        |> markAllAsUsed namesUsedInSignature.types
-                        |> markAllModulesAsUsed namesUsedInSignature.modules
-                        |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
-
-                shadowImportErrors : List ( String, VariableInfo )
-                shadowImportErrors =
-                    case Dict.get functionName (NonemptyList.head context.scopes).declared of
-                        Just existingVariable ->
-                            if existingVariable.typeName == "Imported variable" then
-                                [ ( functionName, existingVariable ) ]
-
-                            else
-                                []
-
-                        _ ->
-                            []
             in
-            ( [], { newContext | shadowImportErrors = shadowImportErrors ++ newContext.shadowImportErrors } )
+            ( []
+            , { newContextWhereFunctionIsRegistered | inTheDeclarationOf = [ functionName ], declarations = Dict.empty }
+                |> (\ctx -> List.foldl markValueAsUsed ctx namesUsedInArgumentPatterns.types)
+                |> markAllAsUsed namesUsedInSignature.types
+                |> markAllModulesAsUsed namesUsedInSignature.modules
+                |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
+            )
 
         Declaration.CustomTypeDeclaration { name, constructors } ->
             let
@@ -1232,10 +1215,6 @@ finalEvaluation context =
             rootScope.declared
                 |> Dict.keys
                 |> Set.fromList
-
-        shadowingImportError : List (Error {})
-        shadowingImportError =
-            List.map error context.shadowImportErrors
 
         importErrors : List (Error {})
         importErrors =
@@ -1438,7 +1417,6 @@ finalEvaluation context =
         [ newRootScope
             |> makeReport
             |> Tuple.first
-        , shadowingImportError
         , importErrors
         , importedTypeErrors
         , moduleErrors
