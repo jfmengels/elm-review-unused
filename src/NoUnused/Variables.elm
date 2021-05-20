@@ -1267,12 +1267,12 @@ findImportErrors context rootScope usedLocally =
         moduleThatExposeEverythingErrors : List ( Maybe (Error {}), Maybe ( ModuleName, ModuleName ) )
         moduleThatExposeEverythingErrors =
             List.map
-                (\({ importRange, exposingRange } as module_) ->
-                    if not module_.wasUsedImplicitly then
-                        if module_.wasUsedWithModuleName then
+                (\{ importRange, exposingRange, name, moduleNameRange, alias, wasUsedImplicitly, wasUsedWithModuleName } ->
+                    if not wasUsedImplicitly then
+                        if wasUsedWithModuleName then
                             ( Just
                                 (Rule.errorWithFix
-                                    { message = "No imported elements from `" ++ String.join "." module_.name ++ "` are used"
+                                    { message = "No imported elements from `" ++ String.join "." name ++ "` are used"
                                     , details = details
                                     }
                                     exposingRange
@@ -1284,13 +1284,13 @@ findImportErrors context rootScope usedLocally =
                         else
                             ( Just
                                 (Rule.errorWithFix
-                                    { message = "Imported module `" ++ String.join "." module_.name ++ "` is not used"
+                                    { message = "Imported module `" ++ String.join "." name ++ "` is not used"
                                     , details = details
                                     }
-                                    module_.moduleNameRange
+                                    moduleNameRange
                                     [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
                                 )
-                            , Maybe.map (\alias -> ( module_.name, [ alias ] )) module_.alias
+                            , Maybe.map (\moduleAlias -> ( name, [ moduleAlias ] )) alias
                             )
 
                     else
