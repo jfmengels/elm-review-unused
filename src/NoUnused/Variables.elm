@@ -243,8 +243,8 @@ error ( name, variableInfo ) =
         )
 
 
-importError : ( String, VariableInfo ) -> { message : String, details : List String, range : Range, fix : List Fix }
-importError ( name, variableInfo ) =
+importError : String -> VariableInfo -> { message : String, details : List String, range : Range, fix : List Fix }
+importError name variableInfo =
     { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used" ++ variableInfo.warning
     , details = details
     , range = variableInfo.under
@@ -464,13 +464,12 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
                         if Set.member name topLevelDeclared then
                             Just
                                 (importError
-                                    ( name
-                                    , { typeName = "Imported variable"
-                                      , under = untilEndOfVariable name range
-                                      , rangeToRemove = Just rangeToRemove
-                                      , warning = ""
-                                      }
-                                    )
+                                    name
+                                    { typeName = "Imported variable"
+                                    , under = untilEndOfVariable name range
+                                    , rangeToRemove = Just rangeToRemove
+                                    , warning = ""
+                                    }
                                 )
 
                         else if Set.member name usedLocally then
@@ -479,13 +478,12 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
                         else
                             Just
                                 (importError
-                                    ( name
-                                    , { typeName = "Imported variable"
-                                      , under = untilEndOfVariable name range
-                                      , rangeToRemove = Just rangeToRemove
-                                      , warning = ""
-                                      }
-                                    )
+                                    name
+                                    { typeName = "Imported variable"
+                                    , under = untilEndOfVariable name range
+                                    , rangeToRemove = Just rangeToRemove
+                                    , warning = ""
+                                    }
                                 )
 
                     Exposing.InfixExpose name ->
@@ -495,13 +493,12 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
                         else
                             Just
                                 (importError
-                                    ( name
-                                    , { typeName = "Imported operator"
-                                      , under = untilEndOfVariable name range
-                                      , rangeToRemove = Just rangeToRemove
-                                      , warning = ""
-                                      }
-                                    )
+                                    name
+                                    { typeName = "Imported operator"
+                                    , under = untilEndOfVariable name range
+                                    , rangeToRemove = Just rangeToRemove
+                                    , warning = ""
+                                    }
                                 )
 
                     Exposing.TypeOrAliasExpose name ->
@@ -511,13 +508,12 @@ collectExplicitlyExposedElements context customTypesFromModule topLevelDeclared 
                         else
                             Just
                                 (importError
-                                    ( name
-                                    , { typeName = "Imported type"
-                                      , under = untilEndOfVariable name range
-                                      , rangeToRemove = Just rangeToRemove
-                                      , warning = ""
-                                      }
-                                    )
+                                    name
+                                    { typeName = "Imported type"
+                                    , under = untilEndOfVariable name range
+                                    , rangeToRemove = Just rangeToRemove
+                                    , warning = ""
+                                    }
                                 )
 
                     Exposing.TypeExpose { name, open } ->
