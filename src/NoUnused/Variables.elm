@@ -137,9 +137,6 @@ type alias CustomTypeData =
 type alias ModuleThatExposesEverything =
     { name : ModuleName
     , alias : Maybe String
-    , moduleNameRange : Range
-    , exposingRange : Range
-    , importRange : Range
     , wasUsedImplicitly : Bool
     , wasUsedWithModuleName : Bool
     }
@@ -370,9 +367,6 @@ importVisitor ((Node importRange import_) as node) context =
                             | exposingAllModules =
                                 { name = Node.value import_.moduleName
                                 , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
-                                , moduleNameRange = Node.range import_.moduleName
-                                , exposingRange = Node.range declaredImports
-                                , importRange = importRange
                                 , wasUsedImplicitly = False
                                 , wasUsedWithModuleName = False
                                 }
