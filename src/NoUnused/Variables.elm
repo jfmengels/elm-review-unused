@@ -1248,7 +1248,7 @@ findImportErrors context rootScope usedLocally =
         usedModules : Set ( ModuleName, ModuleName )
         usedModules =
             Set.union
-                (Set.fromList (List.filterMap Tuple.second moduleThatExposeEverythingErrors))
+                (Set.fromList moduleThatExposeEverythingErrors)
                 context.usedModules
 
         importErrors : List (Error {})
@@ -1264,33 +1264,15 @@ findImportErrors context rootScope usedLocally =
                 )
                 (findErrorsForImports context topLevelDeclared usedLocally)
 
-        moduleThatExposeEverythingErrors : List ( Maybe { message : String, details : List String, range : Range, fix : List Fix }, Maybe ( ModuleName, ModuleName ) )
+        moduleThatExposeEverythingErrors : List ( ModuleName, ModuleName )
         moduleThatExposeEverythingErrors =
-            List.map
+            List.filterMap
                 (\{ importRange, exposingRange, name, moduleNameRange, alias, wasUsedImplicitly, wasUsedWithModuleName } ->
-                    if not wasUsedImplicitly then
-                        if wasUsedWithModuleName then
-                            ( Just
-                                { message = "No imported elements from `" ++ String.join "." name ++ "` are used"
-                                , details = details
-                                , range = exposingRange
-                                , fix = [ Fix.removeRange exposingRange ]
-                                }
-                            , Nothing
-                            )
-
-                        else
-                            ( Just
-                                { message = "Imported module `" ++ String.join "." name ++ "` is not used"
-                                , details = details
-                                , range = moduleNameRange
-                                , fix = [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
-                                }
-                            , Maybe.map (\moduleAlias -> ( name, [ moduleAlias ] )) alias
-                            )
+                    if not wasUsedImplicitly && not wasUsedWithModuleName then
+                        Maybe.map (\moduleAlias -> ( name, [ moduleAlias ] )) alias
 
                     else
-                        ( Nothing, Nothing )
+                        Nothing
                 )
                 context.exposingAllModules
 
