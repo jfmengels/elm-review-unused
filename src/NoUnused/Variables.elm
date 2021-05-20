@@ -1416,27 +1416,28 @@ findErrorsForImports context topLevelDeclared usedLocally =
 
         moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
         moduleAliasImportErrors =
-            List.filterMap
-                (\(Node _ import_) ->
-                    case import_.moduleAlias of
-                        Just moduleAlias ->
-                            if Node.value moduleAlias == Node.value import_.moduleName then
-                                Just
-                                    { message = "Module `" ++ String.join "." (Node.value moduleAlias) ++ "` is aliased as itself"
-                                    , details = [ "The alias is the same as the module name, and brings no useful value" ]
-                                    , range = Node.range moduleAlias
-                                    , fix = [ Fix.removeRange <| moduleAliasRange import_ (Node.range moduleAlias) ]
-                                    }
-
-                            else
-                                Nothing
-
-                        Nothing ->
-                            Nothing
-                )
-                context.imports
+            List.concatMap (\(Node _ import_) -> moduleAliasImportError import_) context.imports
     in
     moduleAliasImportErrors ++ importErrors
+
+
+moduleAliasImportError : Import -> List { message : String, details : List String, range : Range, fix : List Fix }
+moduleAliasImportError import_ =
+    case import_.moduleAlias of
+        Just moduleAlias ->
+            if Node.value moduleAlias == Node.value import_.moduleName then
+                [ { message = "Module `" ++ String.join "." (Node.value moduleAlias) ++ "` is aliased as itself"
+                  , details = [ "The alias is the same as the module name, and brings no useful value" ]
+                  , range = Node.range moduleAlias
+                  , fix = [ Fix.removeRange <| moduleAliasRange import_ (Node.range moduleAlias) ]
+                  }
+                ]
+
+            else
+                []
+
+        Nothing ->
+            []
 
 
 registerFunction : LetBlockContext -> Function -> ModuleContext -> ModuleContext
