@@ -343,7 +343,7 @@ getExposingName node =
 
 
 importVisitor : Node Import -> ModuleContext -> ( List nothing, ModuleContext )
-importVisitor ((Node importRange import_) as node) context =
+importVisitor ((Node _ import_) as node) context =
     case import_.exposingList of
         Nothing ->
             ( [], registerModuleNameOrAlias node { context | imports = node :: context.imports } )
