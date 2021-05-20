@@ -1200,21 +1200,58 @@ finalEvaluation context =
                         rootScope.used
             }
 
+        usedLocally : Set String
+        usedLocally =
+            Dict.get [] rootScope.used |> Maybe.withDefault Set.empty
+
+        customTypeErrors : List (Error {})
+        customTypeErrors =
+            if context.exposesEverything then
+                []
+
+            else
+                context.localCustomTypes
+                    |> Dict.toList
+                    |> List.filter (\( name, _ ) -> not <| Set.member name usedLocally)
+                    |> List.map
+                        (\( name, customType ) ->
+                            Rule.errorWithFix
+                                { message = "Type `" ++ name ++ "` is not used"
+                                , details = details
+                                }
+                                customType.under
+                                [ Fix.removeRange customType.rangeToRemove ]
+                        )
+    in
+    List.concat
+        [ newRootScope
+            |> makeReport
+            |> Tuple.first
+        , findImportErrors context rootScope usedLocally
+        , customTypeErrors
+        ]
+
+
+findImportErrors : ModuleContext -> Scope -> Set String -> List (Error {})
+findImportErrors context rootScope usedLocally =
+    let
         moduleNamesInUse : Set String
         moduleNamesInUse =
             context.declaredModules
                 |> List.map (\{ alias, moduleName } -> Maybe.withDefault (getModuleName moduleName) alias)
                 |> Set.fromList
 
-        usedLocally : Set String
-        usedLocally =
-            Dict.get [] rootScope.used |> Maybe.withDefault Set.empty
-
         topLevelDeclared : Set String
         topLevelDeclared =
             rootScope.declared
                 |> Dict.keys
                 |> Set.fromList
+
+        usedModules : Set ( ModuleName, ModuleName )
+        usedModules =
+            Set.union
+                (Set.fromList (List.filterMap Tuple.second moduleThatExposeEverythingErrors))
+                context.usedModules
 
         importErrors : List (Error {})
         importErrors =
@@ -1341,12 +1378,6 @@ finalEvaluation context =
                 )
                 context.exposingAllModules
 
-        usedModules : Set ( ModuleName, ModuleName )
-        usedModules =
-            Set.union
-                (Set.fromList (List.filterMap Tuple.second moduleThatExposeEverythingErrors))
-                context.usedModules
-
         moduleErrors : List (Error {})
         moduleErrors =
             context.declaredModules
@@ -1393,35 +1424,12 @@ finalEvaluation context =
                             variableInfo.under
                             fix
                     )
-
-        customTypeErrors : List (Error {})
-        customTypeErrors =
-            if context.exposesEverything then
-                []
-
-            else
-                context.localCustomTypes
-                    |> Dict.toList
-                    |> List.filter (\( name, _ ) -> not <| Set.member name usedLocally)
-                    |> List.map
-                        (\( name, customType ) ->
-                            Rule.errorWithFix
-                                { message = "Type `" ++ name ++ "` is not used"
-                                , details = details
-                                }
-                                customType.under
-                                [ Fix.removeRange customType.rangeToRemove ]
-                        )
     in
     List.concat
-        [ newRootScope
-            |> makeReport
-            |> Tuple.first
-        , importErrors
+        [ importErrors
         , importedTypeErrors
         , moduleErrors
         , List.filterMap Tuple.first moduleThatExposeEverythingErrors
-        , customTypeErrors
         ]
 
 
