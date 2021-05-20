@@ -164,14 +164,6 @@ type alias VariableInfo =
     }
 
 
-type alias ImportedCustomType =
-    { typeName : String
-    , under : Range
-    , rangeToRemove : Range
-    , openRange : Range
-    }
-
-
 type LetBlockContext
     = HasMultipleDeclarations
     | HasNoOtherDeclarations Range
@@ -1248,7 +1240,7 @@ findImportErrors context rootScope usedLocally =
         modulesThatExposeEverything : List ( ModuleName, ModuleName )
         modulesThatExposeEverything =
             List.filterMap
-                (\{ importRange, exposingRange, name, moduleNameRange, alias, wasUsedImplicitly, wasUsedWithModuleName } ->
+                (\{ name, alias, wasUsedImplicitly, wasUsedWithModuleName } ->
                     if not wasUsedImplicitly && not wasUsedWithModuleName then
                         Maybe.map (\moduleAlias -> ( name, [ moduleAlias ] )) alias
 
@@ -1352,17 +1344,13 @@ exposingListErrors context topLevelDeclared usedLocally (Node importRange import
                 Exposing.All _ ->
                     if Dict.member (Node.value import_.moduleName) context.customTypes then
                         let
+                            name : ModuleName
                             name =
                                 Node.value import_.moduleName
 
+                            alias : Maybe String
                             alias =
                                 Maybe.map (Node.value >> String.join ".") import_.moduleAlias
-
-                            moduleNameRange =
-                                Node.range import_.moduleName
-
-                            exposingRange =
-                                Node.range declaredImports
 
                             { wasUsedImplicitly, wasUsedWithModuleName } =
                                 Set.foldl
@@ -1387,15 +1375,15 @@ exposingListErrors context topLevelDeclared usedLocally (Node importRange import
                             if wasUsedWithModuleName then
                                 [ { message = "No imported elements from `" ++ String.join "." name ++ "` are used"
                                   , details = details
-                                  , range = exposingRange
-                                  , fix = [ Fix.removeRange exposingRange ]
+                                  , range = Node.range declaredImports
+                                  , fix = [ Fix.removeRange (Node.range declaredImports) ]
                                   }
                                 ]
 
                             else
                                 [ { message = "Imported module `" ++ String.join "." name ++ "` is not used"
                                   , details = details
-                                  , range = moduleNameRange
+                                  , range = Node.range import_.moduleName
                                   , fix = [ Fix.removeRange { importRange | end = { row = importRange.end.row + 1, column = 1 } } ]
                                   }
                                 ]
