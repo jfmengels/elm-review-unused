@@ -1388,18 +1388,14 @@ findImportErrors context rootScope usedLocally =
 
 findErrorsForImports : ModuleContext -> Set String -> Set String -> List { message : String, details : List String, range : Range, fix : List Fix }
 findErrorsForImports context topLevelDeclared usedLocally =
-    let
-        importErrors : List { message : String, details : List String, range : Range, fix : List Fix }
-        importErrors =
-            List.concatMap
-                (\(Node _ import_) -> exposingListErrors context topLevelDeclared usedLocally import_)
-                context.imports
-
-        moduleAliasImportErrors : List { message : String, details : List String, range : Range, fix : List Fix }
-        moduleAliasImportErrors =
-            List.concatMap (\(Node _ import_) -> moduleAliasImportError import_) context.imports
-    in
-    moduleAliasImportErrors ++ importErrors
+    List.concatMap
+        (\(Node _ import_) ->
+            List.concat
+                [ moduleAliasImportError import_
+                , exposingListErrors context topLevelDeclared usedLocally import_
+                ]
+        )
+        context.imports
 
 
 exposingListErrors : ModuleContext -> Set String -> Set String -> Import -> List { message : String, details : List String, range : Range, fix : List Fix }
