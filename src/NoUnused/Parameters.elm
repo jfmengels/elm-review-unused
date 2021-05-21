@@ -173,12 +173,10 @@ rememberPattern (Node _ pattern) context =
             rememberPatternList patterns context
 
         Pattern.RecordPattern values ->
-            rememberValueList values context
+            rememberRecordPattern values context
 
         Pattern.UnConsPattern first second ->
-            context
-                |> rememberPattern first
-                |> rememberPattern second
+            rememberPatternList [ first, second ] context
 
         Pattern.ListPattern patterns ->
             rememberPatternList patterns context
@@ -187,9 +185,7 @@ rememberPattern (Node _ pattern) context =
             rememberPatternList patterns context
 
         Pattern.AsPattern inner name ->
-            context
-                |> rememberPattern inner
-                |> rememberValue (Node.value name)
+            rememberPattern inner (rememberValue (Node.value name) context)
 
         Pattern.ParenthesizedPattern inner ->
             rememberPattern inner context
@@ -198,8 +194,8 @@ rememberPattern (Node _ pattern) context =
             context
 
 
-rememberValueList : List (Node String) -> Context -> Context
-rememberValueList list context =
+rememberRecordPattern : List (Node String) -> Context -> Context
+rememberRecordPattern list context =
     List.foldl (Node.value >> rememberValue) context list
 
 
@@ -329,7 +325,7 @@ errorsForUselessNamePattern use range context =
                     []
     in
     ( [ Rule.errorWithFix
-            { message = "Named pattern is not needed."
+            { message = "Named pattern is not needed"
             , details = removeDetails
             }
             range
@@ -352,7 +348,7 @@ errorsForUselessTuple use range context =
                     []
     in
     ( [ Rule.errorWithFix
-            { message = "Tuple pattern is not needed."
+            { message = "Tuple pattern is not needed"
             , details = removeDetails
             }
             range
@@ -364,53 +360,65 @@ errorsForUselessTuple use range context =
 
 errorsForRecordValueList : PatternUse -> Range -> List (Node String) -> Context -> ( List (Rule.Error {}), Context )
 errorsForRecordValueList use recordRange list context =
-    let
-        ( unused, used ) =
-            List.partition (isNodeInContext context) list
-    in
-    case unused of
-        [] ->
-            ( [], context )
+    if List.isEmpty list then
+        ( [ Rule.errorWithFix
+                { message = "Record pattern is not needed"
+                , details = [ "This pattern is redundant and should be replaced with '_'." ]
+                }
+                recordRange
+                [ Fix.replaceRangeBy recordRange "_" ]
+          ]
+        , context
+        )
 
-        firstNode :: restNodes ->
-            let
-                first : String
-                first =
-                    Node.value firstNode
+    else
+        let
+            ( unused, used ) =
+                List.partition (isNodeInContext context) list
+        in
+        case unused of
+            [] ->
+                ( [], context )
 
-                rest : List String
-                rest =
-                    List.map Node.value restNodes
+            firstNode :: restNodes ->
+                let
+                    first : String
+                    first =
+                        Node.value firstNode
 
-                errorRange : Range
-                errorRange =
-                    Range.combine (List.map Node.range unused)
+                    rest : List String
+                    rest =
+                        List.map Node.value restNodes
 
-                fix : List Fix
-                fix =
-                    case ( use, used ) of
-                        ( Lambda, [] ) ->
-                            [ Fix.replaceRangeBy recordRange "_" ]
+                    errorRange : Range
+                    errorRange =
+                        Range.combine (List.map Node.range unused)
 
-                        ( Lambda, _ ) ->
-                            [ Node Range.emptyRange (Pattern.RecordPattern used)
-                                |> Writer.writePattern
-                                |> Writer.write
-                                |> Fix.replaceRangeBy recordRange
-                            ]
+                    fix : List Fix
+                    fix =
+                        case ( use, used ) of
+                            ( Lambda, [] ) ->
+                                [ Fix.replaceRangeBy recordRange "_" ]
 
-                        ( Function, _ ) ->
-                            []
-            in
-            ( [ Rule.errorWithFix
-                    { message = listToMessage first rest
-                    , details = listToDetails first rest
-                    }
-                    errorRange
-                    fix
-              ]
-            , List.foldl forgetNode context unused
-            )
+                            ( Lambda, _ ) ->
+                                [ Node Range.emptyRange (Pattern.RecordPattern used)
+                                    |> Writer.writePattern
+                                    |> Writer.write
+                                    |> Fix.replaceRangeBy recordRange
+                                ]
+
+                            ( Function, _ ) ->
+                                []
+                in
+                ( [ Rule.errorWithFix
+                        { message = listToMessage first rest
+                        , details = listToDetails first rest
+                        }
+                        errorRange
+                        fix
+                  ]
+                , List.foldl forgetNode context unused
+                )
 
 
 isNodeInContext : Context -> Node String -> Bool
@@ -467,7 +475,7 @@ errorsForAsPattern use patternRange inner (Node range name) context =
 
     else if isAllPattern inner then
         ( [ Rule.errorWithFix
-                { message = "Pattern `_` is not needed."
+                { message = "Pattern `_` is not needed"
                 , details = removeDetails
                 }
                 (Node.range inner)

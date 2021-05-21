@@ -318,7 +318,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `_` is not needed."
+                        { message = "Pattern `_` is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "_"
                         }
@@ -413,7 +413,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Named pattern is not needed."
+                        { message = "Named pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "Pair _ _"
                         }
@@ -434,7 +434,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Named pattern is not needed."
+                        { message = "Named pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "Singular _"
                         }
@@ -445,7 +445,7 @@ foo =
     \\(_, Pair _ _) -> bish
 """
                     , Review.Test.error
-                        { message = "Named pattern is not needed."
+                        { message = "Named pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "Pair _ _"
                         }
@@ -475,6 +475,29 @@ foo =
                         { message = "Parameters `bish`, `bash` and `bosh` are not used."
                         , details = [ "You should either use these parameters somewhere, or remove them at the location I pointed at." ]
                         , under = "bish, bash, bosh"
+                        }
+                        |> Review.Test.whenFixed
+                            """
+module A exposing (..)
+foo =
+    \\_ ->
+        bar
+"""
+                    ]
+    , test "should replace empty record with `_`" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    \\{} ->
+        bar
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Record pattern is not needed"
+                        , details = [ "This pattern is redundant and should be replaced with '_'." ]
+                        , under = "{}"
                         }
                         |> Review.Test.whenFixed
                             """
@@ -581,7 +604,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Tuple pattern is not needed."
+                        { message = "Tuple pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "( _, _ )"
                         }
@@ -604,7 +627,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Tuple pattern is not needed."
+                        { message = "Tuple pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "( _, _, _ )"
                         }
@@ -685,7 +708,7 @@ foo (_ as bar) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `_` is not needed."
+                        { message = "Pattern `_` is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "_"
                         }
@@ -756,7 +779,7 @@ foo (Pair _ _) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Named pattern is not needed."
+                        { message = "Named pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "Pair _ _"
                         }
@@ -771,12 +794,12 @@ foo (Singular _, Pair _ _) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Named pattern is not needed."
+                        { message = "Named pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "Singular _"
                         }
                     , Review.Test.error
-                        { message = "Named pattern is not needed."
+                        { message = "Named pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "Pair _ _"
                         }
@@ -866,7 +889,7 @@ foo ( _, _ ) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Tuple pattern is not needed."
+                        { message = "Tuple pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "( _, _ )"
                         }
@@ -881,7 +904,7 @@ foo ( _, _, _ ) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Tuple pattern is not needed."
+                        { message = "Tuple pattern is not needed"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "( _, _, _ )"
                         }
