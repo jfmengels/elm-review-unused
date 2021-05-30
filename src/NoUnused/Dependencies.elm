@@ -24,6 +24,8 @@ import Set exposing (Set)
 
 {-| Forbid the use of dependencies that are never used in your project.
 
+🔧 Running with `--fix` will automatically remove all the reported errors.
+
 A dependency is considered unused if none of its modules are imported in the project.
 
     config =

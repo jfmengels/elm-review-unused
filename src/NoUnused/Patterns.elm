@@ -24,6 +24,8 @@ import Set exposing (Set)
 
 {-| Report useless patterns and pattern values that are not used.
 
+🔧 Running with `--fix` will automatically remove all the reported errors.
+
     config =
         [ NoUnused.Patterns.rule
         ]

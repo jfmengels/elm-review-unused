@@ -24,6 +24,8 @@ import Set exposing (Set)
 
 {-| Report parameters that are not used.
 
+🔧 Running with `--fix` will automatically remove some of the reported errors.
+
     config =
         [ NoUnused.Parameters.rule
         ]

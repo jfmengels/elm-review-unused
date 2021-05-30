@@ -31,6 +31,8 @@ import Set exposing (Set)
 
 {-| Forbid having unused custom type constructors.
 
+🔧 Running with `--fix` will automatically remove most of the reported errors.
+
     config =
         [ NoUnused.CustomTypeConstructors.rule []
         ]

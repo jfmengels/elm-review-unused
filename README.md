@@ -4,14 +4,14 @@ Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-revi
 
 ## Provided rules
 
-- [`NoUnused.Variables`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-Variables) - Reports unused top-level variables and types, imports and imported variables and types inside of a module.
-- [`NoUnused.CustomTypeConstructors`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-CustomTypeConstructors) - Reports unused constructors for a custom type.
-- [`NoUnused.CustomTypeConstructorArgs`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-CustomTypeConstructorArgs) - Reports arguments of custom type constructors that are never used.
-- [`NoUnused.Exports`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-Exports) - Reports unused exposed elements from a module.
-- [`NoUnused.Modules`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-Modules) - Reports unused modules in the project.
-- [`NoUnused.Dependencies`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-Dependencies) - Reports unused dependencies in the project.
-- [`NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-Dependencies) - Report unused parameters.
-- [`NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-Dependencies) - Report useless patterns and pattern values that are not used.
+- [🔧 `NoUnused.Variables`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-Variables "Provides automatic fixes") - Reports unused top-level variables and types, imports and imported variables and types inside of a module.
+- [🔧 `NoUnused.CustomTypeConstructors`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-CustomTypeConstructors "Provides automatic fixes") - Reports unused constructors for a custom type.
+- [`NoUnused.CustomTypeConstructorArgs`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-CustomTypeConstructorArgs "Provides automatic fixes") - Reports arguments of custom type constructors that are never used.
+- [🔧 `NoUnused.Exports`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-Exports "Provides automatic fixes") - Reports unused exposed elements from a module.
+- [`NoUnused.Modules`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-Modules "Provides automatic fixes") - Reports unused modules in the project.
+- [🔧 `NoUnused.Dependencies`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-Dependencies "Provides automatic fixes") - Reports unused dependencies in the project.
+- [🔧 `NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-Dependencies "Provides automatic fixes") - Report unused parameters.
+- [🔧 `NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.10/NoUnused-Dependencies "Provides automatic fixes") - Report useless patterns and pattern values that are not used.
 
 ## Example configuration
 
@@ -47,7 +47,7 @@ config =
 
 This package works by having several rules that check for different unused elements, and that complement each other.
 
-This allows for fine-grained control over what you want the rules to do. If you add these rules to an existing project, you will likely get a lot of errors, and fixing them will take time. Instead, you can introduce these rules gradually in batches. For cases where the errors are too time-consuming to fix, you can ignore them in the configuration, until you take care of them.
+This allows for fine-grained control over what you want the rules to do. If you add these rules to an existing project, you will likely get a lot of errors, and fixing them will take time (though the autofixing will definitely help). Instead, you can introduce these rules gradually in batches. For cases where the errors are too time-consuming to fix, you can ignore them in the configuration, until you take care of them.
 
 A few of these rules provide automatic fixes using `elm-review --fix` or `elm-review --fix-all`.
 

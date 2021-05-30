@@ -33,6 +33,8 @@ import Set exposing (Set)
 {-| Report functions and types that are exposed from a module but that are never
 used in other modules.
 
+🔧 Running with `--fix` will automatically remove all the reported errors.
+
 If the project is a package and the module that declared the element is exposed,
 then nothing will be reported.
 

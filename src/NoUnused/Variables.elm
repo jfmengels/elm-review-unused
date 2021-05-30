@@ -32,6 +32,8 @@ import Set exposing (Set)
 
 {-| Report variables or types that are declared or imported but never used.
 
+🔧 Running with `--fix` will automatically remove all the reported errors.
+
     config =
         [ NoUnused.Variables.rule
         ]
