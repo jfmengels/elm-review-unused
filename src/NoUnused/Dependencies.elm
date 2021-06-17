@@ -260,14 +260,16 @@ finalEvaluationForProject projectContext =
                         |> Set.remove "elm/core"
                         |> Set.toList
 
-                testDepsNotUsedInTests : List String
-                testDepsNotUsedInTests =
-                    Set.diff projectContext.directTestDependencies projectContext.usedDependenciesFromTest
+                testDepsNotUsed : List String
+                testDepsNotUsed =
+                    Set.diff
+                        projectContext.directTestDependencies
+                        (Set.union projectContext.usedDependenciesFromTest projectContext.usedDependencies)
                         |> Set.remove "elm/core"
                         |> Set.toList
             in
             List.map (unusedProjectDependencyError elmJsonKey projectContext.dependencies) depsNotUsedInSrcErrors
-                ++ List.map (unusedTestDependencyError elmJsonKey projectContext.dependencies) testDepsNotUsedInTests
+                ++ List.map (unusedTestDependencyError elmJsonKey projectContext.dependencies) testDepsNotUsed
                 ++ List.map (moveDependencyToTestError elmJsonKey projectContext.dependencies) (Set.toList depsNotUsedInSrcButUsedInTests)
 
         Nothing ->

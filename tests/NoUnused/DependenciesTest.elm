@@ -754,6 +754,19 @@ a = 1
 }
 """
                         ]
+        , test "should not report test-dependencies used in source-directories" <|
+            \() ->
+                """
+module A exposing (a)
+import Foo
+import Bar
+import TestFoo
+import TestBar
+a = 1
+"""
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.runWithProjectData (createProject Nothing packageElmJson) rule
+                    |> Review.Test.expectNoErrors
         , test "should re-organize the indirect dependencies when a dependency gets removed" <|
             \() ->
                 let
