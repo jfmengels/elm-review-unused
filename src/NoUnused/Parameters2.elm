@@ -115,11 +115,21 @@ initialContext =
 declarationVisitor : Node Declaration -> Context -> ( List nothing, Context )
 declarationVisitor node context =
     case Node.value node of
-        Declaration.FunctionDeclaration _ ->
+        Declaration.FunctionDeclaration { declaration } ->
             let
                 declared : List String
                 declared =
-                    []
+                    Node.value declaration
+                        |> .arguments
+                        |> List.concatMap
+                            (\pattern ->
+                                case Node.value pattern of
+                                    Pattern.VarPattern name ->
+                                        [ name ]
+
+                                    _ ->
+                                        []
+                            )
             in
             ( [], { context | scopes = { declared = declared, used = Set.empty } :: context.scopes } )
 
