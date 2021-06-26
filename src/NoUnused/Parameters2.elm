@@ -179,7 +179,7 @@ report : Context -> ( List (Rule.Error {}), Context )
 report context =
     case context.scopes of
         headScope :: restOfScopes ->
-            ( [], context )
+            ( [], { context | scopes = restOfScopes } )
 
         [] ->
             ( [], context )
