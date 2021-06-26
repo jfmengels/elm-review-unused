@@ -65,8 +65,7 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Param
 rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoUnused.Parameters" initialContext
-        --|> Rule.withDeclarationEnterVisitor declarationEnterVisitor
-        --|> Rule.withDeclarationExitVisitor declarationExitVisitor
+        |> Rule.withDeclarationEnterVisitor declarationVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.fromModuleRuleSchema
@@ -78,12 +77,12 @@ rule =
 
 type alias Context =
     { scopes : List Scope
-    , scopesToCreate : RangeDict (List FoundPattern)
+    , scopesToCreate : RangeDict (List String)
     }
 
 
 type alias Scope =
-    { declared : List FoundPattern
+    { declared : List String
     , used : Set String
     }
 
@@ -110,7 +109,26 @@ initialContext =
 
 
 
--- EXPRESSION EXIT VISITOR
+-- DECLARATION VISITOR
+
+
+declarationVisitor : Node Declaration -> Context -> ( List nothing, Context )
+declarationVisitor node context =
+    case Node.value node of
+        Declaration.FunctionDeclaration _ ->
+            let
+                declared : List String
+                declared =
+                    []
+            in
+            ( [], { context | scopes = { declared = declared, used = Set.empty } :: context.scopes } )
+
+        _ ->
+            ( [], context )
+
+
+
+-- EXPRESSION ENTER VISITOR
 
 
 expressionEnterVisitor : Node Expression -> Context -> ( List nothing, Context )
@@ -131,6 +149,10 @@ expressionEnterVisitor node context =
 expressionEnterVisitorHelp : Node Expression -> Context -> ( List nothing, Context )
 expressionEnterVisitorHelp node context =
     ( [], context )
+
+
+
+-- EXPRESSION EXIT VISITOR
 
 
 expressionExitVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
