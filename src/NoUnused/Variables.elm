@@ -959,10 +959,10 @@ declarationListVisitor nodes context =
                     let
                         contextWithRemovedShadowedImports : ModuleContext
                         contextWithRemovedShadowedImports =
-                            { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
+                            { ctx | importedCustomTypeLookup = Dict.remove (Node.value name) ctx.importedCustomTypeLookup }
                     in
                     ( []
-                    , if context.exposesEverything then
+                    , if ctx.exposesEverything then
                         contextWithRemovedShadowedImports
 
                       else
