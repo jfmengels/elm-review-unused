@@ -914,7 +914,7 @@ type C = C_Value
             ]
                 |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
-    , test "should report open type import when the exposed constructor is shadowed by a local type alias" <|
+    , test "should report open type import when the exposed constructor is shadowed by a local type alias when it is a record" <|
         \() ->
             [ """module A exposing (a)
 import B exposing (C(..))
@@ -939,6 +939,18 @@ a = C_Value""" |> String.replace "$" " ")
                         ]
                       )
                     ]
+    , test "should not report open type import when the exposed constructor is shadowed by a local type alias when it is not a record" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..))
+type alias C = B.C
+a = C"""
+            , """module B exposing (C(..))
+type C = C
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
     , test "should report open type import when the exposed constructor even when there is a following type alias import" <|
         \() ->
             [ """module A exposing (a)
