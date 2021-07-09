@@ -588,15 +588,6 @@ a =
   \\(Baz value) -> []"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
-    , test "should not report type alias when it is deconstructed in a function call" <|
-        \() ->
-            """module SomeModule exposing (a)
-type alias Baz = { a : String}
-
-a =
-  \\(Baz value) -> []"""
-                |> Review.Test.run rule
-                |> Review.Test.expectNoErrors
     ]
 
 
@@ -951,6 +942,31 @@ type C = C
             ]
                 |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
+    , test "should report open type import when the exposed constructor is shadowed by a custom type constructor" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..))
+type Type = C
+a = C"""
+            , """module B exposing (C(..))
+type C = C
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported type `C` is not used"
+                            , details = details
+                            , under = "C(..)"
+                            }
+                            |> Review.Test.whenFixed ("""module A exposing (a)
+import B$
+type Type = C
+a = C""" |> String.replace "$" " ")
+                        ]
+                      )
+                    ]
     , test "should report open type import when the exposed constructor even when there is a following type alias import" <|
         \() ->
             [ """module A exposing (a)
@@ -975,6 +991,21 @@ a = Alias"""
                         ]
                       )
                     ]
+    , test "should not report open type import when a constructor is used but the type is locally shadowed" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..))
+type alias C = A.C
+
+a : C -> String
+a (C s) = s
+"""
+            , """module B exposing (C(..))
+type C = C String
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
     , test "should report open type import when none of its constructors is used (imported dependency)" <|
         \() ->
             """module A exposing (a)
@@ -1005,7 +1036,7 @@ import UnknownDependency exposing (C(..))
 a = 1"""
                 |> Review.Test.runWithProjectData packageProject rule
                 |> Review.Test.expectNoErrors
-    , test "should not report open type import when at least one of the exposed constructors are used in a pattern" <|
+    , test "should not report open type import when at least one of the exposed constructors is used in a pattern" <|
         \() ->
             [ """module A exposing (a)
 import B exposing (C(..))
