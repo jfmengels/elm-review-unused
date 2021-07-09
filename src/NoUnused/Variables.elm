@@ -930,10 +930,13 @@ declarationListVisitor nodes context =
                         typeName =
                             Node.value name
 
+                        constructorNames : List String
+                        constructorNames =
+                            List.map (Node.value >> .name >> Node.value) constructors
+
                         constructorsForType : Dict String String
                         constructorsForType =
-                            constructors
-                                |> List.map (Node.value >> .name >> Node.value)
+                            constructorNames
                                 |> List.map (\constructorName -> ( constructorName, typeName ))
                                 |> Dict.fromList
 
@@ -941,7 +944,7 @@ declarationListVisitor nodes context =
                         customType =
                             { under = Node.range name
                             , rangeToRemove = rangeToRemoveForNodeWithDocumentation node documentation
-                            , variants = List.map (Node.value >> .name >> Node.value) constructors
+                            , variants = constructorNames
                             }
                     in
                     ( errors
