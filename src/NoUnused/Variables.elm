@@ -955,26 +955,31 @@ declarationListVisitor nodes context =
                       }
                     )
 
-                Declaration.AliasDeclaration { name, documentation } ->
+                Declaration.AliasDeclaration { name, documentation, typeAnnotation } ->
                     let
                         contextWithRemovedShadowedImports : ModuleContext
                         contextWithRemovedShadowedImports =
                             { ctx | importedCustomTypeLookup = Dict.remove (Node.value name) ctx.importedCustomTypeLookup }
                     in
-                    ( []
-                    , if ctx.exposesEverything then
-                        contextWithRemovedShadowedImports
+                    case Node.value typeAnnotation of
+                        TypeAnnotation.Record _ ->
+                            ( []
+                            , if ctx.exposesEverything then
+                                contextWithRemovedShadowedImports
 
-                      else
-                        registerVariable
-                            { typeName = "Type"
-                            , under = Node.range name
-                            , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node documentation)
-                            , warning = ""
-                            }
-                            (Node.value name)
-                            contextWithRemovedShadowedImports
-                    )
+                              else
+                                registerVariable
+                                    { typeName = "Type"
+                                    , under = Node.range name
+                                    , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node documentation)
+                                    , warning = ""
+                                    }
+                                    (Node.value name)
+                                    contextWithRemovedShadowedImports
+                            )
+
+                        _ ->
+                            ( [], ctx )
 
                 _ ->
                     ( errors, ctx )
