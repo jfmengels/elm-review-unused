@@ -956,13 +956,13 @@ declarationListVisitor nodes context =
                     )
 
                 Declaration.AliasDeclaration { name, documentation, typeAnnotation } ->
-                    let
-                        contextWithRemovedShadowedImports : ModuleContext
-                        contextWithRemovedShadowedImports =
-                            { ctx | importedCustomTypeLookup = Dict.remove (Node.value name) ctx.importedCustomTypeLookup }
-                    in
                     case Node.value typeAnnotation of
                         TypeAnnotation.Record _ ->
+                            let
+                                contextWithRemovedShadowedImports : ModuleContext
+                                contextWithRemovedShadowedImports =
+                                    { ctx | importedCustomTypeLookup = Dict.remove (Node.value name) ctx.importedCustomTypeLookup }
+                            in
                             ( []
                             , if ctx.exposesEverything then
                                 contextWithRemovedShadowedImports
