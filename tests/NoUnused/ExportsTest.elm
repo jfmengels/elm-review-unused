@@ -1,51 +1,9 @@
 module NoUnused.ExportsTest exposing (all)
 
-import Elm.Project
-import Elm.Version
-import Json.Decode as Decode
 import NoUnused.Exports exposing (rule)
-import Review.Project as Project exposing (Project)
 import Review.Test
 import Test exposing (Test, describe, test)
-import TestProject exposing (package)
-
-
-application : Project
-application =
-    Project.new
-        |> Project.addElmJson applicationElmJson
-
-
-applicationElmJson : { path : String, raw : String, project : Elm.Project.Project }
-applicationElmJson =
-    { path = "elm.json"
-    , raw = """{
-    "type": "application",
-    "source-directories": [
-        "src"
-    ],
-    "elm-version": "0.19.1",
-    "dependencies": {
-        "direct": {
-            "elm/core": "1.0.2"
-        },
-        "indirect": {}
-    },
-    "test-dependencies": {
-        "direct": {},
-        "indirect": {}
-    }
-}"""
-    , project =
-        Elm.Project.Application
-            { elm = Elm.Version.one
-            , dirs = []
-            , depsDirect = []
-            , depsIndirect = []
-            , testDepsDirect = []
-            , testDepsIndirect = []
-            }
-    }
+import TestProject exposing (application, package)
 
 
 details : List String
