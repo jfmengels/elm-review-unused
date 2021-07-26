@@ -212,45 +212,47 @@ finalEvaluationForProject projectContext =
     projectContext.modules
         |> removeExposedPackages projectContext
         |> Dict.toList
+        |> List.concatMap (errorsForModule projectContext)
+
+
+errorsForModule : ProjectContext -> ( ModuleName, { moduleKey : Rule.ModuleKey, exposed : Dict String { b | elementType : ExposedElementType, rangeToRemove : Maybe Range, range : Range } } ) -> List (Error scope)
+errorsForModule projectContext ( moduleName, { moduleKey, exposed } ) =
+    exposed
+        |> removeApplicationExceptions projectContext
+        |> removeReviewConfig moduleName
+        |> Dict.filter (\name _ -> not <| Set.member ( moduleName, name ) projectContext.used)
+        |> Dict.toList
         |> List.concatMap
-            (\( moduleName, { moduleKey, exposed } ) ->
-                exposed
-                    |> removeApplicationExceptions projectContext
-                    |> removeReviewConfig moduleName
-                    |> Dict.filter (\name _ -> not <| Set.member ( moduleName, name ) projectContext.used)
-                    |> Dict.toList
-                    |> List.concatMap
-                        (\( name, element ) ->
-                            let
-                                what : String
-                                what =
-                                    case element.elementType of
-                                        Function ->
-                                            "Exposed function or value"
+            (\( name, element ) ->
+                let
+                    what : String
+                    what =
+                        case element.elementType of
+                            Function ->
+                                "Exposed function or value"
 
-                                        TypeOrTypeAlias ->
-                                            "Exposed type or type alias"
+                            TypeOrTypeAlias ->
+                                "Exposed type or type alias"
 
-                                        ExposedType ->
-                                            "Exposed type"
+                            ExposedType ->
+                                "Exposed type"
 
-                                fixes : List Fix
-                                fixes =
-                                    case element.rangeToRemove of
-                                        Just rangeToRemove ->
-                                            [ Fix.removeRange rangeToRemove ]
+                    fixes : List Fix
+                    fixes =
+                        case element.rangeToRemove of
+                            Just rangeToRemove ->
+                                [ Fix.removeRange rangeToRemove ]
 
-                                        Nothing ->
-                                            []
-                            in
-                            [ Rule.errorForModuleWithFix moduleKey
-                                { message = what ++ " `" ++ name ++ "` is never used outside this module."
-                                , details = [ "This exposed element is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
-                                }
-                                element.range
-                                fixes
-                            ]
-                        )
+                            Nothing ->
+                                []
+                in
+                [ Rule.errorForModuleWithFix moduleKey
+                    { message = what ++ " `" ++ name ++ "` is never used outside this module."
+                    , details = [ "This exposed element is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
+                    }
+                    element.range
+                    fixes
+                ]
             )
 
 
