@@ -11,6 +11,7 @@ module NoUnused.Modules exposing (rule)
 
 import Dict exposing (Dict)
 import Elm.Module
+import Elm.Package
 import Elm.Project exposing (Project)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Import exposing (Import)
@@ -158,7 +159,19 @@ elmJsonVisitor maybeProject projectContext =
                         Elm.Project.ExposedDict fakeDict ->
                             ( List.concatMap Tuple.second fakeDict, Package )
 
-                _ ->
+                Just (Elm.Project.Application { depsDirect }) ->
+                    let
+                        elmApplicationType : ElmApplicationType
+                        elmApplicationType =
+                            if List.any (\( name, _ ) -> Elm.Package.toString name == "lamdera/core") depsDirect then
+                                LamderaApplication
+
+                            else
+                                ElmApplication
+                    in
+                    ( [], Application elmApplicationType )
+
+                Nothing ->
                     ( [], Application ElmApplication )
     in
     ( []
