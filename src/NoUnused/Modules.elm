@@ -80,8 +80,12 @@ type alias ProjectContext =
             , moduleNameLocation : Range
             }
     , usedModules : Set ModuleName
-    , projectType : Bool
+    , projectType : ProjectType
     }
+
+
+type alias ProjectType =
+    Bool
 
 
 type alias ModuleContext =
