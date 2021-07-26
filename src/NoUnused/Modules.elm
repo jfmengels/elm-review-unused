@@ -93,14 +93,18 @@ type alias ModuleContext =
 
 type ProjectType
     = Package
-    | Application
+    | Application ElmApplicationType
+
+
+type ElmApplicationType
+    = ElmApplication
 
 
 initialProjectContext : ProjectContext
 initialProjectContext =
     { modules = Dict.empty
     , usedModules = Set.singleton [ "ReviewConfig" ]
-    , projectType = Application
+    , projectType = Application ElmApplication
     }
 
 
@@ -154,7 +158,7 @@ elmJsonVisitor maybeProject projectContext =
                             ( List.concatMap Tuple.second fakeDict, Package )
 
                 _ ->
-                    ( [], Application )
+                    ( [], Application ElmApplication )
     in
     ( []
     , { projectContext
@@ -214,7 +218,7 @@ declarationListVisitor list context =
         Package ->
             ( [], context )
 
-        Application ->
+        Application ElmApplication ->
             let
                 containsMainFunction : Bool
                 containsMainFunction =
