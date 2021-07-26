@@ -91,7 +91,7 @@ type alias ProjectType =
 type alias ModuleContext =
     { importedModules : Set ModuleName
     , containsMainFunction : Bool
-    , isPackage : Bool
+    , projectType : Bool
     }
 
 
@@ -107,7 +107,7 @@ fromProjectToModule : Rule.ModuleKey -> Node ModuleName -> ProjectContext -> Mod
 fromProjectToModule _ _ projectContext =
     { importedModules = Set.empty
     , containsMainFunction = False
-    , isPackage = projectContext.projectType
+    , projectType = projectContext.projectType
     }
 
 
@@ -123,7 +123,7 @@ fromModuleToProject moduleKey moduleName moduleContext =
 
         else
             moduleContext.importedModules
-    , projectType = moduleContext.isPackage
+    , projectType = moduleContext.projectType
     }
 
 
@@ -209,7 +209,7 @@ moduleNameForImport node =
 
 declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List nothing, ModuleContext )
 declarationListVisitor list context =
-    if context.isPackage then
+    if context.projectType then
         ( [], context )
 
     else
