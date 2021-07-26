@@ -9,6 +9,11 @@ import Review.Test
 import Test exposing (Test, describe, test)
 
 
+all : Test
+all =
+    describe "NoUnusedModules" tests
+
+
 application : Project
 application =
     Project.new
@@ -249,8 +254,3 @@ a = 1
                         }
                     ]
     ]
-
-
-all : Test
-all =
-    describe "NoUnusedModules" tests
