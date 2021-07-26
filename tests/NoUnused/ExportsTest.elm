@@ -7,6 +7,7 @@ import NoUnused.Exports exposing (rule)
 import Review.Project as Project exposing (Project)
 import Review.Test
 import Test exposing (Test, describe, test)
+import TestProject exposing (package)
 
 
 application : Project
@@ -45,42 +46,6 @@ applicationElmJson =
             , testDepsIndirect = []
             }
     }
-
-
-package : Project
-package =
-    Project.new
-        |> Project.addElmJson (createPackageElmJson ())
-
-
-createPackageElmJson : () -> { path : String, raw : String, project : Elm.Project.Project }
-createPackageElmJson _ =
-    case Decode.decodeString Elm.Project.decoder rawPackageElmJson of
-        Ok elmJson ->
-            { path = "elm.json"
-            , raw = rawPackageElmJson
-            , project = elmJson
-            }
-
-        Err err ->
-            Debug.todo ("Invalid elm.json supplied to test: " ++ Debug.toString err)
-
-
-rawPackageElmJson : String
-rawPackageElmJson =
-    """{
-    "type": "package",
-    "name": "author/package",
-    "summary": "Summary",
-    "license": "BSD-3-Clause",
-    "version": "1.0.0",
-    "exposed-modules": [
-        "Exposed"
-    ],
-    "elm-version": "0.19.0 <= v < 0.20.0",
-    "dependencies": {},
-    "test-dependencies": {}
-}"""
 
 
 details : List String
