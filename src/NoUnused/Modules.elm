@@ -98,6 +98,7 @@ type ProjectType
 
 type ElmApplicationType
     = ElmApplication
+    | LamderaApplication
 
 
 initialProjectContext : ProjectContext
@@ -218,15 +219,19 @@ declarationListVisitor list context =
         Package ->
             ( [], context )
 
-        Application ElmApplication ->
+        Application elmApplicationType ->
             let
+                mainName : String
+                mainName =
+                    mainFunctionName elmApplicationType
+
                 containsMainFunction : Bool
                 containsMainFunction =
                     List.any
                         (\declaration ->
                             case Node.value declaration of
                                 Declaration.FunctionDeclaration function ->
-                                    (function.declaration |> Node.value |> .name |> Node.value) == "main"
+                                    (function.declaration |> Node.value |> .name |> Node.value) == mainName
 
                                 _ ->
                                     False
@@ -236,3 +241,13 @@ declarationListVisitor list context =
             ( []
             , { context | containsMainFunction = containsMainFunction }
             )
+
+
+mainFunctionName : ElmApplicationType -> String
+mainFunctionName elmApplicationType =
+    case elmApplicationType of
+        ElmApplication ->
+            "main"
+
+        LamderaApplication ->
+            "app"
