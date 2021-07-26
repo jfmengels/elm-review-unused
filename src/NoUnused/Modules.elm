@@ -80,7 +80,7 @@ type alias ProjectContext =
             , moduleNameLocation : Range
             }
     , usedModules : Set ModuleName
-    , isPackage : Bool
+    , projectType : Bool
     }
 
 
@@ -95,7 +95,7 @@ initialProjectContext : ProjectContext
 initialProjectContext =
     { modules = Dict.empty
     , usedModules = Set.singleton [ "ReviewConfig" ]
-    , isPackage = False
+    , projectType = False
     }
 
 
@@ -103,7 +103,7 @@ fromProjectToModule : Rule.ModuleKey -> Node ModuleName -> ProjectContext -> Mod
 fromProjectToModule _ _ projectContext =
     { importedModules = Set.empty
     , containsMainFunction = False
-    , isPackage = projectContext.isPackage
+    , isPackage = projectContext.projectType
     }
 
 
@@ -119,7 +119,7 @@ fromModuleToProject moduleKey moduleName moduleContext =
 
         else
             moduleContext.importedModules
-    , isPackage = moduleContext.isPackage
+    , projectType = moduleContext.isPackage
     }
 
 
@@ -127,7 +127,7 @@ foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
     { modules = Dict.union previousContext.modules newContext.modules
     , usedModules = Set.union previousContext.usedModules newContext.usedModules
-    , isPackage = previousContext.isPackage
+    , projectType = previousContext.projectType
     }
 
 
@@ -158,7 +158,7 @@ elmJsonVisitor maybeProject projectContext =
                 |> List.map (Elm.Module.toString >> String.split ".")
                 |> Set.fromList
                 |> Set.union projectContext.usedModules
-        , isPackage = isPackage
+        , projectType = isPackage
       }
     )
 
