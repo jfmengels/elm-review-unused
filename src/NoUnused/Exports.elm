@@ -100,8 +100,12 @@ type alias ExposedElement =
 
 
 type ProjectType
-    = IsApplication
+    = IsApplication ElmApplicationType
     | IsPackage (Set (List String))
+
+
+type ElmApplicationType
+    = ElmApplication
 
 
 type ExposedElementType
@@ -121,7 +125,7 @@ type alias ModuleContext =
 
 initialProjectContext : ProjectContext
 initialProjectContext =
-    { projectType = IsApplication
+    { projectType = IsApplication ElmApplication
     , modules = Dict.empty
     , used = Set.empty
     }
@@ -139,7 +143,7 @@ fromProjectToModule lookupTable _ =
 
 fromModuleToProject : Rule.ModuleKey -> Rule.Metadata -> ModuleContext -> ProjectContext
 fromModuleToProject moduleKey metadata moduleContext =
-    { projectType = IsApplication
+    { projectType = IsApplication ElmApplication
     , modules =
         Dict.singleton
             (Rule.moduleNameFromMetadata metadata)
@@ -200,7 +204,7 @@ elmJsonVisitor maybeProject projectContext =
             )
 
         _ ->
-            ( [], { projectContext | projectType = IsApplication } )
+            ( [], { projectContext | projectType = IsApplication ElmApplication } )
 
 
 
@@ -259,7 +263,7 @@ errorsForModule projectContext ( moduleName, { moduleKey, exposed } ) =
 removeExposedPackages : ProjectContext -> Dict ModuleName a -> Dict ModuleName a
 removeExposedPackages projectContext dict =
     case projectContext.projectType of
-        IsApplication ->
+        IsApplication _ ->
             dict
 
         IsPackage exposedModuleNames ->
@@ -269,7 +273,7 @@ removeExposedPackages projectContext dict =
 removeApplicationExceptions : ProjectContext -> Dict String a -> Dict String a
 removeApplicationExceptions projectContext dict =
     case projectContext.projectType of
-        IsApplication ->
+        IsApplication ElmApplication ->
             Dict.remove "main" dict
 
         IsPackage _ ->
