@@ -84,15 +84,15 @@ type alias ProjectContext =
     }
 
 
-type alias ProjectType =
-    Bool
-
-
 type alias ModuleContext =
     { importedModules : Set ModuleName
     , containsMainFunction : Bool
-    , projectType : Bool
+    , projectType : ProjectType
     }
+
+
+type alias ProjectType =
+    Bool
 
 
 initialProjectContext : ProjectContext
