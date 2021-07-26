@@ -107,7 +107,7 @@ package =
 
 
 createPackageElmJson : () -> { path : String, raw : String, project : Elm.Project.Project }
-createPackageElmJson _ =
+createPackageElmJson () =
     case Decode.decodeString Elm.Project.decoder rawPackageElmJson of
         Ok elmJson ->
             { path = "elm.json"
