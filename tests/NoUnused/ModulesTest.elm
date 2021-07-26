@@ -253,4 +253,32 @@ a = 1
                         , under = "Reported"
                         }
                     ]
+    , test "should report modules that contain a top-level `app` function in packages" <|
+        \() ->
+            """
+module Reported exposing (app)
+app = text ""
+"""
+                |> Review.Test.runWithProjectData package rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Module `Reported` is never used."
+                        , details = details
+                        , under = "Reported"
+                        }
+                    ]
+    , test "should report modules that contain a top-level `app` function in Elm applications" <|
+        \() ->
+            """
+module Reported exposing (app)
+app = text ""
+"""
+                |> Review.Test.runWithProjectData application rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Module `Reported` is never used."
+                        , details = details
+                        , under = "Reported"
+                        }
+                    ]
     ]
