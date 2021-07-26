@@ -18,6 +18,7 @@ import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node)
 import Elm.Syntax.Range exposing (Range)
+import NoUnused.LamderaSupport as LamderaSupport
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 
@@ -163,7 +164,7 @@ elmJsonVisitor maybeProject projectContext =
                     let
                         elmApplicationType : ElmApplicationType
                         elmApplicationType =
-                            if isLamderaApplication depsDirect then
+                            if LamderaSupport.isLamderaApplication depsDirect then
                                 LamderaApplication
 
                             else
@@ -184,11 +185,6 @@ elmJsonVisitor maybeProject projectContext =
         , projectType = projectType
       }
     )
-
-
-isLamderaApplication : List ( Elm.Package.Name, b ) -> Bool
-isLamderaApplication depsDirect =
-    List.any (\( name, _ ) -> Elm.Package.toString name == "lamdera/core") depsDirect
 
 
 finalEvaluationForProject : ProjectContext -> List (Error scope)
