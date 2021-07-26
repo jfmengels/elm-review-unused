@@ -163,7 +163,7 @@ elmJsonVisitor maybeProject projectContext =
                     let
                         elmApplicationType : ElmApplicationType
                         elmApplicationType =
-                            if containsLamdera depsDirect then
+                            if isLamderaApplication depsDirect then
                                 LamderaApplication
 
                             else
@@ -186,8 +186,8 @@ elmJsonVisitor maybeProject projectContext =
     )
 
 
-containsLamdera : List ( Elm.Package.Name, b ) -> Bool
-containsLamdera depsDirect =
+isLamderaApplication : List ( Elm.Package.Name, b ) -> Bool
+isLamderaApplication depsDirect =
     List.any (\( name, _ ) -> Elm.Package.toString name == "lamdera/core") depsDirect
 
 
