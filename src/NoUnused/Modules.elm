@@ -91,15 +91,16 @@ type alias ModuleContext =
     }
 
 
-type alias ProjectType =
-    Bool
+type ProjectType
+    = Package
+    | Application
 
 
 initialProjectContext : ProjectContext
 initialProjectContext =
     { modules = Dict.empty
     , usedModules = Set.singleton [ "ReviewConfig" ]
-    , projectType = False
+    , projectType = Application
     }
 
 
@@ -142,18 +143,18 @@ foldProjectContexts newContext previousContext =
 elmJsonVisitor : Maybe { a | project : Project } -> ProjectContext -> ( List nothing, ProjectContext )
 elmJsonVisitor maybeProject projectContext =
     let
-        ( exposedModules, isPackage ) =
+        ( exposedModules, projectType ) =
             case maybeProject |> Maybe.map .project of
                 Just (Elm.Project.Package { exposed }) ->
                     case exposed of
                         Elm.Project.ExposedList names ->
-                            ( names, True )
+                            ( names, Package )
 
                         Elm.Project.ExposedDict fakeDict ->
-                            ( List.concatMap Tuple.second fakeDict, True )
+                            ( List.concatMap Tuple.second fakeDict, Package )
 
                 _ ->
-                    ( [], False )
+                    ( [], Application )
     in
     ( []
     , { projectContext
@@ -162,7 +163,7 @@ elmJsonVisitor maybeProject projectContext =
                 |> List.map (Elm.Module.toString >> String.split ".")
                 |> Set.fromList
                 |> Set.union projectContext.usedModules
-        , projectType = isPackage
+        , projectType = projectType
       }
     )
 
@@ -209,24 +210,25 @@ moduleNameForImport node =
 
 declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List nothing, ModuleContext )
 declarationListVisitor list context =
-    if context.projectType then
-        ( [], context )
+    case context.projectType of
+        Package ->
+            ( [], context )
 
-    else
-        let
-            containsMainFunction : Bool
-            containsMainFunction =
-                List.any
-                    (\declaration ->
-                        case Node.value declaration of
-                            Declaration.FunctionDeclaration function ->
-                                (function.declaration |> Node.value |> .name |> Node.value) == "main"
+        Application ->
+            let
+                containsMainFunction : Bool
+                containsMainFunction =
+                    List.any
+                        (\declaration ->
+                            case Node.value declaration of
+                                Declaration.FunctionDeclaration function ->
+                                    (function.declaration |> Node.value |> .name |> Node.value) == "main"
 
-                            _ ->
-                                False
-                    )
-                    list
-        in
-        ( []
-        , { context | containsMainFunction = containsMainFunction }
-        )
+                                _ ->
+                                    False
+                        )
+                        list
+            in
+            ( []
+            , { context | containsMainFunction = containsMainFunction }
+            )
