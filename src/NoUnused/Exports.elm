@@ -24,6 +24,7 @@ import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import NoUnused.LamderaSupport as LamderaSupport
 import Review.Fix as Fix exposing (Fix)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
@@ -106,6 +107,7 @@ type ProjectType
 
 type ElmApplicationType
     = ElmApplication
+    | LamderaApplication
 
 
 type ExposedElementType
@@ -203,7 +205,19 @@ elmJsonVisitor maybeProject projectContext =
               }
             )
 
-        _ ->
+        Just (Elm.Project.Application { depsDirect }) ->
+            let
+                elmApplicationType : ElmApplicationType
+                elmApplicationType =
+                    if LamderaSupport.isLamderaApplication depsDirect then
+                        LamderaApplication
+
+                    else
+                        ElmApplication
+            in
+            ( [], { projectContext | projectType = IsApplication elmApplicationType } )
+
+        Nothing ->
             ( [], { projectContext | projectType = IsApplication ElmApplication } )
 
 
@@ -273,11 +287,16 @@ removeExposedPackages projectContext dict =
 removeApplicationExceptions : ProjectContext -> Dict String a -> Dict String a
 removeApplicationExceptions projectContext dict =
     case projectContext.projectType of
+        IsPackage _ ->
+            dict
+
         IsApplication ElmApplication ->
             Dict.remove "main" dict
 
-        IsPackage _ ->
+        IsApplication LamderaApplication ->
             dict
+                |> Dict.remove "main"
+                |> Dict.remove "app"
 
 
 removeReviewConfig : ModuleName -> Dict String a -> Dict String a
