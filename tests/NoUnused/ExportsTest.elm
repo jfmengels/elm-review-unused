@@ -20,6 +20,7 @@ all =
         , typeAliasesTests
         , duplicateModuleNameTests
         , importsTests
+        , lamderaTests
 
         -- TODO Add tests that report exposing the type's variants if they are never used.
         ]
@@ -750,4 +751,38 @@ b = 2
 """ ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
+        ]
+
+
+lamderaTests : Test
+lamderaTests =
+    describe "Lamdera support"
+        [ test "should report an exposed `app` function in packages" <|
+            \() ->
+                """module Main exposing (app)
+app = foo
+"""
+                    |> Review.Test.runWithProjectData package rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Exposed function or value `app` is never used outside this module."
+                            , details = details
+                            , under = "app"
+                            }
+                            |> Review.Test.atExactly { start = { row = 1, column = 23 }, end = { row = 1, column = 26 } }
+                        ]
+        , test "should report an exposed `app` function in applications" <|
+            \() ->
+                """module Main exposing (app)
+app = foo
+"""
+                    |> Review.Test.runWithProjectData application rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Exposed function or value `app` is never used outside this module."
+                            , details = details
+                            , under = "app"
+                            }
+                            |> Review.Test.atExactly { start = { row = 1, column = 23 }, end = { row = 1, column = 26 } }
+                        ]
         ]
