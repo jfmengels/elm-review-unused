@@ -3,7 +3,7 @@ module NoUnused.ExportsTest exposing (all)
 import NoUnused.Exports exposing (rule)
 import Review.Test
 import Test exposing (Test, describe, test)
-import TestProject exposing (application, package)
+import TestProject exposing (application, lamderaApplication, package)
 
 
 details : List String
@@ -785,4 +785,11 @@ app = foo
                             }
                             |> Review.Test.atExactly { start = { row = 1, column = 23 }, end = { row = 1, column = 26 } }
                         ]
+        , test "should not report an exposed `app` function in Lamdera applications" <|
+            \() ->
+                """module Main exposing (app)
+app = foo
+"""
+                    |> Review.Test.runWithProjectData lamderaApplication rule
+                    |> Review.Test.expectNoErrors
         ]
