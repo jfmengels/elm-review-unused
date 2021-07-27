@@ -252,7 +252,6 @@ finalEvaluationForProject projectContext =
                 depsNotUsedInSrcButUsedInTests : Set String
                 depsNotUsedInSrcButUsedInTests =
                     Set.intersect depsNotUsedInSrc projectContext.usedDependenciesFromTest
-                        |> Set.remove "elm/core"
 
                 depsNotUsedInSrcErrors : List String
                 depsNotUsedInSrcErrors =
@@ -265,7 +264,6 @@ finalEvaluationForProject projectContext =
                     Set.diff
                         projectContext.directTestDependencies
                         (Set.union projectContext.usedDependenciesFromTest projectContext.usedDependencies)
-                        |> Set.remove "elm/core"
                         |> Set.toList
             in
             List.map (unusedProjectDependencyError elmJsonKey projectContext.dependencies) depsNotUsedInSrcErrors
