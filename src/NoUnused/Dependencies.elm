@@ -255,8 +255,9 @@ finalEvaluationForProject projectContext =
 
                 depsNotUsedInSrcErrors : List String
                 depsNotUsedInSrcErrors =
-                    Set.diff depsNotUsedInSrc depsNotUsedInSrcButUsedInTests
-                        |> Set.remove "elm/core"
+                    Set.diff
+                        depsNotUsedInSrc
+                        (Set.union packagesNotToReport depsNotUsedInSrcButUsedInTests)
                         |> Set.toList
 
                 testDepsNotUsed : List String
@@ -272,6 +273,11 @@ finalEvaluationForProject projectContext =
 
         Nothing ->
             []
+
+
+packagesNotToReport : Set String
+packagesNotToReport =
+    Set.fromList [ "elm/core", "lamdera/core", "lamdera/codecs" ]
 
 
 
