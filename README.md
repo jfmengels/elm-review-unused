@@ -4,14 +4,14 @@ Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-revi
 
 ## Provided rules
 
-- [🔧 `NoUnused.Variables`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.14/NoUnused-Variables "Provides automatic fixes") - Reports unused top-level variables and types, imports and imported variables and types inside of a module.
-- [🔧 `NoUnused.CustomTypeConstructors`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.14/NoUnused-CustomTypeConstructors "Provides automatic fixes") - Reports unused constructors for a custom type.
-- [`NoUnused.CustomTypeConstructorArgs`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.14/NoUnused-CustomTypeConstructorArgs "Provides automatic fixes") - Reports arguments of custom type constructors that are never used.
-- [🔧 `NoUnused.Exports`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.14/NoUnused-Exports "Provides automatic fixes") - Reports unused exposed elements from a module.
-- [`NoUnused.Modules`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.14/NoUnused-Modules "Provides automatic fixes") - Reports unused modules in the project.
-- [🔧 `NoUnused.Dependencies`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.14/NoUnused-Dependencies "Provides automatic fixes") - Reports unused dependencies in the project.
-- [🔧 `NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.14/NoUnused-Dependencies "Provides automatic fixes") - Report unused parameters.
-- [🔧 `NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.14/NoUnused-Dependencies "Provides automatic fixes") - Report useless patterns and pattern values that are not used.
+- [🔧 `NoUnused.Variables`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Variables "Provides automatic fixes") - Reports unused top-level variables and types, imports and imported variables and types inside of a module.
+- [🔧 `NoUnused.CustomTypeConstructors`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-CustomTypeConstructors "Provides automatic fixes") - Reports unused constructors for a custom type.
+- [`NoUnused.CustomTypeConstructorArgs`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-CustomTypeConstructorArgs "Provides automatic fixes") - Reports arguments of custom type constructors that are never used.
+- [🔧 `NoUnused.Exports`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Exports "Provides automatic fixes") - Reports unused exposed elements from a module.
+- [`NoUnused.Modules`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Modules "Provides automatic fixes") - Reports unused modules in the project.
+- [🔧 `NoUnused.Dependencies`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Dependencies "Provides automatic fixes") - Reports unused dependencies in the project.
+- [🔧 `NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Dependencies "Provides automatic fixes") - Report unused parameters.
+- [🔧 `NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Dependencies "Provides automatic fixes") - Report useless patterns and pattern values that are not used.
 
 ## Example configuration
 
@@ -63,4 +63,4 @@ elm-review --template jfmengels/elm-review-unused/example
 
 ## Thanks
 
-Thanks to @sparksp for writing [`NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.14/NoUnused-Dependencies) and [`NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.0.1/NoUnused-Dependencies).
+Thanks to @sparksp for writing [`NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Dependencies) and [`NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.0.1/NoUnused-Dependencies).
