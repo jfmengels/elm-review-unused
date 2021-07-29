@@ -96,8 +96,6 @@ unsafePackageName packageName =
         Nothing ->
             -- unsafe, but if the generation went well, it should all be good.
             unsafePackageName packageName
-                -- Disables the tail-call optimization, so that the test crashes if we enter this case
-                |> identity
 
 
 package : Project
