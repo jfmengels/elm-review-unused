@@ -10,8 +10,8 @@ Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-revi
 - [🔧 `NoUnused.Exports`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Exports "Provides automatic fixes") - Reports unused exposed elements from a module.
 - [`NoUnused.Modules`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Modules "Provides automatic fixes") - Reports unused modules in the project.
 - [🔧 `NoUnused.Dependencies`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Dependencies "Provides automatic fixes") - Reports unused dependencies in the project.
-- [🔧 `NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Dependencies "Provides automatic fixes") - Report unused parameters.
-- [🔧 `NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Dependencies "Provides automatic fixes") - Report useless patterns and pattern values that are not used.
+- [🔧 `NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Parameters "Provides automatic fixes") - Report unused parameters.
+- [🔧 `NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.15/NoUnused-Patterns "Provides automatic fixes") - Report useless patterns and pattern values that are not used.
 
 ## Example configuration
 
