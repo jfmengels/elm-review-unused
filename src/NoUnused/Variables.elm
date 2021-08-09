@@ -699,7 +699,7 @@ expressionEnterVisitorHelp (Node range value) context =
                                         namesUsedInPattern =
                                             getUsedVariablesFromPattern context pattern
                                     in
-                                    ( []
+                                    ( errors
                                     , List.foldl markValueAsUsed foldContext namesUsedInPattern.types
                                         |> markAllModulesAsUsed namesUsedInPattern.modules
                                     )

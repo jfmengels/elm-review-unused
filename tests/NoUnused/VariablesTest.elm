@@ -468,6 +468,26 @@ a = let () = b
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 a = 2"""
                     ]
+    , test "should report () destructuring even if something comes afterwards" <|
+        \() ->
+            """module SomeModule exposing (a)
+a = let () = b
+        {c} = 1
+    in c"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unit value is unused"
+                        , details =
+                            [ "This value has no data, which makes the value unusable. You should remove it at the location I pointed at."
+                            ]
+                        , under = "()"
+                        }
+                        |> Review.Test.whenFixed ("""module SomeModule exposing (a)
+a = let$
+        {c} = 1
+    in c""" |> String.replace "$" " ")
+                    ]
     , test "should report parenthesized wildcard assignments" <|
         \() ->
             """module SomeModule exposing (a)
