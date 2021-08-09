@@ -505,6 +505,45 @@ a = let (_) = 1
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 a = 2"""
                     ]
+    , test "should report pattern match of data-less constructor" <|
+        \() ->
+            """module SomeModule exposing (a)
+type Foo = Foo
+a = let Foo = Foo
+    in 2"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern doesn't introduce any variables"
+                        , details =
+                            [ "This value has been computed but isn't assigned to any variable, which makes the value unusable. You should remove it at the location I pointed at."
+                            ]
+                        , under = "Foo"
+                        }
+                        |> Review.Test.atExactly { start = { row = 3, column = 9 }, end = { row = 3, column = 12 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+type Foo = Foo
+a = 2"""
+                    ]
+    , test "should report pattern match that doesn't introduce any variables" <|
+        \() ->
+            """module SomeModule exposing (a)
+type Foo = Foo
+a = let ( Foo, (Bar _), _ ) = x
+    in 2"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern doesn't introduce any variables"
+                        , details =
+                            [ "This value has been computed but isn't assigned to any variable, which makes the value unusable. You should remove it at the location I pointed at."
+                            ]
+                        , under = "( Foo, (Bar _), _ )"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+type Foo = Foo
+a = 2"""
+                    ]
     ]
 
 
@@ -787,8 +826,8 @@ a = Html.Styled.Attributes.href"""
         \() ->
             [ """module SomeModule exposing (a)
 import B
-a = let (B.B ()) = x
-    in 1
+a = let (B.B y) = x
+    in y
 """
             , """module B exposing (B)
 type B = B ()"""

@@ -699,7 +699,18 @@ expressionEnterVisitorHelp (Node range value) context =
                                         namesUsedInPattern =
                                             getUsedVariablesFromPattern context pattern
                                     in
-                                    ( errors
+                                    ( if not (introducesVariable pattern) then
+                                        Rule.errorWithFix
+                                            { message = "Pattern doesn't introduce any variables"
+                                            , details =
+                                                [ "This value has been computed but isn't assigned to any variable, which makes the value unusable. You should remove it at the location I pointed at." ]
+                                            }
+                                            (Node.range pattern)
+                                            [ Fix.removeRange (letDeclarationToRemoveRange letBlockContext (Node.range declaration)) ]
+                                            :: errors
+
+                                      else
+                                        errors
                                     , List.foldl markValueAsUsed foldContext namesUsedInPattern.types
                                         |> markAllModulesAsUsed namesUsedInPattern.modules
                                     )
@@ -913,6 +924,37 @@ getUsedModulesFromPattern lookupTable patternNode =
 
         Pattern.ParenthesizedPattern pattern ->
             getUsedModulesFromPattern lookupTable pattern
+
+
+introducesVariable : Node Pattern -> Bool
+introducesVariable patternNode =
+    case Node.value patternNode of
+        Pattern.VarPattern name ->
+            True
+
+        Pattern.AsPattern _ _ ->
+            True
+
+        Pattern.RecordPattern fields ->
+            not (List.isEmpty fields)
+
+        Pattern.TuplePattern patterns ->
+            List.any introducesVariable patterns
+
+        Pattern.UnConsPattern pattern1 pattern2 ->
+            List.any introducesVariable [ pattern1, pattern2 ]
+
+        Pattern.ListPattern patterns ->
+            List.any introducesVariable patterns
+
+        Pattern.NamedPattern _ patterns ->
+            List.any introducesVariable patterns
+
+        Pattern.ParenthesizedPattern pattern ->
+            introducesVariable pattern
+
+        _ ->
+            False
 
 
 
