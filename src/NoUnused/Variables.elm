@@ -929,7 +929,7 @@ getUsedModulesFromPattern lookupTable patternNode =
 introducesVariable : Node Pattern -> Bool
 introducesVariable patternNode =
     case Node.value patternNode of
-        Pattern.VarPattern name ->
+        Pattern.VarPattern _ ->
             True
 
         Pattern.AsPattern _ _ ->
