@@ -589,24 +589,12 @@ isPhantomCustomType : ModuleNameLookupTable -> Node String -> List (Node Type.Va
 isPhantomCustomType lookupTable name constructors =
     case constructors of
         [ Node _ constructor ] ->
-            if Node.value name == Node.value constructor.name then
-                case List.map Node.value constructor.arguments of
-                    [ TypeAnnotation.Typed arg [] ] ->
-                        case Node.value arg of
-                            ( [], "Never" ) ->
-                                True
+            case constructor.arguments of
+                [ arg ] ->
+                    isNever lookupTable arg
 
-                            ( [ "Basics" ], "Never" ) ->
-                                True
-
-                            _ ->
-                                False
-
-                    _ ->
-                        False
-
-            else
-                False
+                _ ->
+                    False
 
         _ ->
             False
