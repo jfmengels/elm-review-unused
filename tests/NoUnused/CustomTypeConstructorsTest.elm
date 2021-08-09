@@ -651,6 +651,18 @@ id = Id
 """
                     |> Review.Test.runWithProjectData project (rule [])
                     |> Review.Test.expectNoErrors
+        , test "should not report a custom type with one constructor that takes itself" <|
+            \() ->
+                """
+module MyModule exposing (id)
+type User = SomeConstructor User
+type Id a = Id a
+
+id : Id User
+id = Id
+"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectNoErrors
         , test "should report a custom type with multiple constructors, even when some take Never" <|
             \() ->
                 """
