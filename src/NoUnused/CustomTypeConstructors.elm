@@ -501,50 +501,12 @@ declarationVisitor node context =
                 ( [], context )
 
             else
-                let
-                    constructorsAndNext : List ( Maybe (Node Type.ValueConstructor), Node Type.ValueConstructor )
-                    constructorsAndNext =
-                        List.map2 Tuple.pair
-                            (List.map Just (List.drop 1 constructors) ++ [ Nothing ])
-                            constructors
-
-                    constructorsForCustomType : Dict String ConstructorInformation
-                    constructorsForCustomType =
-                        List.foldl
-                            (\( next, constructor ) ( prev, dict ) ->
-                                let
-                                    nameNode : Node String
-                                    nameNode =
-                                        (Node.value constructor).name
-
-                                    constructorName : String
-                                    constructorName =
-                                        Node.value nameNode
-
-                                    constructorInformation : ConstructorInformation
-                                    constructorInformation =
-                                        { name = constructorName
-                                        , rangeToReport = Node.range nameNode
-                                        , rangeToRemove = findRangeToRemove prev constructor next
-                                        }
-                                in
-                                ( Just constructor
-                                , Dict.insert
-                                    constructorName
-                                    constructorInformation
-                                    dict
-                                )
-                            )
-                            ( Nothing, Dict.empty )
-                            constructorsAndNext
-                            |> Tuple.second
-                in
                 ( []
                 , { context
                     | declaredTypesWithConstructors =
                         Dict.insert
                             (Node.value name)
-                            constructorsForCustomType
+                            (constructorsForCustomType constructors)
                             context.declaredTypesWithConstructors
                   }
                 )
@@ -561,6 +523,45 @@ declarationVisitor node context =
 
         _ ->
             ( [], context )
+
+
+constructorsForCustomType : List (Node Type.ValueConstructor) -> Dict String ConstructorInformation
+constructorsForCustomType constructors =
+    let
+        constructorsAndNext : List ( Maybe (Node Type.ValueConstructor), Node Type.ValueConstructor )
+        constructorsAndNext =
+            List.map2 Tuple.pair
+                (List.map Just (List.drop 1 constructors) ++ [ Nothing ])
+                constructors
+    in
+    List.foldl
+        (\( next, constructor ) ( prev, dict ) ->
+            let
+                nameNode : Node String
+                nameNode =
+                    (Node.value constructor).name
+
+                constructorName : String
+                constructorName =
+                    Node.value nameNode
+
+                constructorInformation : ConstructorInformation
+                constructorInformation =
+                    { name = constructorName
+                    , rangeToReport = Node.range nameNode
+                    , rangeToRemove = findRangeToRemove prev constructor next
+                    }
+            in
+            ( Just constructor
+            , Dict.insert
+                constructorName
+                constructorInformation
+                dict
+            )
+        )
+        ( Nothing, Dict.empty )
+        constructorsAndNext
+        |> Tuple.second
 
 
 findRangeToRemove : Maybe (Node a) -> Node Type.ValueConstructor -> Maybe (Node c) -> Maybe { start : Elm.Syntax.Range.Location, end : Elm.Syntax.Range.Location }
