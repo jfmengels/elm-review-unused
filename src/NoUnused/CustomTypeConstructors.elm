@@ -591,11 +591,16 @@ isPhantomCustomType lookupTable name constructors =
         [ Node _ constructor ] ->
             if Node.value name == Node.value constructor.name then
                 case constructor.arguments of
-                    (Node _ (TypeAnnotation.Typed (Node _ ( [], "Never" )) [])) :: [] ->
-                        True
+                    [ argument ] ->
+                        case argument of
+                            Node _ (TypeAnnotation.Typed (Node _ ( [], "Never" )) []) ->
+                                True
 
-                    (Node _ (TypeAnnotation.Typed (Node _ ( [ "Basics" ], "Never" )) [])) :: [] ->
-                        True
+                            Node _ (TypeAnnotation.Typed (Node _ ( [ "Basics" ], "Never" )) []) ->
+                                True
+
+                            _ ->
+                                False
 
                     _ ->
                         False
