@@ -612,6 +612,10 @@ isPhantomCustomType lookupTable name constructors =
             False
 
 
+isNever lookupTable node =
+    True
+
+
 
 -- EXPRESSION VISITOR
 
