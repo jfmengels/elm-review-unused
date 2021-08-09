@@ -497,7 +497,7 @@ declarationVisitor : Node Declaration -> ModuleContext -> ( List nothing, Module
 declarationVisitor node context =
     case Node.value node of
         Declaration.CustomTypeDeclaration { name, constructors } ->
-            if isPhantomCustomType name constructors then
+            if isPhantomCustomType context.lookupTable name constructors then
                 ( [], context )
 
             else
@@ -585,8 +585,8 @@ findRangeToRemove previousConstructor constructor nextConstructor =
                     Nothing
 
 
-isPhantomCustomType : Node String -> List (Node Type.ValueConstructor) -> Bool
-isPhantomCustomType name constructors =
+isPhantomCustomType : ModuleNameLookupTable -> Node String -> List (Node Type.ValueConstructor) -> Bool
+isPhantomCustomType lookupTable name constructors =
     case constructors of
         (Node _ constructor) :: [] ->
             if Node.value name == Node.value constructor.name then
