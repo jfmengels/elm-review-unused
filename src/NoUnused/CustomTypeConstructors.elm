@@ -497,7 +497,7 @@ declarationVisitor : Node Declaration -> ModuleContext -> ( List nothing, Module
 declarationVisitor node context =
     case Node.value node of
         Declaration.CustomTypeDeclaration { name, constructors } ->
-            if isPhantomCustomType context.lookupTable name constructors then
+            if isPhantomCustomType context.lookupTable (Node.value name) constructors then
                 ( [], context )
 
             else
@@ -585,13 +585,13 @@ findRangeToRemove previousConstructor constructor nextConstructor =
                     Nothing
 
 
-isPhantomCustomType : ModuleNameLookupTable -> Node String -> List (Node Type.ValueConstructor) -> Bool
-isPhantomCustomType lookupTable name constructors =
+isPhantomCustomType : ModuleNameLookupTable -> String -> List (Node Type.ValueConstructor) -> Bool
+isPhantomCustomType lookupTable typeName constructors =
     case constructors of
         [ Node _ constructor ] ->
             case constructor.arguments of
                 [ arg ] ->
-                    isNever lookupTable arg
+                    isNeverOrItself lookupTable typeName arg
 
                 _ ->
                     False
@@ -600,11 +600,14 @@ isPhantomCustomType lookupTable name constructors =
             False
 
 
-isNever : ModuleNameLookupTable -> Node TypeAnnotation -> Bool
-isNever lookupTable node =
+isNeverOrItself : ModuleNameLookupTable -> String -> Node TypeAnnotation -> Bool
+isNeverOrItself lookupTable typeName node =
     case Node.value node of
         TypeAnnotation.Typed (Node neverRange ( _, "Never" )) [] ->
             ModuleNameLookupTable.moduleNameAt lookupTable neverRange == Just [ "Basics" ]
+
+        TypeAnnotation.Typed (Node _ ( [], argName )) [] ->
+            typeName == argName
 
         _ ->
             False
