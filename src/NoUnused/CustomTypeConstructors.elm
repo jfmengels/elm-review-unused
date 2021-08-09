@@ -588,7 +588,7 @@ findRangeToRemove previousConstructor constructor nextConstructor =
 isPhantomCustomType : ModuleNameLookupTable -> Node String -> List (Node Type.ValueConstructor) -> Bool
 isPhantomCustomType lookupTable name constructors =
     case constructors of
-        (Node _ constructor) :: [] ->
+        [ Node _ constructor ] ->
             if Node.value name == Node.value constructor.name then
                 case constructor.arguments of
                     (Node _ (TypeAnnotation.Typed (Node _ ( [], "Never" )) [])) :: [] ->
