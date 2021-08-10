@@ -77,13 +77,19 @@ rule =
 
 type alias Context =
     { scopes : List Scope
-    , scopesToCreate : RangeDict (List String)
+    , scopesToCreate : RangeDict (List Declared)
     }
 
 
 type alias Scope =
-    { declared : List String
+    { declared : List Declared
     , used : Set String
+    }
+
+
+type alias Declared =
+    { name : String
+    , range : Range
     }
 
 
@@ -117,7 +123,7 @@ declarationVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration { declaration } ->
             let
-                declared : List String
+                declared : List Declared
                 declared =
                     Node.value declaration
                         |> .arguments
@@ -125,7 +131,7 @@ declarationVisitor node context =
                             (\pattern ->
                                 case Node.value pattern of
                                     Pattern.VarPattern name ->
-                                        [ name ]
+                                        [ { name = name, range = Node.range pattern } ]
 
                                     _ ->
                                         []
