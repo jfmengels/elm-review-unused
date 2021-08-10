@@ -260,25 +260,28 @@ report context =
 
 
 errorsForValue : Declared -> Rule.Error {}
-errorsForValue declared =
-    Rule.error
-        { message = message declared
-        , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
-        }
-        declared.range
-
-
-message : Declared -> String
-message { name, kind } =
+errorsForValue { name, kind, range } =
     case kind of
         Parameter ->
-            "Parameter `" ++ name ++ "` is not used."
+            Rule.error
+                { message = "Parameter `" ++ name ++ "` is not used."
+                , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+                }
+                range
 
         Alias ->
-            "Pattern alias `" ++ name ++ "` is not used."
+            Rule.error
+                { message = "Pattern alias `" ++ name ++ "` is not used."
+                , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+                }
+                range
 
         AsWithPatternWithoutVariables ->
-            "Pattern does not introduce any variable"
+            Rule.error
+                { message = "Pattern does not introduce any variable"
+                , details = [ "You should remove this pattern." ]
+                }
+                range
 
 
 listToMessage : String -> List String -> String
