@@ -197,7 +197,7 @@ getParametersFromPatterns node =
                 parametersFromPatterns =
                     List.concatMap getParametersFromPatterns patterns
             in
-            if List.isEmpty parametersFromPatterns then
+            if List.isEmpty parametersFromPatterns && List.all isPatternWildCard patterns then
                 [ { name = ""
                   , range = Node.range node
                   , kind = TupleWithoutVariables
@@ -213,6 +213,19 @@ getParametersFromPatterns node =
 
         _ ->
             []
+
+
+isPatternWildCard : Node Pattern -> Bool
+isPatternWildCard node =
+    case Node.value node of
+        Pattern.ParenthesizedPattern pattern ->
+            isPatternWildCard pattern
+
+        Pattern.AllPattern ->
+            True
+
+        _ ->
+            False
 
 
 
