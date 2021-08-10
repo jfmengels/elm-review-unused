@@ -127,15 +127,7 @@ declarationVisitor node context =
                 declared =
                     Node.value declaration
                         |> .arguments
-                        |> List.concatMap
-                            (\pattern ->
-                                case Node.value pattern of
-                                    Pattern.VarPattern name ->
-                                        [ { name = name, range = Node.range pattern } ]
-
-                                    _ ->
-                                        []
-                            )
+                        |> List.concatMap getParametersFromPatterns
             in
             ( []
             , { context
@@ -150,6 +142,16 @@ declarationVisitor node context =
 
         _ ->
             ( [], context )
+
+
+getParametersFromPatterns : Node Pattern -> List Declared
+getParametersFromPatterns pattern =
+    case Node.value pattern of
+        Pattern.VarPattern name ->
+            [ { name = name, range = Node.range pattern } ]
+
+        _ ->
+            []
 
 
 
