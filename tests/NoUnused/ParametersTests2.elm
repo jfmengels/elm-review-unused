@@ -17,10 +17,6 @@ all =
         , describe "in Lambda arguments" lambdaArgumentTests
         , describe "in Let Functions" letFunctionTests
 
-        --- un-tests
-        , describe "in Case branches" caseTests
-        , describe "in Let destructuring" letDestructuringTests
-
         --- in lambda
         , describe "with as pattern in lambdas" lambdaAsPatternTests
         , describe "with named pattern in lambdas" lambdaNamedPatternTests
@@ -33,50 +29,6 @@ all =
         , describe "with record pattern in functions" functionRecordPatternTests
         , describe "with tuple pattern in functions" functionTuplePatternTests
         ]
-
-
-caseTests : List Test
-caseTests =
-    [ test "should not report unused values" <|
-        \() ->
-            """
-module A exposing (..)
-foo =
-    case bar of
-        bish ->
-            Nothing
-        bash ->
-            Nothing
-"""
-                |> Review.Test.run rule
-                |> Review.Test.expectNoErrors
-    , test "should not report list of unused values" <|
-        \() ->
-            """
-module A exposing (..)
-foo =
-    case bar of
-        [] -> 0
-        [one] -> 1
-        [first, two] -> 2
-        more -> 3
-"""
-                |> Review.Test.run rule
-                |> Review.Test.expectNoErrors
-    , test "should not report uncons of unused values" <|
-        \() ->
-            """
-module A exposing (..)
-foo =
-    case bar of
-        [] -> 0
-        one :: [] -> 1
-        first :: two :: [] -> 2
-        _ :: _ :: more -> 3
-"""
-                |> Review.Test.run rule
-                |> Review.Test.expectNoErrors
-    ]
 
 
 functionArgumentTests : List Test
@@ -144,36 +96,6 @@ foo =
     List.map (\\_ -> Nothing) list
 """
                     ]
-    ]
-
-
-letDestructuringTests : List Test
-letDestructuringTests =
-    [ test "should not report unused values" <|
-        \() ->
-            """
-module A exposing (..)
-foo =
-    let
-        ( left, right ) =
-            tupleValue
-    in
-    left
-"""
-                |> Review.Test.run rule
-                |> Review.Test.expectNoErrors
-    , test "should not report unused patterns that are aliased" <|
-        \() ->
-            """
-module A exposing (..)
-foo =
-    let
-        (_ as bar) = 1
-    in
-    bar
-"""
-                |> Review.Test.run rule
-                |> Review.Test.expectNoErrors
     ]
 
 
