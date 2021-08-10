@@ -97,6 +97,7 @@ type alias Declared =
 type Kind
     = Parameter
     | Alias
+    | AsWithPatternWithoutVariables
 
 
 type FoundPattern
@@ -169,8 +170,13 @@ getParametersFromPatterns node =
                 asParameter =
                     { name = Node.value asName, range = Node.range asName, kind = Alias }
             in
-            asParameter
-                :: parametersFromPatterns
+            if List.isEmpty parametersFromPatterns then
+                [ asParameter
+                , { name = "", range = Node.range pattern, kind = AsWithPatternWithoutVariables }
+                ]
+
+            else
+                asParameter :: parametersFromPatterns
 
         Pattern.RecordPattern fields ->
             List.map
@@ -270,6 +276,9 @@ message { name, kind } =
 
         Alias ->
             "Pattern alias `" ++ name ++ "` is not used."
+
+        AsWithPatternWithoutVariables ->
+            "Pattern does not introduce any variable"
 
 
 listToMessage : String -> List String -> String
