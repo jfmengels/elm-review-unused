@@ -43,11 +43,14 @@ anywhere _in the project_.
 If the project is a package and the module that declared the type is exposed and
 the type's constructors are exposed, then the constructors will not be reported.
 
-This does not prevent you from using phantom types: A constructor won't be reported if
+This does not prevent you from using phantom types.
+I highly suggest chaning your phantom types to the following shape: `type TypeName = ConstructorName Never`.
+This shape makes it obvious to tooling and readers that the type can't be created, so if it is used, it must be as a phantom type.
 
-  - It is the only constructor of a type that has no type variable
-  - It has no parameters
-  - It is used as an argument of a custom type, in the stead of a type variable that is not used in the definition in any of the type's constructors
+**Deprecated configuration for phantom types**
+
+_I recommend changing your types like mentioned right above, and to configure the rule like `NoUnused.CustomTypeConstructors.rule []`.
+I'll keep this section and configuration option around until the next major version comes out._
 
 **Note**: At the time of writing, there may be cases where phantom types are not well detected.
 When an opaque type is defined in a dependency, we don't know whether a type variable should be considered as a phantom type.
@@ -72,7 +75,7 @@ by following the definitions of custom types and type aliases, until it finds ou
 variable is not used, or that it hits the limit related to dependencies described above.
 In the meantime, you can configure the rule with all the phantom type exceptions.
 
-I would love help with improving this :)
+**End of deprecated section**
 
 
 ## Fail
@@ -497,7 +500,7 @@ declarationVisitor : Node Declaration -> ModuleContext -> ( List nothing, Module
 declarationVisitor node context =
     case Node.value node of
         Declaration.CustomTypeDeclaration { name, constructors } ->
-            if isPhantomCustomType name constructors then
+            if isPhantomCustomType context.lookupTable (Node.value name) constructors then
                 ( [], context )
 
             else
@@ -585,23 +588,29 @@ findRangeToRemove previousConstructor constructor nextConstructor =
                     Nothing
 
 
-isPhantomCustomType : Node String -> List (Node Type.ValueConstructor) -> Bool
-isPhantomCustomType name constructors =
+isPhantomCustomType : ModuleNameLookupTable -> String -> List (Node Type.ValueConstructor) -> Bool
+isPhantomCustomType lookupTable typeName constructors =
     case constructors of
-        (Node _ constructor) :: [] ->
-            if Node.value name == Node.value constructor.name then
-                case constructor.arguments of
-                    (Node _ (TypeAnnotation.Typed (Node _ ( [], "Never" )) [])) :: [] ->
-                        True
+        [ Node _ constructor ] ->
+            case constructor.arguments of
+                [ arg ] ->
+                    isNeverOrItself lookupTable typeName arg
 
-                    (Node _ (TypeAnnotation.Typed (Node _ ( [ "Basics" ], "Never" )) [])) :: [] ->
-                        True
+                _ ->
+                    False
 
-                    _ ->
-                        False
+        _ ->
+            False
 
-            else
-                False
+
+isNeverOrItself : ModuleNameLookupTable -> String -> Node TypeAnnotation -> Bool
+isNeverOrItself lookupTable typeName node =
+    case Node.value node of
+        TypeAnnotation.Typed (Node neverRange ( _, "Never" )) [] ->
+            ModuleNameLookupTable.moduleNameAt lookupTable neverRange == Just [ "Basics" ]
+
+        TypeAnnotation.Typed (Node _ ( [], argName )) [] ->
+            typeName == argName
 
         _ ->
             False
