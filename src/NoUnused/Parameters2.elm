@@ -260,14 +260,21 @@ expressionEnterVisitorHelp node context =
             let
                 declaredWithRange : List ( Range, List Declared )
                 declaredWithRange =
-                    List.concatMap
-                        (\declaration ->
-                            case Node.value declaration of
+                    List.map
+                        (\letDeclaration ->
+                            case Node.value letDeclaration of
                                 Expression.LetFunction function ->
-                                    []
+                                    let
+                                        declaration : Expression.FunctionImplementation
+                                        declaration =
+                                            Node.value function.declaration
+                                    in
+                                    ( Node.range declaration.expression
+                                    , List.concatMap getParametersFromPatterns declaration.arguments
+                                    )
 
-                                Expression.LetDestructuring _ _ ->
-                                    []
+                                Expression.LetDestructuring pattern expression ->
+                                    ( Node.range expression, [] )
                         )
                         letBlock.declarations
 
