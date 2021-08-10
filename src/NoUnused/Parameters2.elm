@@ -185,7 +185,38 @@ report : Context -> ( List (Rule.Error {}), Context )
 report context =
     case context.scopes of
         headScope :: restOfScopes ->
-            ( [], { context | scopes = restOfScopes } )
+            let
+                errors =
+                    headScope.declared
+                        |> List.filter (\{ name } -> not (Set.member name headScope.used))
+                        |> List.map errorsForValue
+            in
+            ( errors, { context | scopes = restOfScopes } )
 
         [] ->
             ( [], context )
+
+
+errorsForValue : Declared -> Rule.Error {}
+errorsForValue { name, range } =
+    let
+        fix : List Fix
+        fix =
+            [ Fix.replaceRangeBy range "_" ]
+    in
+    Rule.errorWithFix
+        { message = "Parameter `" ++ name ++ "` is not used."
+        , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+        }
+        range
+        fix
+
+
+listToMessage : String -> List String -> String
+listToMessage first rest =
+    case List.reverse rest of
+        [] ->
+            "Parameter `" ++ first ++ "` is not used."
+
+        last :: middle ->
+            "Parameters `" ++ String.join "`, `" (first :: middle) ++ "` and `" ++ last ++ "` are not used."
