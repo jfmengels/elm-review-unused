@@ -735,7 +735,7 @@ foo (Singular _, Pair _ _) =
 
 functionRecordPatternTests : List Test
 functionRecordPatternTests =
-    [ test "should replace unused record with `_`" <|
+    [ test "should report unused fields" <|
         \() ->
             """
 module A exposing (..)
@@ -745,12 +745,22 @@ foo { bish, bash, bosh } =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameters `bish`, `bash` and `bosh` are not used."
-                        , details = [ "You should either use these parameters somewhere, or remove them at the location I pointed at." ]
-                        , under = "bish, bash, bosh"
+                        { message = "Parameter `bish` is not used."
+                        , details = details
+                        , under = "bish"
+                        }
+                    , Review.Test.error
+                        { message = "Parameter `bash` is not used."
+                        , details = details
+                        , under = "bash"
+                        }
+                    , Review.Test.error
+                        { message = "Parameter `bosh` is not used."
+                        , details = details
+                        , under = "bosh"
                         }
                     ]
-    , test "should report unused record values" <|
+    , test "should report only the unused record values" <|
         \() ->
             """
 module A exposing (..)
@@ -760,24 +770,14 @@ foo { bish, bash, bosh } =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameters `bish` and `bosh` are not used."
-                        , details = [ "You should either use these parameters somewhere, or remove them at the location I pointed at." ]
-                        , under = "bish, bash, bosh"
+                        { message = "Parameter `bish` is not used."
+                        , details = details
+                        , under = "bish"
                         }
-                    ]
-    , test "should report highlight the least amount of values possible" <|
-        \() ->
-            """
-module A exposing (..)
-foo { bish, bash, bosh } =
-    bish
-"""
-                |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Parameters `bash` and `bosh` are not used."
-                        , details = [ "You should either use these parameters somewhere, or remove them at the location I pointed at." ]
-                        , under = "bash, bosh"
+                    , Review.Test.error
+                        { message = "Parameter `bosh` is not used."
+                        , details = details
+                        , under = "bosh"
                         }
                     ]
     ]
