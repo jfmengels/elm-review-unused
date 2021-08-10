@@ -652,7 +652,7 @@ foo (_ as bar) =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Pattern does not introduce any variable"
-                        , details = [ "You should remove it at the location I pointed at." ]
+                        , details = [ "You should remove this pattern." ]
                         , under = "_"
                         }
                         |> Review.Test.whenFixed
