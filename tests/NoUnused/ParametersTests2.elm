@@ -825,6 +825,26 @@ foo _ =
     bar
 """
                     ]
+    , test "should report unused when it contains ()" <|
+        \() ->
+            """
+module A exposing (..)
+foo ( _, () ) =
+    bar
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Tuple pattern is not needed"
+                        , details = [ "You should remove this pattern." ]
+                        , under = "( _, () )"
+                        }
+                        |> Review.Test.whenFixed """
+module A exposing (..)
+foo _ =
+    bar
+"""
+                    ]
     , test "should report unused threeple" <|
         \() ->
             """
