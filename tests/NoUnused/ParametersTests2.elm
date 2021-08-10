@@ -143,10 +143,11 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `twoValue` is not used."
+                        { message = "Parameter `oneValue` is not used."
                         , details = details
-                        , under = "twoValue"
+                        , under = "oneValue"
                         }
+                        |> Review.Test.atExactly { start = { row = 7, column = 13 }, end = { row = 7, column = 21 } }
                     ]
     , test "should not report unused let functions" <|
         \() ->
