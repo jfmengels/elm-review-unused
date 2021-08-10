@@ -256,6 +256,35 @@ expressionEnterVisitorHelp node context =
         Expression.FunctionOrValue [] name ->
             ( [], markValueAsUsed name context )
 
+        Expression.LetExpression letBlock ->
+            let
+                declaredWithRange : List ( Range, List Declared )
+                declaredWithRange =
+                    List.concatMap
+                        (\declaration ->
+                            case Node.value declaration of
+                                Expression.LetFunction function ->
+                                    []
+
+                                Expression.LetDestructuring _ _ ->
+                                    []
+                        )
+                        letBlock.declarations
+
+                scopesToCreate : RangeDict (List Declared)
+                scopesToCreate =
+                    List.foldl
+                        (\( range, declared ) dict ->
+                            RangeDict.insert
+                                range
+                                declared
+                                dict
+                        )
+                        context.scopesToCreate
+                        declaredWithRange
+            in
+            ( [], { context | scopesToCreate = scopesToCreate } )
+
         _ ->
             ( [], context )
 
