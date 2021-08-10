@@ -160,8 +160,13 @@ getParametersFromPatterns node =
             [ { name = name, range = Node.range node, kind = Parameter } ]
 
         Pattern.AsPattern pattern asName ->
+            let
+                parametersFromPatterns : List Declared
+                parametersFromPatterns =
+                    getParametersFromPatterns pattern
+            in
             { name = Node.value asName, range = Node.range asName, kind = Alias }
-                :: getParametersFromPatterns pattern
+                :: parametersFromPatterns
 
         Pattern.RecordPattern fields ->
             List.map
