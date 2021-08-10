@@ -5,6 +5,11 @@ import Review.Test
 import Test exposing (Test, describe, test)
 
 
+
+-- TODO REPLACEME Mark recordupdateexpression as using a variable (and maybe more)
+-- TODO Remove the fix for tuples in functions
+
+
 details : List String
 details =
     [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
