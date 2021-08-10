@@ -90,7 +90,13 @@ type alias Scope =
 type alias Declared =
     { name : String
     , range : Range
+    , kind : Kind
     }
+
+
+type Kind
+    = Parameter
+    | Alias
 
 
 type FoundPattern
@@ -145,10 +151,16 @@ declarationVisitor node context =
 
 
 getParametersFromPatterns : Node Pattern -> List Declared
-getParametersFromPatterns pattern =
-    case Node.value pattern of
+getParametersFromPatterns node =
+    case Node.value node of
+        Pattern.ParenthesizedPattern pattern ->
+            getParametersFromPatterns pattern
+
         Pattern.VarPattern name ->
-            [ { name = name, range = Node.range pattern } ]
+            [ { name = name, range = Node.range node, kind = Parameter } ]
+
+        Pattern.AsPattern _ asName ->
+            [ { name = Node.value asName, range = Node.range asName, kind = Alias } ]
 
         _ ->
             []
@@ -225,12 +237,22 @@ report context =
 
 
 errorsForValue : Declared -> Rule.Error {}
-errorsForValue { name, range } =
+errorsForValue declared =
     Rule.error
-        { message = "Parameter `" ++ name ++ "` is not used."
+        { message = message declared
         , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
         }
-        range
+        declared.range
+
+
+message : Declared -> String
+message { name, kind } =
+    case kind of
+        Parameter ->
+            "Parameter `" ++ name ++ "` is not used."
+
+        Alias ->
+            "Pattern alias `" ++ name ++ "` is not used."
 
 
 listToMessage : String -> List String -> String
