@@ -306,6 +306,16 @@ markValueAsUsed name context =
             { context | scopes = { headScope | used = Set.insert name headScope.used } :: restOfScopes }
 
 
+markAllAsUsed : Set String -> List Scope -> List Scope
+markAllAsUsed names scopes =
+    case scopes of
+        [] ->
+            scopes
+
+        headScope :: restOfScopes ->
+            { headScope | used = Set.union names headScope.used } :: restOfScopes
+
+
 
 -- EXPRESSION EXIT VISITOR
 
@@ -325,20 +335,19 @@ report context =
     case context.scopes of
         headScope :: restOfScopes ->
             let
-                errors : List (Rule.Error {})
-                errors =
+                ( errors, remainingUsed ) =
                     List.foldl
-                        (\declared errorsAcc ->
-                            if Set.member declared.name headScope.used then
-                                errorsAcc
+                        (\declared ( errors_, remainingUsed_ ) ->
+                            if Set.member declared.name remainingUsed_ then
+                                ( errors_, Set.remove declared.name remainingUsed_ )
 
                             else
-                                errorsForValue declared :: errorsAcc
+                                ( errorsForValue declared :: errors_, remainingUsed_ )
                         )
-                        []
+                        ( [], headScope.used )
                         headScope.declared
             in
-            ( errors, { context | scopes = restOfScopes } )
+            ( errors, { context | scopes = markAllAsUsed remainingUsed restOfScopes } )
 
         [] ->
             ( [], context )
