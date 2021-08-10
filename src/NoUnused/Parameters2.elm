@@ -327,9 +327,16 @@ report context =
             let
                 errors : List (Rule.Error {})
                 errors =
-                    headScope.declared
-                        |> List.filter (\{ name } -> not (Set.member name headScope.used))
-                        |> List.map errorsForValue
+                    List.foldl
+                        (\declared errorsAcc ->
+                            if Set.member declared.name headScope.used then
+                                errorsAcc
+
+                            else
+                                errorsForValue declared :: errorsAcc
+                        )
+                        []
+                        headScope.declared
             in
             ( errors, { context | scopes = restOfScopes } )
 
