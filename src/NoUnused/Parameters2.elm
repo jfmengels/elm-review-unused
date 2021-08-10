@@ -186,6 +186,7 @@ report context =
     case context.scopes of
         headScope :: restOfScopes ->
             let
+                errors : List (Rule.Error {})
                 errors =
                     headScope.declared
                         |> List.filter (\{ name } -> not (Set.member name headScope.used))
