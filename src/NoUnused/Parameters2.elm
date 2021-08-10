@@ -91,6 +91,7 @@ type alias Declared =
     { name : String
     , range : Range
     , kind : Kind
+    , fix : List Fix
     }
 
 
@@ -158,7 +159,7 @@ getParametersFromPatterns node =
             getParametersFromPatterns pattern
 
         Pattern.VarPattern name ->
-            [ { name = name, range = Node.range node, kind = Parameter } ]
+            [ { name = name, range = Node.range node, kind = Parameter, fix = [] } ]
 
         Pattern.AsPattern pattern asName ->
             let
@@ -168,11 +169,15 @@ getParametersFromPatterns node =
 
                 asParameter : Declared
                 asParameter =
-                    { name = Node.value asName, range = Node.range asName, kind = Alias }
+                    { name = Node.value asName, range = Node.range asName, kind = Alias, fix = [] }
             in
             if List.isEmpty parametersFromPatterns then
                 [ asParameter
-                , { name = "", range = Node.range pattern, kind = AsWithPatternWithoutVariables }
+                , { name = ""
+                  , range = Node.range pattern
+                  , kind = AsWithPatternWithoutVariables
+                  , fix = [ Fix.removeRange { start = (Node.range pattern).start, end = (Node.range asName).start } ]
+                  }
                 ]
 
             else
@@ -181,7 +186,7 @@ getParametersFromPatterns node =
         Pattern.RecordPattern fields ->
             List.map
                 (\field ->
-                    { name = Node.value field, range = Node.range field, kind = Parameter }
+                    { name = Node.value field, range = Node.range field, kind = Parameter, fix = [] }
                 )
                 fields
 
@@ -260,7 +265,7 @@ report context =
 
 
 errorsForValue : Declared -> Rule.Error {}
-errorsForValue { name, kind, range } =
+errorsForValue { name, kind, range, fix } =
     case kind of
         Parameter ->
             Rule.error
@@ -277,11 +282,12 @@ errorsForValue { name, kind, range } =
                 range
 
         AsWithPatternWithoutVariables ->
-            Rule.error
+            Rule.errorWithFix
                 { message = "Pattern does not introduce any variable"
                 , details = [ "You should remove this pattern." ]
                 }
                 range
+                fix
 
 
 listToMessage : String -> List String -> String
