@@ -224,6 +224,9 @@ isPatternWildCard node =
         Pattern.AllPattern ->
             True
 
+        Pattern.UnitPattern ->
+            True
+
         _ ->
             False
 
