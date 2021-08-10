@@ -190,6 +190,12 @@ getParametersFromPatterns node =
                 )
                 fields
 
+        Pattern.TuplePattern patterns ->
+            List.concatMap getParametersFromPatterns patterns
+
+        Pattern.NamedPattern _ patterns ->
+            List.concatMap getParametersFromPatterns patterns
+
         _ ->
             []
 
