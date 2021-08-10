@@ -816,9 +816,14 @@ foo ( _, _ ) =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Tuple pattern is not needed"
-                        , details = [ "You should remove it at the location I pointed at." ]
+                        , details = [ "You should remove this pattern." ]
                         , under = "( _, _ )"
                         }
+                        |> Review.Test.whenFixed """
+module A exposing (..)
+foo _ =
+    bar
+"""
                     ]
     , test "should report unused threeple" <|
         \() ->
@@ -831,8 +836,13 @@ foo ( _, _, _ ) =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Tuple pattern is not needed"
-                        , details = [ "You should remove it at the location I pointed at." ]
+                        , details = [ "You should remove this pattern." ]
                         , under = "( _, _, _ )"
                         }
+                        |> Review.Test.whenFixed """
+module A exposing (..)
+foo _ =
+    bar
+"""
                     ]
     ]

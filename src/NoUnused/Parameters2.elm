@@ -99,6 +99,7 @@ type Kind
     = Parameter
     | Alias
     | AsWithPatternWithoutVariables
+    | TupleWithoutVariables
 
 
 type FoundPattern
@@ -191,7 +192,21 @@ getParametersFromPatterns node =
                 fields
 
         Pattern.TuplePattern patterns ->
-            List.concatMap getParametersFromPatterns patterns
+            let
+                parametersFromPatterns : List Declared
+                parametersFromPatterns =
+                    List.concatMap getParametersFromPatterns patterns
+            in
+            if List.isEmpty parametersFromPatterns then
+                [ { name = ""
+                  , range = Node.range node
+                  , kind = TupleWithoutVariables
+                  , fix = [ Fix.replaceRangeBy (Node.range node) "_" ]
+                  }
+                ]
+
+            else
+                parametersFromPatterns
 
         Pattern.NamedPattern _ patterns ->
             List.concatMap getParametersFromPatterns patterns
@@ -290,6 +305,14 @@ errorsForValue { name, kind, range, fix } =
         AsWithPatternWithoutVariables ->
             Rule.errorWithFix
                 { message = "Pattern does not introduce any variable"
+                , details = [ "You should remove this pattern." ]
+                }
+                range
+                fix
+
+        TupleWithoutVariables ->
+            Rule.errorWithFix
+                { message = "Tuple pattern is not needed"
                 , details = [ "You should remove this pattern." ]
                 }
                 range
