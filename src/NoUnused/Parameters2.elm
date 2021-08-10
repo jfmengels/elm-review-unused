@@ -164,8 +164,12 @@ getParametersFromPatterns node =
                 parametersFromPatterns : List Declared
                 parametersFromPatterns =
                     getParametersFromPatterns pattern
+
+                asParameter : Declared
+                asParameter =
+                    { name = Node.value asName, range = Node.range asName, kind = Alias }
             in
-            { name = Node.value asName, range = Node.range asName, kind = Alias }
+            asParameter
                 :: parametersFromPatterns
 
         Pattern.RecordPattern fields ->
