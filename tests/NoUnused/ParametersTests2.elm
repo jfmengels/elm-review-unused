@@ -651,7 +651,7 @@ foo (_ as bar) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern `_` is not needed"
+                        { message = "Pattern does not introduce any variable"
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "_"
                         }
