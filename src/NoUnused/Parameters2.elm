@@ -173,7 +173,22 @@ expressionEnterVisitor node context =
 
 expressionEnterVisitorHelp : Node Expression -> Context -> ( List nothing, Context )
 expressionEnterVisitorHelp node context =
-    ( [], context )
+    case Node.value node of
+        Expression.FunctionOrValue [] name ->
+            ( [], markValueAsUsed name context )
+
+        _ ->
+            ( [], context )
+
+
+markValueAsUsed : String -> Context -> Context
+markValueAsUsed name context =
+    case context.scopes of
+        [] ->
+            context
+
+        headScope :: restOfScopes ->
+            { context | scopes = { headScope | used = Set.insert name headScope.used } :: restOfScopes }
 
 
 
@@ -209,17 +224,11 @@ report context =
 
 errorsForValue : Declared -> Rule.Error {}
 errorsForValue { name, range } =
-    let
-        fix : List Fix
-        fix =
-            [ Fix.replaceRangeBy range "_" ]
-    in
-    Rule.errorWithFix
+    Rule.error
         { message = "Parameter `" ++ name ++ "` is not used."
         , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
         }
         range
-        fix
 
 
 listToMessage : String -> List String -> String
