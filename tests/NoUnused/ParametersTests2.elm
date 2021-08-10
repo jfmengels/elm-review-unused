@@ -720,13 +720,7 @@ foo (Pair _ _) =
     bash
 """
                 |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Named pattern is not needed"
-                        , details = [ "You should remove it at the location I pointed at." ]
-                        , under = "Pair _ _"
-                        }
-                    ]
+                |> Review.Test.expectNoErrors
     , test "should report unused named patterns in tuples" <|
         \() ->
             """
@@ -735,18 +729,7 @@ foo (Singular _, Pair _ _) =
     bish
 """
                 |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Named pattern is not needed"
-                        , details = [ "You should remove it at the location I pointed at." ]
-                        , under = "Singular _"
-                        }
-                    , Review.Test.error
-                        { message = "Named pattern is not needed"
-                        , details = [ "You should remove it at the location I pointed at." ]
-                        , under = "Pair _ _"
-                        }
-                    ]
+                |> Review.Test.expectNoErrors
     ]
 
 
