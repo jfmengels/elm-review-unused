@@ -139,13 +139,11 @@ declarationVisitor node context =
             in
             ( []
             , { context
-                | scopes = { declared = declared, used = Set.empty } :: context.scopes
-
-                -- Will only be used to remove on exit, we are already adding the declared patterns to the scope above
+                | scopes = []
                 , scopesToCreate =
                     RangeDict.insert
                         (declaration |> Node.value |> .expression |> Node.range)
-                        []
+                        declared
                         context.scopesToCreate
               }
             )
