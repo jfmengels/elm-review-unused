@@ -159,8 +159,16 @@ getParametersFromPatterns node =
         Pattern.VarPattern name ->
             [ { name = name, range = Node.range node, kind = Parameter } ]
 
-        Pattern.AsPattern _ asName ->
-            [ { name = Node.value asName, range = Node.range asName, kind = Alias } ]
+        Pattern.AsPattern pattern asName ->
+            { name = Node.value asName, range = Node.range asName, kind = Alias }
+                :: getParametersFromPatterns pattern
+
+        Pattern.RecordPattern fields ->
+            List.map
+                (\field ->
+                    { name = Node.value field, range = Node.range field, kind = Parameter }
+                )
+                fields
 
         _ ->
             []
