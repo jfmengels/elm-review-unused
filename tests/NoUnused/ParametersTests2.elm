@@ -35,8 +35,7 @@ functionArgumentTests : List Test
 functionArgumentTests =
     [ test "should report unused arguments" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo : Int -> String -> String -> String
 foo one two three =
     three
@@ -56,8 +55,7 @@ foo one two three =
                     ]
     , test "should not consider values from other modules" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo one =
     Bar.one
 """
@@ -68,12 +66,11 @@ foo one =
                         , details = details
                         , under = "one"
                         }
-                        |> Review.Test.atExactly { start = { row = 3, column = 5 }, end = { row = 3, column = 8 } }
+                        |> Review.Test.atExactly { start = { row = 2, column = 5 }, end = { row = 2, column = 8 } }
                     ]
     , test "should not report used parameters (value reference)" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo one =
     one
 """
@@ -81,8 +78,7 @@ foo one =
                 |> Review.Test.expectNoErrors
     , test "should not report used parameters (record update reference)" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo one =
     { one | a = 1 }
 """
@@ -95,8 +91,7 @@ lambdaArgumentTests : List Test
 lambdaArgumentTests =
     [ test "should report unused arguments" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     List.map (\\value -> Nothing) list
 """
@@ -107,9 +102,7 @@ foo =
                         , details = details
                         , under = "value"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     List.map (\\_ -> Nothing) list
 """
@@ -121,8 +114,7 @@ letFunctionTests : List Test
 letFunctionTests =
     [ test "should report unused arguments" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     let
         one oneValue =
@@ -147,8 +139,7 @@ foo =
                     ]
     , test "should report unused even if others with the same name are used in siblings" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     let
         one oneValue =
@@ -165,12 +156,11 @@ foo =
                         , details = details
                         , under = "oneValue"
                         }
-                        |> Review.Test.atExactly { start = { row = 7, column = 13 }, end = { row = 7, column = 21 } }
+                        |> Review.Test.atExactly { start = { row = 6, column = 13 }, end = { row = 6, column = 21 } }
                     ]
     , test "should not report unused let functions" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     let
         value =
@@ -191,8 +181,7 @@ lambdaAsPatternTests : List Test
 lambdaAsPatternTests =
     [ test "should report unused pattern aliases" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\({ bish, bash } as bosh) ->
         ( bish, bash )
@@ -204,9 +193,7 @@ foo =
                         , details = details
                         , under = "bosh"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\({bish, bash}) ->
         ( bish, bash )
@@ -214,8 +201,7 @@ foo =
                     ]
     , test "should report unused patterns in an as pattern" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\({ bish, bash } as bosh) ->
         ( bish, bosh )
@@ -227,9 +213,7 @@ foo =
                         , details = details
                         , under = "bash"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\({bish} as bosh) ->
         ( bish, bosh )
@@ -237,8 +221,7 @@ foo =
                     ]
     , test "should report unused patterns and unused aliases" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\({ bish, bash } as bosh) ->
         bish
@@ -250,9 +233,7 @@ foo =
                         , details = details
                         , under = "bash"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\({bish} as bosh) ->
         bish
@@ -262,11 +243,9 @@ foo =
                         , details = details
                         , under = "bosh"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
-    \\({bish, bash}) ->
+    \\({ bish, bash }) ->
         bish
 """
                     ]
@@ -290,8 +269,7 @@ foo =
                     ]
     , test "should report nested unused pattern aliases" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\(Named ( _, ( Named bash ) as bish )) ->
         bash
@@ -303,9 +281,7 @@ foo =
                         , details = details
                         , under = "bish"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\(Named ( _, ( Named bash ) )) ->
         bash
@@ -318,8 +294,7 @@ lambdaNamedPatternTests : List Test
 lambdaNamedPatternTests =
     [ test "should report unused variables extracted out of named patterns" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\(Named bish) ->
         bash
@@ -331,9 +306,7 @@ foo =
                         , details = details
                         , under = "bish"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\(Named _) ->
         bash
@@ -341,8 +314,7 @@ foo =
                     ]
     , test "should report unused nested named patterns" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\(Named (Bish bish)) ->
         bash
@@ -354,9 +326,7 @@ foo =
                         , details = details
                         , under = "bish"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\(Named (Bish _)) ->
         bash
@@ -364,8 +334,7 @@ foo =
                     ]
     , test "should not report named patterns" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\(Pair _ _) -> bash
 """
@@ -373,8 +342,7 @@ foo =
                 |> Review.Test.expectNoErrors
     , test "should not report unused named patterns in tuples" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\(Singular _, Pair _ _) -> bish
 """
@@ -387,8 +355,7 @@ lambdaRecordPatternTests : List Test
 lambdaRecordPatternTests =
     [ test "should replace unused record with `_`" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\{ bish, bash, bosh } ->
         bar
@@ -400,9 +367,7 @@ foo =
                         , details = [ "You should either use these parameters somewhere, or remove them at the location I pointed at." ]
                         , under = "bish, bash, bosh"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\_ ->
         bar
@@ -410,8 +375,7 @@ foo =
                     ]
     , test "should replace empty record with `_`" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\{} ->
         bar
@@ -423,9 +387,7 @@ foo =
                         , details = [ "This pattern is redundant and should be replaced with '_'." ]
                         , under = "{}"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\_ ->
         bar
@@ -433,8 +395,7 @@ foo =
                     ]
     , test "should report unused record values" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\{ bish, bash, bosh } ->
         bash
@@ -446,9 +407,7 @@ foo =
                         , details = [ "You should either use these parameters somewhere, or remove them at the location I pointed at." ]
                         , under = "bish, bash, bosh"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\{bash} ->
         bash
@@ -456,8 +415,7 @@ foo =
                     ]
     , test "should report highlight the least amount of values possible" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\{ bish, bash, bosh } ->
         bish
@@ -469,9 +427,7 @@ foo =
                         , details = [ "You should either use these parameters somewhere, or remove them at the location I pointed at." ]
                         , under = "bash, bosh"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\{bish} ->
         bish
@@ -484,8 +440,7 @@ lambdaTuplePatternTests : List Test
 lambdaTuplePatternTests =
     [ test "should report unused tuple values" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\( bish, bash, bosh ) ->
         bash
@@ -497,9 +452,7 @@ foo =
                         , details = details
                         , under = "bish"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\( _, bash, bosh ) ->
         bash
@@ -509,9 +462,7 @@ foo =
                         , details = details
                         , under = "bosh"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\( bish, bash, _ ) ->
         bash
@@ -519,8 +470,7 @@ foo =
                     ]
     , test "should replace unused tuple with `_`" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\( _, _ ) ->
         bar
@@ -532,9 +482,7 @@ foo =
                         , details = [ "You should remove this pattern." ]
                         , under = "( _, _ )"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\_ ->
         bar
@@ -542,8 +490,7 @@ foo =
                     ]
     , test "should replace unused threeple with `_`" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\( _, _, _ ) ->
         bar
@@ -555,9 +502,7 @@ foo =
                         , details = [ "You should remove this pattern." ]
                         , under = "( _, _, _ )"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\_ ->
         bar
@@ -574,8 +519,7 @@ functionAsPatternTests : List Test
 functionAsPatternTests =
     [ test "should report unused pattern aliases" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo ({ bish, bash } as bosh) =
     ( bish, bash )
 """
@@ -589,8 +533,7 @@ foo ({ bish, bash } as bosh) =
                     ]
     , test "should report unused patterns in an as pattern" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo ({ bish, bash } as bosh) =
     ( bish, bosh )
 """
@@ -604,8 +547,7 @@ foo ({ bish, bash } as bosh) =
                     ]
     , test "should report unused patterns and unused aliases" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo ({ bish, bash } as bosh) =
     bish
 """
@@ -624,8 +566,7 @@ foo ({ bish, bash } as bosh) =
                     ]
     , test "should report unused patterns that are aliased" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo (_ as bar) =
     bar
 """
@@ -639,8 +580,7 @@ foo (_ as bar) =
                     ]
     , test "should report nested unused pattern aliases" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo (Named ( _, ( Just bash ) as bish )) =
     bash
 """
@@ -687,8 +627,7 @@ foo (Named ( _, ( Just bash ) as bish )) =
     --                        , details = [ "You should remove this pattern." ]
     --                        , under = "( _, _ )"
     --                        }
-    --                        |> Review.Test.whenFixed """
-    --module A exposing (..)
+    --                        |> Review.Test.whenFixed """    --module A exposing (..)
     --foo _ =
     --    bar
     --"""
@@ -707,8 +646,7 @@ foo (Named ( _, ( Just bash ) as bish )) =
     --                        , details = [ "You should remove this pattern." ]
     --                        , under = "( _, () )"
     --                        }
-    --                        |> Review.Test.whenFixed """
-    --module A exposing (..)
+    --                        |> Review.Test.whenFixed """    --module A exposing (..)
     --foo _ =
     --    bar
     --"""
@@ -727,8 +665,7 @@ foo (Named ( _, ( Just bash ) as bish )) =
     --                        , details = [ "You should remove this pattern." ]
     --                        , under = "( _, _ )"
     --                        }
-    --                        |> Review.Test.whenFixed """
-    --module A exposing (..)
+    --                        |> Review.Test.whenFixed """    --module A exposing (..)
     --foo ( _, _ ) =
     --    bar
     --"""
@@ -747,8 +684,7 @@ foo (Named ( _, ( Just bash ) as bish )) =
     --                        , details = [ "You should remove this pattern." ]
     --                        , under = "( _, _, _ )"
     --                        }
-    --                        |> Review.Test.whenFixed """
-    --module A exposing (..)
+    --                        |> Review.Test.whenFixed """    --module A exposing (..)
     --foo _ =
     --    bar
     --"""
@@ -760,8 +696,7 @@ functionNamedPatternTests : List Test
 functionNamedPatternTests =
     [ test "should report unused named patterns" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo (Named bish) =
     bash
 """
@@ -775,8 +710,7 @@ foo (Named bish) =
                     ]
     , test "should report unused nested named patterns" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo (Named (Bish bish)) =
     bash
 """
@@ -790,8 +724,7 @@ foo (Named (Bish bish)) =
                     ]
     , test "should report unused named patterns with multiple segments" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo (Pair _ _) =
     bash
 """
@@ -799,8 +732,7 @@ foo (Pair _ _) =
                 |> Review.Test.expectNoErrors
     , test "should report unused named patterns in tuples" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo (Singular _, Pair _ _) =
     bish
 """
@@ -813,8 +745,7 @@ functionRecordPatternTests : List Test
 functionRecordPatternTests =
     [ test "should report unused fields" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo { bish, bash, bosh } =
     bar
 """
@@ -838,8 +769,7 @@ foo { bish, bash, bosh } =
                     ]
     , test "should report only the unused record values" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo { bish, bash, bosh } =
     bash
 """
@@ -863,8 +793,7 @@ functionTuplePatternTests : List Test
 functionTuplePatternTests =
     [ test "should report unused tuple values" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo ( bish, bash, bosh ) =
     bash
 """
@@ -883,8 +812,7 @@ foo ( bish, bash, bosh ) =
                     ]
     , test "should report unused tuple" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo ( _, _ ) =
     bar
 """
@@ -898,8 +826,7 @@ foo ( _, _ ) =
                     ]
     , test "should report unused when it contains ()" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo ( _, () ) =
     bar
 """
@@ -913,8 +840,7 @@ foo ( _, () ) =
                     ]
     , test "should report unused when it contains empty tuples" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo ( _, ( _, _ ) ) =
     bar
 """
@@ -928,8 +854,7 @@ foo ( _, ( _, _ ) ) =
                     ]
     , test "should report unused threeple" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo ( _, _, _ ) =
     bar
 """
