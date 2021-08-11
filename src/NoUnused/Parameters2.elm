@@ -136,7 +136,7 @@ declarationVisitor node context =
                     RangeDict.singleton
                         (declaration |> Node.value |> .expression |> Node.range)
                         declared
-              , knownRecursiveCalls = RangeDict.singleton { start = { row = 6, column = 21 }, end = { row = 6, column = 27 } } ()
+              , knownRecursiveCalls = RangeDict.empty
               }
             )
 
