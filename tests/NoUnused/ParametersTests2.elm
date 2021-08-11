@@ -288,12 +288,6 @@ foo =
                         , details = [ "You should remove it at the location I pointed at." ]
                         , under = "_"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
-foo =
-    \\(bar) -> bar
-"""
                     ]
     , test "should report nested unused pattern aliases" <|
         \() ->
@@ -678,12 +672,6 @@ foo (_ as bar) =
                         , details = [ "You should remove this pattern." ]
                         , under = "_"
                         }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
-foo (bar) =
-    bar
-"""
                     ]
     , test "should report nested unused pattern aliases" <|
         \() ->
@@ -943,11 +931,6 @@ foo ( _, _ ) =
                         , details = [ "You should remove this pattern." ]
                         , under = "( _, _ )"
                         }
-                        |> Review.Test.whenFixed """
-module A exposing (..)
-foo _ =
-    bar
-"""
                     ]
     , test "should report unused when it contains ()" <|
         \() ->
@@ -963,11 +946,6 @@ foo ( _, () ) =
                         , details = [ "You should remove this pattern." ]
                         , under = "( _, () )"
                         }
-                        |> Review.Test.whenFixed """
-module A exposing (..)
-foo _ =
-    bar
-"""
                     ]
     , test "should report unused when it contains empty tuples" <|
         \() ->
@@ -983,11 +961,6 @@ foo ( _, ( _, _ ) ) =
                         , details = [ "You should remove this pattern." ]
                         , under = "( _, _ )"
                         }
-                        |> Review.Test.whenFixed """
-module A exposing (..)
-foo ( _, _ ) =
-    bar
-"""
                     ]
     , test "should report unused threeple" <|
         \() ->
@@ -1003,10 +976,5 @@ foo ( _, _, _ ) =
                         , details = [ "You should remove this pattern." ]
                         , under = "( _, _, _ )"
                         }
-                        |> Review.Test.whenFixed """
-module A exposing (..)
-foo _ =
-    bar
-"""
                     ]
     ]
