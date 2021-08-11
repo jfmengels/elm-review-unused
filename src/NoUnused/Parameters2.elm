@@ -168,7 +168,7 @@ getParametersFromPatterns source node =
             [ { name = name
               , range = Node.range node
               , kind = Parameter
-              , fix = []
+              , fix = [ Fix.replaceRangeBy (Node.range node) "_" ]
               , source = source
               }
             ]
