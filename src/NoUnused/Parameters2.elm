@@ -99,7 +99,7 @@ type alias Declared =
 type Kind
     = Parameter
     | Alias
-    | AsWithPatternWithoutVariables
+    | AsWithoutVariables
     | TupleWithoutVariables
 
 
@@ -192,7 +192,7 @@ getParametersFromPatterns source node =
                 [ asParameter
                 , { name = ""
                   , range = Node.range pattern
-                  , kind = AsWithPatternWithoutVariables
+                  , kind = AsWithoutVariables
                   , fix = [ Fix.removeRange { start = (Node.range pattern).start, end = (Node.range asName).start } ]
                   , source = source
                   }
@@ -409,7 +409,7 @@ errorsForValue { name, kind, range, source, fix } =
                 range
                 (applyFix source fix)
 
-        AsWithPatternWithoutVariables ->
+        AsWithoutVariables ->
             Rule.errorWithFix
                 { message = "Pattern does not introduce any variable"
                 , details = [ "You should remove this pattern." ]
