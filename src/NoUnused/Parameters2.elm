@@ -359,7 +359,11 @@ markValueAsUsed name context =
             let
                 newHeadScope : Scope
                 newHeadScope =
-                    { headScope | used = Set.insert name headScope.used }
+                    if True then
+                        { headScope | used = Set.insert name headScope.used }
+
+                    else
+                        { headScope | used = Set.insert name headScope.used }
             in
             { context | scopes = newHeadScope :: restOfScopes }
 
