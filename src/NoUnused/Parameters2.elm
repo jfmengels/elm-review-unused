@@ -202,16 +202,36 @@ getParametersFromPatterns source node =
                 asParameter :: parametersFromPatterns
 
         Pattern.RecordPattern fields ->
-            List.map
-                (\field ->
-                    { name = Node.value field
-                    , range = Node.range field
-                    , kind = Parameter
-                    , fix = []
-                    , source = source
-                    }
-                )
-                fields
+            case fields of
+                [ field ] ->
+                    [ { name = Node.value field
+                      , range = Node.range field
+                      , kind = Parameter
+                      , fix = [ Fix.replaceRangeBy (Node.range node) "_" ]
+                      , source = source
+                      }
+                    ]
+
+                _ ->
+                    let
+                        fieldNames : List String
+                        fieldNames =
+                            List.map Node.value fields
+                    in
+                    List.map
+                        (\field ->
+                            { name = Node.value field
+                            , range = Node.range field
+                            , kind = Parameter
+                            , fix =
+                                [ Fix.replaceRangeBy
+                                    (Node.range node)
+                                    (fieldNames |> List.filter (\f -> f /= Node.value field) |> formatRecord)
+                                ]
+                            , source = source
+                            }
+                        )
+                        fields
 
         Pattern.TuplePattern patterns ->
             let
@@ -252,6 +272,11 @@ isPatternWildCard node =
 
         _ ->
             False
+
+
+formatRecord : List String -> String
+formatRecord fields =
+    "{ " ++ String.join ", " fields ++ " }"
 
 
 

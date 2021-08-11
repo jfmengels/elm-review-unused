@@ -195,7 +195,7 @@ foo =
                         }
                         |> Review.Test.whenFixed """module A exposing (..)
 foo =
-    \\({bish, bash}) ->
+    \\({ bish, bash }) ->
         ( bish, bash )
 """
                     ]
@@ -215,7 +215,7 @@ foo =
                         }
                         |> Review.Test.whenFixed """module A exposing (..)
 foo =
-    \\({bish} as bosh) ->
+    \\({ bish } as bosh) ->
         ( bish, bosh )
 """
                     ]
@@ -235,7 +235,7 @@ foo =
                         }
                         |> Review.Test.whenFixed """module A exposing (..)
 foo =
-    \\({bish} as bosh) ->
+    \\({ bish } as bosh) ->
         bish
 """
                     , Review.Test.error
@@ -429,7 +429,7 @@ foo =
                         }
                         |> Review.Test.whenFixed """module A exposing (..)
 foo =
-    \\{bish} ->
+    \\{ bish } ->
         bish
 """
                     ]
