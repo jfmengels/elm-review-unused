@@ -350,9 +350,17 @@ expressionEnterVisitorHelp node context =
 
                     newRecursiveCalls : List ( Range, () )
                     newRecursiveCalls =
-                        List.indexedMap
-                            (\index arg -> ( Node.range arg, () ))
-                            arguments
+                        arguments
+                            |> List.indexedMap Tuple.pair
+                            |> List.filterMap
+                                (\( index, arg ) ->
+                                    case Dict.get index fnArgs of
+                                        Just name ->
+                                            Just ( Node.range arg, () )
+
+                                        Nothing ->
+                                            Nothing
+                                )
                 in
                 ( [], { context | knownRecursiveCalls = RangeDict.insertAll newRecursiveCalls context.knownRecursiveCalls } )
 
