@@ -324,15 +324,7 @@ expressionEnterVisitorHelp node context =
 
                 scopesToCreate : RangeDict (List Declared)
                 scopesToCreate =
-                    List.foldl
-                        (\( range, declared ) dict ->
-                            RangeDict.insert
-                                range
-                                declared
-                                dict
-                        )
-                        context.scopesToCreate
-                        declaredWithRange
+                    RangeDict.insertAll declaredWithRange context.scopesToCreate
             in
             ( [], { context | scopesToCreate = scopesToCreate } )
 
