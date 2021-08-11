@@ -81,6 +81,7 @@ type alias Context =
 type alias Scope =
     { declared : List Declared
     , used : Set String
+    , usedRecursively : Set String
     }
 
 
@@ -273,7 +274,14 @@ expressionEnterVisitor node context =
         newContext =
             case RangeDict.get (Node.range node) context.scopesToCreate of
                 Just declared ->
-                    { context | scopes = { declared = declared, used = Set.empty } :: context.scopes }
+                    { context
+                        | scopes =
+                            { declared = declared
+                            , used = Set.empty
+                            , usedRecursively = Set.singleton "unused"
+                            }
+                                :: context.scopes
+                    }
 
                 Nothing ->
                     context
@@ -383,7 +391,7 @@ report context =
                 ( errors, remainingUsed ) =
                     List.foldl
                         (\declared ( errors_, remainingUsed_ ) ->
-                            if Set.member declared.name (Set.singleton "unused") then
+                            if Set.member declared.name headScope.usedRecursively then
                                 -- If variable was used as a recursive argument
                                 if Set.member declared.name remainingUsed_ then
                                     -- If variable was used somewhere else as well
