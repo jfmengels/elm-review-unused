@@ -422,13 +422,3 @@ applyFix source fix =
 
         Lambda ->
             fix
-
-
-listToMessage : String -> List String -> String
-listToMessage first rest =
-    case List.reverse rest of
-        [] ->
-            "Parameter `" ++ first ++ "` is not used."
-
-        last :: middle ->
-            "Parameters `" ++ String.join "`, `" (first :: middle) ++ "` and `" ++ last ++ "` are not used."
