@@ -184,7 +184,7 @@ getParametersFromPatterns source node =
                     { name = Node.value asName
                     , range = Node.range asName
                     , kind = Alias
-                    , fix = []
+                    , fix = [ Fix.removeRange { start = (Node.range pattern).end, end = (Node.range asName).end } ]
                     , source = source
                     }
             in
