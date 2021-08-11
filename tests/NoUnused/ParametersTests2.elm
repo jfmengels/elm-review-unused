@@ -272,8 +272,7 @@ foo =
                     ]
     , test "should report unused patterns that are aliased" <|
         \() ->
-            """
-module A exposing (..)
+            """module A exposing (..)
 foo =
     \\(_ as bar) -> bar
 """
@@ -281,9 +280,13 @@ foo =
                 |> Review.Test.expectErrors
                     [ Review.Test.error
                         { message = "Pattern does not introduce any variables"
-                        , details = [ "You should remove it at the location I pointed at." ]
+                        , details = [ "You should remove this pattern." ]
                         , under = "_"
                         }
+                        |> Review.Test.whenFixed """module A exposing (..)
+foo =
+    \\(bar) -> bar
+"""
                     ]
     , test "should report nested unused pattern aliases" <|
         \() ->
