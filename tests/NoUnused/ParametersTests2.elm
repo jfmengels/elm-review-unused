@@ -891,4 +891,15 @@ foo x used =
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should not report parameters where the position in call site don't match the one in arguments" <|
+        \() ->
+            """module A exposing (..)
+foo x used =
+    if cond then
+        x
+    else
+        foo used x
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     ]
