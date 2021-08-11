@@ -75,6 +75,7 @@ rule =
 type alias Context =
     { scopes : List Scope
     , scopesToCreate : RangeDict (List Declared)
+    , knownRecursiveCalls : RangeDict ()
     }
 
 
@@ -110,6 +111,7 @@ initialContext : Context
 initialContext =
     { scopes = []
     , scopesToCreate = RangeDict.empty
+    , knownRecursiveCalls = RangeDict.singleton { start = { row = 6, column = 21 }, end = { row = 6, column = 27 } } ()
     }
 
 
@@ -359,7 +361,7 @@ markValueAsUsed range name context =
             let
                 newHeadScope : Scope
                 newHeadScope =
-                    if RangeDict.member range (RangeDict.singleton { start = { row = 6, column = 21 }, end = { row = 6, column = 27 } } ()) then
+                    if RangeDict.member range context.knownRecursiveCalls then
                         { headScope | usedRecursively = Set.insert name headScope.usedRecursively }
 
                     else
