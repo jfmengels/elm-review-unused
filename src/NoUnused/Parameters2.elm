@@ -356,7 +356,12 @@ markValueAsUsed name context =
             context
 
         headScope :: restOfScopes ->
-            { context | scopes = { headScope | used = Set.insert name headScope.used } :: restOfScopes }
+            let
+                newHeadScope : Scope
+                newHeadScope =
+                    { headScope | used = Set.insert name headScope.used }
+            in
+            { context | scopes = newHeadScope :: restOfScopes }
 
 
 markAllAsUsed : Set String -> List Scope -> List Scope
