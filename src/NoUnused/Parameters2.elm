@@ -148,10 +148,9 @@ declarationVisitor node context =
             , { context
                 | scopes = []
                 , scopesToCreate =
-                    RangeDict.insert
+                    RangeDict.singleton
                         (declaration |> Node.value |> .expression |> Node.range)
                         declared
-                        context.scopesToCreate
               }
             )
 
