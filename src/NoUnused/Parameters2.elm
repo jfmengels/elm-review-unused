@@ -344,7 +344,9 @@ expressionEnterVisitorHelp node context =
                 let
                     newRecursiveCalls : List ( Range, () )
                     newRecursiveCalls =
-                        []
+                        List.map
+                            (\arg -> ( Node.range arg, () ))
+                            arguments
                 in
                 ( [], { context | knownRecursiveCalls = RangeDict.insertAll newRecursiveCalls context.knownRecursiveCalls } )
 
