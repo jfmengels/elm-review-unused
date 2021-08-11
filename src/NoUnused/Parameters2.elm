@@ -381,7 +381,7 @@ report context =
 
 
 errorsForValue : Declared -> Rule.Error {}
-errorsForValue { name, kind, range, fix } =
+errorsForValue { name, kind, range, source, fix } =
     case kind of
         Parameter ->
             Rule.error
@@ -403,7 +403,7 @@ errorsForValue { name, kind, range, fix } =
                 , details = [ "You should remove this pattern." ]
                 }
                 range
-                fix
+                (applyFix source fix)
 
         TupleWithoutVariables ->
             Rule.errorWithFix
@@ -411,7 +411,17 @@ errorsForValue { name, kind, range, fix } =
                 , details = [ "You should remove this pattern." ]
                 }
                 range
-                fix
+                (applyFix source fix)
+
+
+applyFix : Source -> List Fix -> List Fix
+applyFix source fix =
+    case source of
+        NamedFunction ->
+            []
+
+        Lambda ->
+            fix
 
 
 listToMessage : String -> List String -> String
