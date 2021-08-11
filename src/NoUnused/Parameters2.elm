@@ -318,6 +318,17 @@ expressionEnterVisitorHelp node context =
             in
             ( [], { context | scopesToCreate = scopesToCreate } )
 
+        Expression.LambdaExpression { args, expression } ->
+            let
+                scopesToCreate : RangeDict (List Declared)
+                scopesToCreate =
+                    RangeDict.insert
+                        (Node.range expression)
+                        (List.concatMap (getParametersFromPatterns Lambda) args)
+                        context.scopesToCreate
+            in
+            ( [], { context | scopesToCreate = scopesToCreate } )
+
         _ ->
             ( [], context )
 
