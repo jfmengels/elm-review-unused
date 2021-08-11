@@ -386,6 +386,9 @@ report context =
                             if Set.member declared.name remainingUsed_ then
                                 ( errors_, Set.remove declared.name remainingUsed_ )
 
+                            else if True then
+                                ( errorsForValue declared :: errors_, remainingUsed_ )
+
                             else
                                 ( errorsForValue declared :: errors_, remainingUsed_ )
                         )
