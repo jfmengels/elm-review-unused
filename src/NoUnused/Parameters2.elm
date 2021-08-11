@@ -384,10 +384,11 @@ report context =
                     List.foldl
                         (\declared ( errors_, remainingUsed_ ) ->
                             if Set.member declared.name remainingUsed_ then
-                                ( errors_, Set.remove declared.name remainingUsed_ )
+                                if Set.member declared.name (Set.singleton "unused") then
+                                    ( recursiveParameterError declared :: errors_, Set.remove declared.name remainingUsed_ )
 
-                            else if True then
-                                ( errorsForValue declared :: errors_, remainingUsed_ )
+                                else
+                                    ( errors_, Set.remove declared.name remainingUsed_ )
 
                             else
                                 ( errorsForValue declared :: errors_, remainingUsed_ )
@@ -435,6 +436,15 @@ errorsForValue { name, kind, range, source, fix } =
                 }
                 range
                 (applyFix source fix)
+
+
+recursiveParameterError : Declared -> Rule.Error {}
+recursiveParameterError { name, kind, range, source, fix } =
+    Rule.error
+        { message = "Parameter `" ++ name ++ "` is not used."
+        , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+        }
+        range
 
 
 applyFix : Source -> List Fix -> List Fix

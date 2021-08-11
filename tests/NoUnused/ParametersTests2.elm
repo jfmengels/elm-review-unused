@@ -874,5 +874,6 @@ foo x unused =
                         , details = details
                         , under = "unused"
                         }
+                        |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
                     ]
     ]
