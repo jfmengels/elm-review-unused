@@ -9,6 +9,8 @@ module NoUnused.Parameters2 exposing (rule)
 
 -}
 
+import Array
+import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Node as Node exposing (Node(..))
@@ -342,9 +344,9 @@ expressionEnterVisitorHelp node context =
         Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
             if fnName == "foo" then
                 let
-                    fnArgs : List ( String, number )
+                    fnArgs : Dict Int String
                     fnArgs =
-                        [ ( "x", 0 ), ( "used", 1 ) ]
+                        Dict.fromList [ ( 0, "x" ), ( 1, "used" ) ]
 
                     newRecursiveCalls : List ( Range, () )
                     newRecursiveCalls =
