@@ -353,7 +353,7 @@ foo =
 
 lambdaRecordPatternTests : List Test
 lambdaRecordPatternTests =
-    [ test "should replace unused record with `_`" <|
+    [ test "should report and remove unused record fields" <|
         \() ->
             """module A exposing (..)
 foo =
@@ -363,74 +363,54 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameters `bish`, `bash` and `bosh` are not used."
-                        , details = [ "You should either use these parameters somewhere, or remove them at the location I pointed at." ]
-                        , under = "bish, bash, bosh"
+                        { message = "Parameter `bish` is not used."
+                        , details = details
+                        , under = "bish"
                         }
                         |> Review.Test.whenFixed """module A exposing (..)
 foo =
-    \\_ ->
+    \\{ bash, bosh } ->
+        bar
+"""
+                    , Review.Test.error
+                        { message = "Parameter `bash` is not used."
+                        , details = details
+                        , under = "bash"
+                        }
+                        |> Review.Test.whenFixed """module A exposing (..)
+foo =
+    \\{ bish, bosh } ->
+        bar
+"""
+                    , Review.Test.error
+                        { message = "Parameter `bosh` is not used."
+                        , details = details
+                        , under = "bosh"
+                        }
+                        |> Review.Test.whenFixed """module A exposing (..)
+foo =
+    \\{ bish, bash } ->
         bar
 """
                     ]
-    , test "should replace empty record with `_`" <|
+    , test "should report and replace unused record field by `_` when there is only a single field" <|
         \() ->
             """module A exposing (..)
-foo =
-    \\{} ->
-        bar
-"""
-                |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Record pattern is not needed"
-                        , details = [ "This pattern is redundant and should be replaced with '_'." ]
-                        , under = "{}"
-                        }
-                        |> Review.Test.whenFixed """module A exposing (..)
-foo =
-    \\_ ->
-        bar
-"""
-                    ]
-    , test "should report unused record values" <|
-        \() ->
-            """module A exposing (..)
-foo =
-    \\{ bish, bash, bosh } ->
-        bash
-"""
-                |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Parameters `bish` and `bosh` are not used."
-                        , details = [ "You should either use these parameters somewhere, or remove them at the location I pointed at." ]
-                        , under = "bish, bash, bosh"
-                        }
-                        |> Review.Test.whenFixed """module A exposing (..)
-foo =
-    \\{bash} ->
-        bash
-"""
-                    ]
-    , test "should report highlight the least amount of values possible" <|
-        \() ->
-            """module A exposing (..)
-foo =
-    \\{ bish, bash, bosh } ->
-        bish
-"""
-                |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Parameters `bash` and `bosh` are not used."
-                        , details = [ "You should either use these parameters somewhere, or remove them at the location I pointed at." ]
-                        , under = "bash, bosh"
-                        }
-                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     \\{ bish } ->
-        bish
+        bar
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Parameter `bish` is not used."
+                        , details = details
+                        , under = "bish"
+                        }
+                        |> Review.Test.whenFixed """module A exposing (..)
+foo =
+    \\_ ->
+        bar
 """
                     ]
     ]
