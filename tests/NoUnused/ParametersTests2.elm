@@ -317,7 +317,7 @@ foo =
 
 lambdaNamedPatternTests : List Test
 lambdaNamedPatternTests =
-    [ test "should report unused named patterns" <|
+    [ test "should report unused variables extracted out of named patterns" <|
         \() ->
             """
 module A exposing (..)
@@ -363,7 +363,7 @@ foo =
         bash
 """
                     ]
-    , test "should report unused named patterns with multiple segments" <|
+    , test "should not report named patterns" <|
         \() ->
             """
 module A exposing (..)
@@ -371,20 +371,8 @@ foo =
     \\(Pair _ _) -> bash
 """
                 |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Named pattern is not needed"
-                        , details = [ "You should remove it at the location I pointed at." ]
-                        , under = "Pair _ _"
-                        }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
-foo =
-    \\(_) -> bash
-"""
-                    ]
-    , test "should report unused named patterns in tuples" <|
+                |> Review.Test.expectNoErrors
+    , test "should not report unused named patterns in tuples" <|
         \() ->
             """
 module A exposing (..)
@@ -392,30 +380,7 @@ foo =
     \\(Singular _, Pair _ _) -> bish
 """
                 |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Named pattern is not needed"
-                        , details = [ "You should remove it at the location I pointed at." ]
-                        , under = "Singular _"
-                        }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
-foo =
-    \\(_, Pair _ _) -> bish
-"""
-                    , Review.Test.error
-                        { message = "Named pattern is not needed"
-                        , details = [ "You should remove it at the location I pointed at." ]
-                        , under = "Pair _ _"
-                        }
-                        |> Review.Test.whenFixed
-                            """
-module A exposing (..)
-foo =
-    \\(Singular _, _) -> bish
-"""
-                    ]
+                |> Review.Test.expectNoErrors
     ]
 
 
