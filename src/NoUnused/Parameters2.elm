@@ -411,7 +411,7 @@ errorsForValue { name, kind, range, source, fix } =
 
         AsWithoutVariables ->
             Rule.errorWithFix
-                { message = "Pattern does not introduce any variable"
+                { message = "Pattern does not introduce any variables"
                 , details = [ "You should remove this pattern." ]
                 }
                 range
