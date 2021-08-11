@@ -403,7 +403,7 @@ errorsForValue { name, kind, range, source, fix } =
     case kind of
         Parameter ->
             Rule.errorWithFix
-                { message = "Parameter `" ++ name ++ "` is not used."
+                { message = "Parameter `" ++ name ++ "` is not used"
                 , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
                 }
                 range
@@ -411,7 +411,7 @@ errorsForValue { name, kind, range, source, fix } =
 
         Alias ->
             Rule.errorWithFix
-                { message = "Pattern alias `" ++ name ++ "` is not used."
+                { message = "Pattern alias `" ++ name ++ "` is not used"
                 , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
                 }
                 range

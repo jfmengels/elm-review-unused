@@ -43,12 +43,12 @@ foo one two three =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `one` is not used."
+                        { message = "Parameter `one` is not used"
                         , details = details
                         , under = "one"
                         }
                     , Review.Test.error
-                        { message = "Parameter `two` is not used."
+                        { message = "Parameter `two` is not used"
                         , details = details
                         , under = "two"
                         }
@@ -62,7 +62,7 @@ foo one =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `one` is not used."
+                        { message = "Parameter `one` is not used"
                         , details = details
                         , under = "one"
                         }
@@ -98,7 +98,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `value` is not used."
+                        { message = "Parameter `value` is not used"
                         , details = details
                         , under = "value"
                         }
@@ -127,12 +127,12 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `oneValue` is not used."
+                        { message = "Parameter `oneValue` is not used"
                         , details = details
                         , under = "oneValue"
                         }
                     , Review.Test.error
-                        { message = "Parameter `twoValue` is not used."
+                        { message = "Parameter `twoValue` is not used"
                         , details = details
                         , under = "twoValue"
                         }
@@ -152,7 +152,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `oneValue` is not used."
+                        { message = "Parameter `oneValue` is not used"
                         , details = details
                         , under = "oneValue"
                         }
@@ -189,7 +189,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern alias `bosh` is not used."
+                        { message = "Pattern alias `bosh` is not used"
                         , details = details
                         , under = "bosh"
                         }
@@ -209,7 +209,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bash` is not used."
+                        { message = "Parameter `bash` is not used"
                         , details = details
                         , under = "bash"
                         }
@@ -229,7 +229,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bash` is not used."
+                        { message = "Parameter `bash` is not used"
                         , details = details
                         , under = "bash"
                         }
@@ -239,7 +239,7 @@ foo =
         bish
 """
                     , Review.Test.error
-                        { message = "Pattern alias `bosh` is not used."
+                        { message = "Pattern alias `bosh` is not used"
                         , details = details
                         , under = "bosh"
                         }
@@ -277,7 +277,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern alias `bish` is not used."
+                        { message = "Pattern alias `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -302,7 +302,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bish` is not used."
+                        { message = "Parameter `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -322,7 +322,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bish` is not used."
+                        { message = "Parameter `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -363,7 +363,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bish` is not used."
+                        { message = "Parameter `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -373,7 +373,7 @@ foo =
         bar
 """
                     , Review.Test.error
-                        { message = "Parameter `bash` is not used."
+                        { message = "Parameter `bash` is not used"
                         , details = details
                         , under = "bash"
                         }
@@ -383,7 +383,7 @@ foo =
         bar
 """
                     , Review.Test.error
-                        { message = "Parameter `bosh` is not used."
+                        { message = "Parameter `bosh` is not used"
                         , details = details
                         , under = "bosh"
                         }
@@ -403,7 +403,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bish` is not used."
+                        { message = "Parameter `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -428,7 +428,7 @@ foo =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bish` is not used."
+                        { message = "Parameter `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -438,7 +438,7 @@ foo =
         bash
 """
                     , Review.Test.error
-                        { message = "Parameter `bosh` is not used."
+                        { message = "Parameter `bosh` is not used"
                         , details = details
                         , under = "bosh"
                         }
@@ -506,7 +506,7 @@ foo ({ bish, bash } as bosh) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern alias `bosh` is not used."
+                        { message = "Pattern alias `bosh` is not used"
                         , details = details
                         , under = "bosh"
                         }
@@ -520,7 +520,7 @@ foo ({ bish, bash } as bosh) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bash` is not used."
+                        { message = "Parameter `bash` is not used"
                         , details = details
                         , under = "bash"
                         }
@@ -534,12 +534,12 @@ foo ({ bish, bash } as bosh) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bash` is not used."
+                        { message = "Parameter `bash` is not used"
                         , details = details
                         , under = "bash"
                         }
                     , Review.Test.error
-                        { message = "Pattern alias `bosh` is not used."
+                        { message = "Pattern alias `bosh` is not used"
                         , details = details
                         , under = "bosh"
                         }
@@ -567,7 +567,7 @@ foo (Named ( _, ( Just bash ) as bish )) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Pattern alias `bish` is not used."
+                        { message = "Pattern alias `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -583,12 +583,12 @@ foo (Named ( _, ( Just bash ) as bish )) =
     --                |> Review.Test.run rule
     --                |> Review.Test.expectErrors
     --                    [ Review.Test.error
-    --                        { message = "Parameter `bish` is not used."
+    --                        { message = "Parameter `bish` is not used"
     --                        , details = details
     --                        , under = "bish"
     --                        }
     --                    , Review.Test.error
-    --                        { message = "Parameter `bosh` is not used."
+    --                        { message = "Parameter `bosh` is not used"
     --                        , details = details
     --                        , under = "bosh"
     --                        }
@@ -683,7 +683,7 @@ foo (Named bish) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bish` is not used."
+                        { message = "Parameter `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -697,7 +697,7 @@ foo (Named (Bish bish)) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bish` is not used."
+                        { message = "Parameter `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
@@ -732,17 +732,17 @@ foo { bish, bash, bosh } =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bish` is not used."
+                        { message = "Parameter `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
                     , Review.Test.error
-                        { message = "Parameter `bash` is not used."
+                        { message = "Parameter `bash` is not used"
                         , details = details
                         , under = "bash"
                         }
                     , Review.Test.error
-                        { message = "Parameter `bosh` is not used."
+                        { message = "Parameter `bosh` is not used"
                         , details = details
                         , under = "bosh"
                         }
@@ -756,12 +756,12 @@ foo { bish, bash, bosh } =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bish` is not used."
+                        { message = "Parameter `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
                     , Review.Test.error
-                        { message = "Parameter `bosh` is not used."
+                        { message = "Parameter `bosh` is not used"
                         , details = details
                         , under = "bosh"
                         }
@@ -780,12 +780,12 @@ foo ( bish, bash, bosh ) =
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Parameter `bish` is not used."
+                        { message = "Parameter `bish` is not used"
                         , details = details
                         , under = "bish"
                         }
                     , Review.Test.error
-                        { message = "Parameter `bosh` is not used."
+                        { message = "Parameter `bosh` is not used"
                         , details = details
                         , under = "bosh"
                         }
