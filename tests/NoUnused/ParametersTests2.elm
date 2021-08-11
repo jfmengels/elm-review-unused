@@ -18,7 +18,7 @@ all =
         , describe "in Let Functions" letFunctionTests
 
         --- in lambda
-        , Test.skip <| describe "with as pattern in lambdas" lambdaAsPatternTests
+        , describe "with as pattern in lambdas" lambdaAsPatternTests
         , describe "with named pattern in lambdas" lambdaNamedPatternTests
         , Test.skip <| describe "with record pattern in lambdas" lambdaRecordPatternTests
         , describe "with tuple pattern in lambdas" lambdaTuplePatternTests
