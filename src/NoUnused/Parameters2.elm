@@ -383,18 +383,20 @@ errorsForValue : Declared -> Rule.Error {}
 errorsForValue { name, kind, range, source, fix } =
     case kind of
         Parameter ->
-            Rule.error
+            Rule.errorWithFix
                 { message = "Parameter `" ++ name ++ "` is not used."
                 , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
                 }
                 range
+                (applyFix source fix)
 
         Alias ->
-            Rule.error
+            Rule.errorWithFix
                 { message = "Pattern alias `" ++ name ++ "` is not used."
                 , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
                 }
                 range
+                (applyFix source fix)
 
         AsWithPatternWithoutVariables ->
             Rule.errorWithFix
