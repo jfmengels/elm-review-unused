@@ -880,4 +880,15 @@ foo x unused =
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
                     ]
+    , test "should not report parameters that are also used elsewhere" <|
+        \() ->
+            """module A exposing (..)
+foo x used =
+    if cond then
+        x
+    else
+        foo (x - 1) used + used
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     ]
