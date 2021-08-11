@@ -349,7 +349,7 @@ expressionEnterVisitorHelp node context =
 
         Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
             if fnName == "foo" then
-                ( [], context )
+                ( [], { context | knownRecursiveCalls = context.knownRecursiveCalls } )
 
             else
                 ( [], context )
