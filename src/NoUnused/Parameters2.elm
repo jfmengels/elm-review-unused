@@ -293,10 +293,10 @@ expressionEnterVisitorHelp : Node Expression -> Context -> ( List nothing, Conte
 expressionEnterVisitorHelp node context =
     case Node.value node of
         Expression.FunctionOrValue [] name ->
-            ( [], markValueAsUsed name context )
+            ( [], markValueAsUsed (Node.range node) name context )
 
         Expression.RecordUpdateExpression name _ ->
-            ( [], markValueAsUsed (Node.value name) context )
+            ( [], markValueAsUsed (Node.range name) (Node.value name) context )
 
         Expression.LetExpression letBlock ->
             let
@@ -349,8 +349,8 @@ expressionEnterVisitorHelp node context =
             ( [], context )
 
 
-markValueAsUsed : String -> Context -> Context
-markValueAsUsed name context =
+markValueAsUsed : Range -> String -> Context -> Context
+markValueAsUsed range name context =
     case context.scopes of
         [] ->
             context
