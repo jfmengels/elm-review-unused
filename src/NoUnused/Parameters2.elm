@@ -11,12 +11,9 @@ module NoUnused.Parameters2 exposing (rule)
 
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
-import Elm.Syntax.ModuleName exposing (ModuleName)
-import Elm.Syntax.Node as Node exposing (Node(..))
+import Elm.Syntax.Node as Node exposing (Node)
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range as Range exposing (Range)
-import Elm.Writer as Writer
-import NoUnused.Patterns.NameVisitor as NameVisitor
+import Elm.Syntax.Range exposing (Range)
 import NoUnused.RangeDict as RangeDict exposing (RangeDict)
 import Review.Fix as Fix exposing (Fix)
 import Review.Rule as Rule exposing (Rule)
@@ -106,20 +103,6 @@ type Kind
 type Source
     = NamedFunction
     | Lambda
-
-
-type FoundPattern
-    = SingleValue
-        { name : String
-        , range : Range
-        , message : String
-        , details : List String
-        , fix : List Fix
-        }
-    | RecordPattern
-        { fields : List (Node String)
-        , recordRange : Range
-        }
 
 
 initialContext : Context
@@ -324,7 +307,7 @@ expressionEnterVisitorHelp node context =
                                     , List.concatMap (getParametersFromPatterns NamedFunction) declaration.arguments
                                     )
 
-                                Expression.LetDestructuring pattern expression ->
+                                Expression.LetDestructuring _ expression ->
                                     ( Node.range expression, [] )
                         )
                         letBlock.declarations
