@@ -348,7 +348,11 @@ expressionEnterVisitorHelp node context =
             ( [], { context | scopesToCreate = scopesToCreate } )
 
         Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
-            ( [], context )
+            if fnName == "foo" then
+                ( [], context )
+
+            else
+                ( [], context )
 
         _ ->
             ( [], context )
