@@ -342,35 +342,39 @@ expressionEnterVisitorHelp node context =
             ( [], { context | scopesToCreate = scopesToCreate } )
 
         Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
-            if fnName == "foo" then
-                let
-                    fnArgs : Dict Int String
-                    fnArgs =
-                        Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ]
+            let
+                knownFunctions : Dict String (Dict Int String)
+                knownFunctions =
+                    Dict.singleton
+                        "foo"
+                        (Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ])
+            in
+            case Dict.get fnName knownFunctions of
+                Just fnArgs ->
+                    let
+                        newRecursiveCalls : List ( Range, () )
+                        newRecursiveCalls =
+                            arguments
+                                |> List.indexedMap Tuple.pair
+                                |> List.filterMap
+                                    (\( index, arg ) ->
+                                        case Dict.get index fnArgs of
+                                            Just name ->
+                                                case getReference name arg of
+                                                    Just referenceRange ->
+                                                        Just ( referenceRange, () )
 
-                    newRecursiveCalls : List ( Range, () )
-                    newRecursiveCalls =
-                        arguments
-                            |> List.indexedMap Tuple.pair
-                            |> List.filterMap
-                                (\( index, arg ) ->
-                                    case Dict.get index fnArgs of
-                                        Just name ->
-                                            case getReference name arg of
-                                                Just referenceRange ->
-                                                    Just ( referenceRange, () )
+                                                    Nothing ->
+                                                        Nothing
 
-                                                Nothing ->
-                                                    Nothing
+                                            Nothing ->
+                                                Nothing
+                                    )
+                    in
+                    ( [], { context | knownRecursiveCalls = RangeDict.insertAll newRecursiveCalls context.knownRecursiveCalls } )
 
-                                        Nothing ->
-                                            Nothing
-                                )
-                in
-                ( [], { context | knownRecursiveCalls = RangeDict.insertAll newRecursiveCalls context.knownRecursiveCalls } )
-
-            else
-                ( [], context )
+                Nothing ->
+                    ( [], context )
 
         _ ->
             ( [], context )
