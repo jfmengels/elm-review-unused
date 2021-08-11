@@ -19,7 +19,7 @@ all =
 
         --- in lambda
         , Test.skip <| describe "with as pattern in lambdas" lambdaAsPatternTests
-        , Test.skip <| describe "with named pattern in lambdas" lambdaNamedPatternTests
+        , describe "with named pattern in lambdas" lambdaNamedPatternTests
         , Test.skip <| describe "with record pattern in lambdas" lambdaRecordPatternTests
         , Test.skip <| describe "with tuple pattern in lambdas" lambdaTuplePatternTests
 
