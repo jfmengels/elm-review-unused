@@ -346,7 +346,7 @@ expressionEnterVisitorHelp node context =
                 let
                     fnArgs : Dict Int String
                     fnArgs =
-                        Dict.fromList [ ( 0, "x" ), ( 1, "used" ) ]
+                        Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ]
 
                     newRecursiveCalls : List ( Range, () )
                     newRecursiveCalls =
