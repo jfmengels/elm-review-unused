@@ -18,7 +18,7 @@ all : Test
 all =
     describe "NoUnused.Parameters"
         [ describe "in Function arguments" functionArgumentTests
-        , Test.skip <| describe "in Lambda arguments" lambdaArgumentTests
+        , describe "in Lambda arguments" lambdaArgumentTests
         , describe "in Let Functions" letFunctionTests
 
         --- in lambda
