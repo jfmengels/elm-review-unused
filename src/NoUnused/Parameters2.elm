@@ -348,8 +348,8 @@ expressionEnterVisitorHelp node context =
 
                     newRecursiveCalls : List ( Range, () )
                     newRecursiveCalls =
-                        List.map
-                            (\arg -> ( Node.range arg, () ))
+                        List.indexedMap
+                            (\index arg -> ( Node.range arg, () ))
                             arguments
                 in
                 ( [], { context | knownRecursiveCalls = RangeDict.insertAll newRecursiveCalls context.knownRecursiveCalls } )
