@@ -6,7 +6,6 @@ import Test exposing (Test, describe, test)
 
 
 
--- TODO REPLACEME Mark recordupdateexpression as using a variable (and maybe more)
 -- TODO Remove the fix for tuples in functions
 
 
@@ -75,6 +74,24 @@ foo one =
                         }
                         |> Review.Test.atExactly { start = { row = 3, column = 5 }, end = { row = 3, column = 8 } }
                     ]
+    , test "should not report used parameters (value reference)" <|
+        \() ->
+            """
+module A exposing (..)
+foo one =
+    one
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should not report used parameters (record update reference)" <|
+        \() ->
+            """
+module A exposing (..)
+foo one =
+    { one | a = 1 }
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     ]
 
 
