@@ -28,6 +28,9 @@ all =
         , describe "with named pattern in functions" functionNamedPatternTests
         , describe "with record pattern in functions" functionRecordPatternTests
         , describe "with tuple pattern in functions" functionTuplePatternTests
+
+        -- Recursive parameters
+        , describe "Recursive parameters" recursiveParameterTests
         ]
 
 
@@ -844,6 +847,32 @@ foo ( _, _, _ ) =
                         { message = "Tuple pattern is not needed"
                         , details = [ "You should remove this pattern." ]
                         , under = "( _, _, _ )"
+                        }
+                    ]
+    ]
+
+
+
+-- RECURSIVE PARAMETERS
+
+
+recursiveParameterTests : List Test
+recursiveParameterTests =
+    [ test "should report parameters that are only used to be passed to the function itself" <|
+        \() ->
+            """module A exposing (..)
+foo x unused =
+    if cond then
+        x
+    else
+        foo (x - 1) unused
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Parameter `unused` is not used."
+                        , details = details
+                        , under = "unused"
                         }
                     ]
     ]
