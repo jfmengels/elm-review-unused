@@ -845,6 +845,26 @@ foo _ =
     bar
 """
                     ]
+    , test "should report unused when it contains empty tuples" <|
+        \() ->
+            """
+module A exposing (..)
+foo ( _, ( _, _ ) ) =
+    bar
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Tuple pattern is not needed"
+                        , details = [ "You should remove this pattern." ]
+                        , under = "( _, _ )"
+                        }
+                        |> Review.Test.whenFixed """
+module A exposing (..)
+foo ( _, _ ) =
+    bar
+"""
+                    ]
     , test "should report unused threeple" <|
         \() ->
             """
