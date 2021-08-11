@@ -356,7 +356,12 @@ expressionEnterVisitorHelp node context =
                                 (\( index, arg ) ->
                                     case Dict.get index fnArgs of
                                         Just name ->
-                                            Just ( Node.range arg, () )
+                                            case getReference name arg of
+                                                Just referenceRange ->
+                                                    Just ( referenceRange, () )
+
+                                                Nothing ->
+                                                    Nothing
 
                                         Nothing ->
                                             Nothing
@@ -369,6 +374,27 @@ expressionEnterVisitorHelp node context =
 
         _ ->
             ( [], context )
+
+
+getReference : String -> Node Expression -> Maybe Range
+getReference name node =
+    case Node.value node of
+        Expression.ParenthesizedExpression expr ->
+            getReference name expr
+
+        Expression.FunctionOrValue [] referenceName ->
+            if referenceName == name then
+                Just (Node.range node)
+
+            else
+                Nothing
+
+        Expression.RecordUpdateExpression _ _ ->
+            -- TODO Add a test and implement
+            Nothing
+
+        _ ->
+            Nothing
 
 
 markValueAsUsed : Range -> String -> Context -> Context
