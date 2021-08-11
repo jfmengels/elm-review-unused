@@ -345,6 +345,7 @@ expressionEnterVisitorHelp node context =
             let
                 knownFunctions : Dict String (Dict Int String)
                 knownFunctions =
+                    -- TODO Remove harcoding
                     Dict.singleton
                         "foo"
                         (Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ])
