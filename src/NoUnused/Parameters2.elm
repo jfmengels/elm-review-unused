@@ -11,7 +11,7 @@ module NoUnused.Parameters2 exposing (rule)
 
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
-import Elm.Syntax.Node as Node exposing (Node)
+import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import NoUnused.RangeDict as RangeDict exposing (RangeDict)
@@ -346,6 +346,9 @@ expressionEnterVisitorHelp node context =
                         context.scopesToCreate
             in
             ( [], { context | scopesToCreate = scopesToCreate } )
+
+        Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
+            ( [], context )
 
         _ ->
             ( [], context )
