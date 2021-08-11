@@ -19,14 +19,14 @@ all : Test
 all =
     describe "NoUnused.Parameters"
         [ describe "in Function arguments" functionArgumentTests
-        , describe "in Lambda arguments" lambdaArgumentTests
+        , Test.skip <| describe "in Lambda arguments" lambdaArgumentTests
         , describe "in Let Functions" letFunctionTests
 
         --- in lambda
-        , describe "with as pattern in lambdas" lambdaAsPatternTests
-        , describe "with named pattern in lambdas" lambdaNamedPatternTests
-        , describe "with record pattern in lambdas" lambdaRecordPatternTests
-        , describe "with tuple pattern in lambdas" lambdaTuplePatternTests
+        , Test.skip <| describe "with as pattern in lambdas" lambdaAsPatternTests
+        , Test.skip <| describe "with named pattern in lambdas" lambdaNamedPatternTests
+        , Test.skip <| describe "with record pattern in lambdas" lambdaRecordPatternTests
+        , Test.skip <| describe "with tuple pattern in lambdas" lambdaTuplePatternTests
 
         --- in function
         , describe "with as pattern in functions" functionAsPatternTests
