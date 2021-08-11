@@ -91,6 +91,7 @@ type alias Declared =
     { name : String
     , range : Range
     , kind : Kind
+    , source : Source
     , fix : List Fix
     }
 
@@ -100,6 +101,11 @@ type Kind
     | Alias
     | AsWithPatternWithoutVariables
     | TupleWithoutVariables
+
+
+type Source
+    = NamedFunction
+    | Lambda
 
 
 type FoundPattern
@@ -136,7 +142,7 @@ declarationVisitor node context =
                 declared =
                     Node.value declaration
                         |> .arguments
-                        |> List.concatMap getParametersFromPatterns
+                        |> List.concatMap (getParametersFromPatterns NamedFunction)
             in
             ( []
             , { context
@@ -153,24 +159,35 @@ declarationVisitor node context =
             ( [], context )
 
 
-getParametersFromPatterns : Node Pattern -> List Declared
-getParametersFromPatterns node =
+getParametersFromPatterns : Source -> Node Pattern -> List Declared
+getParametersFromPatterns source node =
     case Node.value node of
         Pattern.ParenthesizedPattern pattern ->
-            getParametersFromPatterns pattern
+            getParametersFromPatterns source pattern
 
         Pattern.VarPattern name ->
-            [ { name = name, range = Node.range node, kind = Parameter, fix = [] } ]
+            [ { name = name
+              , range = Node.range node
+              , kind = Parameter
+              , fix = []
+              , source = source
+              }
+            ]
 
         Pattern.AsPattern pattern asName ->
             let
                 parametersFromPatterns : List Declared
                 parametersFromPatterns =
-                    getParametersFromPatterns pattern
+                    getParametersFromPatterns source pattern
 
                 asParameter : Declared
                 asParameter =
-                    { name = Node.value asName, range = Node.range asName, kind = Alias, fix = [] }
+                    { name = Node.value asName
+                    , range = Node.range asName
+                    , kind = Alias
+                    , fix = []
+                    , source = source
+                    }
             in
             if List.isEmpty parametersFromPatterns then
                 [ asParameter
@@ -178,6 +195,7 @@ getParametersFromPatterns node =
                   , range = Node.range pattern
                   , kind = AsWithPatternWithoutVariables
                   , fix = [ Fix.removeRange { start = (Node.range pattern).start, end = (Node.range asName).start } ]
+                  , source = source
                   }
                 ]
 
@@ -187,7 +205,12 @@ getParametersFromPatterns node =
         Pattern.RecordPattern fields ->
             List.map
                 (\field ->
-                    { name = Node.value field, range = Node.range field, kind = Parameter, fix = [] }
+                    { name = Node.value field
+                    , range = Node.range field
+                    , kind = Parameter
+                    , fix = []
+                    , source = source
+                    }
                 )
                 fields
 
@@ -195,13 +218,14 @@ getParametersFromPatterns node =
             let
                 parametersFromPatterns : List Declared
                 parametersFromPatterns =
-                    List.concatMap getParametersFromPatterns patterns
+                    List.concatMap (getParametersFromPatterns source) patterns
             in
             if List.isEmpty parametersFromPatterns && List.all isPatternWildCard patterns then
                 [ { name = ""
                   , range = Node.range node
                   , kind = TupleWithoutVariables
                   , fix = [ Fix.replaceRangeBy (Node.range node) "_" ]
+                  , source = source
                   }
                 ]
 
@@ -209,7 +233,7 @@ getParametersFromPatterns node =
                 parametersFromPatterns
 
         Pattern.NamedPattern _ patterns ->
-            List.concatMap getParametersFromPatterns patterns
+            List.concatMap (getParametersFromPatterns source) patterns
 
         _ ->
             []
@@ -273,7 +297,7 @@ expressionEnterVisitorHelp node context =
                                             Node.value function.declaration
                                     in
                                     ( Node.range declaration.expression
-                                    , List.concatMap getParametersFromPatterns declaration.arguments
+                                    , List.concatMap (getParametersFromPatterns NamedFunction) declaration.arguments
                                     )
 
                                 Expression.LetDestructuring pattern expression ->
