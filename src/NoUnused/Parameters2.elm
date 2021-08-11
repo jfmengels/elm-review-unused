@@ -342,6 +342,10 @@ expressionEnterVisitorHelp node context =
         Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
             if fnName == "foo" then
                 let
+                    fnArgs : List ( String, number )
+                    fnArgs =
+                        [ ( "x", 0 ), ( "used", 1 ) ]
+
                     newRecursiveCalls : List ( Range, () )
                     newRecursiveCalls =
                         List.map
