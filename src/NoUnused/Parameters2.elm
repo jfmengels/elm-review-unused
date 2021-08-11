@@ -359,7 +359,7 @@ markValueAsUsed range name context =
             let
                 newHeadScope : Scope
                 newHeadScope =
-                    if True then
+                    if RangeDict.member range (RangeDict.singleton { start = { row = 6, column = 21 }, end = { row = 6, column = 27 } } ()) then
                         { headScope | used = Set.insert name headScope.used }
 
                     else
