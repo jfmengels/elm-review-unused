@@ -256,6 +256,9 @@ expressionEnterVisitorHelp node context =
         Expression.FunctionOrValue [] name ->
             ( [], markValueAsUsed name context )
 
+        Expression.RecordUpdateExpression name _ ->
+            ( [], markValueAsUsed (Node.value name) context )
+
         Expression.LetExpression letBlock ->
             let
                 declaredWithRange : List ( Range, List Declared )
