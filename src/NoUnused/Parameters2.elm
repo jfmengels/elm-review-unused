@@ -383,12 +383,18 @@ report context =
                 ( errors, remainingUsed ) =
                     List.foldl
                         (\declared ( errors_, remainingUsed_ ) ->
-                            if Set.member declared.name remainingUsed_ then
-                                if Set.member declared.name (Set.singleton "unused") then
-                                    ( recursiveParameterError declared :: errors_, Set.remove declared.name remainingUsed_ )
+                            if Set.member declared.name (Set.singleton "unused") then
+                                -- If variable was used as a recursive argument
+                                if Set.member declared.name remainingUsed_ then
+                                    -- If variable was used somewhere else as well
+                                    ( errors_, Set.remove declared.name remainingUsed_ )
 
                                 else
-                                    ( errors_, Set.remove declared.name remainingUsed_ )
+                                    -- If variable was used ONLY as a recursive argument
+                                    ( recursiveParameterError declared :: errors_, Set.remove declared.name remainingUsed_ )
+
+                            else if Set.member declared.name remainingUsed_ then
+                                ( errors_, Set.remove declared.name remainingUsed_ )
 
                             else
                                 ( errorsForValue declared :: errors_, remainingUsed_ )
