@@ -322,7 +322,7 @@ lambdaNamedPatternTests =
             """
 module A exposing (..)
 foo =
-    \\Named bish ->
+    \\(Named bish) ->
         bash
 """
                 |> Review.Test.run rule
@@ -336,7 +336,7 @@ foo =
                             """
 module A exposing (..)
 foo =
-    \\Named _ ->
+    \\(Named _) ->
         bash
 """
                     ]
@@ -345,7 +345,7 @@ foo =
             """
 module A exposing (..)
 foo =
-    \\Named (Bish bish) ->
+    \\(Named (Bish bish)) ->
         bash
 """
                 |> Review.Test.run rule
@@ -359,7 +359,7 @@ foo =
                             """
 module A exposing (..)
 foo =
-    \\Named (Bish _) ->
+    \\(Named (Bish _)) ->
         bash
 """
                     ]
