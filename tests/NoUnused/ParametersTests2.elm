@@ -968,4 +968,25 @@ bar x {unused} =
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 8 }, end = { row = 2, column = 14 } }
                     ]
+    , test "should report unused recursive parameters when function is called through |>" <|
+        \() ->
+            """module A exposing (..)
+foo x unused =
+    if cond then
+        x
+    else
+        unused |> foo (x - 1)
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Parameter `unused` is only used for recursiveness"
+                        , details =
+                            [ "This parameter is only used to be passed as an argument to 'foo', but its value is never read or used."
+                            , "You should either use this parameter somewhere, or remove it at the location I pointed at."
+                            ]
+                        , under = "unused"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
+                    ]
     ]
