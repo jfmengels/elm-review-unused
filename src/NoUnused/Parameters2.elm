@@ -434,6 +434,10 @@ expressionEnterVisitorHelp node context =
             -- Ignoring "arguments" because they will be visited when the Application node will be visited anyway.
             ( [], registerFunctionCall fnName (List.length arguments) [ lastArgument ] context )
 
+        Expression.OperatorApplication "<|" _ (Node _ (Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments))) lastArgument ->
+            -- Ignoring "arguments" because they will be visited when the Application node will be visited anyway.
+            ( [], registerFunctionCall fnName (List.length arguments) [ lastArgument ] context )
+
         _ ->
             ( [], context )
 
