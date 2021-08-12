@@ -483,7 +483,7 @@ markValueAsUsed range name context =
             let
                 newHeadScope : Scope
                 newHeadScope =
-                    if shouldBeIgnored range context then
+                    if shouldBeIgnored range name context then
                         { headScope | usedRecursively = Set.insert name headScope.usedRecursively }
 
                     else
@@ -492,10 +492,14 @@ markValueAsUsed range name context =
             { context | scopes = newHeadScope :: restOfScopes }
 
 
-shouldBeIgnored : Range -> Context -> Bool
-shouldBeIgnored range context =
-    --List.any (\r -> r.range == range) context.locationsToIgnoreForUsed
-    False
+shouldBeIgnored : Range -> String -> Context -> Bool
+shouldBeIgnored range name context =
+    case Dict.get name context.locationsToIgnoreForUsed of
+        Just ranges ->
+            List.member range ranges
+
+        Nothing ->
+            False
 
 
 markRecursiveValueAsUsed : Set String -> Context -> Context
