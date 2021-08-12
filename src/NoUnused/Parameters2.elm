@@ -91,7 +91,9 @@ type alias Scope =
 
 
 type alias ScopeToCreate =
-    ( List Declared, String )
+    { declared : List Declared
+    , functionName : String
+    }
 
 
 type alias Declared =
@@ -148,9 +150,9 @@ declarationVisitor node context =
               , scopesToCreate =
                     RangeDict.singleton
                         (declaration |> Node.value |> .expression |> Node.range)
-                        ( declared
-                        , Node.value declaration |> .name |> Node.value
-                        )
+                        { declared = declared
+                        , functionName = Node.value declaration |> .name |> Node.value
+                        }
               , knownFunctions = Dict.empty
               , locationsToIgnoreForUsed = RangeDict.empty
               }
@@ -291,7 +293,7 @@ expressionEnterVisitor node context =
         newContext : Context
         newContext =
             case RangeDict.get (Node.range node) context.scopesToCreate of
-                Just ( declared, functionName ) ->
+                Just { declared, functionName } ->
                     { context
                         | scopes =
                             { functionName = functionName
@@ -325,7 +327,7 @@ expressionEnterVisitorHelp node context =
 
         Expression.LetExpression letBlock ->
             let
-                declaredWithRange : List ( Range, ( List Declared, String ) )
+                declaredWithRange : List ( Range, ScopeToCreate )
                 declaredWithRange =
                     List.map
                         (\letDeclaration ->
@@ -337,17 +339,21 @@ expressionEnterVisitorHelp node context =
                                             Node.value function.declaration
                                     in
                                     ( Node.range declaration.expression
-                                    , ( List.concatMap (getParametersFromPatterns NamedFunction) declaration.arguments
-                                      , Node.value declaration.name
-                                      )
+                                    , { declared = List.concatMap (getParametersFromPatterns NamedFunction) declaration.arguments
+                                      , functionName = Node.value declaration.name
+                                      }
                                     )
 
                                 Expression.LetDestructuring _ expression ->
-                                    ( Node.range expression, ( [], "" ) )
+                                    ( Node.range expression
+                                    , { declared = []
+                                      , functionName = ""
+                                      }
+                                    )
                         )
                         letBlock.declarations
 
-                scopesToCreate : RangeDict ( List Declared, String )
+                scopesToCreate : RangeDict ScopeToCreate
                 scopesToCreate =
                     RangeDict.insertAll declaredWithRange context.scopesToCreate
             in
@@ -355,11 +361,13 @@ expressionEnterVisitorHelp node context =
 
         Expression.LambdaExpression { args, expression } ->
             let
-                scopesToCreate : RangeDict ( List Declared, String )
+                scopesToCreate : RangeDict ScopeToCreate
                 scopesToCreate =
                     RangeDict.insert
                         (Node.range expression)
-                        ( List.concatMap (getParametersFromPatterns Lambda) args, "dummy lambda" )
+                        { declared = List.concatMap (getParametersFromPatterns Lambda) args
+                        , functionName = "dummy lambda"
+                        }
                         context.scopesToCreate
             in
             ( [], { context | scopesToCreate = scopesToCreate } )
