@@ -329,7 +329,7 @@ expressionEnterVisitorHelp node context =
             let
                 declaredWithRange : List ( Range, ScopeToCreate )
                 declaredWithRange =
-                    List.map
+                    List.filterMap
                         (\letDeclaration ->
                             case Node.value letDeclaration of
                                 Expression.LetFunction function ->
@@ -338,18 +338,15 @@ expressionEnterVisitorHelp node context =
                                         declaration =
                                             Node.value function.declaration
                                     in
-                                    ( Node.range declaration.expression
-                                    , { declared = List.concatMap (getParametersFromPatterns NamedFunction) declaration.arguments
-                                      , functionName = Node.value declaration.name
-                                      }
-                                    )
+                                    Just
+                                        ( Node.range declaration.expression
+                                        , { declared = List.concatMap (getParametersFromPatterns NamedFunction) declaration.arguments
+                                          , functionName = Node.value declaration.name
+                                          }
+                                        )
 
-                                Expression.LetDestructuring _ expression ->
-                                    ( Node.range expression
-                                    , { declared = []
-                                      , functionName = ""
-                                      }
-                                    )
+                                Expression.LetDestructuring _ _ ->
+                                    Nothing
                         )
                         letBlock.declarations
 
