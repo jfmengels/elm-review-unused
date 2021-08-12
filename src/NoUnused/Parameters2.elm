@@ -186,22 +186,30 @@ getArgNames : List (Node Pattern) -> FunctionArgs
 getArgNames arguments =
     arguments
         |> List.map getArgName
-        |> List.indexedMap (\index args -> Maybe.map (Tuple.pair index) args)
+        |> List.indexedMap
+            (\index args ->
+                case args of
+                    [ argName ] ->
+                        Just ( index, argName )
+
+                    _ ->
+                        Nothing
+            )
         |> List.filterMap identity
         |> Dict.fromList
 
 
-getArgName : Node Pattern -> Maybe String
+getArgName : Node Pattern -> List String
 getArgName node =
     case Node.value node of
         Pattern.VarPattern name ->
-            Just name
+            [ name ]
 
         Pattern.ParenthesizedPattern pattern ->
             getArgName pattern
 
         _ ->
-            Nothing
+            []
 
 
 getParametersFromPatterns : Source -> Node Pattern -> List Declared
