@@ -143,11 +143,7 @@ declarationVisitor node context =
                         ( declared
                         , Node.value declaration |> .name |> Node.value
                         )
-              , knownFunctions =
-                    -- TODO Remove harcoding
-                    Dict.singleton
-                        "foo"
-                        (Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ])
+              , knownFunctions = Dict.empty
               , locationsToIgnoreForUsed = RangeDict.empty
               }
             )
