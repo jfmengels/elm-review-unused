@@ -461,21 +461,21 @@ getReference name node =
 
 markValueAsUsed : Range -> String -> Context -> Context
 markValueAsUsed range name context =
-    if List.any (\r -> r.range == range) context.locationsToIgnoreForUsed then
-        context
+    case context.scopes of
+        [] ->
+            context
 
-    else
-        case context.scopes of
-            [] ->
-                context
+        headScope :: restOfScopes ->
+            let
+                newHeadScope : Scope
+                newHeadScope =
+                    if List.any (\r -> r.range == range) context.locationsToIgnoreForUsed then
+                        { headScope | usedRecursively = Set.insert name headScope.usedRecursively }
 
-            headScope :: restOfScopes ->
-                let
-                    newHeadScope : Scope
-                    newHeadScope =
+                    else
                         { headScope | used = Set.insert name headScope.used }
-                in
-                { context | scopes = newHeadScope :: restOfScopes }
+            in
+            { context | scopes = newHeadScope :: restOfScopes }
 
 
 markRecursiveValueAsUsed : Set String -> Context -> Context
