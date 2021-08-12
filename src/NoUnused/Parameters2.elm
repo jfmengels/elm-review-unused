@@ -9,7 +9,6 @@ module NoUnused.Parameters2 exposing (rule)
 
 -}
 
-import Array
 import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
@@ -443,36 +442,6 @@ expressionEnterVisitorHelp node context =
             ( [], context )
 
 
-type alias CallLocation =
-    { name : String
-    , range : Range
-    }
-
-
-getReference : String -> Node Expression -> Maybe Range
-getReference name node =
-    case Node.value node of
-        Expression.ParenthesizedExpression expr ->
-            getReference name expr
-
-        Expression.FunctionOrValue [] referenceName ->
-            if referenceName == name then
-                Just (Node.range node)
-
-            else
-                Nothing
-
-        Expression.RecordUpdateExpression referenceName _ ->
-            if Node.value referenceName == name then
-                Just (Node.range referenceName)
-
-            else
-                Nothing
-
-        _ ->
-            Nothing
-
-
 markValueAsUsed : Range -> String -> Context -> Context
 markValueAsUsed range name context =
     case context.scopes of
@@ -506,21 +475,6 @@ isRangeIncluded : Range -> Range -> Bool
 isRangeIncluded inner outer =
     (Range.compareLocations inner.start outer.start /= LT)
         && (Range.compareLocations inner.end outer.end /= GT)
-
-
-markRecursiveValueAsUsed : Set String -> Context -> Context
-markRecursiveValueAsUsed names context =
-    case context.scopes of
-        [] ->
-            context
-
-        headScope :: restOfScopes ->
-            let
-                newHeadScope : Scope
-                newHeadScope =
-                    { headScope | usedRecursively = Set.union names headScope.usedRecursively }
-            in
-            { context | scopes = newHeadScope :: restOfScopes }
 
 
 markAllAsUsed : Set String -> List Scope -> List Scope
@@ -622,7 +576,7 @@ errorsForValue { name, kind, range, source, fix } =
 
 
 recursiveParameterError : String -> Declared -> Rule.Error {}
-recursiveParameterError functionName { name, kind, range, source, fix } =
+recursiveParameterError functionName { name, range } =
     Rule.error
         { message = "Parameter `" ++ name ++ "` is only used for recursiveness"
         , details =
