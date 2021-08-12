@@ -93,6 +93,7 @@ type alias Scope =
 type alias ScopeToCreate =
     { declared : List Declared
     , functionName : String
+    , foo : Foo
     }
 
 
@@ -152,6 +153,9 @@ declarationVisitor node context =
                         (declaration |> Node.value |> .expression |> Node.range)
                         { declared = declared
                         , functionName = Node.value declaration |> .name |> Node.value
+                        , foo =
+                            -- TODO Remove harcoding
+                            Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ]
                         }
               , knownFunctions = Dict.empty
               , locationsToIgnoreForUsed = RangeDict.empty
@@ -293,7 +297,7 @@ expressionEnterVisitor node context =
         newContext : Context
         newContext =
             case RangeDict.get (Node.range node) context.scopesToCreate of
-                Just { declared, functionName } ->
+                Just { declared, functionName, foo } ->
                     { context
                         | scopes =
                             { functionName = functionName
@@ -305,8 +309,7 @@ expressionEnterVisitor node context =
                         , knownFunctions =
                             Dict.insert
                                 functionName
-                                -- TODO Remove harcoding
-                                (Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ])
+                                foo
                                 context.knownFunctions
                     }
 
@@ -350,6 +353,9 @@ expressionEnterVisitorHelp node context =
                                             ( Node.range declaration.expression
                                             , { declared = declared
                                               , functionName = Node.value declaration.name
+                                              , foo =
+                                                    -- TODO Remove harcoding
+                                                    Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ]
                                               }
                                             )
 
@@ -372,6 +378,7 @@ expressionEnterVisitorHelp node context =
                         (Node.range expression)
                         { declared = List.concatMap (getParametersFromPatterns Lambda) args
                         , functionName = "dummy lambda"
+                        , foo = Dict.empty
                         }
                         context.scopesToCreate
             in
