@@ -342,12 +342,16 @@ expressionEnterVisitorHelp node context =
                                         declared =
                                             List.concatMap (getParametersFromPatterns NamedFunction) declaration.arguments
                                     in
-                                    Just
-                                        ( Node.range declaration.expression
-                                        , { declared = declared
-                                          , functionName = Node.value declaration.name
-                                          }
-                                        )
+                                    if List.isEmpty declared then
+                                        Nothing
+
+                                    else
+                                        Just
+                                            ( Node.range declaration.expression
+                                            , { declared = declared
+                                              , functionName = Node.value declaration.name
+                                              }
+                                            )
 
                                 Expression.LetDestructuring _ _ ->
                                     Nothing
