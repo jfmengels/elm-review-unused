@@ -559,38 +559,34 @@ report context =
 
 errorsForValue : Declared -> Rule.Error {}
 errorsForValue { name, kind, range, source, fix } =
+    Rule.errorWithFix
+        (errorMessage kind name)
+        range
+        (applyFix source fix)
+
+
+errorMessage : Kind -> String -> { message : String, details : List String }
+errorMessage kind name =
     case kind of
         Parameter ->
-            Rule.errorWithFix
-                { message = "Parameter `" ++ name ++ "` is not used"
-                , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
-                }
-                range
-                (applyFix source fix)
+            { message = "Parameter `" ++ name ++ "` is not used"
+            , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+            }
 
         Alias ->
-            Rule.errorWithFix
-                { message = "Pattern alias `" ++ name ++ "` is not used"
-                , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
-                }
-                range
-                (applyFix source fix)
+            { message = "Pattern alias `" ++ name ++ "` is not used"
+            , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+            }
 
         AsWithoutVariables ->
-            Rule.errorWithFix
-                { message = "Pattern does not introduce any variables"
-                , details = [ "You should remove this pattern." ]
-                }
-                range
-                (applyFix source fix)
+            { message = "Pattern does not introduce any variables"
+            , details = [ "You should remove this pattern." ]
+            }
 
         TupleWithoutVariables ->
-            Rule.errorWithFix
-                { message = "Tuple pattern is not needed"
-                , details = [ "You should remove this pattern." ]
-                }
-                range
-                (applyFix source fix)
+            { message = "Tuple pattern is not needed"
+            , details = [ "You should remove this pattern." ]
+            }
 
 
 recursiveParameterError : String -> Declared -> Rule.Error {}
