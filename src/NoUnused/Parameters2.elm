@@ -408,28 +408,14 @@ expressionEnterVisitorHelp node context =
             case Dict.get fnName context.knownFunctions of
                 Just fnArgs ->
                     let
-                        recursiveCalls : List CallLocation
-                        recursiveCalls =
-                            arguments
-                                |> List.indexedMap Tuple.pair
-                                |> List.filterMap
-                                    (\( index, arg ) ->
-                                        Maybe.andThen
-                                            (\name -> Maybe.map (CallLocation name) (getReference name arg))
-                                            (Dict.get index fnArgs)
-                                    )
-
-                        recursiveReferences : Set String
-                        recursiveReferences =
-                            recursiveCalls
-                                |> List.map .name
-                                |> Set.fromList
-
                         locationsToIgnore : List ( Range, () )
                         locationsToIgnore =
-                            List.map (\call -> ( call.range, () )) recursiveCalls
+                            arguments
+                                |> List.indexedMap Tuple.pair
+                                |> List.filter (\( index, _ ) -> Dict.member index fnArgs)
+                                |> List.map (\( _, arg ) -> ( Node.range arg, () ))
                     in
-                    ( [], markRecursiveValueAsUsed recursiveReferences { context | locationsToIgnoreForUsed = RangeDict.insertAll locationsToIgnore context.locationsToIgnoreForUsed } )
+                    ( [], { context | locationsToIgnoreForUsed = RangeDict.insertAll locationsToIgnore context.locationsToIgnoreForUsed } )
 
                 Nothing ->
                     ( [], context )
