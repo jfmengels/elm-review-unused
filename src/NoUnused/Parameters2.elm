@@ -408,7 +408,7 @@ expressionEnterVisitorHelp node context =
             case Dict.get fnName context.knownFunctions of
                 Just fnArgs ->
                     let
-                        recursiveCalls : List { name : String, range : Range }
+                        recursiveCalls : List CallLocation
                         recursiveCalls =
                             arguments
                                 |> List.indexedMap Tuple.pair
