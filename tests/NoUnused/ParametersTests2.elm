@@ -872,7 +872,7 @@ foo x unused =
                     [ Review.Test.error
                         { message = "Parameter `unused` is only used for recursiveness"
                         , details =
-                            [ "This parameter is only used to be passed as an argument to foo, but its value is never read or used."
+                            [ "This parameter is only used to be passed as an argument to 'foo', but its value is never read or used."
                             , "You should either use this parameter somewhere, or remove it at the location I pointed at."
                             ]
                         , under = "unused"
@@ -893,7 +893,7 @@ bar x unused =
                     [ Review.Test.error
                         { message = "Parameter `unused` is only used for recursiveness"
                         , details =
-                            [ "This parameter is only used to be passed as an argument to bar, but its value is never read or used."
+                            [ "This parameter is only used to be passed as an argument to 'bar', but its value is never read or used."
                             , "You should either use this parameter somewhere, or remove it at the location I pointed at."
                             ]
                         , under = "unused"
@@ -914,7 +914,7 @@ bar x unused =
                     [ Review.Test.error
                         { message = "Parameter `unused` is only used for recursiveness"
                         , details =
-                            [ "This parameter is only used to be passed as an argument to bar, but its value is never read or used."
+                            [ "This parameter is only used to be passed as an argument to 'bar', but its value is never read or used."
                             , "You should either use this parameter somewhere, or remove it at the location I pointed at."
                             ]
                         , under = "unused"
