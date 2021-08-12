@@ -77,7 +77,7 @@ rule =
 type alias Context =
     { scopes : List Scope
     , scopesToCreate : RangeDict ScopeToCreate
-    , knownFunctions : Dict String Foo
+    , knownFunctions : Dict String FunctionArgs
     , locationsToIgnoreForUsed : RangeDict ()
     }
 
@@ -93,7 +93,7 @@ type alias Scope =
 type alias ScopeToCreate =
     { declared : List Declared
     , functionName : String
-    , foo : Foo
+    , functionArgs : FunctionArgs
     }
 
 
@@ -106,7 +106,7 @@ type alias Declared =
     }
 
 
-type alias Foo =
+type alias FunctionArgs =
     Dict Int String
 
 
@@ -153,7 +153,7 @@ declarationVisitor node context =
                         (declaration |> Node.value |> .expression |> Node.range)
                         { declared = declared
                         , functionName = Node.value declaration |> .name |> Node.value
-                        , foo =
+                        , functionArgs =
                             -- TODO Remove harcoding
                             Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ]
                         }
@@ -297,7 +297,7 @@ expressionEnterVisitor node context =
         newContext : Context
         newContext =
             case RangeDict.get (Node.range node) context.scopesToCreate of
-                Just { declared, functionName, foo } ->
+                Just { declared, functionName, functionArgs } ->
                     { context
                         | scopes =
                             { functionName = functionName
@@ -309,7 +309,7 @@ expressionEnterVisitor node context =
                         , knownFunctions =
                             Dict.insert
                                 functionName
-                                foo
+                                functionArgs
                                 context.knownFunctions
                     }
 
@@ -353,7 +353,7 @@ expressionEnterVisitorHelp node context =
                                             ( Node.range declaration.expression
                                             , { declared = declared
                                               , functionName = Node.value declaration.name
-                                              , foo =
+                                              , functionArgs =
                                                     -- TODO Remove harcoding
                                                     Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ]
                                               }
@@ -378,7 +378,7 @@ expressionEnterVisitorHelp node context =
                         (Node.range expression)
                         { declared = List.concatMap (getParametersFromPatterns Lambda) args
                         , functionName = "dummy lambda"
-                        , foo = Dict.empty
+                        , functionArgs = Dict.empty
                         }
                         context.scopesToCreate
             in
