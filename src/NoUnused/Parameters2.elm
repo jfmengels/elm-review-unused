@@ -150,8 +150,8 @@ declarationVisitor node context =
 
                 functionArgs : FunctionArgs
                 functionArgs =
-                    -- TODO Remove harcoding
-                    [ Just "x", Just "unused" ]
+                    arguments
+                        |> List.map getArgName
                         |> List.indexedMap (\index args -> Maybe.map (Tuple.pair index) args)
                         |> List.filterMap identity
                         |> Dict.fromList
@@ -172,6 +172,19 @@ declarationVisitor node context =
 
         _ ->
             ( [], context )
+
+
+getArgName : Node Pattern -> Maybe String
+getArgName node =
+    case Node.value node of
+        Pattern.VarPattern name ->
+            Just name
+
+        Pattern.ParenthesizedPattern pattern ->
+            getArgName pattern
+
+        _ ->
+            Nothing
 
 
 getParametersFromPatterns : Source -> Node Pattern -> List Declared
