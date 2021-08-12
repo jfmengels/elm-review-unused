@@ -15,7 +15,7 @@ import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.Range as Range exposing (Range)
 import NoUnused.RangeDict as RangeDict exposing (RangeDict)
 import Review.Fix as Fix exposing (Fix)
 import Review.Rule as Rule exposing (Rule)
@@ -496,10 +496,16 @@ shouldBeIgnored : Range -> String -> Context -> Bool
 shouldBeIgnored range name context =
     case Dict.get name context.locationsToIgnoreForUsed of
         Just ranges ->
-            List.member range ranges
+            List.any (isRangeIncluded range) ranges
 
         Nothing ->
             False
+
+
+isRangeIncluded : Range -> Range -> Bool
+isRangeIncluded inner outer =
+    (Range.compareLocations inner.start outer.start /= LT)
+        && (Range.compareLocations inner.end outer.end /= GT)
 
 
 markRecursiveValueAsUsed : Set String -> Context -> Context
