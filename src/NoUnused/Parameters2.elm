@@ -293,9 +293,9 @@ expressionEnterVisitor node context =
                             }
                                 :: context.scopes
                         , knownFunctions =
-                            -- TODO Remove harcoding
                             Dict.insert
-                                "foo"
+                                functionName
+                                -- TODO Remove harcoding
                                 (Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ])
                                 context.knownFunctions
                     }
