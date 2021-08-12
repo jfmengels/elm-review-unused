@@ -17,6 +17,7 @@ import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Node as Node exposing (Node)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Version
+import List.Extra
 import Review.Project.Dependency as Dependency exposing (Dependency)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -420,7 +421,7 @@ fromProject dependenciesDict dependencyLocation packageNameStr project =
                         Nothing ->
                             []
             in
-            case find (isPackageWithName packageNameStr) dependencies of
+            case List.Extra.find (isPackageWithName packageNameStr) dependencies of
                 Just ( packageName, version ) ->
                     Just
                         (ApplicationProject
@@ -445,7 +446,7 @@ fromProject dependenciesDict dependencyLocation packageNameStr project =
                         InTestDeps ->
                             packageInfo.testDeps
             in
-            case find (isPackageWithName packageNameStr) dependencies of
+            case List.Extra.find (isPackageWithName packageNameStr) dependencies of
                 Just ( packageName, constraint ) ->
                     Just (PackageProject { package = packageInfo, name = packageName, constraint = constraint })
 
@@ -600,23 +601,3 @@ removeTestDependency projectAndDependencyIdentifier =
 isPackageWithName : String -> ( Elm.Package.Name, a ) -> Bool
 isPackageWithName packageName ( packageName_, _ ) =
     packageName == Elm.Package.toString packageName_
-
-
-{-| Find the first element that satisfies a predicate and return
-Just that element. If none match, return Nothing.
-
-    find (\num -> num > 5) [ 2, 4, 6, 8 ] == Just 6
-
--}
-find : (a -> Bool) -> List a -> Maybe a
-find predicate list =
-    case list of
-        [] ->
-            Nothing
-
-        first :: rest ->
-            if predicate first then
-                Just first
-
-            else
-                find predicate rest

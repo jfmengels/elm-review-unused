@@ -168,6 +168,72 @@ exposed1 = 1
 exposed2 = 2
 """
                         ]
+        , test "should propose to remove the @docs entry in the module's documentation along with the removed export" <|
+            \() ->
+                """module A exposing (exposed1, exposed2, exposed3)
+{-|
+
+@docs exposed1, exposed2
+@docs exposed3
+-}
+
+exposed1 = 1
+exposed2 = 2
+exposed3 = 3
+"""
+                    |> Review.Test.runWithProjectData package rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Exposed function or value `exposed1` is never used outside this module."
+                            , details = details
+                            , under = "exposed1"
+                            }
+                            |> Review.Test.atExactly { start = { row = 1, column = 20 }, end = { row = 1, column = 28 } }
+                            |> Review.Test.whenFixed """module A exposing (exposed2, exposed3)
+{-|
+
+@docs exposed2
+@docs exposed3
+-}
+
+exposed1 = 1
+exposed2 = 2
+exposed3 = 3
+"""
+                        , Review.Test.error
+                            { message = "Exposed function or value `exposed2` is never used outside this module."
+                            , details = details
+                            , under = "exposed2"
+                            }
+                            |> Review.Test.atExactly { start = { row = 1, column = 30 }, end = { row = 1, column = 38 } }
+                            |> Review.Test.whenFixed """module A exposing (exposed1, exposed3)
+{-|
+
+@docs exposed1
+@docs exposed3
+-}
+
+exposed1 = 1
+exposed2 = 2
+exposed3 = 3
+"""
+                        , Review.Test.error
+                            { message = "Exposed function or value `exposed3` is never used outside this module."
+                            , details = details
+                            , under = "exposed3"
+                            }
+                            |> Review.Test.atExactly { start = { row = 1, column = 40 }, end = { row = 1, column = 48 } }
+                            |> Review.Test.whenFixed """module A exposing (exposed1, exposed2)
+{-|
+
+@docs exposed1, exposed2
+-}
+
+exposed1 = 1
+exposed2 = 2
+exposed3 = 3
+"""
+                        ]
         , test "should not report anything for modules that expose everything`" <|
             \() ->
                 """
