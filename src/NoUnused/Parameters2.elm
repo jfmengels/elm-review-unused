@@ -151,7 +151,8 @@ declarationVisitor node context =
                 functionArgs : FunctionArgs
                 functionArgs =
                     -- TODO Remove harcoding
-                    Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ]
+                    [ ( 0, "x" ), ( 1, "unused" ) ]
+                        |> Dict.fromList
             in
             ( []
             , { scopes = []
