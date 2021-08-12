@@ -428,17 +428,18 @@ expressionEnterVisitorHelp node context =
             ( [], { context | scopesToCreate = scopesToCreate } )
 
         Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
-            ( [], registerFunctionCall fnName arguments context )
+            ( [], registerFunctionCall fnName 0 arguments context )
 
         Expression.OperatorApplication "|>" _ lastArgument (Node _ (Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments))) ->
-            ( [], registerFunctionCall fnName (arguments ++ [ lastArgument ]) context )
+            -- Ignoring "arguments" because they will be visited when the Application node will be visited anyway.
+            ( [], registerFunctionCall fnName (List.length arguments) [ lastArgument ] context )
 
         _ ->
             ( [], context )
 
 
-registerFunctionCall : String -> List (Node a) -> Context -> Context
-registerFunctionCall fnName arguments context =
+registerFunctionCall : String -> Int -> List (Node a) -> Context -> Context
+registerFunctionCall fnName numberOfIgnoredArguments arguments context =
     case Dict.get fnName context.knownFunctions of
         Just fnArgs ->
             let
@@ -448,7 +449,7 @@ registerFunctionCall fnName arguments context =
                         |> List.indexedMap Tuple.pair
                         |> List.filterMap
                             (\( index, arg ) ->
-                                Dict.get index fnArgs
+                                Dict.get (numberOfIgnoredArguments + index) fnArgs
                                     |> Maybe.map (\argName -> ( argName, [ Node.range arg ] ))
                             )
                         |> Dict.fromList
