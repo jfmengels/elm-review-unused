@@ -457,9 +457,12 @@ getReference name node =
             else
                 Nothing
 
-        Expression.RecordUpdateExpression _ _ ->
-            -- TODO Add a test and implement
-            Nothing
+        Expression.RecordUpdateExpression referenceName _ ->
+            if Node.value referenceName == name then
+                Just (Node.range referenceName)
+
+            else
+                Nothing
 
         _ ->
             Nothing
