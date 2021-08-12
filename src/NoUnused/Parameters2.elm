@@ -78,7 +78,7 @@ type alias Context =
     { scopes : List Scope
     , scopesToCreate : RangeDict ScopeToCreate
     , knownFunctions : Dict String FunctionArgs
-    , locationsToIgnoreForUsed : RangeDict LocationToIgnore
+    , locationsToIgnoreForUsed : List LocationToIgnore
     }
 
 
@@ -107,7 +107,8 @@ type alias Declared =
 
 
 type alias LocationToIgnore =
-    ()
+    { range : Range
+    }
 
 
 type alias FunctionArgs =
@@ -131,7 +132,7 @@ initialContext =
     { scopes = []
     , scopesToCreate = RangeDict.empty
     , knownFunctions = Dict.empty
-    , locationsToIgnoreForUsed = RangeDict.empty
+    , locationsToIgnoreForUsed = []
     }
 
 
@@ -162,7 +163,7 @@ declarationVisitor node context =
                         , functionArgs = getArgNames arguments
                         }
               , knownFunctions = Dict.empty
-              , locationsToIgnoreForUsed = RangeDict.empty
+              , locationsToIgnoreForUsed = []
               }
             )
 
@@ -412,14 +413,14 @@ expressionEnterVisitorHelp node context =
             case Dict.get fnName context.knownFunctions of
                 Just fnArgs ->
                     let
-                        locationsToIgnore : List ( Range, () )
+                        locationsToIgnore : List LocationToIgnore
                         locationsToIgnore =
                             arguments
                                 |> List.indexedMap Tuple.pair
                                 |> List.filter (\( index, _ ) -> Dict.member index fnArgs)
-                                |> List.map (\( _, arg ) -> ( Node.range arg, () ))
+                                |> List.map (\( _, arg ) -> { range = Node.range arg })
                     in
-                    ( [], { context | locationsToIgnoreForUsed = RangeDict.insertAll locationsToIgnore context.locationsToIgnoreForUsed } )
+                    ( [], { context | locationsToIgnoreForUsed = locationsToIgnore ++ context.locationsToIgnoreForUsed } )
 
                 Nothing ->
                     ( [], context )
@@ -460,7 +461,7 @@ getReference name node =
 
 markValueAsUsed : Range -> String -> Context -> Context
 markValueAsUsed range name context =
-    if RangeDict.member range context.locationsToIgnoreForUsed then
+    if List.any (\r -> r.range == range) context.locationsToIgnoreForUsed then
         context
 
     else
