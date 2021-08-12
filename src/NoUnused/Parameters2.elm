@@ -502,7 +502,12 @@ report context =
                         ( [], headScope.used )
                         headScope.declared
             in
-            ( errors, { context | scopes = markAllAsUsed remainingUsed restOfScopes } )
+            ( errors
+            , { context
+                | scopes = markAllAsUsed remainingUsed restOfScopes
+                , knownFunctions = Dict.remove headScope.functionName context.knownFunctions
+              }
+            )
 
         [] ->
             ( [], context )
