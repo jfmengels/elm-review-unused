@@ -160,18 +160,18 @@ declarationVisitor node context =
                 arguments =
                     (Node.value declaration).arguments
 
-                declared : List Declared
+                declared : List (List Declared)
                 declared =
-                    List.concatMap (getParametersFromPatterns NamedFunction) arguments
+                    List.map (getParametersFromPatterns NamedFunction) arguments
             in
             ( []
             , { scopes = []
               , scopesToCreate =
                     RangeDict.singleton
                         (declaration |> Node.value |> .expression |> Node.range)
-                        { declared = declared
+                        { declared = List.concat declared
                         , functionName = Node.value declaration |> .name |> Node.value
-                        , functionArgs = getArgNames arguments
+                        , functionArgs = getArgNames declared
                         }
               , knownFunctions = Dict.empty
               , locationsToIgnoreForUsed = Dict.empty
@@ -182,15 +182,14 @@ declarationVisitor node context =
             ( [], context )
 
 
-getArgNames : List (Node Pattern) -> FunctionArgs
-getArgNames arguments =
-    arguments
-        |> List.map getArgName
+getArgNames : List (List Declared) -> FunctionArgs
+getArgNames declared =
+    declared
         |> List.indexedMap
             (\index args ->
                 case args of
-                    [ argName ] ->
-                        Just ( index, argName )
+                    [ arg ] ->
+                        Just ( index, arg.name )
 
                     _ ->
                         Nothing
@@ -387,9 +386,9 @@ expressionEnterVisitorHelp node context =
                                         declaration =
                                             Node.value function.declaration
 
-                                        declared : List Declared
+                                        declared : List (List Declared)
                                         declared =
-                                            List.concatMap (getParametersFromPatterns NamedFunction) declaration.arguments
+                                            List.map (getParametersFromPatterns NamedFunction) declaration.arguments
                                     in
                                     if List.isEmpty declared then
                                         Nothing
@@ -397,9 +396,9 @@ expressionEnterVisitorHelp node context =
                                     else
                                         Just
                                             ( Node.range declaration.expression
-                                            , { declared = declared
+                                            , { declared = List.concat declared
                                               , functionName = Node.value declaration.name
-                                              , functionArgs = getArgNames declaration.arguments
+                                              , functionArgs = getArgNames declared
                                               }
                                             )
 
