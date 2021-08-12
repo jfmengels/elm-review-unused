@@ -140,11 +140,13 @@ declarationVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration { declaration } ->
             let
+                arguments : List (Node Pattern)
+                arguments =
+                    (Node.value declaration).arguments
+
                 declared : List Declared
                 declared =
-                    Node.value declaration
-                        |> .arguments
-                        |> List.concatMap (getParametersFromPatterns NamedFunction)
+                    List.concatMap (getParametersFromPatterns NamedFunction) arguments
 
                 functionArgs : FunctionArgs
                 functionArgs =
