@@ -198,19 +198,6 @@ getArgNames declared =
         |> Dict.fromList
 
 
-getArgName : Node Pattern -> List String
-getArgName node =
-    case Node.value node of
-        Pattern.VarPattern name ->
-            [ name ]
-
-        Pattern.ParenthesizedPattern pattern ->
-            getArgName pattern
-
-        _ ->
-            []
-
-
 getParametersFromPatterns : Source -> Node Pattern -> List Declared
 getParametersFromPatterns source node =
     case Node.value node of
