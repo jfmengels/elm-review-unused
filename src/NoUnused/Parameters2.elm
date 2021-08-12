@@ -44,6 +44,19 @@ Value `something` is not used:
     add1 number =
         1
 
+The rule will also be reported parameters that are only used to be passed again to the containing recursive function:
+
+    last list unused =
+        case list of
+            [] ->
+                Nothing
+
+            [ a ] ->
+                Just a
+
+            _ :: rest ->
+                last rest unused
+
 
 ## Success
 
