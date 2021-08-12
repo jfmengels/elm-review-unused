@@ -580,7 +580,7 @@ recursiveParameterError functionName { name, range } =
     Rule.error
         { message = "Parameter `" ++ name ++ "` is only used for recursiveness"
         , details =
-            [ "This parameter is only used to be passed as an argument to " ++ functionName ++ ", but its value is never read or used."
+            [ "This parameter is only used to be passed as an argument to '" ++ functionName ++ "', but its value is never read or used."
             , "You should either use this parameter somewhere, or remove it at the location I pointed at."
             ]
         }
