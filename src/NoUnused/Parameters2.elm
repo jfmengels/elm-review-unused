@@ -147,14 +147,6 @@ declarationVisitor node context =
                 declared : List Declared
                 declared =
                     List.concatMap (getParametersFromPatterns NamedFunction) arguments
-
-                functionArgs : FunctionArgs
-                functionArgs =
-                    arguments
-                        |> List.map getArgName
-                        |> List.indexedMap (\index args -> Maybe.map (Tuple.pair index) args)
-                        |> List.filterMap identity
-                        |> Dict.fromList
             in
             ( []
             , { scopes = []
@@ -163,7 +155,7 @@ declarationVisitor node context =
                         (declaration |> Node.value |> .expression |> Node.range)
                         { declared = declared
                         , functionName = Node.value declaration |> .name |> Node.value
-                        , functionArgs = functionArgs
+                        , functionArgs = getArgNames arguments
                         }
               , knownFunctions = Dict.empty
               , locationsToIgnoreForUsed = RangeDict.empty
@@ -172,6 +164,15 @@ declarationVisitor node context =
 
         _ ->
             ( [], context )
+
+
+getArgNames : List (Node Pattern) -> FunctionArgs
+getArgNames arguments =
+    arguments
+        |> List.map getArgName
+        |> List.indexedMap (\index args -> Maybe.map (Tuple.pair index) args)
+        |> List.filterMap identity
+        |> Dict.fromList
 
 
 getArgName : Node Pattern -> Maybe String
