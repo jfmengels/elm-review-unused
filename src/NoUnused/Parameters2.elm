@@ -107,7 +107,8 @@ type alias Declared =
 
 
 type alias LocationToIgnore =
-    { range : Range
+    { argumentName : String
+    , range : Range
     }
 
 
@@ -417,8 +418,11 @@ expressionEnterVisitorHelp node context =
                         locationsToIgnore =
                             arguments
                                 |> List.indexedMap Tuple.pair
-                                |> List.filter (\( index, _ ) -> Dict.member index fnArgs)
-                                |> List.map (\( _, arg ) -> { range = Node.range arg })
+                                |> List.filterMap
+                                    (\( index, arg ) ->
+                                        Dict.get index fnArgs
+                                            |> Maybe.map (\argName -> { argumentName = argName, range = Node.range arg })
+                                    )
                     in
                     ( [], { context | locationsToIgnoreForUsed = locationsToIgnore ++ context.locationsToIgnoreForUsed } )
 
