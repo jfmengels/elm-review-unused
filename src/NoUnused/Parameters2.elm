@@ -78,7 +78,7 @@ type alias Context =
     { scopes : List Scope
     , scopesToCreate : RangeDict ScopeToCreate
     , knownFunctions : Dict String FunctionArgs
-    , locationsToIgnoreForUsed : RangeDict ()
+    , locationsToIgnoreForUsed : RangeDict LocationToIgnore
     }
 
 
@@ -104,6 +104,10 @@ type alias Declared =
     , source : Source
     , fix : List Fix
     }
+
+
+type alias LocationToIgnore =
+    ()
 
 
 type alias FunctionArgs =
