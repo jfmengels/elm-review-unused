@@ -337,10 +337,14 @@ expressionEnterVisitorHelp node context =
                                         declaration : Expression.FunctionImplementation
                                         declaration =
                                             Node.value function.declaration
+
+                                        declared : List Declared
+                                        declared =
+                                            List.concatMap (getParametersFromPatterns NamedFunction) declaration.arguments
                                     in
                                     Just
                                         ( Node.range declaration.expression
-                                        , { declared = List.concatMap (getParametersFromPatterns NamedFunction) declaration.arguments
+                                        , { declared = declared
                                           , functionName = Node.value declaration.name
                                           }
                                         )
