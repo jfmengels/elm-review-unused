@@ -78,7 +78,7 @@ type alias Context =
     { scopes : List Scope
     , scopesToCreate : RangeDict ScopeToCreate
     , knownFunctions : Dict String FunctionArgs
-    , locationsToIgnoreForUsed : Dict String (List LocationToIgnore)
+    , locationsToIgnoreForUsed : LocationsToIgnore
     }
 
 
@@ -106,10 +106,8 @@ type alias Declared =
     }
 
 
-type alias LocationToIgnore =
-    { argumentName : String
-    , range : Range
-    }
+type alias LocationsToIgnore =
+    Dict String (List Range)
 
 
 type alias FunctionArgs =
@@ -414,14 +412,14 @@ expressionEnterVisitorHelp node context =
             case Dict.get fnName context.knownFunctions of
                 Just fnArgs ->
                     let
-                        locationsToIgnore : Dict String (List LocationToIgnore)
+                        locationsToIgnore : LocationsToIgnore
                         locationsToIgnore =
                             arguments
                                 |> List.indexedMap Tuple.pair
                                 |> List.filterMap
                                     (\( index, arg ) ->
                                         Dict.get index fnArgs
-                                            |> Maybe.map (\argName -> ( argName, [ { argumentName = argName, range = Node.range arg } ] ))
+                                            |> Maybe.map (\argName -> ( argName, [ Node.range arg ] ))
                                     )
                                 |> Dict.fromList
                     in
