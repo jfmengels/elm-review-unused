@@ -76,7 +76,7 @@ rule =
 
 type alias Context =
     { scopes : List Scope
-    , scopesToCreate : RangeDict ( List Declared, String )
+    , scopesToCreate : RangeDict ScopeToCreate
     , knownFunctions : Dict String Foo
     , locationsToIgnoreForUsed : RangeDict ()
     }
@@ -88,6 +88,10 @@ type alias Scope =
     , used : Set String
     , usedRecursively : Set String
     }
+
+
+type alias ScopeToCreate =
+    ( List Declared, String )
 
 
 type alias Declared =
