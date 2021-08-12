@@ -78,7 +78,7 @@ type alias Context =
     { scopes : List Scope
     , scopesToCreate : RangeDict ScopeToCreate
     , knownFunctions : Dict String FunctionArgs
-    , locationsToIgnoreForUsed : List LocationToIgnore
+    , locationsToIgnoreForUsed : Dict String (List LocationToIgnore)
     }
 
 
@@ -133,7 +133,7 @@ initialContext =
     { scopes = []
     , scopesToCreate = RangeDict.empty
     , knownFunctions = Dict.empty
-    , locationsToIgnoreForUsed = []
+    , locationsToIgnoreForUsed = Dict.empty
     }
 
 
@@ -164,7 +164,7 @@ declarationVisitor node context =
                         , functionArgs = getArgNames arguments
                         }
               , knownFunctions = Dict.empty
-              , locationsToIgnoreForUsed = []
+              , locationsToIgnoreForUsed = Dict.empty
               }
             )
 
@@ -414,17 +414,29 @@ expressionEnterVisitorHelp node context =
             case Dict.get fnName context.knownFunctions of
                 Just fnArgs ->
                     let
-                        locationsToIgnore : List LocationToIgnore
+                        locationsToIgnore : Dict String (List LocationToIgnore)
                         locationsToIgnore =
                             arguments
                                 |> List.indexedMap Tuple.pair
                                 |> List.filterMap
                                     (\( index, arg ) ->
                                         Dict.get index fnArgs
-                                            |> Maybe.map (\argName -> { argumentName = argName, range = Node.range arg })
+                                            |> Maybe.map (\argName -> ( argName, [ { argumentName = argName, range = Node.range arg } ] ))
                                     )
+                                |> Dict.fromList
                     in
-                    ( [], { context | locationsToIgnoreForUsed = locationsToIgnore ++ context.locationsToIgnoreForUsed } )
+                    ( []
+                    , { context
+                        | locationsToIgnoreForUsed =
+                            Dict.merge
+                                Dict.insert
+                                (\key new old -> Dict.insert key (new ++ old))
+                                Dict.insert
+                                locationsToIgnore
+                                context.locationsToIgnoreForUsed
+                                Dict.empty
+                      }
+                    )
 
                 Nothing ->
                     ( [], context )
@@ -484,7 +496,8 @@ markValueAsUsed range name context =
 
 shouldBeIgnored : Range -> Context -> Bool
 shouldBeIgnored range context =
-    List.any (\r -> r.range == range) context.locationsToIgnoreForUsed
+    --List.any (\r -> r.range == range) context.locationsToIgnoreForUsed
+    False
 
 
 markRecursiveValueAsUsed : Set String -> Context -> Context
