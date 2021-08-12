@@ -151,7 +151,8 @@ declarationVisitor node context =
                 functionArgs : FunctionArgs
                 functionArgs =
                     -- TODO Remove harcoding
-                    [ ( 0, "x" ), ( 1, "unused" ) ]
+                    [ Just ( 0, "x" ), Just ( 1, "unused" ) ]
+                        |> List.filterMap identity
                         |> Dict.fromList
             in
             ( []
