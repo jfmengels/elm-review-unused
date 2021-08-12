@@ -430,6 +430,9 @@ expressionEnterVisitorHelp node context =
         Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
             ( [], registerFunctionCall fnName arguments context )
 
+        Expression.OperatorApplication "|>" _ lastArgument (Node _ (Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments))) ->
+            ( [], registerFunctionCall fnName (arguments ++ [ lastArgument ]) context )
+
         _ ->
             ( [], context )
 
