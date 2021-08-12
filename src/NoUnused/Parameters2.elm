@@ -77,7 +77,7 @@ rule =
 type alias Context =
     { scopes : List Scope
     , scopesToCreate : RangeDict (List Declared)
-    , knownRecursiveCalls : RangeDict ()
+    , locationsToIgnoreForUsed : RangeDict ()
     }
 
 
@@ -113,7 +113,7 @@ initialContext : Context
 initialContext =
     { scopes = []
     , scopesToCreate = RangeDict.empty
-    , knownRecursiveCalls = RangeDict.empty
+    , locationsToIgnoreForUsed = RangeDict.empty
     }
 
 
@@ -138,7 +138,7 @@ declarationVisitor node context =
                     RangeDict.singleton
                         (declaration |> Node.value |> .expression |> Node.range)
                         declared
-              , knownRecursiveCalls = RangeDict.empty
+              , locationsToIgnoreForUsed = RangeDict.empty
               }
             )
 
@@ -374,7 +374,7 @@ expressionEnterVisitorHelp node context =
                         locationsToIgnore =
                             List.map (\call -> ( call.range, () )) recursiveCalls
                     in
-                    ( [], markRecursiveValueAsUsed recursiveReferences { context | knownRecursiveCalls = RangeDict.insertAll locationsToIgnore context.knownRecursiveCalls } )
+                    ( [], markRecursiveValueAsUsed recursiveReferences { context | locationsToIgnoreForUsed = RangeDict.insertAll locationsToIgnore context.locationsToIgnoreForUsed } )
 
                 Nothing ->
                     ( [], context )
@@ -412,7 +412,7 @@ getReference name node =
 
 markValueAsUsed : Range -> String -> Context -> Context
 markValueAsUsed range name context =
-    if RangeDict.member range context.knownRecursiveCalls then
+    if RangeDict.member range context.locationsToIgnoreForUsed then
         context
 
     else
