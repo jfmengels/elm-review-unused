@@ -428,38 +428,41 @@ expressionEnterVisitorHelp node context =
             ( [], { context | scopesToCreate = scopesToCreate } )
 
         Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
-            case Dict.get fnName context.knownFunctions of
-                Just fnArgs ->
-                    let
-                        locationsToIgnore : LocationsToIgnore
-                        locationsToIgnore =
-                            arguments
-                                |> List.indexedMap Tuple.pair
-                                |> List.filterMap
-                                    (\( index, arg ) ->
-                                        Dict.get index fnArgs
-                                            |> Maybe.map (\argName -> ( argName, [ Node.range arg ] ))
-                                    )
-                                |> Dict.fromList
-                    in
-                    ( []
-                    , { context
-                        | locationsToIgnoreForUsed =
-                            Dict.merge
-                                Dict.insert
-                                (\key new old -> Dict.insert key (new ++ old))
-                                Dict.insert
-                                locationsToIgnore
-                                context.locationsToIgnoreForUsed
-                                Dict.empty
-                      }
-                    )
-
-                Nothing ->
-                    ( [], context )
+            ( [], registerFunctionCall fnName arguments context )
 
         _ ->
             ( [], context )
+
+
+registerFunctionCall : String -> List (Node a) -> Context -> Context
+registerFunctionCall fnName arguments context =
+    case Dict.get fnName context.knownFunctions of
+        Just fnArgs ->
+            let
+                locationsToIgnore : LocationsToIgnore
+                locationsToIgnore =
+                    arguments
+                        |> List.indexedMap Tuple.pair
+                        |> List.filterMap
+                            (\( index, arg ) ->
+                                Dict.get index fnArgs
+                                    |> Maybe.map (\argName -> ( argName, [ Node.range arg ] ))
+                            )
+                        |> Dict.fromList
+            in
+            { context
+                | locationsToIgnoreForUsed =
+                    Dict.merge
+                        Dict.insert
+                        (\key new old -> Dict.insert key (new ++ old))
+                        Dict.insert
+                        locationsToIgnore
+                        context.locationsToIgnoreForUsed
+                        Dict.empty
+            }
+
+        Nothing ->
+            context
 
 
 markValueAsUsed : Range -> String -> Context -> Context
