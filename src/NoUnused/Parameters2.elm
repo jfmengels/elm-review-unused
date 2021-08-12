@@ -145,6 +145,11 @@ declarationVisitor node context =
                     Node.value declaration
                         |> .arguments
                         |> List.concatMap (getParametersFromPatterns NamedFunction)
+
+                functionArgs : FunctionArgs
+                functionArgs =
+                    -- TODO Remove harcoding
+                    Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ]
             in
             ( []
             , { scopes = []
@@ -153,9 +158,7 @@ declarationVisitor node context =
                         (declaration |> Node.value |> .expression |> Node.range)
                         { declared = declared
                         , functionName = Node.value declaration |> .name |> Node.value
-                        , functionArgs =
-                            -- TODO Remove harcoding
-                            Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ]
+                        , functionArgs = functionArgs
                         }
               , knownFunctions = Dict.empty
               , locationsToIgnoreForUsed = RangeDict.empty
