@@ -353,32 +353,40 @@ expressionEnterVisitorHelp node context =
             case Dict.get fnName knownFunctions of
                 Just fnArgs ->
                     let
-                        newRecursiveCalls : List ( Range, () )
-                        newRecursiveCalls =
+                        recursiveCalls : List { name : String, range : Range }
+                        recursiveCalls =
                             arguments
                                 |> List.indexedMap Tuple.pair
                                 |> List.filterMap
                                     (\( index, arg ) ->
-                                        case Dict.get index fnArgs of
-                                            Just name ->
-                                                case getReference name arg of
-                                                    Just referenceRange ->
-                                                        Just ( referenceRange, () )
-
-                                                    Nothing ->
-                                                        Nothing
-
-                                            Nothing ->
-                                                Nothing
+                                        Maybe.andThen
+                                            (\name -> Maybe.map (CallLocation name) (getReference name arg))
+                                            (Dict.get index fnArgs)
                                     )
+
+                        recursiveReferences : Set String
+                        recursiveReferences =
+                            recursiveCalls
+                                |> List.map .name
+                                |> Set.fromList
+
+                        locationsToIgnore : List ( Range, () )
+                        locationsToIgnore =
+                            List.map (\call -> ( call.range, () )) recursiveCalls
                     in
-                    ( [], { context | knownRecursiveCalls = RangeDict.insertAll newRecursiveCalls context.knownRecursiveCalls } )
+                    ( [], markRecursiveValueAsUsed recursiveReferences { context | knownRecursiveCalls = RangeDict.insertAll locationsToIgnore context.knownRecursiveCalls } )
 
                 Nothing ->
                     ( [], context )
 
         _ ->
             ( [], context )
+
+
+type alias CallLocation =
+    { name : String
+    , range : Range
+    }
 
 
 getReference : String -> Node Expression -> Maybe Range
@@ -404,6 +412,25 @@ getReference name node =
 
 markValueAsUsed : Range -> String -> Context -> Context
 markValueAsUsed range name context =
+    if RangeDict.member range context.knownRecursiveCalls then
+        context
+
+    else
+        case context.scopes of
+            [] ->
+                context
+
+            headScope :: restOfScopes ->
+                let
+                    newHeadScope : Scope
+                    newHeadScope =
+                        { headScope | used = Set.insert name headScope.used }
+                in
+                { context | scopes = newHeadScope :: restOfScopes }
+
+
+markRecursiveValueAsUsed : Set String -> Context -> Context
+markRecursiveValueAsUsed names context =
     case context.scopes of
         [] ->
             context
@@ -412,11 +439,7 @@ markValueAsUsed range name context =
             let
                 newHeadScope : Scope
                 newHeadScope =
-                    if RangeDict.member range context.knownRecursiveCalls then
-                        { headScope | usedRecursively = Set.insert name headScope.usedRecursively }
-
-                    else
-                        { headScope | used = Set.insert name headScope.used }
+                    { headScope | usedRecursively = Set.union names headScope.usedRecursively }
             in
             { context | scopes = newHeadScope :: restOfScopes }
 
