@@ -77,6 +77,7 @@ rule =
 type alias Context =
     { scopes : List Scope
     , scopesToCreate : RangeDict ( List Declared, String )
+    , knownFunctions : Dict String (Dict Int String)
     , locationsToIgnoreForUsed : RangeDict ()
     }
 
@@ -114,6 +115,7 @@ initialContext : Context
 initialContext =
     { scopes = []
     , scopesToCreate = RangeDict.empty
+    , knownFunctions = Dict.empty
     , locationsToIgnoreForUsed = RangeDict.empty
     }
 
@@ -141,6 +143,11 @@ declarationVisitor node context =
                         ( declared
                         , Node.value declaration |> .name |> Node.value
                         )
+              , knownFunctions =
+                    -- TODO Remove harcoding
+                    Dict.singleton
+                        "foo"
+                        (Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ])
               , locationsToIgnoreForUsed = RangeDict.empty
               }
             )
@@ -348,15 +355,7 @@ expressionEnterVisitorHelp node context =
             ( [], { context | scopesToCreate = scopesToCreate } )
 
         Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
-            let
-                knownFunctions : Dict String (Dict Int String)
-                knownFunctions =
-                    -- TODO Remove harcoding
-                    Dict.singleton
-                        "foo"
-                        (Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ])
-            in
-            case Dict.get fnName knownFunctions of
+            case Dict.get fnName context.knownFunctions of
                 Just fnArgs ->
                     let
                         recursiveCalls : List { name : String, range : Range }
