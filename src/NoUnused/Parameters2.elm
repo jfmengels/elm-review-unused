@@ -76,13 +76,14 @@ rule =
 
 type alias Context =
     { scopes : List Scope
-    , scopesToCreate : RangeDict (List Declared)
+    , scopesToCreate : RangeDict ( List Declared, String )
     , locationsToIgnoreForUsed : RangeDict ()
     }
 
 
 type alias Scope =
-    { declared : List Declared
+    { functionName : String
+    , declared : List Declared
     , used : Set String
     , usedRecursively : Set String
     }
@@ -137,7 +138,9 @@ declarationVisitor node context =
               , scopesToCreate =
                     RangeDict.singleton
                         (declaration |> Node.value |> .expression |> Node.range)
-                        declared
+                        ( declared
+                        , Node.value declaration |> .name |> Node.value
+                        )
               , locationsToIgnoreForUsed = RangeDict.empty
               }
             )
@@ -277,10 +280,11 @@ expressionEnterVisitor node context =
         newContext : Context
         newContext =
             case RangeDict.get (Node.range node) context.scopesToCreate of
-                Just declared ->
+                Just ( declared, functionName ) ->
                     { context
                         | scopes =
-                            { declared = declared
+                            { functionName = functionName
+                            , declared = declared
                             , used = Set.empty
                             , usedRecursively = Set.singleton "unused"
                             }
@@ -304,7 +308,7 @@ expressionEnterVisitorHelp node context =
 
         Expression.LetExpression letBlock ->
             let
-                declaredWithRange : List ( Range, List Declared )
+                declaredWithRange : List ( Range, ( List Declared, String ) )
                 declaredWithRange =
                     List.map
                         (\letDeclaration ->
@@ -316,15 +320,17 @@ expressionEnterVisitorHelp node context =
                                             Node.value function.declaration
                                     in
                                     ( Node.range declaration.expression
-                                    , List.concatMap (getParametersFromPatterns NamedFunction) declaration.arguments
+                                    , ( List.concatMap (getParametersFromPatterns NamedFunction) declaration.arguments
+                                      , Node.value declaration.name
+                                      )
                                     )
 
                                 Expression.LetDestructuring _ expression ->
-                                    ( Node.range expression, [] )
+                                    ( Node.range expression, ( [], "" ) )
                         )
                         letBlock.declarations
 
-                scopesToCreate : RangeDict (List Declared)
+                scopesToCreate : RangeDict ( List Declared, String )
                 scopesToCreate =
                     RangeDict.insertAll declaredWithRange context.scopesToCreate
             in
@@ -332,11 +338,11 @@ expressionEnterVisitorHelp node context =
 
         Expression.LambdaExpression { args, expression } ->
             let
-                scopesToCreate : RangeDict (List Declared)
+                scopesToCreate : RangeDict ( List Declared, String )
                 scopesToCreate =
                     RangeDict.insert
                         (Node.range expression)
-                        (List.concatMap (getParametersFromPatterns Lambda) args)
+                        ( List.concatMap (getParametersFromPatterns Lambda) args, "dummy lambda" )
                         context.scopesToCreate
             in
             ( [], { context | scopesToCreate = scopesToCreate } )
@@ -484,7 +490,7 @@ report context =
 
                                 else
                                     -- If variable was used ONLY as a recursive argument
-                                    ( recursiveParameterError "foo" declared :: errors_, Set.remove declared.name remainingUsed_ )
+                                    ( recursiveParameterError headScope.functionName declared :: errors_, Set.remove declared.name remainingUsed_ )
 
                             else if Set.member declared.name remainingUsed_ then
                                 ( errors_, Set.remove declared.name remainingUsed_ )
