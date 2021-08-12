@@ -375,9 +375,7 @@ expressionEnterVisitorHelp node context =
                                             ( Node.range declaration.expression
                                             , { declared = declared
                                               , functionName = Node.value declaration.name
-                                              , functionArgs =
-                                                    -- TODO Remove harcoding
-                                                    Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ]
+                                              , functionArgs = getArgNames declaration.arguments
                                               }
                                             )
 
