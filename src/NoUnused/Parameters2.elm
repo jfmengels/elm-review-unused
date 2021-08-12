@@ -294,9 +294,10 @@ expressionEnterVisitor node context =
                                 :: context.scopes
                         , knownFunctions =
                             -- TODO Remove harcoding
-                            Dict.singleton
+                            Dict.insert
                                 "foo"
                                 (Dict.fromList [ ( 0, "x" ), ( 1, "unused" ) ])
+                                context.knownFunctions
                     }
 
                 Nothing ->
