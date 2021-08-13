@@ -726,20 +726,22 @@ foo ( _, _ ) =
                         , under = "( _, _ )"
                         }
                     ]
-    , test "should report unused when it contains ()" <|
+    , test "should report ()" <|
+        \() ->
+            """module A exposing (..)
+foo () =
+    bar
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should not report unused when it contains ()" <|
         \() ->
             """module A exposing (..)
 foo ( _, () ) =
     bar
 """
                 |> Review.Test.run rule
-                |> Review.Test.expectErrors
-                    [ Review.Test.error
-                        { message = "Tuple pattern is not needed"
-                        , details = [ "You should remove this pattern." ]
-                        , under = "( _, () )"
-                        }
-                    ]
+                |> Review.Test.expectNoErrors
     , test "should report unused when it contains empty tuples" <|
         \() ->
             """module A exposing (..)
