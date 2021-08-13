@@ -575,103 +575,14 @@ foo (Named ( _, ( Just bash ) as bish )) =
                         , under = "bish"
                         }
                     ]
-
-    --test "should report unused tuple values" <|
-    --        \() ->
-    --            """
-    --module A exposing (..)
-    --foo ( bish, bash, bosh ) =
-    --    bash
-    --"""
-    --                |> Review.Test.run rule
-    --                |> Review.Test.expectErrors
-    --                    [ Review.Test.error
-    --                        { message = "Parameter `bish` is not used"
-    --                        , details = details
-    --                        , under = "bish"
-    --                        }
-    --                    , Review.Test.error
-    --                        { message = "Parameter `bosh` is not used"
-    --                        , details = details
-    --                        , under = "bosh"
-    --                        }
-    --                    ]
-    --    , test "should report unused tuple" <|
-    --        \() ->
-    --            """
-    --module A exposing (..)
-    --foo ( _, _ ) =
-    --    bar
-    --"""
-    --                |> Review.Test.run rule
-    --                |> Review.Test.expectErrors
-    --                    [ Review.Test.error
-    --                        { message = "Tuple pattern is not needed"
-    --                        , details = [ "You should remove this pattern." ]
-    --                        , under = "( _, _ )"
-    --                        }
-    --                        |> Review.Test.whenFixed """    --module A exposing (..)
-    --foo _ =
-    --    bar
-    --"""
-    --                    ]
-    --    , test "should report unused when it contains ()" <|
-    --        \() ->
-    --            """
-    --module A exposing (..)
-    --foo ( _, () ) =
-    --    bar
-    --"""
-    --                |> Review.Test.run rule
-    --                |> Review.Test.expectErrors
-    --                    [ Review.Test.error
-    --                        { message = "Tuple pattern is not needed"
-    --                        , details = [ "You should remove this pattern." ]
-    --                        , under = "( _, () )"
-    --                        }
-    --                        |> Review.Test.whenFixed """    --module A exposing (..)
-    --foo _ =
-    --    bar
-    --"""
-    --                    ]
-    --    , test "should report unused when it contains empty tuples" <|
-    --        \() ->
-    --            """
-    --module A exposing (..)
-    --foo ( _, ( _, _ ) ) =
-    --    bar
-    --"""
-    --                |> Review.Test.run rule
-    --                |> Review.Test.expectErrors
-    --                    [ Review.Test.error
-    --                        { message = "Tuple pattern is not needed"
-    --                        , details = [ "You should remove this pattern." ]
-    --                        , under = "( _, _ )"
-    --                        }
-    --                        |> Review.Test.whenFixed """    --module A exposing (..)
-    --foo ( _, _ ) =
-    --    bar
-    --"""
-    --                    ]
-    --    , test "should report unused threeple" <|
-    --        \() ->
-    --            """
-    --module A exposing (..)
-    --foo ( _, _, _ ) =
-    --    bar
-    --"""
-    --                |> Review.Test.run rule
-    --                |> Review.Test.expectErrors
-    --                    [ Review.Test.error
-    --                        { message = "Tuple pattern is not needed"
-    --                        , details = [ "You should remove this pattern." ]
-    --                        , under = "( _, _, _ )"
-    --                        }
-    --                        |> Review.Test.whenFixed """    --module A exposing (..)
-    --foo _ =
-    --    bar
-    --"""
-    --                    ]
+    , test "should not report aliased pattern if it contains a named pattern" <|
+        \() ->
+            """module A exposing (..)
+foo (Named as bash) =
+    bash
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     ]
 
 
