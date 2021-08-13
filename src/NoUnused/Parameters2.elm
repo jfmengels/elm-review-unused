@@ -228,7 +228,7 @@ getParametersFromPatterns source node =
                     , source = source
                     }
             in
-            if List.isEmpty parametersFromPatterns then
+            if List.isEmpty parametersFromPatterns && isPatternWildCard pattern then
                 [ asParameter
                 , { name = ""
                   , range = Node.range pattern

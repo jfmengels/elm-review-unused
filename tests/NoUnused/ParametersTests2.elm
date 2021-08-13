@@ -632,6 +632,14 @@ foo (Singular _, Pair _ _) =
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should not report unused value-less named pattern" <|
+        \() ->
+            """module A exposing (..)
+foo Thing =
+    x
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     ]
 
 
