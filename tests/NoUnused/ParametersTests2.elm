@@ -713,7 +713,7 @@ foo (Pair _ _) =
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
-    , test "should report unused named patterns in tuples" <|
+    , test "should not report unused named patterns in tuples" <|
         \() ->
             """module A exposing (..)
 foo (Singular _, Pair _ _) =
