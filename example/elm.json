@@ -10,7 +10,7 @@
             "elm/project-metadata-utils": "1.0.2",
             "jfmengels/elm-review": "2.4.1",
             "stil4m/elm-syntax": "7.2.5",
-            "jfmengels/elm-review-unused": "1.1.15"
+            "jfmengels/elm-review-unused": "1.1.16"
         },
         "indirect": {
             "elm/html": "1.0.0",
