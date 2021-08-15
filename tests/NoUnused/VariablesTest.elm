@@ -353,15 +353,18 @@ letInTests =
     [ test "should report unused variables from let declarations" <|
         \() ->
             """module SomeModule exposing (a)
-a = let b = 1
+a = let
+        unused : number
+        unused = 1
     in 2"""
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "`let in` variable `b` is not used"
+                        { message = "`let in` variable `unused` is not used"
                         , details = details
-                        , under = "b"
+                        , under = "unused"
                         }
+                        |> Review.Test.atExactly { start = { row = 4, column = 9 }, end = { row = 4, column = 15 } }
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 a = 2"""
                     ]

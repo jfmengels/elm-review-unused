@@ -985,7 +985,7 @@ declarationListVisitor nodes context =
                         customType : CustomTypeData
                         customType =
                             { under = Node.range name
-                            , rangeToRemove = rangeToRemoveForNodeWithDocumentation node documentation
+                            , rangeToRemove = untilStartOfNextLine (Node.range node)
                             , variants = constructorNames
                             }
                     in
@@ -1016,7 +1016,7 @@ declarationListVisitor nodes context =
                                 registerVariable
                                     { typeName = "Type"
                                     , under = Node.range name
-                                    , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node documentation)
+                                    , rangeToRemove = Just (untilStartOfNextLine (Node.range node))
                                     , warning = ""
                                     }
                                     (Node.value name)
@@ -1077,7 +1077,7 @@ declarationVisitor node context =
                         registerVariable
                             { typeName = "Top-level variable"
                             , under = Node.range functionImplementation.name
-                            , rangeToRemove = Just (rangeToRemoveForNodeWithDocumentation node function.documentation)
+                            , rangeToRemove = Just (untilStartOfNextLine (Node.range node))
                             , warning = ""
                             }
                             functionName
@@ -1178,19 +1178,6 @@ declarationVisitor node context =
 foldUsedTypesAndModules : List { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 foldUsedTypesAndModules =
     List.foldl (\a b -> { types = a.types ++ b.types, modules = a.modules ++ b.modules }) { types = [], modules = [] }
-
-
-rangeToRemoveForNodeWithDocumentation : Node Declaration -> Maybe (Node a) -> Range
-rangeToRemoveForNodeWithDocumentation (Node nodeRange _) documentation =
-    case documentation of
-        Nothing ->
-            untilStartOfNextLine nodeRange
-
-        Just (Node documentationRange _) ->
-            untilStartOfNextLine
-                { start = documentationRange.start
-                , end = nodeRange.end
-                }
 
 
 finalEvaluation : ModuleContext -> List (Error {})
@@ -1387,24 +1374,13 @@ registerFunction letBlockContext function context =
 
                 Nothing ->
                     { types = [], modules = [] }
-
-        functionRange : Range
-        functionRange =
-            case function.signature of
-                Just signature ->
-                    mergeRanges
-                        (Node.range function.declaration)
-                        (Node.range signature)
-
-                Nothing ->
-                    Node.range function.declaration
     in
     List.foldl markAsUsed context namesUsedInSignature.types
         |> markAllModulesAsUsed namesUsedInSignature.modules
         |> registerVariable
             { typeName = "`let in` variable"
             , under = Node.range declaration.name
-            , rangeToRemove = Just (letDeclarationToRemoveRange letBlockContext functionRange)
+            , rangeToRemove = Just (letDeclarationToRemoveRange letBlockContext (Node.range function.declaration))
             , warning = ""
             }
             (Node.value declaration.name)
@@ -1644,47 +1620,6 @@ untilStartOfNextLine range =
         { range | end = { row = range.end.row + 1, column = 1 } }
 
 
-{-| Create a new range that starts at the start of the range that starts first,
-and ends at the end of the range that starts last. If the two ranges are distinct
-and there is code in between, that code will be included in the resulting range.
-
-    range : Range
-    range =
-        Fix.mergeRanges
-            (Node.range node1)
-            (Node.range node2)
-
--}
-mergeRanges : Range -> Range -> Range
-mergeRanges a b =
-    let
-        start : { row : Int, column : Int }
-        start =
-            case comparePosition a.start b.start of
-                LT ->
-                    a.start
-
-                EQ ->
-                    a.start
-
-                GT ->
-                    b.start
-
-        end : { row : Int, column : Int }
-        end =
-            case comparePosition a.end b.end of
-                LT ->
-                    b.end
-
-                EQ ->
-                    b.end
-
-                GT ->
-                    a.end
-    in
-    { start = start, end = end }
-
-
 {-| Make a range stop at a position. If the position is not inside the range,
 then the range won't change.
 
@@ -1716,13 +1651,3 @@ positionAsInt { row, column } =
     -- 1.000.000 characters long. Then, as long as ranges don't overlap,
     -- this should work fine.
     row * 1000000 + column
-
-
-comparePosition : { row : Int, column : Int } -> { row : Int, column : Int } -> Order
-comparePosition a b =
-    case compare a.row b.row of
-        EQ ->
-            compare a.column b.column
-
-        order ->
-            order
