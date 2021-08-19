@@ -2084,6 +2084,23 @@ outer arg =
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should not report unused type alias when it aliases something else than a record" <|
+        \() ->
+            """module SomeModule exposing (a)
+type alias UnusedType = String
+a = 1
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Type `UnusedType` is not used"
+                        , details = details
+                        , under = "UnusedType"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+a = 1
+"""
+                    ]
     ]
 
 
