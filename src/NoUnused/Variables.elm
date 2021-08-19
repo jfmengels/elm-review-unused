@@ -964,86 +964,86 @@ introducesVariable patternNode =
 declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List (Error {}), ModuleContext )
 declarationListVisitor nodes context =
     ( []
-    , List.foldl
-        (\node ctx ->
-            case Node.value node of
-                Declaration.CustomTypeDeclaration { name, constructors, documentation } ->
+    , List.foldl registerDeclaration context nodes
+    )
+
+
+registerDeclaration : Node Declaration -> ModuleContext -> ModuleContext
+registerDeclaration node ctx =
+    case Node.value node of
+        Declaration.CustomTypeDeclaration { name, constructors, documentation } ->
+            let
+                typeName : String
+                typeName =
+                    Node.value name
+
+                constructorNames : List String
+                constructorNames =
+                    List.map (Node.value >> .name >> Node.value) constructors
+
+                constructorsForType : Dict String String
+                constructorsForType =
+                    constructorNames
+                        |> List.map (\constructorName -> ( constructorName, typeName ))
+                        |> Dict.fromList
+
+                customType : CustomTypeData
+                customType =
+                    { under = Node.range name
+                    , rangeToRemove = untilStartOfNextLine (Node.range node)
+                    , variants = constructorNames
+                    }
+            in
+            { ctx
+                | localCustomTypes =
+                    Dict.insert
+                        (Node.value name)
+                        customType
+                        ctx.localCustomTypes
+                , constructorNameToTypeName = Dict.union constructorsForType ctx.constructorNameToTypeName
+            }
+
+        Declaration.AliasDeclaration { name, documentation, typeAnnotation } ->
+            case Node.value typeAnnotation of
+                TypeAnnotation.Record _ ->
                     let
-                        typeName : String
-                        typeName =
-                            Node.value name
+                        contextWithRemovedShadowedImports : ModuleContext
+                        contextWithRemovedShadowedImports =
+                            { ctx | importedCustomTypeLookup = Dict.remove (Node.value name) ctx.importedCustomTypeLookup }
+                    in
+                    if ctx.exposesEverything then
+                        contextWithRemovedShadowedImports
 
-                        constructorNames : List String
-                        constructorNames =
-                            List.map (Node.value >> .name >> Node.value) constructors
+                    else
+                        registerVariable
+                            { typeName = "Type"
+                            , under = Node.range name
+                            , rangeToRemove = Just (untilStartOfNextLine (Node.range node))
+                            , warning = ""
+                            }
+                            (Node.value name)
+                            contextWithRemovedShadowedImports
 
-                        constructorsForType : Dict String String
-                        constructorsForType =
-                            constructorNames
-                                |> List.map (\constructorName -> ( constructorName, typeName ))
-                                |> Dict.fromList
-
-                        customType : CustomTypeData
-                        customType =
+                _ ->
+                    let
+                        -- TODO Rename
+                        typeAlias : CustomTypeData
+                        typeAlias =
                             { under = Node.range name
                             , rangeToRemove = untilStartOfNextLine (Node.range node)
-                            , variants = constructorNames
+                            , variants = []
                             }
                     in
                     { ctx
                         | localCustomTypes =
                             Dict.insert
                                 (Node.value name)
-                                customType
+                                typeAlias
                                 ctx.localCustomTypes
-                        , constructorNameToTypeName = Dict.union constructorsForType ctx.constructorNameToTypeName
                     }
 
-                Declaration.AliasDeclaration { name, documentation, typeAnnotation } ->
-                    case Node.value typeAnnotation of
-                        TypeAnnotation.Record _ ->
-                            let
-                                contextWithRemovedShadowedImports : ModuleContext
-                                contextWithRemovedShadowedImports =
-                                    { ctx | importedCustomTypeLookup = Dict.remove (Node.value name) ctx.importedCustomTypeLookup }
-                            in
-                            if ctx.exposesEverything then
-                                contextWithRemovedShadowedImports
-
-                            else
-                                registerVariable
-                                    { typeName = "Type"
-                                    , under = Node.range name
-                                    , rangeToRemove = Just (untilStartOfNextLine (Node.range node))
-                                    , warning = ""
-                                    }
-                                    (Node.value name)
-                                    contextWithRemovedShadowedImports
-
-                        _ ->
-                            let
-                                -- TODO Rename
-                                typeAlias : CustomTypeData
-                                typeAlias =
-                                    { under = Node.range name
-                                    , rangeToRemove = untilStartOfNextLine (Node.range node)
-                                    , variants = []
-                                    }
-                            in
-                            { ctx
-                                | localCustomTypes =
-                                    Dict.insert
-                                        (Node.value name)
-                                        typeAlias
-                                        ctx.localCustomTypes
-                            }
-
-                _ ->
-                    ctx
-        )
-        context
-        nodes
-    )
+        _ ->
+            ctx
 
 
 
