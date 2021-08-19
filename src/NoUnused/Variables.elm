@@ -1400,8 +1400,18 @@ finalEvaluation context =
 
 errorForLocalType : ( String, TypeData ) -> Error {}
 errorForLocalType ( name, type_ ) =
+    let
+        kind : String
+        kind =
+            case type_.kind of
+                CustomTypeKind ->
+                    "Type"
+
+                TypeAliasKind ->
+                    "Type alias"
+    in
     Rule.errorWithFix
-        { message = "Type `" ++ name ++ "` is not used"
+        { message = kind ++ " `" ++ name ++ "` is not used"
         , details = details
         }
         type_.under
