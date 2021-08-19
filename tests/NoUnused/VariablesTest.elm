@@ -2073,7 +2073,7 @@ outer arg =
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
-    , test "should not report unused type alias when it aliases something else than a record" <|
+    , test "should report unused type alias when it aliases something else than a record" <|
         \() ->
             """module SomeModule exposing (a)
 type alias UnusedType = String
