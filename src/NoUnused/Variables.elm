@@ -985,13 +985,13 @@ registerTypes node context =
 
 registerTypeAlias : Range -> TypeAlias -> ModuleContext -> ModuleContext
 registerTypeAlias range { name, typeAnnotation, documentation } context =
+    let
+        contextWithRemovedShadowedImports : ModuleContext
+        contextWithRemovedShadowedImports =
+            { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
+    in
     case Node.value typeAnnotation of
         TypeAnnotation.Record _ ->
-            let
-                contextWithRemovedShadowedImports : ModuleContext
-                contextWithRemovedShadowedImports =
-                    { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
-            in
             if context.exposesEverything then
                 contextWithRemovedShadowedImports
 
