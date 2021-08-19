@@ -986,6 +986,13 @@ registerTypes node context =
 registerTypeAlias : Range -> TypeAlias -> ModuleContext -> ModuleContext
 registerTypeAlias range { name, typeAnnotation } context =
     let
+        localCustomTypes : Dict String CustomTypeData
+        localCustomTypes =
+            Dict.insert
+                (Node.value name)
+                typeAlias
+                contextWithRemovedShadowedImports.localCustomTypes
+
         contextWithRemovedShadowedImports : ModuleContext
         contextWithRemovedShadowedImports =
             case Node.value typeAnnotation of
@@ -996,6 +1003,12 @@ registerTypeAlias range { name, typeAnnotation } context =
                     context
 
         -- TODO Rename
+        typeAlias : CustomTypeData
+        typeAlias =
+            { under = Node.range name
+            , rangeToRemove = untilStartOfNextLine range
+            , variants = []
+            }
     in
     case Node.value typeAnnotation of
         TypeAnnotation.Record _ ->
@@ -1013,21 +1026,7 @@ registerTypeAlias range { name, typeAnnotation } context =
                     contextWithRemovedShadowedImports
 
         _ ->
-            let
-                typeAlias : CustomTypeData
-                typeAlias =
-                    { under = Node.range name
-                    , rangeToRemove = untilStartOfNextLine range
-                    , variants = []
-                    }
-            in
-            { contextWithRemovedShadowedImports
-                | localCustomTypes =
-                    Dict.insert
-                        (Node.value name)
-                        typeAlias
-                        contextWithRemovedShadowedImports.localCustomTypes
-            }
+            { contextWithRemovedShadowedImports | localCustomTypes = localCustomTypes }
 
 
 registerCustomType : Range -> Elm.Syntax.Type.Type -> ModuleContext -> ModuleContext
