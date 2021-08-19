@@ -1024,7 +1024,16 @@ declarationListVisitor nodes context =
                             )
 
                         _ ->
-                            ( [], ctx )
+                            ( []
+                            , registerVariable
+                                { typeName = "Type"
+                                , under = Node.range name
+                                , rangeToRemove = Just (untilStartOfNextLine (Node.range node))
+                                , warning = ""
+                                }
+                                (Node.value name)
+                                context
+                            )
 
                 _ ->
                     ( errors, ctx )
