@@ -1386,13 +1386,13 @@ finalEvaluation context =
                     |> Dict.toList
                     |> List.filter (\( name, _ ) -> not <| Set.member name usedLocally)
                     |> List.map
-                        (\( name, customType ) ->
+                        (\( name, type_ ) ->
                             Rule.errorWithFix
                                 { message = "Type `" ++ name ++ "` is not used"
                                 , details = details
                                 }
-                                customType.under
-                                [ Fix.removeRange customType.rangeToRemove ]
+                                type_.under
+                                [ Fix.removeRange type_.rangeToRemove ]
                         )
     in
     List.concat
