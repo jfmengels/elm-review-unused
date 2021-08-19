@@ -1011,7 +1011,13 @@ registerTypeAlias range { name, typeAnnotation } context =
         typeAlias =
             { under = Node.range name
             , rangeToRemove = untilStartOfNextLine range
-            , variants = []
+            , variants =
+                case Node.value typeAnnotation of
+                    TypeAnnotation.Record _ ->
+                        [ Node.value name ]
+
+                    _ ->
+                        []
             }
     in
     case Node.value typeAnnotation of
