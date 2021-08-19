@@ -969,7 +969,7 @@ declarationListVisitor nodes context =
 
 
 registerDeclaration : Node Declaration -> ModuleContext -> ModuleContext
-registerDeclaration node ctx =
+registerDeclaration node context =
     case Node.value node of
         Declaration.CustomTypeDeclaration { name, constructors, documentation } ->
             let
@@ -994,13 +994,13 @@ registerDeclaration node ctx =
                     , variants = constructorNames
                     }
             in
-            { ctx
+            { context
                 | localCustomTypes =
                     Dict.insert
                         (Node.value name)
                         customType
-                        ctx.localCustomTypes
-                , constructorNameToTypeName = Dict.union constructorsForType ctx.constructorNameToTypeName
+                        context.localCustomTypes
+                , constructorNameToTypeName = Dict.union constructorsForType context.constructorNameToTypeName
             }
 
         Declaration.AliasDeclaration { name, documentation, typeAnnotation } ->
@@ -1009,9 +1009,9 @@ registerDeclaration node ctx =
                     let
                         contextWithRemovedShadowedImports : ModuleContext
                         contextWithRemovedShadowedImports =
-                            { ctx | importedCustomTypeLookup = Dict.remove (Node.value name) ctx.importedCustomTypeLookup }
+                            { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
                     in
-                    if ctx.exposesEverything then
+                    if context.exposesEverything then
                         contextWithRemovedShadowedImports
 
                     else
@@ -1034,16 +1034,16 @@ registerDeclaration node ctx =
                             , variants = []
                             }
                     in
-                    { ctx
+                    { context
                         | localCustomTypes =
                             Dict.insert
                                 (Node.value name)
                                 typeAlias
-                                ctx.localCustomTypes
+                                context.localCustomTypes
                     }
 
         _ ->
-            ctx
+            context
 
 
 
