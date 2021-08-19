@@ -992,23 +992,19 @@ registerTypes node context =
 registerTypeAlias : Range -> TypeAlias -> ModuleContext -> ModuleContext
 registerTypeAlias range { name, typeAnnotation } context =
     let
-        importedCustomTypeLookup : Dict String String
-        importedCustomTypeLookup =
+        newContext : ModuleContext
+        newContext =
             case Node.value typeAnnotation of
                 TypeAnnotation.Record _ ->
-                    Dict.remove (Node.value name) context.importedCustomTypeLookup
+                    { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
 
                 _ ->
-                    context.importedCustomTypeLookup
-
-        contextWithRemovedShadowedImports : ModuleContext
-        contextWithRemovedShadowedImports =
-            { context | importedCustomTypeLookup = importedCustomTypeLookup }
+                    context
     in
     case Node.value typeAnnotation of
         TypeAnnotation.Record _ ->
             if context.exposesEverything then
-                contextWithRemovedShadowedImports
+                newContext
 
             else
                 registerVariable
@@ -1018,7 +1014,7 @@ registerTypeAlias range { name, typeAnnotation } context =
                     , warning = ""
                     }
                     (Node.value name)
-                    contextWithRemovedShadowedImports
+                    newContext
 
         _ ->
             let
@@ -1041,9 +1037,9 @@ registerTypeAlias range { name, typeAnnotation } context =
                     Dict.insert
                         (Node.value name)
                         typeAlias
-                        contextWithRemovedShadowedImports.localTypes
+                        newContext.localTypes
             in
-            { contextWithRemovedShadowedImports | localTypes = localCustomTypes }
+            { newContext | localTypes = localCustomTypes }
 
 
 registerCustomType : Range -> Elm.Syntax.Type.Type -> ModuleContext -> ModuleContext
