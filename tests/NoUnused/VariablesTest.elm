@@ -1042,6 +1042,26 @@ a = C""" |> String.replace "$" " ")
                         ]
                       )
                     ]
+    , test "should report type alias that doesn't alias a record when it has the same name as a constructor defined in the same file" <|
+        \() ->
+            """module A exposing (a)
+type A = B | C
+type alias B = Int
+a = B
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Type alias `B` is not used"
+                        , details = details
+                        , under = "B"
+                        }
+                        |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 13 } }
+                        |> Review.Test.whenFixed ("""module A exposing (a)
+import B$
+type Type = C
+a = C""" |> String.replace "$" " ")
+                    ]
     , test "should not report open type import when a constructor is used but the type is locally shadowed" <|
         \() ->
             [ """module A exposing (a)
