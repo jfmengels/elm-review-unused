@@ -1034,12 +1034,12 @@ declarationListVisitor nodes context =
                                     }
                             in
                             ( []
-                            , { context
+                            , { ctx
                                 | localCustomTypes =
                                     Dict.insert
                                         (Node.value name)
                                         typeAlias
-                                        context.localCustomTypes
+                                        ctx.localCustomTypes
                               }
                             )
 
