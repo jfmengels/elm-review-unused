@@ -115,7 +115,7 @@ type alias ModuleContext =
     , usedModules : Set ( ModuleName, ModuleName )
     , unusedImportedCustomTypes : Dict String ImportedCustomType
     , importedCustomTypeLookup : Dict String String
-    , localCustomTypes : Dict String CustomTypeData
+    , localTypes : Dict String TypeData
     , customTypes : Dict ModuleName (Dict String (List String))
     }
 
@@ -130,7 +130,7 @@ type alias DeclaredModule =
     }
 
 
-type alias CustomTypeData =
+type alias TypeData =
     { under : Range
     , rangeToRemove : Range
     , variants : List String
@@ -203,7 +203,7 @@ fromProjectToModule =
             , usedModules = Set.empty
             , unusedImportedCustomTypes = Dict.empty
             , importedCustomTypeLookup = Dict.empty
-            , localCustomTypes = Dict.empty
+            , localTypes = Dict.empty
             , customTypes = customTypes
             }
         )
@@ -215,7 +215,7 @@ fromModuleToProject =
     Rule.initContextCreator
         (\metadata moduleContext ->
             { customTypes =
-                moduleContext.localCustomTypes
+                moduleContext.localTypes
                     |> Dict.map (\_ customType -> customType.variants)
                     |> Dict.singleton (Rule.moduleNameFromMetadata metadata)
 
@@ -986,12 +986,12 @@ registerTypes node context =
 registerTypeAlias : Range -> TypeAlias -> ModuleContext -> ModuleContext
 registerTypeAlias range { name, typeAnnotation } context =
     let
-        localCustomTypes : Dict String CustomTypeData
+        localCustomTypes : Dict String TypeData
         localCustomTypes =
             Dict.insert
                 (Node.value name)
                 typeAlias
-                contextWithRemovedShadowedImports.localCustomTypes
+                contextWithRemovedShadowedImports.localTypes
 
         importedCustomTypeLookup : Dict String String
         importedCustomTypeLookup =
@@ -1006,8 +1006,7 @@ registerTypeAlias range { name, typeAnnotation } context =
         contextWithRemovedShadowedImports =
             { context | importedCustomTypeLookup = importedCustomTypeLookup }
 
-        -- TODO Rename
-        typeAlias : CustomTypeData
+        typeAlias : TypeData
         typeAlias =
             { under = Node.range name
             , rangeToRemove = untilStartOfNextLine range
@@ -1036,7 +1035,7 @@ registerTypeAlias range { name, typeAnnotation } context =
                     contextWithRemovedShadowedImports
 
         _ ->
-            { contextWithRemovedShadowedImports | localCustomTypes = localCustomTypes }
+            { contextWithRemovedShadowedImports | localTypes = localCustomTypes }
 
 
 registerCustomType : Range -> Elm.Syntax.Type.Type -> ModuleContext -> ModuleContext
@@ -1056,7 +1055,7 @@ registerCustomType range { name, constructors } context =
                 |> List.map (\constructorName -> ( constructorName, typeName ))
                 |> Dict.fromList
 
-        customType : CustomTypeData
+        customType : TypeData
         customType =
             { under = Node.range name
             , rangeToRemove = untilStartOfNextLine range
@@ -1064,11 +1063,11 @@ registerCustomType range { name, constructors } context =
             }
     in
     { context
-        | localCustomTypes =
+        | localTypes =
             Dict.insert
                 (Node.value name)
                 customType
-                context.localCustomTypes
+                context.localTypes
         , constructorNameToTypeName = Dict.union constructorsForType context.constructorNameToTypeName
     }
 
@@ -1264,7 +1263,7 @@ finalEvaluation context =
                 |> Dict.toList
                 |> List.map
                     (\( name, { under, rangeToRemove, openRange } ) ->
-                        if Set.member name usedLocally && not (Dict.member name context.localCustomTypes) then
+                        if Set.member name usedLocally && not (Dict.member name context.localTypes) then
                             Rule.errorWithFix
                                 { message = "Imported constructors for `" ++ name ++ "` are not used"
                                 , details = details
@@ -1375,7 +1374,7 @@ finalEvaluation context =
                 []
 
             else
-                context.localCustomTypes
+                context.localTypes
                     |> Dict.toList
                     |> List.filter (\( name, _ ) -> not <| Set.member name usedLocally)
                     |> List.map
