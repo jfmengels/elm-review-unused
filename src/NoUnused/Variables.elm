@@ -984,7 +984,7 @@ registerTypes node context =
 
 
 registerTypeAlias : Range -> TypeAlias -> ModuleContext -> ModuleContext
-registerTypeAlias range { name, typeAnnotation, documentation } context =
+registerTypeAlias range { name, typeAnnotation } context =
     let
         contextWithRemovedShadowedImports : ModuleContext
         contextWithRemovedShadowedImports =
@@ -1029,7 +1029,7 @@ registerTypeAlias range { name, typeAnnotation, documentation } context =
 
 
 registerCustomType : Range -> Elm.Syntax.Type.Type -> ModuleContext -> ModuleContext
-registerCustomType range { name, constructors, documentation } context =
+registerCustomType range { name, constructors } context =
     let
         typeName : String
         typeName =
