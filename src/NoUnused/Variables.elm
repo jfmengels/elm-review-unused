@@ -20,6 +20,7 @@ import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.Type
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import NoUnused.RangeDict as RangeDict exposing (RangeDict)
@@ -971,37 +972,8 @@ declarationListVisitor nodes context =
 registerTypes : Node Declaration -> ModuleContext -> ModuleContext
 registerTypes node context =
     case Node.value node of
-        Declaration.CustomTypeDeclaration { name, constructors, documentation } ->
-            let
-                typeName : String
-                typeName =
-                    Node.value name
-
-                constructorNames : List String
-                constructorNames =
-                    List.map (Node.value >> .name >> Node.value) constructors
-
-                constructorsForType : Dict String String
-                constructorsForType =
-                    constructorNames
-                        |> List.map (\constructorName -> ( constructorName, typeName ))
-                        |> Dict.fromList
-
-                customType : CustomTypeData
-                customType =
-                    { under = Node.range name
-                    , rangeToRemove = untilStartOfNextLine (Node.range node)
-                    , variants = constructorNames
-                    }
-            in
-            { context
-                | localCustomTypes =
-                    Dict.insert
-                        (Node.value name)
-                        customType
-                        context.localCustomTypes
-                , constructorNameToTypeName = Dict.union constructorsForType context.constructorNameToTypeName
-            }
+        Declaration.CustomTypeDeclaration customType ->
+            registerCustomType (Node.range node) customType context
 
         Declaration.AliasDeclaration { name, documentation, typeAnnotation } ->
             case Node.value typeAnnotation of
@@ -1044,6 +1016,40 @@ registerTypes node context =
 
         _ ->
             context
+
+
+registerCustomType : Range -> Elm.Syntax.Type.Type -> ModuleContext -> ModuleContext
+registerCustomType range { name, constructors, documentation } context =
+    let
+        typeName : String
+        typeName =
+            Node.value name
+
+        constructorNames : List String
+        constructorNames =
+            List.map (Node.value >> .name >> Node.value) constructors
+
+        constructorsForType : Dict String String
+        constructorsForType =
+            constructorNames
+                |> List.map (\constructorName -> ( constructorName, typeName ))
+                |> Dict.fromList
+
+        customType : CustomTypeData
+        customType =
+            { under = Node.range name
+            , rangeToRemove = untilStartOfNextLine range
+            , variants = constructorNames
+            }
+    in
+    { context
+        | localCustomTypes =
+            Dict.insert
+                (Node.value name)
+                customType
+                context.localCustomTypes
+        , constructorNameToTypeName = Dict.union constructorsForType context.constructorNameToTypeName
+    }
 
 
 
