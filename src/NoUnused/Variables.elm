@@ -21,6 +21,7 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Type
+import Elm.Syntax.TypeAlias exposing (TypeAlias)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import NoUnused.RangeDict as RangeDict exposing (RangeDict)
@@ -975,47 +976,52 @@ registerTypes node context =
         Declaration.CustomTypeDeclaration customType ->
             registerCustomType (Node.range node) customType context
 
-        Declaration.AliasDeclaration { name, documentation, typeAnnotation } ->
-            case Node.value typeAnnotation of
-                TypeAnnotation.Record _ ->
-                    let
-                        contextWithRemovedShadowedImports : ModuleContext
-                        contextWithRemovedShadowedImports =
-                            { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
-                    in
-                    if context.exposesEverything then
-                        contextWithRemovedShadowedImports
-
-                    else
-                        registerVariable
-                            { typeName = "Type"
-                            , under = Node.range name
-                            , rangeToRemove = Just (untilStartOfNextLine (Node.range node))
-                            , warning = ""
-                            }
-                            (Node.value name)
-                            contextWithRemovedShadowedImports
-
-                _ ->
-                    let
-                        -- TODO Rename
-                        typeAlias : CustomTypeData
-                        typeAlias =
-                            { under = Node.range name
-                            , rangeToRemove = untilStartOfNextLine (Node.range node)
-                            , variants = []
-                            }
-                    in
-                    { context
-                        | localCustomTypes =
-                            Dict.insert
-                                (Node.value name)
-                                typeAlias
-                                context.localCustomTypes
-                    }
+        Declaration.AliasDeclaration typeAliasDeclaration ->
+            registerTypeAlias (Node.range node) typeAliasDeclaration context
 
         _ ->
             context
+
+
+registerTypeAlias : Range -> TypeAlias -> ModuleContext -> ModuleContext
+registerTypeAlias range { name, typeAnnotation, documentation } context =
+    case Node.value typeAnnotation of
+        TypeAnnotation.Record _ ->
+            let
+                contextWithRemovedShadowedImports : ModuleContext
+                contextWithRemovedShadowedImports =
+                    { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
+            in
+            if context.exposesEverything then
+                contextWithRemovedShadowedImports
+
+            else
+                registerVariable
+                    { typeName = "Type"
+                    , under = Node.range name
+                    , rangeToRemove = Just (untilStartOfNextLine range)
+                    , warning = ""
+                    }
+                    (Node.value name)
+                    contextWithRemovedShadowedImports
+
+        _ ->
+            let
+                -- TODO Rename
+                typeAlias : CustomTypeData
+                typeAlias =
+                    { under = Node.range name
+                    , rangeToRemove = untilStartOfNextLine range
+                    , variants = []
+                    }
+            in
+            { context
+                | localCustomTypes =
+                    Dict.insert
+                        (Node.value name)
+                        typeAlias
+                        context.localCustomTypes
+            }
 
 
 registerCustomType : Range -> Elm.Syntax.Type.Type -> ModuleContext -> ModuleContext
