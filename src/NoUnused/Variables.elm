@@ -964,12 +964,12 @@ introducesVariable patternNode =
 declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List (Error {}), ModuleContext )
 declarationListVisitor nodes context =
     ( []
-    , List.foldl registerDeclaration context nodes
+    , List.foldl registerTypes context nodes
     )
 
 
-registerDeclaration : Node Declaration -> ModuleContext -> ModuleContext
-registerDeclaration node context =
+registerTypes : Node Declaration -> ModuleContext -> ModuleContext
+registerTypes node context =
     case Node.value node of
         Declaration.CustomTypeDeclaration { name, constructors, documentation } ->
             let
