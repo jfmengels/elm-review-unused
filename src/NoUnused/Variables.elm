@@ -992,13 +992,6 @@ registerTypes node context =
 registerTypeAlias : Range -> TypeAlias -> ModuleContext -> ModuleContext
 registerTypeAlias range { name, typeAnnotation } context =
     let
-        localCustomTypes : Dict String TypeData
-        localCustomTypes =
-            Dict.insert
-                (Node.value name)
-                typeAlias
-                contextWithRemovedShadowedImports.localTypes
-
         importedCustomTypeLookup : Dict String String
         importedCustomTypeLookup =
             case Node.value typeAnnotation of
@@ -1011,20 +1004,6 @@ registerTypeAlias range { name, typeAnnotation } context =
         contextWithRemovedShadowedImports : ModuleContext
         contextWithRemovedShadowedImports =
             { context | importedCustomTypeLookup = importedCustomTypeLookup }
-
-        typeAlias : TypeData
-        typeAlias =
-            { kind = TypeAliasKind
-            , under = Node.range name
-            , rangeToRemove = untilStartOfNextLine range
-            , variants =
-                case Node.value typeAnnotation of
-                    TypeAnnotation.Record _ ->
-                        [ Node.value name ]
-
-                    _ ->
-                        []
-            }
     in
     case Node.value typeAnnotation of
         TypeAnnotation.Record _ ->
@@ -1042,6 +1021,28 @@ registerTypeAlias range { name, typeAnnotation } context =
                     contextWithRemovedShadowedImports
 
         _ ->
+            let
+                typeAlias : TypeData
+                typeAlias =
+                    { kind = TypeAliasKind
+                    , under = Node.range name
+                    , rangeToRemove = untilStartOfNextLine range
+                    , variants =
+                        case Node.value typeAnnotation of
+                            TypeAnnotation.Record _ ->
+                                [ Node.value name ]
+
+                            _ ->
+                                []
+                    }
+
+                localCustomTypes : Dict String TypeData
+                localCustomTypes =
+                    Dict.insert
+                        (Node.value name)
+                        typeAlias
+                        contextWithRemovedShadowedImports.localTypes
+            in
             { contextWithRemovedShadowedImports | localTypes = localCustomTypes }
 
 
