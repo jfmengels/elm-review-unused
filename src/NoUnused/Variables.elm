@@ -963,8 +963,9 @@ introducesVariable patternNode =
 
 declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List (Error {}), ModuleContext )
 declarationListVisitor nodes context =
-    List.foldl
-        (\node ( errors, ctx ) ->
+    ( []
+    , List.foldl
+        (\node ctx ->
             case Node.value node of
                 Declaration.CustomTypeDeclaration { name, constructors, documentation } ->
                     let
@@ -989,16 +990,14 @@ declarationListVisitor nodes context =
                             , variants = constructorNames
                             }
                     in
-                    ( errors
-                    , { ctx
+                    { ctx
                         | localCustomTypes =
                             Dict.insert
                                 (Node.value name)
                                 customType
                                 ctx.localCustomTypes
                         , constructorNameToTypeName = Dict.union constructorsForType ctx.constructorNameToTypeName
-                      }
-                    )
+                    }
 
                 Declaration.AliasDeclaration { name, documentation, typeAnnotation } ->
                     case Node.value typeAnnotation of
@@ -1008,11 +1007,10 @@ declarationListVisitor nodes context =
                                 contextWithRemovedShadowedImports =
                                     { ctx | importedCustomTypeLookup = Dict.remove (Node.value name) ctx.importedCustomTypeLookup }
                             in
-                            ( []
-                            , if ctx.exposesEverything then
+                            if ctx.exposesEverything then
                                 contextWithRemovedShadowedImports
 
-                              else
+                            else
                                 registerVariable
                                     { typeName = "Type"
                                     , under = Node.range name
@@ -1021,7 +1019,6 @@ declarationListVisitor nodes context =
                                     }
                                     (Node.value name)
                                     contextWithRemovedShadowedImports
-                            )
 
                         _ ->
                             let
@@ -1033,21 +1030,20 @@ declarationListVisitor nodes context =
                                     , variants = []
                                     }
                             in
-                            ( []
-                            , { ctx
+                            { ctx
                                 | localCustomTypes =
                                     Dict.insert
                                         (Node.value name)
                                         typeAlias
                                         ctx.localCustomTypes
-                              }
-                            )
+                            }
 
                 _ ->
-                    ( errors, ctx )
+                    ctx
         )
-        ( [], context )
+        context
         nodes
+    )
 
 
 
