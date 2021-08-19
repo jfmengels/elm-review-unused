@@ -1699,7 +1699,7 @@ outer arg =
             []
     in
     inner arg
-    """
+"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     ]
@@ -2069,7 +2069,7 @@ outer arg =
             []
     in
     inner arg
-    """
+"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     , test "should not report unused type alias when it is used in a function call in a let expression" <|
@@ -2081,7 +2081,7 @@ outer arg =
         inner = Baz range
     in
     inner arg
-    """
+"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     ]
