@@ -1024,15 +1024,23 @@ declarationListVisitor nodes context =
                             )
 
                         _ ->
+                            let
+                                -- TODO Rename
+                                typeAlias : CustomTypeData
+                                typeAlias =
+                                    { under = Node.range name
+                                    , rangeToRemove = untilStartOfNextLine (Node.range node)
+                                    , variants = []
+                                    }
+                            in
                             ( []
-                            , registerVariable
-                                { typeName = "Type"
-                                , under = Node.range name
-                                , rangeToRemove = Just (untilStartOfNextLine (Node.range node))
-                                , warning = ""
-                                }
-                                (Node.value name)
-                                context
+                            , { context
+                                | localCustomTypes =
+                                    Dict.insert
+                                        (Node.value name)
+                                        typeAlias
+                                        context.localCustomTypes
+                              }
                             )
 
                 _ ->
