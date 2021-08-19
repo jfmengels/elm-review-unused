@@ -988,7 +988,12 @@ registerTypeAlias range { name, typeAnnotation, documentation } context =
     let
         contextWithRemovedShadowedImports : ModuleContext
         contextWithRemovedShadowedImports =
-            { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
+            case Node.value typeAnnotation of
+                TypeAnnotation.Record _ ->
+                    { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
+
+                _ ->
+                    context
     in
     case Node.value typeAnnotation of
         TypeAnnotation.Record _ ->
@@ -1015,12 +1020,12 @@ registerTypeAlias range { name, typeAnnotation, documentation } context =
                     , variants = []
                     }
             in
-            { context
+            { contextWithRemovedShadowedImports
                 | localCustomTypes =
                     Dict.insert
                         (Node.value name)
                         typeAlias
-                        context.localCustomTypes
+                        contextWithRemovedShadowedImports.localCustomTypes
             }
 
 
