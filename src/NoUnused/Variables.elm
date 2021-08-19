@@ -993,14 +993,18 @@ registerTypeAlias range { name, typeAnnotation } context =
                 typeAlias
                 contextWithRemovedShadowedImports.localCustomTypes
 
-        contextWithRemovedShadowedImports : ModuleContext
-        contextWithRemovedShadowedImports =
+        importedCustomTypeLookup : Dict String String
+        importedCustomTypeLookup =
             case Node.value typeAnnotation of
                 TypeAnnotation.Record _ ->
-                    { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
+                    Dict.remove (Node.value name) context.importedCustomTypeLookup
 
                 _ ->
-                    context
+                    context.importedCustomTypeLookup
+
+        contextWithRemovedShadowedImports : ModuleContext
+        contextWithRemovedShadowedImports =
+            { context | importedCustomTypeLookup = importedCustomTypeLookup }
 
         -- TODO Rename
         typeAlias : CustomTypeData
