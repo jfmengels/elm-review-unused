@@ -1006,7 +1006,7 @@ type C = C
                 |> Review.Test.expectErrorsForModules
                     [ ( "A"
                       , [ Review.Test.error
-                            { message = "Type `C` is not used"
+                            { message = "Type alias `C` is not used"
                             , details = details
                             , under = "C"
                             }
@@ -1057,10 +1057,10 @@ a = B
                         , under = "B"
                         }
                         |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 13 } }
-                        |> Review.Test.whenFixed ("""module A exposing (a)
-import B$
-type Type = C
-a = C""" |> String.replace "$" " ")
+                        |> Review.Test.whenFixed """module A exposing (a)
+type A = B | C
+a = B
+"""
                     ]
     , test "should not report open type import when a constructor is used but the type is locally shadowed" <|
         \() ->
@@ -2102,7 +2102,7 @@ a = 1
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error
-                        { message = "Type `UnusedType` is not used"
+                        { message = "Type alias `UnusedType` is not used"
                         , details = details
                         , under = "UnusedType"
                         }
