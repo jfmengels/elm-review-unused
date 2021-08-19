@@ -992,7 +992,7 @@ a = C_Value""" |> String.replace "$" " ")
                         ]
                       )
                     ]
-    , test "should not report open type import when the exposed constructor is shadowed by a local type alias when it is not a record" <|
+    , test "should report open type import when the exposed constructor is NOT shadowed by a local type alias when it is not a record" <|
         \() ->
             [ """module A exposing (a)
 import B exposing (C(..))
@@ -1003,7 +1003,20 @@ type C = C
 """
             ]
                 |> Review.Test.runOnModules rule
-                |> Review.Test.expectNoErrors
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Type `C` is not used"
+                            , details = details
+                            , under = "C"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 13 } }
+                            |> Review.Test.whenFixed """module A exposing (a)
+import B exposing (C(..))
+a = C"""
+                        ]
+                      )
+                    ]
     , test "should report open type import when the exposed constructor is shadowed by a custom type constructor" <|
         \() ->
             [ """module A exposing (a)
