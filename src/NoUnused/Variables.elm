@@ -1385,15 +1385,7 @@ finalEvaluation context =
                 context.localTypes
                     |> Dict.toList
                     |> List.filter (\( name, _ ) -> not <| Set.member name usedLocally)
-                    |> List.map
-                        (\( name, type_ ) ->
-                            Rule.errorWithFix
-                                { message = "Type `" ++ name ++ "` is not used"
-                                , details = details
-                                }
-                                type_.under
-                                [ Fix.removeRange type_.rangeToRemove ]
-                        )
+                    |> List.map errorForLocalType
     in
     List.concat
         [ newRootScope
@@ -1404,6 +1396,16 @@ finalEvaluation context =
         , List.filterMap Tuple.first moduleThatExposeEverythingErrors
         , customTypeErrors
         ]
+
+
+errorForLocalType : ( String, TypeData ) -> Error {}
+errorForLocalType ( name, type_ ) =
+    Rule.errorWithFix
+        { message = "Type `" ++ name ++ "` is not used"
+        , details = details
+        }
+        type_.under
+        [ Fix.removeRange type_.rangeToRemove ]
 
 
 registerFunction : LetBlockContext -> Function -> ModuleContext -> ModuleContext
