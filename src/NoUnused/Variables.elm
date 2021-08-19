@@ -132,9 +132,15 @@ type alias DeclaredModule =
 
 type alias TypeData =
     { under : Range
+    , kind : TypeKind
     , rangeToRemove : Range
     , variants : List String
     }
+
+
+type TypeKind
+    = CustomTypeKind
+    | TypeAliasKind
 
 
 type alias ModuleThatExposesEverything =
@@ -1008,7 +1014,8 @@ registerTypeAlias range { name, typeAnnotation } context =
 
         typeAlias : TypeData
         typeAlias =
-            { under = Node.range name
+            { kind = TypeAliasKind
+            , under = Node.range name
             , rangeToRemove = untilStartOfNextLine range
             , variants =
                 case Node.value typeAnnotation of
@@ -1057,7 +1064,8 @@ registerCustomType range { name, constructors } context =
 
         customType : TypeData
         customType =
-            { under = Node.range name
+            { kind = CustomTypeKind
+            , under = Node.range name
             , rangeToRemove = untilStartOfNextLine range
             , variants = constructorNames
             }
