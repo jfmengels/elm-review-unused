@@ -989,6 +989,41 @@ registerTypes node context =
             context
 
 
+registerCustomType : Range -> Elm.Syntax.Type.Type -> ModuleContext -> ModuleContext
+registerCustomType range { name, constructors } context =
+    let
+        typeName : String
+        typeName =
+            Node.value name
+
+        constructorNames : List String
+        constructorNames =
+            List.map (Node.value >> .name >> Node.value) constructors
+
+        constructorsForType : Dict String String
+        constructorsForType =
+            constructorNames
+                |> List.map (\constructorName -> ( constructorName, typeName ))
+                |> Dict.fromList
+
+        customType : TypeData
+        customType =
+            { kind = CustomTypeKind
+            , under = Node.range name
+            , rangeToRemove = untilStartOfNextLine range
+            , variants = constructorNames
+            }
+    in
+    { context
+        | localTypes =
+            Dict.insert
+                (Node.value name)
+                customType
+                context.localTypes
+        , constructorNameToTypeName = Dict.union constructorsForType context.constructorNameToTypeName
+    }
+
+
 registerTypeAlias : Range -> TypeAlias -> ModuleContext -> ModuleContext
 registerTypeAlias range { name, typeAnnotation } context =
     let
@@ -1040,41 +1075,6 @@ registerTypeAlias range { name, typeAnnotation } context =
                         newContext.localTypes
             in
             { newContext | localTypes = localCustomTypes }
-
-
-registerCustomType : Range -> Elm.Syntax.Type.Type -> ModuleContext -> ModuleContext
-registerCustomType range { name, constructors } context =
-    let
-        typeName : String
-        typeName =
-            Node.value name
-
-        constructorNames : List String
-        constructorNames =
-            List.map (Node.value >> .name >> Node.value) constructors
-
-        constructorsForType : Dict String String
-        constructorsForType =
-            constructorNames
-                |> List.map (\constructorName -> ( constructorName, typeName ))
-                |> Dict.fromList
-
-        customType : TypeData
-        customType =
-            { kind = CustomTypeKind
-            , under = Node.range name
-            , rangeToRemove = untilStartOfNextLine range
-            , variants = constructorNames
-            }
-    in
-    { context
-        | localTypes =
-            Dict.insert
-                (Node.value name)
-                customType
-                context.localTypes
-        , constructorNameToTypeName = Dict.union constructorsForType context.constructorNameToTypeName
-    }
 
 
 
