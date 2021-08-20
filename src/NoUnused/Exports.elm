@@ -544,12 +544,6 @@ importVisitor node moduleContext =
 declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List nothing, ModuleContext )
 declarationListVisitor declarations moduleContext =
     let
-        declaredNames : Set String
-        declaredNames =
-            declarations
-                |> List.filterMap (Node.value >> declarationName)
-                |> Set.fromList
-
         typesUsedInDeclaration_ : List ( List ( ModuleName, String ), Bool )
         typesUsedInDeclaration_ =
             declarations
@@ -577,6 +571,13 @@ declarationListVisitor declarations moduleContext =
                         identity
 
                     else
+                        let
+                            declaredNames : Set String
+                            declaredNames =
+                                declarations
+                                    |> List.filterMap (Node.value >> declarationName)
+                                    |> Set.fromList
+                        in
                         Dict.filter (\name _ -> Set.member name declaredNames)
                    )
         , elementsNotToReport =

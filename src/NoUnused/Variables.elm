@@ -996,12 +996,6 @@ registerTypeAlias range { name, typeAnnotation } context =
                     context
 
         -- TODO Rename
-        typeAlias : CustomTypeData
-        typeAlias =
-            { under = Node.range name
-            , rangeToRemove = untilStartOfNextLine range
-            , variants = []
-            }
     in
     case Node.value typeAnnotation of
         TypeAnnotation.Record _ ->
@@ -1019,6 +1013,14 @@ registerTypeAlias range { name, typeAnnotation } context =
                     contextWithRemovedShadowedImports
 
         _ ->
+            let
+                typeAlias : CustomTypeData
+                typeAlias =
+                    { under = Node.range name
+                    , rangeToRemove = untilStartOfNextLine range
+                    , variants = []
+                    }
+            in
             { contextWithRemovedShadowedImports
                 | localCustomTypes =
                     Dict.insert
