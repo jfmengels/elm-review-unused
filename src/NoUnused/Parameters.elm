@@ -523,23 +523,7 @@ report context =
             let
                 ( errors, remainingUsed ) =
                     List.foldl
-                        (\declared ( errors_, remainingUsed_ ) ->
-                            if Set.member declared.name headScope.usedRecursively then
-                                -- If variable was used as a recursive argument
-                                if Set.member declared.name remainingUsed_ then
-                                    -- If variable was used somewhere else as well
-                                    ( errors_, Set.remove declared.name remainingUsed_ )
-
-                                else
-                                    -- If variable was used ONLY as a recursive argument
-                                    ( recursiveParameterError headScope.functionName declared :: errors_, Set.remove declared.name remainingUsed_ )
-
-                            else if Set.member declared.name remainingUsed_ then
-                                ( errors_, Set.remove declared.name remainingUsed_ )
-
-                            else
-                                ( errorsForValue declared :: errors_, remainingUsed_ )
-                        )
+                        (findErrorsAndVariablesNotPartOfScope headScope)
                         ( [], headScope.used )
                         headScope.declared
             in
@@ -552,6 +536,25 @@ report context =
 
         [] ->
             ( [], context )
+
+
+findErrorsAndVariablesNotPartOfScope : Scope -> Declared -> ( List (Rule.Error {}), Set String ) -> ( List (Rule.Error {}), Set String )
+findErrorsAndVariablesNotPartOfScope scope declared ( errors_, remainingUsed_ ) =
+    if Set.member declared.name scope.usedRecursively then
+        -- If variable was used as a recursive argument
+        if Set.member declared.name remainingUsed_ then
+            -- If variable was used somewhere else as well
+            ( errors_, Set.remove declared.name remainingUsed_ )
+
+        else
+            -- If variable was used ONLY as a recursive argument
+            ( recursiveParameterError scope.functionName declared :: errors_, Set.remove declared.name remainingUsed_ )
+
+    else if Set.member declared.name remainingUsed_ then
+        ( errors_, Set.remove declared.name remainingUsed_ )
+
+    else
+        ( errorsForValue declared :: errors_, remainingUsed_ )
 
 
 errorsForValue : Declared -> Rule.Error {}
