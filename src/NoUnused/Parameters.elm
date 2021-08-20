@@ -214,32 +214,7 @@ getParametersFromPatterns source node =
             ]
 
         Pattern.AsPattern pattern asName ->
-            let
-                parametersFromPatterns : List Declared
-                parametersFromPatterns =
-                    getParametersFromPatterns source pattern
-
-                asParameter : Declared
-                asParameter =
-                    { name = Node.value asName
-                    , range = Node.range asName
-                    , kind = Alias
-                    , fix = [ Fix.removeRange { start = (Node.range pattern).end, end = (Node.range asName).end } ]
-                    , source = source
-                    }
-            in
-            if List.isEmpty parametersFromPatterns && isPatternWildCard pattern then
-                [ asParameter
-                , { name = ""
-                  , range = Node.range pattern
-                  , kind = AsWithoutVariables
-                  , fix = [ Fix.removeRange { start = (Node.range pattern).start, end = (Node.range asName).start } ]
-                  , source = source
-                  }
-                ]
-
-            else
-                asParameter :: parametersFromPatterns
+            getParametersFromAsPattern source pattern asName
 
         Pattern.RecordPattern fields ->
             case fields of
@@ -296,6 +271,36 @@ getParametersFromPatterns source node =
 
         _ ->
             []
+
+
+getParametersFromAsPattern : Source -> Node Pattern -> Node String -> List Declared
+getParametersFromAsPattern source pattern asName =
+    let
+        parametersFromPatterns : List Declared
+        parametersFromPatterns =
+            getParametersFromPatterns source pattern
+
+        asParameter : Declared
+        asParameter =
+            { name = Node.value asName
+            , range = Node.range asName
+            , kind = Alias
+            , fix = [ Fix.removeRange { start = (Node.range pattern).end, end = (Node.range asName).end } ]
+            , source = source
+            }
+    in
+    if List.isEmpty parametersFromPatterns && isPatternWildCard pattern then
+        [ asParameter
+        , { name = ""
+          , range = Node.range pattern
+          , kind = AsWithoutVariables
+          , fix = [ Fix.removeRange { start = (Node.range pattern).start, end = (Node.range asName).start } ]
+          , source = source
+          }
+        ]
+
+    else
+        asParameter :: parametersFromPatterns
 
 
 isPatternWildCard : Node Pattern -> Bool
