@@ -58,6 +58,7 @@ config =
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
     , Simplify.rule Simplify.defaults
-    , CognitiveComplexity.rule 10
+    , -- TODO Reduce to 10
+      CognitiveComplexity.rule 29
     ]
         |> List.map (Rule.ignoreErrorsForFiles [ "src/NoUnused/Patterns/NameVisitor.elm" ])
