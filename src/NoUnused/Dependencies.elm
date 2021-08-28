@@ -70,6 +70,11 @@ dependenciesVisitor dependencies projectContext =
         moduleNameToDependency : Dict String String
         moduleNameToDependency =
             dependencies
+                |> Dict.filter
+                    (\packageName _ ->
+                        Set.member packageName projectContext.directProjectDependencies
+                            || Set.member packageName projectContext.directTestDependencies
+                    )
                 |> Dict.toList
                 |> List.concatMap
                     (\( packageName, dependency ) ->
