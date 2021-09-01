@@ -63,4 +63,5 @@ elm-review --template jfmengels/elm-review-unused/example
 
 ## Thanks
 
-Thanks to @sparksp for writing [`NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.16/NoUnused-Dependencies) and [`NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.0.1/NoUnused-Dependencies).
+Thanks to @sparksp for writing [`NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.16/NoUnused-Parameters)
+and [`NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.16/NoUnused-Patterns).
