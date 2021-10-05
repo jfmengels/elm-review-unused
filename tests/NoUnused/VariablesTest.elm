@@ -1619,6 +1619,32 @@ shadowed = 1""" |> String.replace "$" " ")
                         ]
                       )
                     ]
+    , test "should report unused imported value if there is a param with the same name that is used, but the import itself is not" <|
+        \() ->
+            [ """module A exposing (identity)
+import Used exposing (shadowed)
+identity shadowed = shadowed
+"""
+            , """module Used exposing (shadowed)
+shadowed = ""
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported variable `shadowed` is not used"
+                            , details = details
+                            , under = "shadowed"
+                            }
+                            |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
+                            |> Review.Test.whenFixed ("""module A exposing (a)
+import Used$
+a = shadowed
+shadowed = 1""" |> String.replace "$" " ")
+                        ]
+                      )
+                    ]
     , test "should not report imported type as unused when it's used in a type annotation, and the name conflicts with an imported custom type constructor" <|
         \() ->
             [ """module Main exposing (thing, main)
