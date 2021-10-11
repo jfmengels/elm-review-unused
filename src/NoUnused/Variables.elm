@@ -735,7 +735,7 @@ expressionEnterVisitorHelp (Node range value) context =
                         |> foldUsedTypesAndModules
             in
             ( []
-            , List.foldl markValueAsUsed context namesUsedInArgumentPatterns.types
+            , List.foldl markValueAsUsed { context | scopes = NonemptyList.cons emptyScope context.scopes } namesUsedInArgumentPatterns.types
                 |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
             )
 
