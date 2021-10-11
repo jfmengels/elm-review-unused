@@ -9,6 +9,7 @@ import Review.Project as Project exposing (Project)
 import Review.Project.Dependency as Dependency exposing (Dependency)
 import Review.Test
 import Test exposing (Test, describe, test)
+import Test exposing (only)
 
 
 details : List String
@@ -1638,10 +1639,71 @@ shadowed = ""
                             , under = "shadowed"
                             }
                             |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
+                            |> Review.Test.whenFixed ("""module A exposing (identity)
+import Used$
+identity shadowed = shadowed
+""" |> String.replace "$" " ")
+                        ]
+                      )
+                    ],
+    test "should report unused imported value if there is a let function with a param with the same name that is used, but the import itself is not" <|
+        \() ->
+            [ """module A exposing (identity)
+import Used exposing (shadowed)
+identity x = 
+    let
+        identityHelp shadowed = shadowed
+    in
+    identityHelp x
+"""
+            , """module Used exposing (shadowed)
+shadowed = ""
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported variable `shadowed` is not used"
+                            , details = details
+                            , under = "shadowed"
+                            }
+                            |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
                             |> Review.Test.whenFixed ("""module A exposing (a)
 import Used$
-a = shadowed
-shadowed = 1""" |> String.replace "$" " ")
+identity x = 
+    let
+        identityHelp shadowed = shadowed
+    in
+    identityHelp x""" |> String.replace "$" " ")
+                        ]
+                      )
+                    ]
+    ,  
+    test "should report unused imported value if there is a lambda with a param with the same name that is used, but the import itself is not" <|
+        \() ->
+            [ """module A exposing (identity)
+import Used exposing (shadowed)
+identity x = 
+    (\\shadowed -> shadowed) x
+"""
+            , """module Used exposing (shadowed)
+shadowed = ""
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported variable `shadowed` is not used"
+                            , details = details
+                            , under = "shadowed"
+                            }
+                            |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
+                            |> Review.Test.whenFixed ("""module A exposing (a)
+import Used$
+identity x = 
+    (\\shadowed -> shadowed) x""" |> String.replace "$" " ")
                         ]
                       )
                     ]
