@@ -1390,7 +1390,7 @@ shadowed = ""
                             , under = "shadowed"
                             }
                             |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
-                            |> Review.Test.whenFixed ("""module A exposing (a)
+                            |> Review.Test.whenFixed ("""module A exposing (identity)
 import Used$
 identity x = 
     let
@@ -1400,8 +1400,7 @@ identity x =
                         ]
                       )
                     ]
-    ,  
-    test "should report unused import even if a used lambda param is named in the same way" <|
+    , test "should report unused import even if a used lambda param is named in the same way" <|
         \() ->
             [ """module A exposing (identity)
 import Used exposing (shadowed)
@@ -1421,10 +1420,42 @@ shadowed = ""
                             , under = "shadowed"
                             }
                             |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
-                            |> Review.Test.whenFixed ("""module A exposing (a)
+                            |> Review.Test.whenFixed ("""module A exposing (identity)
 import Used$
 identity x = 
     (\\shadowed -> shadowed) x""" |> String.replace "$" " ")
+                        ]
+                      )
+                    ],
+    test "should report unused import even if a variant arg is named in the same way" <|
+        \() ->
+            [ """module A exposing (identity)
+import Used exposing (shadowed)
+identity x = 
+    case Just x of
+        Nothing -> x
+        Just shadowed -> shadowed
+"""
+            , """module Used exposing (shadowed)
+shadowed = ""
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported variable `shadowed` is not used"
+                            , details = details
+                            , under = "shadowed"
+                            }
+                            |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
+                            |> Review.Test.whenFixed ("""module A exposing (identity)
+import Used$
+identity x = 
+    case Just x of
+        Nothing -> x
+        Just shadowed -> shadowed
+""" |> String.replace "$" " ")
                         ]
                       )
                     ]
