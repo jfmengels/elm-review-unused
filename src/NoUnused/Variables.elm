@@ -1227,6 +1227,10 @@ foldUsedTypesAndModules =
     List.foldl (\a b -> { types = a.types ++ b.types, modules = a.modules ++ b.modules }) { types = [], modules = [] }
 
 
+
+-- FINAL EVALUATION
+
+
 finalEvaluation : ModuleContext -> List (Error {})
 finalEvaluation context =
     let
