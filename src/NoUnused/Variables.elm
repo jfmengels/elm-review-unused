@@ -91,6 +91,7 @@ moduleVisitor schema =
         |> Rule.withImportVisitor importVisitor
         |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
+        |> Rule.withDeclarationExitVisitor declarationExitVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
@@ -1229,6 +1230,25 @@ declarationEnterVisitor node context =
 foldUsedTypesAndModules : List { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 foldUsedTypesAndModules =
     List.foldl (\a b -> { types = a.types ++ b.types, modules = a.modules ++ b.modules }) { types = [], modules = [] }
+
+
+
+-- DECLARATION EXIT VISITOR
+
+
+declarationExitVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
+declarationExitVisitor node context =
+    let
+        ( errors, remainingUsed ) =
+            makeReport (NonemptyList.head context.scopes)
+
+        contextWithPoppedScope : ModuleContext
+        contextWithPoppedScope =
+            { context | scopes = NonemptyList.pop context.scopes }
+    in
+    ( errors
+    , markAllAsUsed remainingUsed contextWithPoppedScope
+    )
 
 
 
