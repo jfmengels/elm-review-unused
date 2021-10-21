@@ -1078,7 +1078,7 @@ registerTypeAlias range { name, typeAnnotation } context =
 
 
 
--- DECLARATION VISITOR
+-- DECLARATION ENTER VISITOR
 
 
 declarationEnterVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
