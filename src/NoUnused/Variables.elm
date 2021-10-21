@@ -90,7 +90,7 @@ moduleVisitor schema =
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withImportVisitor importVisitor
         |> Rule.withDeclarationListVisitor declarationListVisitor
-        |> Rule.withDeclarationEnterVisitor declarationVisitor
+        |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
@@ -1081,8 +1081,8 @@ registerTypeAlias range { name, typeAnnotation } context =
 -- DECLARATION VISITOR
 
 
-declarationVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
-declarationVisitor node context =
+declarationEnterVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
+declarationEnterVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
             let
