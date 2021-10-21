@@ -1096,9 +1096,12 @@ declarationVisitor node context =
 
                 namesUsedInSignature : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInSignature =
-                    function.signature
-                        |> Maybe.map (Node.value >> .typeAnnotation >> collectNamesFromTypeAnnotation context.lookupTable)
-                        |> Maybe.withDefault { types = [], modules = [] }
+                    case function.signature of
+                        Just signature ->
+                            signature |> Node.value |> .typeAnnotation |> collectNamesFromTypeAnnotation context.lookupTable
+
+                        Nothing ->
+                            { types = [], modules = [] }
 
                 namesUsedInArgumentPatterns : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInArgumentPatterns =
