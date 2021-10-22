@@ -783,6 +783,10 @@ expressionEnterVisitorHelp (Node range value) context =
                                 getUsedVariablesFromPattern context patternNode
                             )
                         |> foldUsedTypesAndModules
+
+                namesToIgnore : List ( Range, List String )
+                namesToIgnore =
+                    List.map (\( pattern, Node branchRange _ ) -> ( branchRange, getDeclaredParametersFromPattern pattern )) cases
             in
             ( []
             , List.foldl
