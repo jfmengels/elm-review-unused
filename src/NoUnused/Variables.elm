@@ -1136,7 +1136,7 @@ declarationEnterVisitor node context =
                     { newContextWhereFunctionIsRegistered
                         | inTheDeclarationOf = [ functionName ]
                         , declarations = Dict.empty
-                        , scopes = NonemptyList.cons emptyScope context.scopes
+                        , scopes = NonemptyList.cons emptyScope newContextWhereFunctionIsRegistered.scopes
                     }
                         |> (\ctx -> List.foldl markValueAsUsed ctx namesUsedInArgumentPatterns.types)
                         |> markAllAsUsed namesUsedInSignature.types
