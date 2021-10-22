@@ -797,16 +797,18 @@ removeParens node =
 
 expressionExitVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionExitVisitor node context =
-    let
-        newContext : ModuleContext
-        newContext =
-            if RangeDict.member (Node.range node) context.declarations then
-                { context | inTheDeclarationOf = List.drop 1 context.inTheDeclarationOf }
+    context
+        |> removeInTheDeclarationOf node
+        |> expressionExitVisitorHelp node
 
-            else
-                context
-    in
-    expressionExitVisitorHelp node newContext
+
+removeInTheDeclarationOf : Node Expression -> ModuleContext -> ModuleContext
+removeInTheDeclarationOf node context =
+    if RangeDict.member (Node.range node) context.declarations then
+        { context | inTheDeclarationOf = List.drop 1 context.inTheDeclarationOf }
+
+    else
+        context
 
 
 expressionExitVisitorHelp : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
