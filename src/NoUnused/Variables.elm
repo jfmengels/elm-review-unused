@@ -865,6 +865,12 @@ getDeclaredParametersFromPatternHelp nodes acc =
                 Pattern.NamedPattern _ patterns ->
                     getDeclaredParametersFromPatternHelp (patterns ++ tail) acc
 
+                Pattern.UnConsPattern left right ->
+                    getDeclaredParametersFromPatternHelp (left :: right :: tail) acc
+
+                Pattern.ListPattern patterns ->
+                    getDeclaredParametersFromPatternHelp (patterns ++ tail) acc
+
                 _ ->
                     getDeclaredParametersFromPatternHelp tail acc
 
@@ -1177,8 +1183,8 @@ declarationEnterVisitor node context =
                             functionName
                             context
 
-                newScope : Scope
-                newScope =
+                newScopeWithParameters : Scope
+                newScopeWithParameters =
                     { declared =
                         List.concatMap getDeclaredParametersFromPattern functionImplementation.arguments
                             |> List.map (\name -> ( name, dummyParameterVariableInfo ))
@@ -1191,7 +1197,7 @@ declarationEnterVisitor node context =
                     { newContextWhereFunctionIsRegistered
                         | inTheDeclarationOf = [ functionName ]
                         , declarations = Dict.empty
-                        , scopes = NonemptyList.cons newScope newContextWhereFunctionIsRegistered.scopes
+                        , scopes = NonemptyList.cons newScopeWithParameters newContextWhereFunctionIsRegistered.scopes
                     }
                         |> (\ctx -> List.foldl markValueAsUsed ctx namesUsedInArgumentPatterns.types)
                         |> markAllAsUsed namesUsedInSignature.types
