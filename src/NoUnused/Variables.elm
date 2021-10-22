@@ -1576,20 +1576,20 @@ registerParameters patterns context =
     { context
         | scopes =
             NonemptyList.mapHead
-                (addNamesToIgnoreFromPattern patterns)
+                (setNamesToIgnoreFromPattern patterns)
                 context.scopes
     }
 
 
-addNamesToIgnoreFromPattern : List (Node Pattern) -> { a | namesToIgnore : Set String } -> { a | namesToIgnore : Set String }
-addNamesToIgnoreFromPattern patterns scope =
+setNamesToIgnoreFromPattern : List (Node Pattern) -> { a | namesToIgnore : Set String } -> { a | namesToIgnore : Set String }
+setNamesToIgnoreFromPattern patterns scope =
     let
-        parameters : Set String
-        parameters =
+        namesToIgnore : Set String
+        namesToIgnore =
             List.concatMap getDeclaredParametersFromPattern patterns
                 |> Set.fromList
     in
-    { scope | namesToIgnore = Set.union parameters scope.namesToIgnore }
+    { scope | namesToIgnore = namesToIgnore }
 
 
 type ExposedElement
