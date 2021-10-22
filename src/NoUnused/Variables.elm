@@ -1238,17 +1238,24 @@ foldUsedTypesAndModules =
 
 declarationExitVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
 declarationExitVisitor node context =
-    let
-        ( errors, remainingUsed ) =
-            makeReport (NonemptyList.head context.scopes)
+    case Node.value node of
+        Declaration.FunctionDeclaration _ ->
+            let
+                -- We disregard the errors here, because those would only report the parameters,
+                -- which this rule doesn't aim to report
+                ( _, remainingUsed ) =
+                    makeReport (NonemptyList.head context.scopes)
 
-        contextWithPoppedScope : ModuleContext
-        contextWithPoppedScope =
-            { context | scopes = NonemptyList.pop context.scopes }
-    in
-    ( errors
-    , markAllAsUsed remainingUsed contextWithPoppedScope
-    )
+                contextWithPoppedScope : ModuleContext
+                contextWithPoppedScope =
+                    { context | scopes = NonemptyList.pop context.scopes }
+            in
+            ( []
+            , markAllAsUsed remainingUsed contextWithPoppedScope
+            )
+
+        _ ->
+            ( [], context )
 
 
 
