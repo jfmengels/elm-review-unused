@@ -1574,16 +1574,16 @@ registerFunction letBlockContext function context =
 registerParameters : List (Node Pattern) -> ModuleContext -> ModuleContext
 registerParameters patterns context =
     let
-        parameters : Set String
-        parameters =
-            List.concatMap getDeclaredParametersFromPattern patterns
-                |> Set.fromList
-    in
-    let
         scopes : Nonempty Scope
         scopes =
             NonemptyList.mapHead
                 (\scope ->
+                    let
+                        parameters : Set String
+                        parameters =
+                            List.concatMap getDeclaredParametersFromPattern patterns
+                                |> Set.fromList
+                    in
                     -- TODO Note that this probably leads to false positives in let declarations
                     { scope | namesToIgnore = Set.union parameters scope.namesToIgnore }
                 )
