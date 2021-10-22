@@ -695,6 +695,7 @@ expressionEnterVisitorHelp (Node range value) context =
                                 |> markAllAsUsed namesUsedInArgumentPatterns.types
                                 |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
                                 |> registerFunction letBlockContext function
+                                -- FIXME remove
                                 |> registerParameters functionDeclaration.arguments
                                 |> markAsInTheDeclarationOf (Node.range functionDeclaration.expression) (Node.value functionDeclaration.name)
                             )
