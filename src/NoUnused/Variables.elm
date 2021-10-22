@@ -1573,23 +1573,24 @@ registerFunction letBlockContext function context =
 
 registerParameters : List (Node Pattern) -> ModuleContext -> ModuleContext
 registerParameters patterns context =
-    let
-        scopes : Nonempty Scope
-        scopes =
+    { context
+        | scopes =
             NonemptyList.mapHead
-                (\scope ->
-                    let
-                        parameters : Set String
-                        parameters =
-                            List.concatMap getDeclaredParametersFromPattern patterns
-                                |> Set.fromList
-                    in
-                    -- TODO Note that this probably leads to false positives in let declarations
-                    { scope | namesToIgnore = Set.union parameters scope.namesToIgnore }
-                )
+                (addNamesToIgnoreFromPattern patterns)
                 context.scopes
+    }
+
+
+addNamesToIgnoreFromPattern : List (Node Pattern) -> { a | namesToIgnore : Set String } -> { a | namesToIgnore : Set String }
+addNamesToIgnoreFromPattern patterns scope =
+    let
+        parameters : Set String
+        parameters =
+            List.concatMap getDeclaredParametersFromPattern patterns
+                |> Set.fromList
     in
-    { context | scopes = scopes }
+    -- TODO Note that this probably leads to false positives in let declarations
+    { scope | namesToIgnore = Set.union parameters scope.namesToIgnore }
 
 
 type ExposedElement
