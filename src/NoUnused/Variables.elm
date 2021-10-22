@@ -592,17 +592,19 @@ moduleAliasRange (Node _ { moduleName }) range =
 
 expressionEnterVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionEnterVisitor node context =
-    let
-        newContext : ModuleContext
-        newContext =
-            case RangeDict.get (Node.range node) context.declarations of
-                Just functionName ->
-                    { context | inTheDeclarationOf = functionName :: context.inTheDeclarationOf }
+    context
+        |> updateInTheDeclarationOf node
+        |> expressionEnterVisitorHelp node
 
-                Nothing ->
-                    context
-    in
-    expressionEnterVisitorHelp node newContext
+
+updateInTheDeclarationOf : Node Expression -> ModuleContext -> ModuleContext
+updateInTheDeclarationOf node context =
+    case RangeDict.get (Node.range node) context.declarations of
+        Just functionName ->
+            { context | inTheDeclarationOf = functionName :: context.inTheDeclarationOf }
+
+        Nothing ->
+            context
 
 
 expressionEnterVisitorHelp : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
