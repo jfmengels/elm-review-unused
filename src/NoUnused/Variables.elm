@@ -1589,7 +1589,6 @@ addNamesToIgnoreFromPattern patterns scope =
             List.concatMap getDeclaredParametersFromPattern patterns
                 |> Set.fromList
     in
-    -- TODO Note that this probably leads to false positives in let declarations
     { scope | namesToIgnore = Set.union parameters scope.namesToIgnore }
 
 
