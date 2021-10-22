@@ -745,6 +745,7 @@ expressionEnterVisitorHelp (Node range value) context =
             ( []
             , List.foldl markValueAsUsed context namesUsedInArgumentPatterns.types
                 |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
+                |> registerParameters args
             )
 
         _ ->
