@@ -657,6 +657,9 @@ expressionEnterVisitorHelp (Node range value) context =
         Expression.PrefixOperator name ->
             ( [], markValueAsUsed name context )
 
+        Expression.RecordUpdateExpression expr _ ->
+            ( [], markValueAsUsed (Node.value expr) context )
+
         Expression.LetExpression { declarations, expression } ->
             let
                 letBlockContext : LetBlockContext
@@ -814,9 +817,6 @@ removeInTheDeclarationOf node context =
 expressionExitVisitorHelp : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionExitVisitorHelp node context =
     case Node.value node of
-        Expression.RecordUpdateExpression expr _ ->
-            ( [], markValueAsUsed (Node.value expr) context )
-
         Expression.CaseExpression { cases } ->
             let
                 usedVariables : { types : List String, modules : List ( ModuleName, ModuleName ) }
