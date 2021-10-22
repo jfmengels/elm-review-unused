@@ -19,7 +19,7 @@ import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Syntax.Type
 import Elm.Syntax.TypeAlias exposing (TypeAlias)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
@@ -826,6 +826,52 @@ getUsedVariablesFromPattern context patternNode =
     }
 
 
+dummyParameterVariableInfo : VariableInfo
+dummyParameterVariableInfo =
+    { typeName = "Parameter"
+    , under = Range.emptyRange
+    , rangeToRemove = Nothing
+    , warning = ""
+    }
+
+
+getDeclaredParametersFromPattern : Node Pattern -> List String
+getDeclaredParametersFromPattern node =
+    getDeclaredParametersFromPatternHelp [ node ] []
+
+
+getDeclaredParametersFromPatternHelp : List (Node Pattern) -> List String -> List String
+getDeclaredParametersFromPatternHelp nodes acc =
+    case nodes of
+        (Node _ node) :: tail ->
+            case node of
+                Pattern.ParenthesizedPattern pattern ->
+                    getDeclaredParametersFromPatternHelp (pattern :: tail) acc
+
+                Pattern.VarPattern name ->
+                    getDeclaredParametersFromPatternHelp tail (name :: acc)
+
+                Pattern.AsPattern pattern (Node _ asName) ->
+                    getDeclaredParametersFromPatternHelp (pattern :: tail) (asName :: acc)
+
+                Pattern.RecordPattern fields ->
+                    getDeclaredParametersFromPatternHelp
+                        tail
+                        (List.append (List.map Node.value fields) acc)
+
+                Pattern.TuplePattern patterns ->
+                    getDeclaredParametersFromPatternHelp (patterns ++ tail) acc
+
+                Pattern.NamedPattern _ patterns ->
+                    getDeclaredParametersFromPatternHelp (patterns ++ tail) acc
+
+                _ ->
+                    getDeclaredParametersFromPatternHelp tail acc
+
+        [] ->
+            acc
+
+
 getUsedTypesFromPattern : Dict String String -> Node Pattern -> List String
 getUsedTypesFromPattern constructorNameToTypeName patternNode =
     case Node.value patternNode of
@@ -1131,12 +1177,21 @@ declarationEnterVisitor node context =
                             functionName
                             context
 
+                newScope : Scope
+                newScope =
+                    { declared =
+                        List.concatMap getDeclaredParametersFromPattern functionImplementation.arguments
+                            |> List.map (\name -> ( name, dummyParameterVariableInfo ))
+                            |> Dict.fromList
+                    , used = Dict.empty
+                    }
+
                 newContext : ModuleContext
                 newContext =
                     { newContextWhereFunctionIsRegistered
                         | inTheDeclarationOf = [ functionName ]
                         , declarations = Dict.empty
-                        , scopes = NonemptyList.cons emptyScope newContextWhereFunctionIsRegistered.scopes
+                        , scopes = NonemptyList.cons newScope newContextWhereFunctionIsRegistered.scopes
                     }
                         |> (\ctx -> List.foldl markValueAsUsed ctx namesUsedInArgumentPatterns.types)
                         |> markAllAsUsed namesUsedInSignature.types
