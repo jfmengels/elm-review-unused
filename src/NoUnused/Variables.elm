@@ -1781,7 +1781,7 @@ makeReport { declared, used } =
 
         errors : List (Error {})
         errors =
-            Dict.filter (\key _ -> not <| Set.member key usedLocally) declared
+            Dict.filter (\key variable -> not (Set.member key usedLocally) && variable.typeName /= "Parameter") declared
                 |> Dict.toList
                 |> List.map (\( key, variableInfo ) -> error variableInfo key)
     in
