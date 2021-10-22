@@ -675,6 +675,7 @@ expressionEnterVisitorHelp (Node range value) context =
                             , List.foldl markValueAsUsed foldContext namesUsedInArgumentPatterns.types
                                 |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
                                 |> registerFunction letBlockContext function
+                                |> registerParameters arguments
                                 |> markAsInTheDeclarationOf (function.declaration |> Node.value |> .name |> Node.value)
                             )
 
@@ -1544,6 +1545,27 @@ registerFunction letBlockContext function context =
             , warning = ""
             }
             (Node.value declaration.name)
+
+
+registerParameters : List (Node Pattern) -> ModuleContext -> ModuleContext
+registerParameters patterns context =
+    let
+        parameters : Dict String VariableInfo
+        parameters =
+            List.concatMap getDeclaredParametersFromPattern patterns
+                |> List.map (\name -> ( name, dummyParameterVariableInfo ))
+                |> Dict.fromList
+    in
+    let
+        scopes : Nonempty Scope
+        scopes =
+            NonemptyList.mapHead
+                (\scope ->
+                    { scope | declared = Dict.union parameters scope.declared }
+                )
+                context.scopes
+    in
+    { context | scopes = scopes }
 
 
 type ExposedElement
