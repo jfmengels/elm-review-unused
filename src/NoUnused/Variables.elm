@@ -594,6 +594,7 @@ expressionEnterVisitor : Node Expression -> ModuleContext -> ( List (Error {}), 
 expressionEnterVisitor node context =
     context
         |> updateInTheDeclarationOf node
+        |> updateScopes node
         |> expressionEnterVisitorHelp node
 
 
@@ -602,6 +603,16 @@ updateInTheDeclarationOf node context =
     case RangeDict.get (Node.range node) context.declarations of
         Just functionName ->
             { context | inTheDeclarationOf = functionName :: context.inTheDeclarationOf }
+
+        Nothing ->
+            context
+
+
+updateScopes : Node Expression -> ModuleContext -> ModuleContext
+updateScopes node context =
+    case RangeDict.get (Node.range node) context.scopesToCreate of
+        Just { declared, namesToIgnore } ->
+            { context | scopes = NonemptyList.cons { declared = declared, used = Dict.empty, namesToIgnore = namesToIgnore } context.scopes }
 
         Nothing ->
             context
