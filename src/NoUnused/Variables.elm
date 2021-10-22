@@ -654,7 +654,7 @@ expressionEnterVisitorHelp (Node range value) context =
                                     function.declaration
                                         |> Node.value
                                         |> .arguments
-                                        |> List.map (getUsedVariablesFromPattern context)
+                                        |> List.map (getUsedVariablesFromPattern foldContext)
                                         |> foldUsedTypesAndModules
 
                                 markAsInTheDeclarationOf : a -> { b | declarations : RangeDict a } -> { b | declarations : RangeDict a }
@@ -706,7 +706,7 @@ expressionEnterVisitorHelp (Node range value) context =
                                     let
                                         namesUsedInPattern : { types : List String, modules : List ( ModuleName, ModuleName ) }
                                         namesUsedInPattern =
-                                            getUsedVariablesFromPattern context pattern
+                                            getUsedVariablesFromPattern foldContext pattern
                                     in
                                     ( if not (introducesVariable pattern) then
                                         Rule.errorWithFix
