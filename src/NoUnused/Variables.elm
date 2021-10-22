@@ -882,6 +882,7 @@ expressionExitVisitorHelp node context =
 
 reportOnLetExpression : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 reportOnLetExpression node context =
+    -- TODO This function should not have to exist, but need to investigate why it's necessary
     case Node.value node of
         Expression.LetExpression _ ->
             let
