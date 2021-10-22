@@ -106,6 +106,7 @@ type alias ProjectContext =
 type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
     , scopes : Nonempty Scope
+    , scopesToCreate : RangeDict ScopeToCreate
     , inTheDeclarationOf : List String
     , declarations : RangeDict String
     , exposesEverything : Bool
@@ -167,6 +168,12 @@ type alias Scope =
     }
 
 
+type alias ScopeToCreate =
+    { declared : Dict String VariableInfo
+    , namesToIgnore : Set String
+    }
+
+
 type alias VariableInfo =
     { typeName : String
     , under : Range
@@ -201,6 +208,7 @@ fromProjectToModule =
         (\lookupTable { isApplication, customTypes } ->
             { lookupTable = lookupTable
             , scopes = NonemptyList.fromElement emptyScope
+            , scopesToCreate = Dict.empty
             , inTheDeclarationOf = []
             , declarations = Dict.empty
             , exposesEverything = False
