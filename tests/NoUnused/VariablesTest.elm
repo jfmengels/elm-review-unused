@@ -1366,8 +1366,8 @@ identity shadowed = shadowed
 """ |> String.replace "$" " ")
                         ]
                       )
-                    ],
-    test "should report unused import even if a used let..in function param is named in the same way" <|
+                    ]
+    , test "should report unused import even if a used let..in function param is named in the same way" <|
         \() ->
             [ """module A exposing (identity)
 import Used exposing (shadowed)
@@ -1396,7 +1396,8 @@ identity x =
     let
         identityHelp shadowed = shadowed
     in
-    identityHelp x""" |> String.replace "$" " ")
+    identityHelp x
+""" |> String.replace "$" " ")
                         ]
                       )
                     ]
@@ -1426,8 +1427,8 @@ identity x =
     (\\shadowed -> shadowed) x""" |> String.replace "$" " ")
                         ]
                       )
-                    ],
-    test "should report unused import even if a variant arg is named in the same way" <|
+                    ]
+    , test "should report unused import even if a variant arg is named in the same way" <|
         \() ->
             [ """module A exposing (identity)
 import Used exposing (shadowed)
@@ -1459,8 +1460,7 @@ identity x =
                         ]
                       )
                     ]
-    ,
-    test "should report unused import alias when two modules share the same alias" <|
+    , test "should report unused import alias when two modules share the same alias" <|
         \() ->
             [ """module A exposing (a)
 import B
