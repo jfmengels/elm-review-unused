@@ -649,11 +649,15 @@ expressionEnterVisitorHelp (Node range value) context =
                     case Node.value declaration of
                         Expression.LetFunction function ->
                             let
-                                namesUsedInArgumentPatterns : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                                namesUsedInArgumentPatterns =
+                                arguments : List (Node Pattern)
+                                arguments =
                                     function.declaration
                                         |> Node.value
                                         |> .arguments
+
+                                namesUsedInArgumentPatterns : { types : List String, modules : List ( ModuleName, ModuleName ) }
+                                namesUsedInArgumentPatterns =
+                                    arguments
                                         |> List.map (getUsedVariablesFromPattern foldContext)
                                         |> foldUsedTypesAndModules
 
