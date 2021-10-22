@@ -828,9 +828,16 @@ removeParens node =
 
 expressionExitVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionExitVisitor node context =
-    context
-        |> removeInTheDeclarationOf node
-        |> expressionExitVisitorHelp node
+    let
+        ( errorsOnExit, newContext1 ) =
+            context
+                |> removeInTheDeclarationOf node
+                |> expressionExitVisitorHelp node
+
+        ( errorsOnLetExpression, newContext2 ) =
+            reportOnLetExpression node newContext1
+    in
+    ( List.append errorsOnLetExpression errorsOnExit, newContext2 )
 
 
 removeInTheDeclarationOf : Node Expression -> ModuleContext -> ModuleContext
@@ -844,6 +851,26 @@ removeInTheDeclarationOf node context =
 
 expressionExitVisitorHelp : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionExitVisitorHelp node context =
+    case RangeDict.get (Node.range node) context.scopesToCreate of
+        Just _ ->
+            let
+                ( errors, remainingUsed ) =
+                    makeReport (NonemptyList.head context.scopes)
+
+                contextWithPoppedScope : ModuleContext
+                contextWithPoppedScope =
+                    { context | scopes = NonemptyList.pop context.scopes }
+            in
+            ( errors
+            , markAllAsUsed remainingUsed contextWithPoppedScope
+            )
+
+        Nothing ->
+            ( [], context )
+
+
+reportOnLetExpression : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
+reportOnLetExpression node context =
     case Node.value node of
         Expression.LetExpression _ ->
             let
