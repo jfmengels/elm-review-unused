@@ -686,7 +686,7 @@ expressionEnterVisitorHelp (Node range value) context =
                                         |> foldUsedTypesAndModules
                             in
                             ( errors
-                            , foldContext
+                            , { foldContext | scopesToCreate = foldContext.scopesToCreate }
                                 |> markAllAsUsed namesUsedInArgumentPatterns.types
                                 |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
                                 |> registerFunction letBlockContext function
