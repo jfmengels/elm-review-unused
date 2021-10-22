@@ -835,6 +835,16 @@ dummyParameterVariableInfo =
     }
 
 
+newScopeWithParameters : List (Node Pattern) -> Scope
+newScopeWithParameters patterns =
+    { declared =
+        List.concatMap getDeclaredParametersFromPattern patterns
+            |> List.map (\name -> ( name, dummyParameterVariableInfo ))
+            |> Dict.fromList
+    , used = Dict.empty
+    }
+
+
 getDeclaredParametersFromPattern : Node Pattern -> List String
 getDeclaredParametersFromPattern node =
     getDeclaredParametersFromPatternHelp [ node ] []
@@ -1182,15 +1192,6 @@ declarationEnterVisitor node context =
                             }
                             functionName
                             context
-
-                newScopeWithParameters : List (Node Pattern) -> Scope
-                newScopeWithParameters patterns =
-                    { declared =
-                        List.concatMap getDeclaredParametersFromPattern patterns
-                            |> List.map (\name -> ( name, dummyParameterVariableInfo ))
-                            |> Dict.fromList
-                    , used = Dict.empty
-                    }
 
                 newContext : ModuleContext
                 newContext =
