@@ -169,9 +169,7 @@ type alias Scope =
 
 
 type alias ScopeToCreate =
-    { declared : Dict String VariableInfo
-    , namesToIgnore : Set String
-    }
+    Set String
 
 
 type alias VariableInfo =
@@ -611,8 +609,8 @@ updateInTheDeclarationOf node context =
 updateScopes : Node Expression -> ModuleContext -> ModuleContext
 updateScopes node context =
     case RangeDict.get (Node.range node) context.scopesToCreate of
-        Just { declared, namesToIgnore } ->
-            { context | scopes = NonemptyList.cons { declared = declared, used = Dict.empty, namesToIgnore = namesToIgnore } context.scopes }
+        Just namesToIgnore ->
+            { context | scopes = NonemptyList.cons { declared = Dict.empty, used = Dict.empty, namesToIgnore = namesToIgnore } context.scopes }
 
         Nothing ->
             context
@@ -695,7 +693,7 @@ expressionEnterVisitorHelp (Node range value) context =
                                 | scopesToCreate =
                                     RangeDict.insert
                                         (Node.range declaration)
-                                        { declared = Dict.empty, namesToIgnore = namesToIgnore }
+                                        namesToIgnore
                                         foldContext.scopesToCreate
                               }
                                 |> markAllAsUsed namesUsedInArgumentPatterns.types
