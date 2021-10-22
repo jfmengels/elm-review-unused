@@ -1424,7 +1424,8 @@ shadowed = ""
                             |> Review.Test.whenFixed ("""module A exposing (identity)
 import Used$
 identity x = 
-    (\\shadowed -> shadowed) x""" |> String.replace "$" " ")
+    (\\shadowed -> shadowed) x
+""" |> String.replace "$" " ")
                         ]
                       )
                     ]
