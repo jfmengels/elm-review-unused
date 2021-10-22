@@ -684,9 +684,14 @@ expressionEnterVisitorHelp (Node range value) context =
                                     functionDeclaration.arguments
                                         |> List.map (getUsedVariablesFromPattern foldContext)
                                         |> foldUsedTypesAndModules
+
+                                namesToIgnore : Set String
+                                namesToIgnore =
+                                    List.concatMap getDeclaredParametersFromPattern functionDeclaration.arguments
+                                        |> Set.fromList
                             in
                             ( errors
-                            , { foldContext | scopesToCreate = foldContext.scopesToCreate }
+                            , { foldContext | scopesToCreate = RangeDict.insert (Node.range declaration) { declared = Dict.empty, namesToIgnore = namesToIgnore } foldContext.scopesToCreate }
                                 |> markAllAsUsed namesUsedInArgumentPatterns.types
                                 |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
                                 |> registerFunction letBlockContext function
