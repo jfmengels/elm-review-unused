@@ -772,6 +772,22 @@ expressionEnterVisitorHelp (Node range value) context =
                 |> registerParameters args
             )
 
+        Expression.CaseExpression { cases } ->
+            let
+                usedVariables : { types : List String, modules : List ( ModuleName, ModuleName ) }
+                usedVariables =
+                    cases
+                        |> List.map
+                            (\( patternNode, _ ) ->
+                                getUsedVariablesFromPattern context patternNode
+                            )
+                        |> foldUsedTypesAndModules
+            in
+            ( []
+            , List.foldl markValueAsUsed context usedVariables.types
+                |> markAllModulesAsUsed usedVariables.modules
+            )
+
         _ ->
             ( [], context )
 
@@ -817,22 +833,6 @@ removeInTheDeclarationOf node context =
 expressionExitVisitorHelp : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionExitVisitorHelp node context =
     case Node.value node of
-        Expression.CaseExpression { cases } ->
-            let
-                usedVariables : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                usedVariables =
-                    cases
-                        |> List.map
-                            (\( patternNode, _ ) ->
-                                getUsedVariablesFromPattern context patternNode
-                            )
-                        |> foldUsedTypesAndModules
-            in
-            ( []
-            , List.foldl markValueAsUsed context usedVariables.types
-                |> markAllModulesAsUsed usedVariables.modules
-            )
-
         Expression.LetExpression _ ->
             let
                 ( errors, remainingUsed ) =
