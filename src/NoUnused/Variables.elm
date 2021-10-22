@@ -1183,10 +1183,10 @@ declarationEnterVisitor node context =
                             functionName
                             context
 
-                newScopeWithParameters : Scope
-                newScopeWithParameters =
+                newScopeWithParameters : List (Node Pattern) -> Scope
+                newScopeWithParameters patterns =
                     { declared =
-                        List.concatMap getDeclaredParametersFromPattern functionImplementation.arguments
+                        List.concatMap getDeclaredParametersFromPattern patterns
                             |> List.map (\name -> ( name, dummyParameterVariableInfo ))
                             |> Dict.fromList
                     , used = Dict.empty
@@ -1197,7 +1197,7 @@ declarationEnterVisitor node context =
                     { newContextWhereFunctionIsRegistered
                         | inTheDeclarationOf = [ functionName ]
                         , declarations = Dict.empty
-                        , scopes = NonemptyList.cons newScopeWithParameters newContextWhereFunctionIsRegistered.scopes
+                        , scopes = NonemptyList.cons (newScopeWithParameters functionImplementation.arguments) newContextWhereFunctionIsRegistered.scopes
                     }
                         |> (\ctx -> List.foldl markValueAsUsed ctx namesUsedInArgumentPatterns.types)
                         |> markAllAsUsed namesUsedInSignature.types
