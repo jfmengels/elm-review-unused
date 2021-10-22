@@ -787,7 +787,7 @@ expressionEnterVisitorHelp (Node range value) context =
             ( []
             , List.foldl
                 markValueAsUsed
-                context
+                { context | scopesToCreate = context.scopesToCreate }
                 usedVariables.types
                 |> markAllModulesAsUsed usedVariables.modules
             )
