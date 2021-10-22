@@ -1800,7 +1800,7 @@ markAsUsed name context =
                                     scope.used
                         }
                     )
-                    (Debug.log "mark as used scopes" context.scopes)
+                    context.scopes
         in
         { context | scopes = scopes }
 
