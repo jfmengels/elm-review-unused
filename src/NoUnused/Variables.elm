@@ -691,7 +691,13 @@ expressionEnterVisitorHelp (Node range value) context =
                                         |> Set.fromList
                             in
                             ( errors
-                            , { foldContext | scopesToCreate = RangeDict.insert (Node.range declaration) { declared = Dict.empty, namesToIgnore = namesToIgnore } foldContext.scopesToCreate }
+                            , { foldContext
+                                | scopesToCreate =
+                                    RangeDict.insert
+                                        (Node.range declaration)
+                                        { declared = Dict.empty, namesToIgnore = namesToIgnore }
+                                        foldContext.scopesToCreate
+                              }
                                 |> markAllAsUsed namesUsedInArgumentPatterns.types
                                 |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
                                 |> registerFunction letBlockContext function
