@@ -1132,7 +1132,10 @@ declarationVisitor node context =
 
                 newContext : ModuleContext
                 newContext =
-                    { newContextWhereFunctionIsRegistered | inTheDeclarationOf = [ functionName ], declarations = Dict.empty }
+                    { newContextWhereFunctionIsRegistered
+                        | inTheDeclarationOf = [ functionName ]
+                        , declarations = Dict.empty
+                    }
                         |> (\ctx -> List.foldl markValueAsUsed ctx namesUsedInArgumentPatterns.types)
                         |> markAllAsUsed namesUsedInSignature.types
                         |> markAllModulesAsUsed namesUsedInSignature.modules
@@ -1606,7 +1609,7 @@ markAsUsed name context =
                                     scope.used
                         }
                     )
-                    context.scopes
+                    (Debug.log "mark as used scopes" context.scopes)
         in
         { context | scopes = scopes }
 
