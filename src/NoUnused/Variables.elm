@@ -163,6 +163,7 @@ type DeclaredModuleType
 type alias Scope =
     { declared : Dict String VariableInfo
     , used : Dict ModuleName (Set String)
+    , namesToIgnore : Set String
     }
 
 
@@ -244,6 +245,7 @@ emptyScope : Scope
 emptyScope =
     { declared = Dict.empty
     , used = Dict.empty
+    , namesToIgnore = Set.empty
     }
 
 
@@ -842,11 +844,9 @@ dummyParameterVariableInfo =
 
 newScopeWithParameters : List (Node Pattern) -> Scope
 newScopeWithParameters patterns =
-    { declared =
-        List.concatMap getDeclaredParametersFromPattern patterns
-            |> List.map (\name -> ( name, dummyParameterVariableInfo ))
-            |> Dict.fromList
+    { declared = Dict.empty
     , used = Dict.empty
+    , namesToIgnore = List.concatMap getDeclaredParametersFromPattern patterns |> Set.fromList
     }
 
 
@@ -1551,18 +1551,18 @@ registerFunction letBlockContext function context =
 registerParameters : List (Node Pattern) -> ModuleContext -> ModuleContext
 registerParameters patterns context =
     let
-        parameters : Dict String VariableInfo
+        parameters : Set String
         parameters =
             List.concatMap getDeclaredParametersFromPattern patterns
-                |> List.map (\name -> ( name, dummyParameterVariableInfo ))
-                |> Dict.fromList
+                |> Set.fromList
     in
     let
         scopes : Nonempty Scope
         scopes =
             NonemptyList.mapHead
                 (\scope ->
-                    { scope | declared = Dict.union parameters scope.declared }
+                    -- TODO Note that this probably leads to false negatives in let declarations
+                    { scope | namesToIgnore = Set.union parameters scope.namesToIgnore }
                 )
                 context.scopes
     in
@@ -1766,7 +1766,7 @@ getModuleName name =
 
 
 makeReport : Scope -> ( List (Error {}), List String )
-makeReport { declared, used } =
+makeReport { declared, used, namesToIgnore } =
     let
         usedLocally : Set String
         usedLocally =
@@ -1777,11 +1777,12 @@ makeReport { declared, used } =
             Dict.keys declared
                 |> Set.fromList
                 |> Set.diff usedLocally
+                |> (\set -> Set.diff set namesToIgnore)
                 |> Set.toList
 
         errors : List (Error {})
         errors =
-            Dict.filter (\key variable -> not (Set.member key usedLocally) && variable.typeName /= "Parameter") declared
+            Dict.filter (\key _ -> not (Set.member key usedLocally)) declared
                 |> Dict.toList
                 |> List.map (\( key, variableInfo ) -> error variableInfo key)
     in
