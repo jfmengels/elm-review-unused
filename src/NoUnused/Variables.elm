@@ -686,23 +686,13 @@ expressionEnterVisitorHelp (Node range value) context =
                                     arguments
                                         |> List.map (getUsedVariablesFromPattern foldContext)
                                         |> foldUsedTypesAndModules
-
-                                markAsInTheDeclarationOf : String -> ModuleContext -> ModuleContext
-                                markAsInTheDeclarationOf name ctx =
-                                    { ctx
-                                        | declarations =
-                                            RangeDict.insert
-                                                (function.declaration |> Node.value |> .expression |> Node.range)
-                                                name
-                                                ctx.declarations
-                                    }
                             in
                             ( errors
                             , List.foldl markValueAsUsed foldContext namesUsedInArgumentPatterns.types
                                 |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
                                 |> registerFunction letBlockContext function
                                 |> registerParameters arguments
-                                |> markAsInTheDeclarationOf (function.declaration |> Node.value |> .name |> Node.value)
+                                |> markAsInTheDeclarationOf (function.declaration |> Node.value |> .expression |> Node.range) (function.declaration |> Node.value |> .name |> Node.value)
                             )
 
                         Expression.LetDestructuring pattern _ ->
@@ -790,6 +780,17 @@ expressionEnterVisitorHelp (Node range value) context =
 
         _ ->
             ( [], context )
+
+
+markAsInTheDeclarationOf : Range -> String -> ModuleContext -> ModuleContext
+markAsInTheDeclarationOf range name context =
+    { context
+        | declarations =
+            RangeDict.insert
+                range
+                name
+                context.declarations
+    }
 
 
 letDeclarationToRemoveRange : LetBlockContext -> Range -> Range
