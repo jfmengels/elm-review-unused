@@ -690,7 +690,7 @@ expressionEnterVisitorHelp (Node range value) context =
                                 |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
                                 |> registerFunction letBlockContext function
                                 |> registerParameters functionDeclaration.arguments
-                                |> markAsInTheDeclarationOf (function.declaration |> Node.value |> .expression |> Node.range) (function.declaration |> Node.value |> .name |> Node.value)
+                                |> markAsInTheDeclarationOf (Node.range functionDeclaration.expression) (Node.value functionDeclaration.name)
                             )
 
                         Expression.LetDestructuring pattern _ ->
