@@ -782,14 +782,20 @@ expressionEnterVisitorHelp (Node range value) context =
                             )
                         |> foldUsedTypesAndModules
 
-                namesToIgnore : List ( Range, List String )
+                namesToIgnore : List ( Range, ScopeToCreate )
                 namesToIgnore =
-                    List.map (\( pattern, Node branchRange _ ) -> ( branchRange, getDeclaredParametersFromPattern pattern )) cases
+                    List.map
+                        (\( pattern, Node branchRange _ ) ->
+                            ( branchRange
+                            , Set.fromList (getDeclaredParametersFromPattern pattern)
+                            )
+                        )
+                        cases
             in
             ( []
             , List.foldl
                 markValueAsUsed
-                { context | scopesToCreate = context.scopesToCreate }
+                { context | scopesToCreate = RangeDict.insertAll namesToIgnore context.scopesToCreate }
                 usedVariables.types
                 |> markAllModulesAsUsed usedVariables.modules
             )
