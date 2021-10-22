@@ -1561,7 +1561,7 @@ registerParameters patterns context =
         scopes =
             NonemptyList.mapHead
                 (\scope ->
-                    -- TODO Note that this probably leads to false negatives in let declarations
+                    -- TODO Note that this probably leads to false positives in let declarations
                     { scope | namesToIgnore = Set.union parameters scope.namesToIgnore }
                 )
                 context.scopes
