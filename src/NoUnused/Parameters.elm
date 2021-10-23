@@ -337,7 +337,7 @@ expressionEnterVisitor node context =
                             { functionName = functionName
                             , declared = declared
                             , used = Set.empty
-                            , usedRecursively = Set.singleton "unused"
+                            , usedRecursively = Set.empty
                             }
                                 :: context.scopes
                         , knownFunctions =
