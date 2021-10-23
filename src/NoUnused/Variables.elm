@@ -2,9 +2,6 @@ module NoUnused.Variables exposing (rule)
 
 {-| Report variables or types that are declared or imported but never used inside of a module.
 
-
-# Rule
-
 @docs rule
 
 -}

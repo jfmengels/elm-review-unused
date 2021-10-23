@@ -2,9 +2,6 @@ module NoUnused.CustomTypeConstructors exposing (rule)
 
 {-| Forbid having unused custom type constructors inside the project.
 
-
-# Rule
-
 @docs rule
 
 -}

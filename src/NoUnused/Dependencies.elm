@@ -2,9 +2,6 @@ module NoUnused.Dependencies exposing (rule)
 
 {-| Forbid the use of dependencies that are never used in your project.
 
-
-# Rule
-
 @docs rule
 
 -}

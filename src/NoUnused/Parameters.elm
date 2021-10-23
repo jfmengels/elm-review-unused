@@ -2,9 +2,6 @@ module NoUnused.Parameters exposing (rule)
 
 {-| Report parameters that are not used.
 
-
-# Rule
-
 @docs rule
 
 -}

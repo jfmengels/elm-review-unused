@@ -2,9 +2,6 @@ module NoUnused.Patterns exposing (rule)
 
 {-| Report useless patterns and pattern values that are not used.
 
-
-# Rule
-
 @docs rule
 
 -}

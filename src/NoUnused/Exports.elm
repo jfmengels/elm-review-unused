@@ -2,9 +2,6 @@ module NoUnused.Exports exposing (rule)
 
 {-| Forbid the use of exposed elements that are never used in your project.
 
-
-# Rule
-
 @docs rule
 
 -}
