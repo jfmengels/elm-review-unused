@@ -19,7 +19,7 @@ import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range as Range exposing (Range)
+import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Type
 import Elm.Syntax.TypeAlias exposing (TypeAlias)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
@@ -905,23 +905,6 @@ getUsedVariablesFromPattern : ModuleContext -> Node Pattern -> { types : List St
 getUsedVariablesFromPattern context patternNode =
     { types = getUsedTypesFromPattern context.constructorNameToTypeName patternNode
     , modules = getUsedModulesFromPattern context.lookupTable patternNode
-    }
-
-
-dummyParameterVariableInfo : VariableInfo
-dummyParameterVariableInfo =
-    { typeName = "Parameter"
-    , under = Range.emptyRange
-    , rangeToRemove = Nothing
-    , warning = ""
-    }
-
-
-newScopeWithParameters : List (Node Pattern) -> Scope
-newScopeWithParameters patterns =
-    { declared = Dict.empty
-    , used = Dict.empty
-    , namesToIgnore = List.concatMap getDeclaredParametersFromPattern patterns |> Set.fromList
     }
 
 
