@@ -16,7 +16,6 @@ import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Writer as Writer
 import NoUnused.Patterns.NameVisitor as NameVisitor
-import NoUnused.RangeDict as RangeDict exposing (RangeDict)
 import Review.Fix as Fix exposing (Fix)
 import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
@@ -69,14 +68,14 @@ rule =
     Rule.newModuleRuleSchema "NoUnused.Patterns" initialContext
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
         |> Rule.withExpressionExitVisitor expressionExitVisitor
+        |> Rule.withCaseBranchEnterVisitor caseBranchEnterVisitor
+        |> Rule.withCaseBranchExitVisitor caseBranchExitVisitor
         |> NameVisitor.withValueVisitor valueVisitor
         |> Rule.fromModuleRuleSchema
 
 
 type alias Context =
-    { scopes : List Scope
-    , scopesToCreate : RangeDict (List FoundPattern)
-    }
+    List Scope
 
 
 type alias Scope =
@@ -102,9 +101,7 @@ type FoundPattern
 
 initialContext : Context
 initialContext =
-    { scopes = []
-    , scopesToCreate = RangeDict.empty
-    }
+    []
 
 
 
@@ -113,21 +110,6 @@ initialContext =
 
 expressionEnterVisitor : Node Expression -> Context -> ( List nothing, Context )
 expressionEnterVisitor node context =
-    let
-        newContext : Context
-        newContext =
-            case RangeDict.get (Node.range node) context.scopesToCreate of
-                Just declared ->
-                    { context | scopes = { declared = declared, used = Set.empty } :: context.scopes }
-
-                Nothing ->
-                    context
-    in
-    expressionEnterVisitorHelp node newContext
-
-
-expressionEnterVisitorHelp : Node Expression -> Context -> ( List nothing, Context )
-expressionEnterVisitorHelp node context =
     case Node.value node of
         Expression.LetExpression { declarations } ->
             let
@@ -141,27 +123,10 @@ expressionEnterVisitorHelp node context =
                             findPatterns Destructuring pattern
             in
             ( []
-            , { context
-                | scopes =
-                    { declared = List.concatMap findPatternsInLetDeclaration declarations
-                    , used = Set.empty
-                    }
-                        :: context.scopes
-
-                -- Will only be used to remove on exit, we are already adding the declared patterns to the scope above
-                , scopesToCreate = RangeDict.insert (Node.range node) [] context.scopesToCreate
+            , { declared = List.concatMap findPatternsInLetDeclaration declarations
+              , used = Set.empty
               }
-            )
-
-        Expression.CaseExpression { cases } ->
-            ( []
-            , { context
-                | scopesToCreate =
-                    List.foldl
-                        (\( pattern, expr ) scopesToCreate -> RangeDict.insert (Node.range expr) (findPatterns Matching pattern) scopesToCreate)
-                        context.scopesToCreate
-                        cases
-              }
+                :: context
             )
 
         _ ->
@@ -170,17 +135,32 @@ expressionEnterVisitorHelp node context =
 
 expressionExitVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
 expressionExitVisitor node context =
-    case RangeDict.get (Node.range node) context.scopesToCreate of
-        Just _ ->
+    case Node.value node of
+        Expression.LetExpression _ ->
             report context
 
-        Nothing ->
+        _ ->
             ( [], context )
+
+
+caseBranchEnterVisitor : a -> ( Node Pattern, Node Expression ) -> Context -> ( List nothing, Context )
+caseBranchEnterVisitor _ ( pattern, _ ) context =
+    ( []
+    , { declared = findPatterns Matching pattern
+      , used = Set.empty
+      }
+        :: context
+    )
+
+
+caseBranchExitVisitor : a -> b -> Context -> ( List (Rule.Error {}), Context )
+caseBranchExitVisitor _ _ context =
+    report context
 
 
 report : Context -> ( List (Rule.Error {}), Context )
 report context =
-    case context.scopes of
+    case context of
         headScope :: restOfScopes ->
             let
                 { singles, records, simplifiablePatterns } =
@@ -223,7 +203,7 @@ report context =
             ( errors
             , List.foldl
                 useValue
-                { context | scopes = restOfScopes }
+                restOfScopes
                 (Set.toList nonUsedVars)
             )
 
@@ -687,12 +667,12 @@ errorsForValue name range context =
 
 useValue : String -> Context -> Context
 useValue name context =
-    case context.scopes of
+    case context of
         [] ->
             context
 
         headScope :: restOfScopes ->
-            { context | scopes = { headScope | used = Set.insert name headScope.used } :: restOfScopes }
+            { headScope | used = Set.insert name headScope.used } :: restOfScopes
 
 
 isNodeInContext : Context -> Node String -> Bool
@@ -702,7 +682,7 @@ isNodeInContext context (Node _ value) =
 
 isUnused : String -> Context -> Bool
 isUnused name context =
-    case context.scopes of
+    case context of
         [] ->
             False
 
