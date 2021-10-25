@@ -1758,6 +1758,24 @@ type Variants = A"""
             ]
                 |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
+    , test "should report prelude imports" <|
+        \() ->
+            """module SomeModule exposing (a)
+import String
+a = String.fromInt
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported module `String` is not used"
+                        , details = details
+                        , under = "String"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+a = String.fromInt
+"""
+                    ]
     ]
 
 
