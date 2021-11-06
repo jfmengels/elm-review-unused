@@ -116,7 +116,6 @@ moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema 
 moduleVisitor schema =
     schema
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
-        |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withDeclarationEnterVisitor declarationVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
 
@@ -287,47 +286,6 @@ moduleDefinitionVisitor node moduleContext =
     ( [], { moduleContext | exposed = Module.exposingList (Node.value node) } )
 
 
-
--- DECLARATION LIST VISITOR
-
-
-declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List nothing, ModuleContext )
-declarationListVisitor nodes context =
-    let
-        customTypeArgs : List ( String, Dict String (List Range) )
-        customTypeArgs =
-            List.filterMap (collectCustomType context.lookupTable) nodes
-    in
-    ( [], { context | customTypeArgs = Dict.fromList customTypeArgs } )
-
-
-collectCustomType : ModuleNameLookupTable -> Node Declaration -> Maybe ( String, Dict String (List Range) )
-collectCustomType lookupTable node =
-    case Node.value node of
-        Declaration.CustomTypeDeclaration typeDeclaration ->
-            let
-                customTypeConstructors : List ( String, List Range )
-                customTypeConstructors =
-                    List.map
-                        (\(Node _ { name, arguments }) ->
-                            ( Node.value name
-                            , arguments
-                                |> List.filter (isNever lookupTable >> not)
-                                |> List.map Node.range
-                            )
-                        )
-                        typeDeclaration.constructors
-            in
-            if List.isEmpty customTypeConstructors then
-                Nothing
-
-            else
-                Just ( Node.value typeDeclaration.name, Dict.fromList customTypeConstructors )
-
-        _ ->
-            Nothing
-
-
 isNever : ModuleNameLookupTable -> Node TypeAnnotation -> Bool
 isNever lookupTable node =
     case Node.value node of
@@ -344,7 +302,6 @@ isNever lookupTable node =
 
 declarationVisitor : Node Declaration -> ModuleContext -> ( List nothing, ModuleContext )
 declarationVisitor node context =
-    -- TODO Move to declaration list visitor, or the other way around
     case Node.value node of
         Declaration.FunctionDeclaration function ->
             ( []
@@ -355,6 +312,33 @@ declarationVisitor node context =
                         context.usedArguments
               }
             )
+
+        Declaration.CustomTypeDeclaration typeDeclaration ->
+            let
+                customTypeConstructors : List ( String, List Range )
+                customTypeConstructors =
+                    List.map
+                        (\(Node _ { name, arguments }) ->
+                            ( Node.value name
+                            , arguments
+                                |> List.filter (isNever context.lookupTable >> not)
+                                |> List.map Node.range
+                            )
+                        )
+                        typeDeclaration.constructors
+            in
+            if List.isEmpty customTypeConstructors then
+                ( [], context )
+
+            else
+                ( []
+                , { context
+                    | customTypeArgs =
+                        Dict.insert (Node.value typeDeclaration.name)
+                            (Dict.fromList customTypeConstructors)
+                            context.customTypeArgs
+                  }
+                )
 
         _ ->
             ( [], context )
