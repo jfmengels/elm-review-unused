@@ -414,9 +414,7 @@ expressionVisitor node context =
                 let
                     customTypesNotToReport : Set ( ModuleName, String )
                     customTypesNotToReport =
-                        Set.union
-                            (findCustomTypes context.lookupTable left)
-                            (findCustomTypes context.lookupTable right)
+                        findCustomTypes context.lookupTable [ left, right ]
                 in
                 ( [], { context | customTypesNotToReport = Set.union customTypesNotToReport context.customTypesNotToReport } )
 
@@ -428,10 +426,7 @@ expressionVisitor node context =
                 let
                     customTypesNotToReport : Set ( ModuleName, String )
                     customTypesNotToReport =
-                        List.foldl
-                            (findCustomTypes context.lookupTable >> Set.union)
-                            Set.empty
-                            restOfArgs
+                        findCustomTypes context.lookupTable restOfArgs
                 in
                 ( [], { context | customTypesNotToReport = Set.union customTypesNotToReport context.customTypesNotToReport } )
 
@@ -442,50 +437,56 @@ expressionVisitor node context =
             ( [], context )
 
 
-findCustomTypes : ModuleNameLookupTable -> Node Expression -> Set ( ModuleName, String )
-findCustomTypes lookupTable node =
-    case Node.value node of
-        Expression.FunctionOrValue rawModuleName functionName ->
-            if isCustomTypeConstructor functionName then
-                case ModuleNameLookupTable.moduleNameFor lookupTable node of
-                    Just moduleName ->
-                        Set.singleton ( moduleName, functionName )
+findCustomTypes : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleName, String )
+findCustomTypes lookupTable nodes =
+    findCustomTypesHelp lookupTable nodes []
+        |> Set.fromList
 
-                    Nothing ->
-                        Set.singleton ( rawModuleName, functionName )
 
-            else
-                Set.empty
+findCustomTypesHelp : ModuleNameLookupTable -> List (Node Expression) -> List ( ModuleName, String ) -> List ( ModuleName, String )
+findCustomTypesHelp lookupTable nodes acc =
+    case nodes of
+        [] ->
+            acc
 
-        Expression.TupledExpression expressions ->
-            List.foldl (findCustomTypes lookupTable >> Set.union) Set.empty expressions
+        node :: restOfNodes ->
+            case Node.value node of
+                Expression.FunctionOrValue rawModuleName functionName ->
+                    if isCustomTypeConstructor functionName then
+                        case ModuleNameLookupTable.moduleNameFor lookupTable node of
+                            Just moduleName ->
+                                findCustomTypesHelp lookupTable restOfNodes (( moduleName, functionName ) :: acc)
 
-        Expression.ParenthesizedExpression expression ->
-            findCustomTypes lookupTable expression
+                            Nothing ->
+                                findCustomTypesHelp lookupTable restOfNodes (( rawModuleName, functionName ) :: acc)
 
-        Expression.Application [] ->
-            Set.empty
+                    else
+                        findCustomTypesHelp lookupTable restOfNodes acc
 
-        Expression.Application (((Node _ (Expression.FunctionOrValue _ functionName)) as first) :: expressions) ->
-            if isCustomTypeConstructor functionName then
-                List.foldl (findCustomTypes lookupTable >> Set.union) Set.empty (first :: expressions)
+                Expression.TupledExpression expressions ->
+                    findCustomTypesHelp lookupTable (List.append expressions restOfNodes) acc
 
-            else
-                Set.empty
+                Expression.ParenthesizedExpression expression ->
+                    findCustomTypesHelp lookupTable (expression :: restOfNodes) acc
 
-        Expression.OperatorApplication _ _ left right ->
-            Set.union
-                (findCustomTypes lookupTable left)
-                (findCustomTypes lookupTable right)
+                Expression.Application (((Node _ (Expression.FunctionOrValue _ functionName)) as first) :: expressions) ->
+                    if isCustomTypeConstructor functionName then
+                        findCustomTypesHelp lookupTable (first :: List.append expressions restOfNodes) acc
 
-        Expression.Negation expression ->
-            findCustomTypes lookupTable expression
+                    else
+                        findCustomTypesHelp lookupTable restOfNodes acc
 
-        Expression.ListExpr expressions ->
-            List.foldl (findCustomTypes lookupTable >> Set.union) Set.empty expressions
+                Expression.OperatorApplication _ _ left right ->
+                    findCustomTypesHelp lookupTable (left :: right :: restOfNodes) acc
 
-        _ ->
-            Set.empty
+                Expression.Negation expression ->
+                    findCustomTypesHelp lookupTable (expression :: restOfNodes) acc
+
+                Expression.ListExpr expressions ->
+                    findCustomTypesHelp lookupTable (List.append expressions restOfNodes) acc
+
+                _ ->
+                    findCustomTypesHelp lookupTable restOfNodes acc
 
 
 isCustomTypeConstructor : String -> Bool
