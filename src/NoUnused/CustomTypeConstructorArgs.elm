@@ -362,8 +362,7 @@ declarationVisitor node context =
 
 collectUsedPatternsFromFunctionDeclaration : ModuleContext -> Expression.Function -> List ( ( ModuleName, String ), Set Int )
 collectUsedPatternsFromFunctionDeclaration context { declaration } =
-    (Node.value declaration).arguments
-        |> List.concatMap (collectUsedCustomTypeArgs context.lookupTable)
+    collectUsedCustomTypeArgs context.lookupTable (Node.value declaration).arguments
 
 
 
@@ -377,8 +376,7 @@ expressionVisitor node context =
             let
                 usedArguments : List ( ( ModuleName, String ), Set Int )
                 usedArguments =
-                    cases
-                        |> List.concatMap (Tuple.first >> collectUsedCustomTypeArgs context.lookupTable)
+                    collectUsedCustomTypeArgs context.lookupTable (List.map Tuple.first cases)
             in
             ( [], { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments } )
 
@@ -390,7 +388,7 @@ expressionVisitor node context =
                         (\declaration ->
                             case Node.value declaration of
                                 Expression.LetDestructuring pattern _ ->
-                                    collectUsedCustomTypeArgs context.lookupTable pattern
+                                    collectUsedCustomTypeArgs context.lookupTable [ pattern ]
 
                                 Expression.LetFunction function ->
                                     collectUsedPatternsFromFunctionDeclaration context function
@@ -404,7 +402,7 @@ expressionVisitor node context =
             , { context
                 | usedArguments =
                     registerUsedPatterns
-                        (List.concatMap (collectUsedCustomTypeArgs context.lookupTable) args)
+                        (collectUsedCustomTypeArgs context.lookupTable args)
                         context.usedArguments
               }
             )
@@ -511,48 +509,58 @@ registerUsedPatterns newUsedArguments previouslyUsedArguments =
         newUsedArguments
 
 
-collectUsedCustomTypeArgs : ModuleNameLookupTable -> Node Pattern -> List ( ( ModuleName, String ), Set Int )
-collectUsedCustomTypeArgs lookupTable (Node range pattern) =
-    case pattern of
-        Pattern.NamedPattern { name } args ->
-            let
-                subList : List ( ( ModuleName, String ), Set Int )
-                subList =
-                    List.concatMap (collectUsedCustomTypeArgs lookupTable) args
-            in
-            case ModuleNameLookupTable.moduleNameAt lookupTable range of
-                Just moduleName ->
+collectUsedCustomTypeArgs : ModuleNameLookupTable -> List (Node Pattern) -> List ( ( ModuleName, String ), Set Int )
+collectUsedCustomTypeArgs lookupTable nodes =
+    collectUsedCustomTypeArgsHelp lookupTable nodes []
+
+
+collectUsedCustomTypeArgsHelp : ModuleNameLookupTable -> List (Node Pattern) -> List ( ( ModuleName, String ), Set Int ) -> List ( ( ModuleName, String ), Set Int )
+collectUsedCustomTypeArgsHelp lookupTable nodes acc =
+    case nodes of
+        [] ->
+            acc
+
+        (Node range pattern) :: restOfNodes ->
+            case pattern of
+                Pattern.NamedPattern { name } args ->
                     let
-                        usedPositions : Set Int
-                        usedPositions =
-                            args
-                                |> List.indexedMap Tuple.pair
-                                |> List.filter (\( _, subPattern ) -> not <| isWildcard subPattern)
-                                |> List.map Tuple.first
-                                |> Set.fromList
+                        newAcc : List ( ( ModuleName, String ), Set Int )
+                        newAcc =
+                            case ModuleNameLookupTable.moduleNameAt lookupTable range of
+                                Just moduleName ->
+                                    let
+                                        usedPositions : Set Int
+                                        usedPositions =
+                                            args
+                                                |> List.indexedMap Tuple.pair
+                                                |> List.filter (\( _, subPattern ) -> not <| isWildcard subPattern)
+                                                |> List.map Tuple.first
+                                                |> Set.fromList
+                                    in
+                                    ( ( moduleName, name ), usedPositions ) :: acc
+
+                                Nothing ->
+                                    acc
                     in
-                    ( ( moduleName, name ), usedPositions ) :: subList
+                    collectUsedCustomTypeArgsHelp lookupTable (List.append args restOfNodes) newAcc
 
-                Nothing ->
-                    subList
+                Pattern.TuplePattern patterns ->
+                    collectUsedCustomTypeArgsHelp lookupTable (List.append patterns restOfNodes) acc
 
-        Pattern.TuplePattern patterns ->
-            List.concatMap (collectUsedCustomTypeArgs lookupTable) patterns
+                Pattern.ListPattern patterns ->
+                    collectUsedCustomTypeArgsHelp lookupTable (List.append patterns restOfNodes) acc
 
-        Pattern.ListPattern patterns ->
-            List.concatMap (collectUsedCustomTypeArgs lookupTable) patterns
+                Pattern.UnConsPattern left right ->
+                    collectUsedCustomTypeArgsHelp lookupTable (left :: right :: restOfNodes) acc
 
-        Pattern.UnConsPattern left right ->
-            List.concatMap (collectUsedCustomTypeArgs lookupTable) [ left, right ]
+                Pattern.ParenthesizedPattern subPattern ->
+                    collectUsedCustomTypeArgsHelp lookupTable (subPattern :: restOfNodes) acc
 
-        Pattern.ParenthesizedPattern subPattern ->
-            collectUsedCustomTypeArgs lookupTable subPattern
+                Pattern.AsPattern subPattern _ ->
+                    collectUsedCustomTypeArgsHelp lookupTable (subPattern :: restOfNodes) acc
 
-        Pattern.AsPattern subPattern _ ->
-            collectUsedCustomTypeArgs lookupTable subPattern
-
-        _ ->
-            []
+                _ ->
+                    collectUsedCustomTypeArgsHelp lookupTable restOfNodes acc
 
 
 isWildcard : Node Pattern -> Bool
