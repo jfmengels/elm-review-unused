@@ -566,35 +566,61 @@ isWildcard node =
 
 finalEvaluation : ProjectContext -> List (Error { useErrorForModule : () })
 finalEvaluation context =
-    context.customTypeArgs
-        |> Dict.toList
-        |> List.concatMap
-            (\( moduleName, { moduleKey, args } ) ->
-                args
-                    |> Dict.toList
-                    |> List.concatMap
-                        (\( name, ranges ) ->
-                            if Set.member ( moduleName, name ) context.customTypesNotToReport then
-                                []
+    Dict.foldl (finalEvaluationForSingleModule context) [] context.customTypeArgs
 
-                            else
-                                case Dict.get ( moduleName, name ) context.usedArguments of
-                                    Just usedArgumentPositions ->
-                                        ranges
-                                            |> List.indexedMap Tuple.pair
-                                            |> List.filterMap
-                                                (\( index, range ) ->
-                                                    if Set.member index usedArgumentPositions then
-                                                        Nothing
 
-                                                    else
-                                                        Just (error moduleKey range)
-                                                )
+finalEvaluationForSingleModule : ProjectContext -> ModuleName -> { moduleKey : Rule.ModuleKey, args : Dict String (List Range) } -> List (Error { useErrorForModule : () }) -> List (Error { useErrorForModule : () })
+finalEvaluationForSingleModule context moduleName { moduleKey, args } previousErrors =
+    Dict.foldl
+        (\name ranges acc ->
+            let
+                constructor : ( ModuleName, String )
+                constructor =
+                    ( moduleName, name )
+            in
+            if Set.member constructor context.customTypesNotToReport then
+                acc
 
-                                    Nothing ->
-                                        List.map (error moduleKey) ranges
-                        )
-            )
+            else
+                errorsForUnusedArguments context.usedArguments moduleKey constructor ranges acc
+        )
+        previousErrors
+        args
+
+
+errorsForUnusedArguments : Dict ( ModuleName, String ) (Set Int) -> Rule.ModuleKey -> ( ModuleName, String ) -> List Range -> List (Error anywhere) -> List (Error anywhere)
+errorsForUnusedArguments usedArguments moduleKey constructor ranges acc =
+    case Dict.get constructor usedArguments of
+        Just usedArgumentPositions ->
+            indexedFilterMap
+                (\index range ->
+                    if Set.member index usedArgumentPositions then
+                        Nothing
+
+                    else
+                        Just (error moduleKey range)
+                )
+                0
+                ranges
+                acc
+
+        Nothing ->
+            List.append (List.map (error moduleKey) ranges) acc
+
+
+indexedFilterMap : (Int -> a -> Maybe b) -> Int -> List a -> List b -> List b
+indexedFilterMap predicate index list acc =
+    case list of
+        [] ->
+            acc
+
+        x :: xs ->
+            case predicate index x of
+                Just b ->
+                    indexedFilterMap predicate (index + 1) xs (b :: acc)
+
+                Nothing ->
+                    indexedFilterMap predicate (index + 1) xs acc
 
 
 error : Rule.ModuleKey -> Range -> Error anywhere
