@@ -491,9 +491,8 @@ findCustomTypesHelp lookupTable nodes acc =
 
 isCustomTypeConstructor : String -> Bool
 isCustomTypeConstructor functionName =
-    String.toList functionName
-        |> List.take 1
-        |> List.all Char.isUpper
+    String.slice 0 1 functionName
+        |> String.all Char.isUpper
 
 
 registerUsedPatterns : List ( ( ModuleName, String ), Set Int ) -> Dict ( ModuleName, String ) (Set Int) -> Dict ( ModuleName, String ) (Set Int)
