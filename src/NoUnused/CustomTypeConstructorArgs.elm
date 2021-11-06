@@ -286,14 +286,14 @@ moduleDefinitionVisitor node moduleContext =
     ( [], { moduleContext | exposed = Module.exposingList (Node.value node) } )
 
 
-isNever : ModuleNameLookupTable -> Node TypeAnnotation -> Bool
-isNever lookupTable node =
+isNotNever : ModuleNameLookupTable -> Node TypeAnnotation -> Bool
+isNotNever lookupTable node =
     case Node.value node of
         TypeAnnotation.Typed (Node neverRange ( _, "Never" )) [] ->
-            ModuleNameLookupTable.moduleNameAt lookupTable neverRange == Just [ "Basics" ]
+            ModuleNameLookupTable.moduleNameAt lookupTable neverRange /= Just [ "Basics" ]
 
         _ ->
-            False
+            True
 
 
 
@@ -321,7 +321,7 @@ declarationVisitor node context =
                         (\(Node _ { name, arguments }) ->
                             ( Node.value name
                             , arguments
-                                |> List.filter (isNever context.lookupTable >> not)
+                                |> List.filter (isNotNever context.lookupTable)
                                 |> List.map Node.range
                             )
                         )
