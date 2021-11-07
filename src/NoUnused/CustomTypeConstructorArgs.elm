@@ -315,23 +315,23 @@ declarationVisitor node context =
             )
 
         Declaration.CustomTypeDeclaration typeDeclaration ->
-            let
-                customTypeConstructors : List ( String, List Range )
-                customTypeConstructors =
-                    List.map
-                        (\(Node _ { name, arguments }) ->
-                            ( Node.value name
-                            , arguments
-                                |> List.filter (isNotNever context.lookupTable)
-                                |> List.map Node.range
-                            )
-                        )
-                        typeDeclaration.constructors
-            in
-            if List.isEmpty customTypeConstructors then
+            if List.isEmpty typeDeclaration.constructors then
                 ( [], context )
 
             else
+                let
+                    customTypeConstructors : List ( String, List Range )
+                    customTypeConstructors =
+                        List.map
+                            (\(Node _ { name, arguments }) ->
+                                ( Node.value name
+                                , arguments
+                                    |> List.filter (isNotNever context.lookupTable)
+                                    |> List.map Node.range
+                                )
+                            )
+                            typeDeclaration.constructors
+                in
                 ( []
                 , { context
                     | customTypeArgs =
