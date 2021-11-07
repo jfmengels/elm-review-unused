@@ -1126,7 +1126,7 @@ declarationEnterVisitor node context =
                 namesUsedInSignature =
                     case function.signature of
                         Just signature ->
-                            signature |> Node.value |> .typeAnnotation |> collectNamesFromTypeAnnotation context.lookupTable
+                            collectNamesFromTypeAnnotation context.lookupTable [ signature |> Node.value |> .typeAnnotation ]
 
                         Nothing ->
                             { types = [], modules = [] }
@@ -1187,11 +1187,12 @@ declarationEnterVisitor node context =
 
         Declaration.CustomTypeDeclaration { name, constructors } ->
             let
+                arguments : List (Node TypeAnnotation)
+                arguments =
+                    List.concatMap (Node.value >> .arguments) constructors
+
                 { types, modules } =
-                    constructors
-                        |> List.concatMap (Node.value >> .arguments)
-                        |> List.map (collectNamesFromTypeAnnotation context.lookupTable)
-                        |> foldUsedTypesAndModules
+                    collectNamesFromTypeAnnotation context.lookupTable arguments
             in
             ( []
             , types
@@ -1204,7 +1205,7 @@ declarationEnterVisitor node context =
             let
                 namesUsedInTypeAnnotation : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInTypeAnnotation =
-                    collectNamesFromTypeAnnotation context.lookupTable typeAnnotation
+                    collectNamesFromTypeAnnotation context.lookupTable [ typeAnnotation ]
             in
             ( []
             , List.foldl markAsUsed context namesUsedInTypeAnnotation.types
@@ -1215,7 +1216,7 @@ declarationEnterVisitor node context =
             let
                 namesUsedInTypeAnnotation : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInTypeAnnotation =
-                    collectNamesFromTypeAnnotation context.lookupTable typeAnnotation
+                    collectNamesFromTypeAnnotation context.lookupTable [ typeAnnotation ]
 
                 contextWithUsedElements : ModuleContext
                 contextWithUsedElements =
@@ -1478,7 +1479,7 @@ registerFunction letBlockContext function context =
         namesUsedInSignature =
             case Maybe.map Node.value function.signature of
                 Just signature ->
-                    collectNamesFromTypeAnnotation context.lookupTable signature.typeAnnotation
+                    collectNamesFromTypeAnnotation context.lookupTable [ signature.typeAnnotation ]
 
                 Nothing ->
                     { types = [], modules = [] }
@@ -1529,9 +1530,9 @@ untilEndOfVariable name range =
         { range | end = { row = range.start.row, column = range.start.column + String.length name } }
 
 
-collectNamesFromTypeAnnotation : ModuleNameLookupTable -> Node TypeAnnotation -> { types : List String, modules : List ( ModuleName, ModuleName ) }
-collectNamesFromTypeAnnotation lookupTable node =
-    collectTypesFromTypeAnnotation lookupTable [ node ] { types = [], modules = [] }
+collectNamesFromTypeAnnotation : ModuleNameLookupTable -> List (Node TypeAnnotation) -> { types : List String, modules : List ( ModuleName, ModuleName ) }
+collectNamesFromTypeAnnotation lookupTable nodes =
+    collectTypesFromTypeAnnotation lookupTable nodes { types = [], modules = [] }
 
 
 collectTypesFromTypeAnnotation : ModuleNameLookupTable -> List (Node TypeAnnotation) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
