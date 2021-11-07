@@ -386,6 +386,21 @@ updateToAdd key value dict =
         dict
 
 
+updateToInsert : comparable1 -> comparable2 -> Dict comparable1 (Set comparable2) -> Dict comparable1 (Set comparable2)
+updateToInsert key value dict =
+    Dict.update
+        key
+        (\existingValues ->
+            case existingValues of
+                Just values ->
+                    Just (Set.insert value values)
+
+                Nothing ->
+                    Just (Set.singleton value)
+        )
+        dict
+
+
 
 -- ELM.JSON VISITOR
 
@@ -1053,12 +1068,7 @@ registerUsedFunctionOrValue range moduleName name moduleContext =
         { moduleContext | wasUsedInLocationThatNeedsItself = Set.insert ( String.join "." moduleName, name ) moduleContext.wasUsedInLocationThatNeedsItself }
 
     else
-        { moduleContext
-            | usedFunctionsOrValues =
-                insertIntoUsedFunctionsOrValues
-                    ( moduleName, name )
-                    moduleContext.usedFunctionsOrValues
-        }
+        { moduleContext | usedFunctionsOrValues = updateToInsert (String.join "." moduleName) name moduleContext.usedFunctionsOrValues }
 
 
 isCapitalized : String -> Bool
@@ -1186,26 +1196,11 @@ markPhantomTypesFromTypeAnnotationAsUsed maybeTypeAnnotation moduleContext =
         usedFunctionsOrValues : Dict ModuleNameAsString (Set ConstructorName)
         usedFunctionsOrValues =
             List.foldl
-                insertIntoUsedFunctionsOrValues
+                (\( moduleName, name ) acc -> updateToInsert (String.join "." moduleName) name acc)
                 moduleContext.usedFunctionsOrValues
                 used
     in
     { moduleContext | usedFunctionsOrValues = usedFunctionsOrValues }
-
-
-insertIntoUsedFunctionsOrValues : ( ModuleName, ConstructorName ) -> Dict ModuleNameAsString (Set ConstructorName) -> Dict ModuleNameAsString (Set ConstructorName)
-insertIntoUsedFunctionsOrValues ( moduleName, constructorName ) dict =
-    Dict.update
-        (String.join "." moduleName)
-        (\maybeSet ->
-            case maybeSet of
-                Just set ->
-                    Just (Set.insert constructorName set)
-
-                Nothing ->
-                    Just (Set.singleton constructorName)
-        )
-        dict
 
 
 collectGenericsFromTypeAnnotation : List (Node TypeAnnotation) -> Set String -> Set String
