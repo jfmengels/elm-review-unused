@@ -1581,10 +1581,7 @@ collectTypesFromTypeAnnotation nodes acc =
                 TypeAnnotation.Tupled list ->
                     collectTypesFromTypeAnnotation (list ++ restOfNodes) acc
 
-                TypeAnnotation.GenericType _ ->
-                    collectTypesFromTypeAnnotation restOfNodes acc
-
-                TypeAnnotation.Unit ->
+                _ ->
                     collectTypesFromTypeAnnotation restOfNodes acc
 
 
