@@ -185,21 +185,13 @@ elmJsonVisitor maybeProject projectContext =
                 ( directProjectDependencies, directTestDependencies ) =
                     case project of
                         Elm.Project.Package { deps, testDeps } ->
-                            ( deps
-                                |> List.map (Tuple.first >> Elm.Package.toString)
-                                |> Set.fromList
-                            , testDeps
-                                |> List.map (Tuple.first >> Elm.Package.toString)
-                                |> Set.fromList
+                            ( listDependencies deps
+                            , listDependencies testDeps
                             )
 
                         Elm.Project.Application { depsDirect, testDepsDirect } ->
-                            ( depsDirect
-                                |> List.map (Tuple.first >> Elm.Package.toString)
-                                |> Set.fromList
-                            , testDepsDirect
-                                |> List.map (Tuple.first >> Elm.Package.toString)
-                                |> Set.fromList
+                            ( listDependencies depsDirect
+                            , listDependencies testDepsDirect
                             )
             in
             ( []
@@ -212,6 +204,13 @@ elmJsonVisitor maybeProject projectContext =
 
         Nothing ->
             ( [], projectContext )
+
+
+listDependencies : List ( Elm.Package.Name, a ) -> Set String
+listDependencies deps =
+    deps
+        |> List.map (Tuple.first >> Elm.Package.toString)
+        |> Set.fromList
 
 
 
