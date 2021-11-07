@@ -253,8 +253,10 @@ getNonExposedCustomTypes moduleContext =
                     |> List.foldl (\( _, args ) acc -> Dict.union args acc) Dict.empty
 
     else
-        moduleContext.customTypeArgs
-            |> List.foldl (\( _, args ) acc -> Dict.union args acc) Dict.empty
+        List.foldl
+            (\( _, args ) acc -> Dict.union args acc)
+            Dict.empty
+            moduleContext.customTypeArgs
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
