@@ -809,11 +809,6 @@ findEndLocationOfPreviousElement nodes nodeRange previousRangeEnd =
             Nothing
 
 
-filterOutLocalModules : Set ( ModuleNameAsString, ConstructorName ) -> Set ( ModuleNameAsString, ConstructorName )
-filterOutLocalModules set =
-    Set.filter (\( moduleName, _ ) -> moduleName /= "") set
-
-
 staticRanges : List (Node Expression) -> List Range -> List Range
 staticRanges nodes acc =
     case nodes of
