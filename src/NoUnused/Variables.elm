@@ -625,9 +625,7 @@ expressionEnterVisitor (Node range value) context =
             let
                 namesUsedInArgumentPatterns : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInArgumentPatterns =
-                    args
-                        |> List.map (getUsedVariablesFromPattern context)
-                        |> foldUsedTypesAndModules
+                    getUsedVariablesFromPattern context args
             in
             ( []
             , List.foldl markValueAsUsed context namesUsedInArgumentPatterns.types
@@ -640,11 +638,8 @@ expressionEnterVisitor (Node range value) context =
                 usedVariables : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 usedVariables =
                     cases
-                        |> List.map
-                            (\( patternNode, _ ) ->
-                                getUsedVariablesFromPattern context patternNode
-                            )
-                        |> foldUsedTypesAndModules
+                        |> List.map (\( patternNode, _ ) -> patternNode)
+                        |> getUsedVariablesFromPattern context
             in
             ( []
             , List.foldl
@@ -678,9 +673,7 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
 
                 namesUsedInArgumentPatterns : { types : List String, modules : List ( ModuleName, ModuleName ) }
                 namesUsedInArgumentPatterns =
-                    functionDeclaration.arguments
-                        |> List.map (getUsedVariablesFromPattern context)
-                        |> foldUsedTypesAndModules
+                    getUsedVariablesFromPattern context functionDeclaration.arguments
 
                 namesToIgnore : Set String
                 namesToIgnore =
@@ -732,7 +725,7 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
                     let
                         namesUsedInPattern : { types : List String, modules : List ( ModuleName, ModuleName ) }
                         namesUsedInPattern =
-                            getUsedVariablesFromPattern context pattern
+                            getUsedVariablesFromPattern context [ pattern ]
                     in
                     ( if not (introducesVariable pattern) then
                         [ Rule.errorWithFix
@@ -846,9 +839,9 @@ getDeclaredParametersFromPatternHelp nodes acc =
             acc
 
 
-getUsedVariablesFromPattern : ModuleContext -> Node Pattern -> { types : List String, modules : List ( ModuleName, ModuleName ) }
-getUsedVariablesFromPattern context patternNode =
-    getUsedVariablesFromPatternHelp context [ patternNode ] { types = [], modules = [] }
+getUsedVariablesFromPattern : ModuleContext -> List (Node Pattern) -> { types : List String, modules : List ( ModuleName, ModuleName ) }
+getUsedVariablesFromPattern context nodes =
+    getUsedVariablesFromPatternHelp context nodes { types = [], modules = [] }
 
 
 getUsedVariablesFromPatternHelp : ModuleContext -> List (Node Pattern) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
@@ -1133,8 +1126,7 @@ declarationEnterVisitor node context =
                     function.declaration
                         |> Node.value
                         |> .arguments
-                        |> List.map (getUsedVariablesFromPattern context)
-                        |> foldUsedTypesAndModules
+                        |> getUsedVariablesFromPattern context
 
                 newContextWhereFunctionIsRegistered : ModuleContext
                 newContextWhereFunctionIsRegistered =
