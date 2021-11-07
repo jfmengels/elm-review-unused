@@ -18,6 +18,7 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import List.Extra
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -592,7 +593,7 @@ errorsForUnusedArguments : Dict ( ModuleName, String ) (Set Int) -> Rule.ModuleK
 errorsForUnusedArguments usedArguments moduleKey constructor ranges acc =
     case Dict.get constructor usedArguments of
         Just usedArgumentPositions ->
-            indexedFilterMap
+            List.Extra.indexedFilterMap
                 (\index range ->
                     if Set.member index usedArgumentPositions then
                         Nothing
@@ -606,21 +607,6 @@ errorsForUnusedArguments usedArguments moduleKey constructor ranges acc =
 
         Nothing ->
             List.append (List.map (error moduleKey) ranges) acc
-
-
-indexedFilterMap : (Int -> a -> Maybe b) -> Int -> List a -> List b -> List b
-indexedFilterMap predicate index list acc =
-    case list of
-        [] ->
-            acc
-
-        x :: xs ->
-            case predicate index x of
-                Just b ->
-                    indexedFilterMap predicate (index + 1) xs (b :: acc)
-
-                Nothing ->
-                    indexedFilterMap predicate (index + 1) xs acc
 
 
 error : Rule.ModuleKey -> Range -> Error anywhere
