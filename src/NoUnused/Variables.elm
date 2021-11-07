@@ -806,7 +806,7 @@ removeParens node =
 getUsedVariablesFromPattern : ModuleContext -> Node Pattern -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 getUsedVariablesFromPattern context patternNode =
     { types = (getUsedTypesFromPattern context [ patternNode ] { types = [], modules = [] }).types
-    , modules = getUsedModulesFromPattern context.lookupTable patternNode
+    , modules = (getUsedTypesFromPattern context [ patternNode ] { types = [], modules = [] }).modules
     }
 
 
