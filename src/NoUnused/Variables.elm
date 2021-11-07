@@ -1546,22 +1546,22 @@ collectTypesFromTypeAnnotation lookupTable nodes acc =
                 TypeAnnotation.FunctionTypeAnnotation left right ->
                     collectTypesFromTypeAnnotation lookupTable (left :: right :: restOfNodes) acc
 
-                TypeAnnotation.Typed nameNode params ->
+                TypeAnnotation.Typed (Node typeRange ( rawModuleName, typeName )) params ->
                     let
                         types : List String
                         types =
-                            case Node.value nameNode of
-                                ( [], str ) ->
-                                    str :: acc.types
+                            case rawModuleName of
+                                [] ->
+                                    typeName :: acc.types
 
                                 _ ->
                                     acc.types
 
                         modules : List ( ModuleName, ModuleName )
                         modules =
-                            case ModuleNameLookupTable.moduleNameFor lookupTable nameNode of
+                            case ModuleNameLookupTable.moduleNameAt lookupTable typeRange of
                                 Just realModuleName ->
-                                    ( realModuleName, Tuple.first (Node.value nameNode) ) :: acc.modules
+                                    ( realModuleName, rawModuleName ) :: acc.modules
 
                                 Nothing ->
                                     acc.modules
