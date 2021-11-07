@@ -666,7 +666,7 @@ expressionVisitor node moduleContext =
                 in
                 ( []
                 , { moduleContext
-                    | ignoredComparisonRanges = staticRanges node ++ moduleContext.ignoredComparisonRanges
+                    | ignoredComparisonRanges = staticRanges [ node ] moduleContext.ignoredComparisonRanges
                     , fixesForRemovingConstructor = fixes
                     , wasUsedInOtherModules = fromOtherModules
                   }
@@ -708,7 +708,7 @@ expressionVisitor node moduleContext =
                 in
                 ( []
                 , { moduleContext
-                    | ignoredComparisonRanges = staticRanges node ++ moduleContext.ignoredComparisonRanges
+                    | ignoredComparisonRanges = staticRanges [ node ] moduleContext.ignoredComparisonRanges
                     , fixesForRemovingConstructor = fixes
                     , wasUsedInOtherModules = fromOtherModules
                   }
@@ -819,53 +819,68 @@ toSetOfModuleNameAsString set =
         |> Set.filter (\( moduleName, _ ) -> moduleName /= "")
 
 
-staticRanges : Node Expression -> List Range
-staticRanges node =
-    case Node.value node of
-        Expression.FunctionOrValue _ _ ->
-            [ Node.range node ]
+staticRanges : List (Node Expression) -> List Range -> List Range
+staticRanges nodes acc =
+    case nodes of
+        [] ->
+            acc
 
-        Expression.Application ((Node _ (Expression.FunctionOrValue _ name)) :: restOfArgs) ->
-            if isCapitalized name then
-                Node.range node :: List.concatMap staticRanges restOfArgs
+        node :: restOfNodes ->
+            case Node.value node of
+                Expression.FunctionOrValue _ _ ->
+                    staticRanges restOfNodes (Node.range node :: acc)
 
-            else
-                []
+                Expression.Application ((Node _ (Expression.FunctionOrValue _ name)) :: restOfArgs) ->
+                    if isCapitalized name then
+                        staticRanges (List.append restOfArgs restOfNodes) (Node.range node :: acc)
 
-        Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: restOfArgs) ->
-            if List.member operator [ "+", "-", "==", "/=" ] then
-                List.concatMap staticRanges restOfArgs
+                    else
+                        staticRanges restOfNodes acc
 
-            else
-                []
+                Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: restOfArgs) ->
+                    if List.member operator [ "+", "-", "==", "/=" ] then
+                        staticRanges (List.append restOfArgs restOfNodes) acc
 
-        Expression.OperatorApplication operator _ left right ->
-            if List.member operator [ "+", "-", "==", "/=" ] then
-                List.concatMap staticRanges [ left, right ]
+                    else
+                        staticRanges restOfNodes acc
 
-            else
-                []
+                Expression.OperatorApplication operator _ left right ->
+                    if List.member operator [ "+", "-", "==", "/=" ] then
+                        staticRanges (left :: right :: restOfNodes) acc
 
-        Expression.ListExpr nodes ->
-            List.concatMap staticRanges nodes
+                    else
+                        staticRanges restOfNodes acc
 
-        Expression.TupledExpression nodes ->
-            List.concatMap staticRanges nodes
+                Expression.ListExpr subNodes ->
+                    staticRanges (List.append subNodes restOfNodes) acc
 
-        Expression.ParenthesizedExpression expr ->
-            staticRanges expr
+                Expression.TupledExpression subNodes ->
+                    staticRanges (List.append subNodes restOfNodes) acc
 
-        Expression.RecordExpr fields ->
-            List.concatMap (Node.value >> Tuple.second >> staticRanges) fields
+                Expression.ParenthesizedExpression expr ->
+                    staticRanges (expr :: restOfNodes) acc
 
-        Expression.RecordUpdateExpression _ fields ->
-            List.concatMap (Node.value >> Tuple.second >> staticRanges) fields
+                Expression.RecordExpr fields ->
+                    let
+                        newNodes : List (Node Expression)
+                        newNodes =
+                            List.map (\(Node _ ( _, value )) -> value) fields
+                    in
+                    staticRanges (List.append newNodes restOfNodes) acc
 
-        Expression.RecordAccess expr _ ->
-            staticRanges expr
+                Expression.RecordUpdateExpression _ fields ->
+                    let
+                        newNodes : List (Node Expression)
+                        newNodes =
+                            List.map (\(Node _ ( _, value )) -> value) fields
+                    in
+                    staticRanges (List.append newNodes restOfNodes) acc
 
-        _ ->
-            []
+                Expression.RecordAccess expr _ ->
+                    staticRanges (expr :: restOfNodes) acc
+
+                _ ->
+                    staticRanges restOfNodes acc
 
 
 findConstructors : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleNameAsString, ConstructorName ) -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
