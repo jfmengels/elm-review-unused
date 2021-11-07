@@ -446,23 +446,21 @@ moduleDefinitionVisitor moduleNode context =
 
         Exposing.Explicit list ->
             let
-                names : List String
-                names =
-                    List.filterMap
-                        (\node ->
+                exposedCustomTypesWithConstructors : Set String
+                exposedCustomTypesWithConstructors =
+                    List.foldl
+                        (\node acc ->
                             case Node.value node of
                                 Exposing.TypeExpose { name } ->
-                                    Just name
+                                    Set.insert name acc
 
                                 _ ->
-                                    Nothing
+                                    acc
                         )
+                        context.exposedCustomTypesWithConstructors
                         list
             in
-            { context
-                | exposedCustomTypesWithConstructors =
-                    Set.union (Set.fromList names) context.exposedCustomTypesWithConstructors
-            }
+            { context | exposedCustomTypesWithConstructors = exposedCustomTypesWithConstructors }
 
 
 
