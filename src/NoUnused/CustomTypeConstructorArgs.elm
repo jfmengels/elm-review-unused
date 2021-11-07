@@ -248,9 +248,16 @@ getNonExposedCustomTypes moduleContext =
                                 )
                             |> Set.fromList
                 in
-                moduleContext.customTypeArgs
-                    |> List.filter (\( typeName, _ ) -> not <| Set.member typeName exposedCustomTypes)
-                    |> List.foldl (\( _, args ) acc -> Dict.union args acc) Dict.empty
+                List.foldl
+                    (\( typeName, args ) acc ->
+                        if Set.member typeName exposedCustomTypes then
+                            acc
+
+                        else
+                            Dict.union args acc
+                    )
+                    Dict.empty
+                    moduleContext.customTypeArgs
 
     else
         List.foldl
