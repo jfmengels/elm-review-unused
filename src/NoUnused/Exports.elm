@@ -199,8 +199,11 @@ elmJsonVisitor maybeProject projectContext =
             { projectContext
                 | projectType =
                     exposedModuleNames
-                        |> List.map (Elm.Module.toString >> String.split ".")
-                        |> Set.fromList
+                        |> List.foldr
+                            (\moduleName acc ->
+                                Set.insert (Elm.Module.toString moduleName |> String.split ".") acc
+                            )
+                            Set.empty
                         |> IsPackage
             }
 
@@ -321,17 +324,16 @@ commentsVisitor nodes moduleContext =
         let
             comments : List ( Int, String )
             comments =
-                nodes
-                    |> List.Extra.find (Node.value >> String.startsWith "{-|")
-                    |> Maybe.map
-                        (\(Node range comment) ->
-                            comment
-                                |> String.lines
-                                |> List.drop 1
-                                |> List.indexedMap (\i line -> ( i + range.start.row + 1, line ))
-                                |> List.filter (Tuple.second >> String.startsWith "@docs ")
-                        )
-                    |> Maybe.withDefault []
+                case List.Extra.find (\(Node _ comment) -> String.startsWith "{-|" comment) nodes of
+                    Just (Node range comment) ->
+                        comment
+                            |> String.lines
+                            |> List.drop 1
+                            |> List.indexedMap (\i line -> ( i + range.start.row + 1, line ))
+                            |> List.filter (Tuple.second >> String.startsWith "@docs ")
+
+                    Nothing ->
+                        []
         in
         { moduleContext
             | exposed = collectExposedElements comments moduleContext.rawExposed
@@ -345,8 +347,8 @@ collectExposedElements comments nodes =
         listWithPreviousRange =
             Nothing
                 :: (nodes
-                        |> List.map (Node.range >> Just)
                         |> List.take (List.length nodes - 1)
+                        |> List.map (\(Node range _) -> Just range)
                    )
 
         listWithNextRange : List Range
@@ -502,24 +504,22 @@ importVisitor node moduleContext =
 
                 usedElements : List ( ModuleName, String )
                 usedElements =
-                    list
-                        |> List.filterMap
-                            (Node.value
-                                >> (\element ->
-                                        case element of
-                                            Exposing.FunctionExpose name ->
-                                                Just ( moduleName, name )
+                    List.filterMap
+                        (\(Node _ element) ->
+                            case element of
+                                Exposing.FunctionExpose name ->
+                                    Just ( moduleName, name )
 
-                                            Exposing.TypeOrAliasExpose name ->
-                                                Just ( moduleName, name )
+                                Exposing.TypeOrAliasExpose name ->
+                                    Just ( moduleName, name )
 
-                                            Exposing.TypeExpose { name } ->
-                                                Just ( moduleName, name )
+                                Exposing.TypeExpose { name } ->
+                                    Just ( moduleName, name )
 
-                                            Exposing.InfixExpose _ ->
-                                                Nothing
-                                   )
-                            )
+                                Exposing.InfixExpose _ ->
+                                    Nothing
+                        )
+                        list
             in
             registerMultipleAsUsed usedElements moduleContext
 
@@ -567,7 +567,7 @@ declarationListVisitor declarations moduleContext =
                             declaredNames : Set String
                             declaredNames =
                                 declarations
-                                    |> List.filterMap (Node.value >> declarationName)
+                                    |> List.filterMap (\(Node _ declaration) -> declarationName declaration)
                                     |> Set.fromList
                         in
                         Dict.filter (\name _ -> Set.member name declaredNames)
@@ -628,10 +628,7 @@ testFunctionName : ModuleContext -> Node Declaration -> Maybe String
 testFunctionName moduleContext node =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            case
-                function.signature
-                    |> Maybe.map (Node.value >> .typeAnnotation >> Node.value)
-            of
+            case Maybe.map (\(Node _ value) -> Node.value value.typeAnnotation) function.signature of
                 Just (TypeAnnotation.Typed typeNode _) ->
                     if
                         (Tuple.second (Node.value typeNode) == "Test")
@@ -670,7 +667,7 @@ typesUsedInDeclaration moduleContext declaration =
             let
                 arguments : List (Node TypeAnnotation)
                 arguments =
-                    List.concatMap (Node.value >> .arguments) type_.constructors
+                    List.concatMap (\constructor -> (Node.value constructor).arguments) type_.constructors
             in
             ( collectTypesFromTypeAnnotation moduleContext arguments []
             , not <|
