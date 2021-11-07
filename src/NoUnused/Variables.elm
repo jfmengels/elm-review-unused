@@ -803,13 +803,6 @@ removeParens node =
             node
 
 
-getUsedVariablesFromPattern : ModuleContext -> Node Pattern -> { types : List String, modules : List ( ModuleName, ModuleName ) }
-getUsedVariablesFromPattern context patternNode =
-    { types = (getUsedTypesFromPattern context [ patternNode ] { types = [], modules = [] }).types
-    , modules = (getUsedTypesFromPattern context [ patternNode ] { types = [], modules = [] }).modules
-    }
-
-
 getDeclaredParametersFromPattern : Node Pattern -> List String
 getDeclaredParametersFromPattern node =
     getDeclaredParametersFromPatternHelp [ node ] []
@@ -851,6 +844,13 @@ getDeclaredParametersFromPatternHelp nodes acc =
 
         [] ->
             acc
+
+
+getUsedVariablesFromPattern : ModuleContext -> Node Pattern -> { types : List String, modules : List ( ModuleName, ModuleName ) }
+getUsedVariablesFromPattern context patternNode =
+    { types = (getUsedTypesFromPattern context [ patternNode ] { types = [], modules = [] }).types
+    , modules = (getUsedTypesFromPattern context [ patternNode ] { types = [], modules = [] }).modules
+    }
 
 
 getUsedTypesFromPattern : ModuleContext -> List (Node Pattern) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
