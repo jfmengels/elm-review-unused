@@ -322,10 +322,7 @@ declarationVisitor node context =
                             (\(Node _ { name, arguments }) acc ->
                                 Dict.insert
                                     (Node.value name)
-                                    (arguments
-                                        |> List.filter (isNotNever context.lookupTable)
-                                        |> List.map Node.range
-                                    )
+                                    (createArguments context.lookupTable arguments)
                                     acc
                             )
                             Dict.empty
@@ -337,6 +334,13 @@ declarationVisitor node context =
 
         _ ->
             context
+
+
+createArguments : ModuleNameLookupTable -> List (Node TypeAnnotation) -> List Range
+createArguments lookupTable arguments =
+    arguments
+        |> List.filter (isNotNever lookupTable)
+        |> List.map Node.range
 
 
 collectUsedPatternsFromFunctionDeclaration : ModuleContext -> Expression.Function -> List ( ( ModuleName, String ), Set Int )
