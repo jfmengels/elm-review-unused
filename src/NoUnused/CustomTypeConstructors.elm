@@ -473,31 +473,33 @@ register node context =
                         |> List.concatMap collectGenericsFromTypeAnnotation
                         |> Set.fromList
 
-                phantomVariables : List ( String, Int )
-                phantomVariables =
-                    List.Extra.indexedFilterMap
-                        (\indexOfPhantomVariable (Node _ genericName) ->
-                            if Set.member genericName nonPhantomVariables then
-                                Nothing
-
-                            else
-                                Just ( Node.value name, indexOfPhantomVariable )
-                        )
-                        0
-                        generics
-                        []
-
                 newPhantomVariables : Dict (List String) (List ( String, Int ))
                 newPhantomVariables =
                     Dict.update
                         []
                         (\maybeSet ->
-                            case maybeSet of
-                                Just old ->
-                                    Just (phantomVariables ++ old)
+                            let
+                                previousPhantomVariables : List ( String, Int )
+                                previousPhantomVariables =
+                                    case maybeSet of
+                                        Just old ->
+                                            old
 
-                                Nothing ->
-                                    Just phantomVariables
+                                        Nothing ->
+                                            []
+                            in
+                            List.Extra.indexedFilterMap
+                                (\indexOfPhantomVariable (Node _ genericName) ->
+                                    if Set.member genericName nonPhantomVariables then
+                                        Nothing
+
+                                    else
+                                        Just ( Node.value name, indexOfPhantomVariable )
+                                )
+                                0
+                                generics
+                                previousPhantomVariables
+                                |> Just
                         )
                         context.phantomVariables
             in
