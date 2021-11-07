@@ -683,7 +683,7 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
                 newContext : ModuleContext
                 newContext =
                     { context | inTheDeclarationOf = Node.value functionDeclaration.name :: context.inTheDeclarationOf }
-                        |> markAllAsUsed namesUsedInArgumentPatterns.types
+                        |> (\ctx -> List.foldl markValueAsUsed ctx namesUsedInArgumentPatterns.types)
                         |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
                         |> registerFunction letBlockContext function
             in
