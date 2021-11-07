@@ -986,9 +986,6 @@ addElementToUniqueList lookupTable node name acc =
                     , fromOtherModules = acc.fromOtherModules
                     }
 
-            else if Set.member key acc.fromOtherModules then
-                acc
-
             else
                 { fromThisModule = acc.fromThisModule
                 , fromOtherModules = Set.insert key acc.fromOtherModules
