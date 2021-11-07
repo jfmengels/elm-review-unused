@@ -107,7 +107,7 @@ type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
     , isModuleExposed : Bool
     , exposed : Exposing
-    , customTypeArgs : Dict String (Dict String (List Range))
+    , customTypeArgs : List ( String, Dict String (List Range) )
     , usedArguments : Dict ( ModuleName, String ) (Set Int)
     , customTypesNotToReport : Set ( ModuleName, String )
     }
@@ -163,7 +163,7 @@ fromProjectToModule =
             { lookupTable = lookupTable
             , isModuleExposed = Set.member (Rule.moduleNameFromMetadata metadata) projectContext.exposedModules
             , exposed = Exposing.Explicit []
-            , customTypeArgs = Dict.empty
+            , customTypeArgs = []
             , usedArguments = Dict.empty
             , customTypesNotToReport = Set.empty
             }
@@ -249,14 +249,12 @@ getNonExposedCustomTypes moduleContext =
                             |> Set.fromList
                 in
                 moduleContext.customTypeArgs
-                    |> Dict.filter (\typeName _ -> not <| Set.member typeName exposedCustomTypes)
-                    |> Dict.values
-                    |> List.foldl Dict.union Dict.empty
+                    |> List.filter (\( typeName, _ ) -> not <| Set.member typeName exposedCustomTypes)
+                    |> List.foldl (\( _, args ) acc -> Dict.union args acc) Dict.empty
 
     else
         moduleContext.customTypeArgs
-            |> Dict.values
-            |> List.foldl Dict.union Dict.empty
+            |> List.foldl (\( _, args ) acc -> Dict.union args acc) Dict.empty
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
@@ -331,10 +329,7 @@ declarationVisitor node context =
                             typeDeclaration.constructors
                 in
                 { context
-                    | customTypeArgs =
-                        Dict.insert (Node.value typeDeclaration.name)
-                            (Dict.fromList customTypeConstructors)
-                            context.customTypeArgs
+                    | customTypeArgs = ( Node.value typeDeclaration.name, Dict.fromList customTypeConstructors ) :: context.customTypeArgs
                 }
 
         _ ->
