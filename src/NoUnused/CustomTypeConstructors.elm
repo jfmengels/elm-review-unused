@@ -1180,27 +1180,21 @@ errorForModule moduleKey params constructorInformation =
 
 markPhantomTypesFromTypeAnnotationAsUsed : Maybe (Node TypeAnnotation) -> ModuleContext -> ModuleContext
 markPhantomTypesFromTypeAnnotationAsUsed maybeTypeAnnotation moduleContext =
-    let
-        used : List ( ModuleName, CustomTypeName )
-        used =
-            case maybeTypeAnnotation of
-                Just typeAnnotation ->
+    case maybeTypeAnnotation of
+        Just typeAnnotation ->
+            let
+                usedFunctionsOrValues : Dict ModuleNameAsString (Set ConstructorName)
+                usedFunctionsOrValues =
                     collectTypesUsedAsPhantomVariables
                         moduleContext
                         moduleContext.phantomVariables
-                        typeAnnotation
+                        [ typeAnnotation ]
+                        moduleContext.usedFunctionsOrValues
+            in
+            { moduleContext | usedFunctionsOrValues = usedFunctionsOrValues }
 
-                Nothing ->
-                    []
-
-        usedFunctionsOrValues : Dict ModuleNameAsString (Set ConstructorName)
-        usedFunctionsOrValues =
-            List.foldl
-                (\( moduleName, name ) acc -> updateToInsert (String.join "." moduleName) name acc)
-                moduleContext.usedFunctionsOrValues
-                used
-    in
-    { moduleContext | usedFunctionsOrValues = usedFunctionsOrValues }
+        Nothing ->
+            moduleContext
 
 
 collectGenericsFromTypeAnnotation : List (Node TypeAnnotation) -> Set String -> Set String
@@ -1243,57 +1237,84 @@ collectGenericsFromTypeAnnotation nodes acc =
                     collectGenericsFromTypeAnnotation restOfNodes acc
 
 
-collectTypesUsedAsPhantomVariables : ModuleContext -> Dict ModuleName (List ( CustomTypeName, Int )) -> Node TypeAnnotation -> List ( ModuleName, CustomTypeName )
-collectTypesUsedAsPhantomVariables moduleContext phantomVariables node =
-    case Node.value node of
-        TypeAnnotation.FunctionTypeAnnotation a b ->
-            collectTypesUsedAsPhantomVariables moduleContext phantomVariables a
-                ++ collectTypesUsedAsPhantomVariables moduleContext phantomVariables b
+collectTypesUsedAsPhantomVariables : ModuleContext -> Dict ModuleName (List ( CustomTypeName, Int )) -> List (Node TypeAnnotation) -> Dict ModuleNameAsString (Set ConstructorName) -> Dict ModuleNameAsString (Set ConstructorName)
+collectTypesUsedAsPhantomVariables moduleContext phantomVariables nodes used =
+    case nodes of
+        [] ->
+            used
 
-        TypeAnnotation.Typed (Node.Node typeRange ( _, name )) params ->
-            let
-                moduleNameOfPhantomContainer : ModuleName
-                moduleNameOfPhantomContainer =
-                    ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable typeRange
-                        |> Maybe.withDefault []
+        node :: restOfNodes ->
+            case Node.value node of
+                TypeAnnotation.FunctionTypeAnnotation a b ->
+                    collectTypesUsedAsPhantomVariables moduleContext phantomVariables (a :: b :: restOfNodes) used
 
-                typesUsedInThePhantomVariablePosition : List ( ModuleName, CustomTypeName )
-                typesUsedInThePhantomVariablePosition =
-                    Dict.get moduleNameOfPhantomContainer phantomVariables
-                        |> Maybe.withDefault []
-                        |> List.filter (\( type_, _ ) -> type_ == name)
-                        |> List.filterMap
-                            (\( _, index ) ->
-                                case listAtIndex index params |> Maybe.map Node.value of
-                                    Just (TypeAnnotation.Typed (Node.Node subTypeRange ( _, typeName )) _) ->
-                                        ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable subTypeRange
-                                            |> Maybe.map (\moduleNameOfPhantomVariable -> ( moduleNameOfPhantomVariable, typeName ))
+                TypeAnnotation.Typed (Node.Node typeRange ( _, name )) params ->
+                    case
+                        ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable typeRange
+                            |> Maybe.andThen (\moduleNameOfPhantomContainer -> Dict.get moduleNameOfPhantomContainer phantomVariables)
+                    of
+                        Just things ->
+                            let
+                                newUsed : Dict ModuleNameAsString (Set ConstructorName)
+                                newUsed =
+                                    List.foldl
+                                        (\( type_, index ) acc ->
+                                            if type_ /= name then
+                                                acc
 
-                                    _ ->
-                                        Nothing
-                            )
-            in
-            List.concat
-                [ typesUsedInThePhantomVariablePosition
-                , List.concatMap (collectTypesUsedAsPhantomVariables moduleContext phantomVariables) params
-                ]
+                                            else
+                                                case listAtIndex index params |> Maybe.map Node.value of
+                                                    Just (TypeAnnotation.Typed (Node.Node subTypeRange ( _, typeName )) _) ->
+                                                        case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable subTypeRange of
+                                                            Just moduleNameOfPhantomVariable ->
+                                                                updateToInsert (String.join "." moduleNameOfPhantomVariable) typeName acc
 
-        TypeAnnotation.Record list ->
-            list
-                |> List.concatMap (Node.value >> Tuple.second >> collectTypesUsedAsPhantomVariables moduleContext phantomVariables)
+                                                            Nothing ->
+                                                                acc
 
-        TypeAnnotation.GenericRecord _ list ->
-            Node.value list
-                |> List.concatMap (Node.value >> Tuple.second >> collectTypesUsedAsPhantomVariables moduleContext phantomVariables)
+                                                    _ ->
+                                                        acc
+                                        )
+                                        used
+                                        things
+                            in
+                            collectTypesUsedAsPhantomVariables
+                                moduleContext
+                                phantomVariables
+                                (List.append params restOfNodes)
+                                newUsed
 
-        TypeAnnotation.Tupled list ->
-            List.concatMap (collectTypesUsedAsPhantomVariables moduleContext phantomVariables) list
+                        Nothing ->
+                            collectTypesUsedAsPhantomVariables
+                                moduleContext
+                                phantomVariables
+                                (List.append params restOfNodes)
+                                used
 
-        TypeAnnotation.GenericType _ ->
-            []
+                TypeAnnotation.Record fields ->
+                    let
+                        subNodes : List (Node TypeAnnotation)
+                        subNodes =
+                            List.map (\(Node _ ( _, value )) -> value) fields
+                    in
+                    collectTypesUsedAsPhantomVariables moduleContext phantomVariables (List.append subNodes restOfNodes) used
 
-        TypeAnnotation.Unit ->
-            []
+                TypeAnnotation.GenericRecord _ (Node _ fields) ->
+                    let
+                        subNodes : List (Node TypeAnnotation)
+                        subNodes =
+                            List.map (\(Node _ ( _, value )) -> value) fields
+                    in
+                    collectTypesUsedAsPhantomVariables moduleContext phantomVariables (List.append subNodes restOfNodes) used
+
+                TypeAnnotation.Tupled list ->
+                    collectTypesUsedAsPhantomVariables moduleContext phantomVariables (List.append list restOfNodes) used
+
+                TypeAnnotation.GenericType _ ->
+                    collectTypesUsedAsPhantomVariables moduleContext phantomVariables restOfNodes used
+
+                TypeAnnotation.Unit ->
+                    collectTypesUsedAsPhantomVariables moduleContext phantomVariables restOfNodes used
 
 
 listAtIndex : Int -> List a -> Maybe a
