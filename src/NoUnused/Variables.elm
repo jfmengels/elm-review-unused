@@ -863,60 +863,6 @@ markValuesFromPatternsAsUsed nodes context =
                     markValuesFromPatternsAsUsed restOfNodes context
 
 
-getUsedModulesFromPattern : ModuleNameLookupTable -> Node Pattern -> List ( ModuleName, ModuleName )
-getUsedModulesFromPattern lookupTable patternNode =
-    case Node.value patternNode of
-        Pattern.AllPattern ->
-            []
-
-        Pattern.UnitPattern ->
-            []
-
-        Pattern.CharPattern _ ->
-            []
-
-        Pattern.StringPattern _ ->
-            []
-
-        Pattern.IntPattern _ ->
-            []
-
-        Pattern.HexPattern _ ->
-            []
-
-        Pattern.FloatPattern _ ->
-            []
-
-        Pattern.TuplePattern patterns ->
-            List.concatMap (getUsedModulesFromPattern lookupTable) patterns
-
-        Pattern.RecordPattern _ ->
-            []
-
-        Pattern.UnConsPattern pattern1 pattern2 ->
-            List.concatMap (getUsedModulesFromPattern lookupTable) [ pattern1, pattern2 ]
-
-        Pattern.ListPattern patterns ->
-            List.concatMap (getUsedModulesFromPattern lookupTable) patterns
-
-        Pattern.VarPattern _ ->
-            []
-
-        Pattern.NamedPattern qualifiedNameRef patterns ->
-            case ModuleNameLookupTable.moduleNameFor lookupTable patternNode of
-                Just realModuleName ->
-                    ( realModuleName, qualifiedNameRef.moduleName ) :: List.concatMap (getUsedModulesFromPattern lookupTable) patterns
-
-                Nothing ->
-                    List.concatMap (getUsedModulesFromPattern lookupTable) patterns
-
-        Pattern.AsPattern pattern _ ->
-            getUsedModulesFromPattern lookupTable pattern
-
-        Pattern.ParenthesizedPattern pattern ->
-            getUsedModulesFromPattern lookupTable pattern
-
-
 introducesVariable : Node Pattern -> Bool
 introducesVariable patternNode =
     case Node.value patternNode of
@@ -1075,14 +1021,14 @@ declarationEnterVisitor node context =
                 functionName =
                     Node.value functionImplementation.name
 
-                namesUsedInSignature : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                namesUsedInSignature =
+                typeAnnotation : List (Node TypeAnnotation)
+                typeAnnotation =
                     case function.signature of
                         Just signature ->
-                            collectNamesFromTypeAnnotation context.lookupTable [ signature |> Node.value |> .typeAnnotation ]
+                            [ (Node.value signature).typeAnnotation ]
 
                         Nothing ->
-                            { types = [], modules = [] }
+                            []
 
                 newContextWhereFunctionIsRegistered : ModuleContext
                 newContextWhereFunctionIsRegistered =
@@ -1111,8 +1057,7 @@ declarationEnterVisitor node context =
                     }
                         |> registerParameters functionImplementation.arguments
                         |> markValuesFromPatternsAsUsed (Node.value function.declaration).arguments
-                        |> markAllAsUsed namesUsedInSignature.types
-                        |> markAllModulesAsUsed namesUsedInSignature.modules
+                        |> collectNamesFromTypeAnnotation Nothing typeAnnotation
 
                 shadowingImportError : List (Error {})
                 shadowingImportError =
@@ -1134,38 +1079,21 @@ declarationEnterVisitor node context =
                 arguments : List (Node TypeAnnotation)
                 arguments =
                     List.concatMap (Node.value >> .arguments) constructors
-
-                { types, modules } =
-                    collectNamesFromTypeAnnotation context.lookupTable arguments
             in
             ( []
-            , types
-                |> List.filter ((/=) (Node.value name))
-                |> List.foldl markAsUsed context
-                |> markAllModulesAsUsed modules
+            , collectNamesFromTypeAnnotation (Just (Node.value name)) arguments context
             )
 
         Declaration.AliasDeclaration { typeAnnotation } ->
-            let
-                namesUsedInTypeAnnotation : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                namesUsedInTypeAnnotation =
-                    collectNamesFromTypeAnnotation context.lookupTable [ typeAnnotation ]
-            in
             ( []
-            , List.foldl markAsUsed context namesUsedInTypeAnnotation.types
-                |> markAllModulesAsUsed namesUsedInTypeAnnotation.modules
+            , collectNamesFromTypeAnnotation Nothing [ typeAnnotation ] context
             )
 
         Declaration.PortDeclaration { name, typeAnnotation } ->
             let
-                namesUsedInTypeAnnotation : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                namesUsedInTypeAnnotation =
-                    collectNamesFromTypeAnnotation context.lookupTable [ typeAnnotation ]
-
                 contextWithUsedElements : ModuleContext
                 contextWithUsedElements =
-                    List.foldl markAsUsed context namesUsedInTypeAnnotation.types
-                        |> markAllModulesAsUsed namesUsedInTypeAnnotation.modules
+                    collectNamesFromTypeAnnotation Nothing [ typeAnnotation ] context
             in
             ( []
             , if context.exposesEverything then
@@ -1414,17 +1342,17 @@ registerFunction letBlockContext function context =
         declaration =
             Node.value function.declaration
 
-        namesUsedInSignature : { types : List String, modules : List ( ModuleName, ModuleName ) }
-        namesUsedInSignature =
+        typeAnnotations : List (Node TypeAnnotation)
+        typeAnnotations =
             case Maybe.map Node.value function.signature of
                 Just signature ->
-                    collectNamesFromTypeAnnotation context.lookupTable [ signature.typeAnnotation ]
+                    [ signature.typeAnnotation ]
 
                 Nothing ->
-                    { types = [], modules = [] }
+                    []
     in
-    List.foldl markAsUsed context namesUsedInSignature.types
-        |> markAllModulesAsUsed namesUsedInSignature.modules
+    context
+        |> collectNamesFromTypeAnnotation Nothing typeAnnotations
         |> registerVariable
             { typeName = "`let in` variable"
             , under = Node.range declaration.name
@@ -1469,48 +1397,45 @@ untilEndOfVariable name range =
         { range | end = { row = range.start.row, column = range.start.column + String.length name } }
 
 
-collectNamesFromTypeAnnotation : ModuleNameLookupTable -> List (Node TypeAnnotation) -> { types : List String, modules : List ( ModuleName, ModuleName ) }
-collectNamesFromTypeAnnotation lookupTable nodes =
-    collectNamesFromTypeAnnotationHelp lookupTable nodes { types = [], modules = [] }
-
-
-collectNamesFromTypeAnnotationHelp : ModuleNameLookupTable -> List (Node TypeAnnotation) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
-collectNamesFromTypeAnnotationHelp lookupTable nodes acc =
+collectNamesFromTypeAnnotation : Maybe String -> List (Node TypeAnnotation) -> ModuleContext -> ModuleContext
+collectNamesFromTypeAnnotation exception nodes context =
     case nodes of
         [] ->
-            acc
+            context
 
         node :: restOfNodes ->
             case Node.value node of
                 TypeAnnotation.FunctionTypeAnnotation left right ->
-                    collectNamesFromTypeAnnotationHelp lookupTable (left :: right :: restOfNodes) acc
+                    collectNamesFromTypeAnnotation exception (left :: right :: restOfNodes) context
 
                 TypeAnnotation.Typed (Node typeRange ( rawModuleName, typeName )) params ->
                     let
-                        types : List String
-                        types =
-                            case rawModuleName of
-                                [] ->
-                                    typeName :: acc.types
+                        contextAfterTypeUsage : ModuleContext
+                        contextAfterTypeUsage =
+                            if Just typeName /= exception then
+                                case rawModuleName of
+                                    [] ->
+                                        markAsUsed typeName context
 
-                                _ ->
-                                    acc.types
+                                    _ ->
+                                        context
 
-                        modules : List ( ModuleName, ModuleName )
-                        modules =
-                            case ModuleNameLookupTable.moduleNameAt lookupTable typeRange of
+                            else
+                                context
+
+                        contextAfterModuleUsage : ModuleContext
+                        contextAfterModuleUsage =
+                            case ModuleNameLookupTable.moduleNameAt context.lookupTable typeRange of
                                 Just realModuleName ->
-                                    ( realModuleName, rawModuleName ) :: acc.modules
+                                    markModuleAsUsed ( realModuleName, rawModuleName ) contextAfterTypeUsage
 
                                 Nothing ->
-                                    acc.modules
+                                    contextAfterTypeUsage
                     in
-                    collectNamesFromTypeAnnotationHelp
-                        lookupTable
+                    collectNamesFromTypeAnnotation
+                        exception
                         (params ++ restOfNodes)
-                        { types = types
-                        , modules = modules
-                        }
+                        contextAfterModuleUsage
 
                 TypeAnnotation.Record fields ->
                     let
@@ -1518,7 +1443,7 @@ collectNamesFromTypeAnnotationHelp lookupTable nodes acc =
                         subNodes =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    collectNamesFromTypeAnnotationHelp lookupTable (subNodes ++ restOfNodes) acc
+                    collectNamesFromTypeAnnotation exception (subNodes ++ restOfNodes) context
 
                 TypeAnnotation.GenericRecord _ (Node _ fields) ->
                     let
@@ -1526,48 +1451,13 @@ collectNamesFromTypeAnnotationHelp lookupTable nodes acc =
                         subNodes =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    collectNamesFromTypeAnnotationHelp lookupTable (subNodes ++ restOfNodes) acc
+                    collectNamesFromTypeAnnotation exception (subNodes ++ restOfNodes) context
 
                 TypeAnnotation.Tupled list ->
-                    collectNamesFromTypeAnnotationHelp lookupTable (list ++ restOfNodes) acc
+                    collectNamesFromTypeAnnotation exception (list ++ restOfNodes) context
 
                 _ ->
-                    collectNamesFromTypeAnnotationHelp lookupTable restOfNodes acc
-
-
-collectModuleNamesFromTypeAnnotation : ModuleNameLookupTable -> Node TypeAnnotation -> List ( ModuleName, ModuleName )
-collectModuleNamesFromTypeAnnotation lookupTable node =
-    case Node.value node of
-        TypeAnnotation.FunctionTypeAnnotation a b ->
-            collectModuleNamesFromTypeAnnotation lookupTable a ++ collectModuleNamesFromTypeAnnotation lookupTable b
-
-        TypeAnnotation.Typed nameNode params ->
-            case ModuleNameLookupTable.moduleNameFor lookupTable nameNode of
-                Just realModuleName ->
-                    ( realModuleName, Tuple.first (Node.value nameNode) ) :: List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable) params
-
-                Nothing ->
-                    List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable) params
-
-        TypeAnnotation.Record list ->
-            list
-                |> List.map (Node.value >> Tuple.second)
-                |> List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable)
-
-        TypeAnnotation.GenericRecord _ list ->
-            list
-                |> Node.value
-                |> List.map (Node.value >> Tuple.second)
-                |> List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable)
-
-        TypeAnnotation.Tupled list ->
-            List.concatMap (collectModuleNamesFromTypeAnnotation lookupTable) list
-
-        TypeAnnotation.GenericType _ ->
-            []
-
-        TypeAnnotation.Unit ->
-            []
+                    collectNamesFromTypeAnnotation exception restOfNodes context
 
 
 registerModule : DeclaredModule -> ModuleContext -> ModuleContext
@@ -1634,11 +1524,6 @@ markAsUsed name context =
                     context.scopes
         in
         { context | scopes = scopes }
-
-
-markAllModulesAsUsed : List ( ModuleName, ModuleName ) -> ModuleContext -> ModuleContext
-markAllModulesAsUsed names context =
-    List.foldl markModuleAsUsed context names
 
 
 markModuleAsUsed : ( ModuleName, ModuleName ) -> ModuleContext -> ModuleContext
