@@ -459,14 +459,14 @@ findCustomTypesHelp lookupTable nodes acc =
                         findCustomTypesHelp lookupTable restOfNodes acc
 
                 Expression.TupledExpression expressions ->
-                    findCustomTypesHelp lookupTable (List.append expressions restOfNodes) acc
+                    findCustomTypesHelp lookupTable (expressions ++ restOfNodes) acc
 
                 Expression.ParenthesizedExpression expression ->
                     findCustomTypesHelp lookupTable (expression :: restOfNodes) acc
 
                 Expression.Application (((Node _ (Expression.FunctionOrValue _ functionName)) as first) :: expressions) ->
                     if isCustomTypeConstructor functionName then
-                        findCustomTypesHelp lookupTable (first :: List.append expressions restOfNodes) acc
+                        findCustomTypesHelp lookupTable (first :: (expressions ++ restOfNodes)) acc
 
                     else
                         findCustomTypesHelp lookupTable restOfNodes acc
@@ -478,7 +478,7 @@ findCustomTypesHelp lookupTable nodes acc =
                     findCustomTypesHelp lookupTable (expression :: restOfNodes) acc
 
                 Expression.ListExpr expressions ->
-                    findCustomTypesHelp lookupTable (List.append expressions restOfNodes) acc
+                    findCustomTypesHelp lookupTable (expressions ++ restOfNodes) acc
 
                 _ ->
                     findCustomTypesHelp lookupTable restOfNodes acc
@@ -539,13 +539,13 @@ collectUsedCustomTypeArgsHelp lookupTable nodes acc =
                                 Nothing ->
                                     acc
                     in
-                    collectUsedCustomTypeArgsHelp lookupTable (List.append args restOfNodes) newAcc
+                    collectUsedCustomTypeArgsHelp lookupTable (args ++ restOfNodes) newAcc
 
                 Pattern.TuplePattern patterns ->
-                    collectUsedCustomTypeArgsHelp lookupTable (List.append patterns restOfNodes) acc
+                    collectUsedCustomTypeArgsHelp lookupTable (patterns ++ restOfNodes) acc
 
                 Pattern.ListPattern patterns ->
-                    collectUsedCustomTypeArgsHelp lookupTable (List.append patterns restOfNodes) acc
+                    collectUsedCustomTypeArgsHelp lookupTable (patterns ++ restOfNodes) acc
 
                 Pattern.UnConsPattern left right ->
                     collectUsedCustomTypeArgsHelp lookupTable (left :: right :: restOfNodes) acc
@@ -618,7 +618,7 @@ errorsForUnusedArguments usedArguments moduleKey constructor ranges acc =
                 acc
 
         Nothing ->
-            List.append (List.map (error moduleKey) ranges) acc
+            List.map (error moduleKey) ranges ++ acc
 
 
 error : Rule.ModuleKey -> Range -> Error anywhere

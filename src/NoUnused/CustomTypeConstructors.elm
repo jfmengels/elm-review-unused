@@ -364,7 +364,7 @@ mergeDictsWithLists : Dict comparable (List a) -> Dict comparable (List a) -> Di
 mergeDictsWithLists left right =
     Dict.merge
         Dict.insert
-        (\key a b dict -> Dict.insert key (List.append a b) dict)
+        (\key a b dict -> Dict.insert key (a ++ b) dict)
         Dict.insert
         left
         right
@@ -820,14 +820,14 @@ staticRanges nodes acc =
 
                 Expression.Application ((Node _ (Expression.FunctionOrValue _ name)) :: restOfArgs) ->
                     if isCapitalized name then
-                        staticRanges (List.append restOfArgs restOfNodes) (Node.range node :: acc)
+                        staticRanges (restOfArgs ++ restOfNodes) (Node.range node :: acc)
 
                     else
                         staticRanges restOfNodes acc
 
                 Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: restOfArgs) ->
                     if List.member operator [ "+", "-", "==", "/=" ] then
-                        staticRanges (List.append restOfArgs restOfNodes) acc
+                        staticRanges (restOfArgs ++ restOfNodes) acc
 
                     else
                         staticRanges restOfNodes acc
@@ -840,10 +840,10 @@ staticRanges nodes acc =
                         staticRanges restOfNodes acc
 
                 Expression.ListExpr subNodes ->
-                    staticRanges (List.append subNodes restOfNodes) acc
+                    staticRanges (subNodes ++ restOfNodes) acc
 
                 Expression.TupledExpression subNodes ->
-                    staticRanges (List.append subNodes restOfNodes) acc
+                    staticRanges (subNodes ++ restOfNodes) acc
 
                 Expression.ParenthesizedExpression expr ->
                     staticRanges (expr :: restOfNodes) acc
@@ -854,7 +854,7 @@ staticRanges nodes acc =
                         newNodes =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    staticRanges (List.append newNodes restOfNodes) acc
+                    staticRanges (newNodes ++ restOfNodes) acc
 
                 Expression.RecordUpdateExpression _ fields ->
                     let
@@ -862,7 +862,7 @@ staticRanges nodes acc =
                         newNodes =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    staticRanges (List.append newNodes restOfNodes) acc
+                    staticRanges (newNodes ++ restOfNodes) acc
 
                 Expression.RecordAccess expr _ ->
                     staticRanges (expr :: restOfNodes) acc
@@ -902,7 +902,7 @@ findConstructorsHelp lookupTable nodes acc =
                     if isCapitalized name then
                         findConstructorsHelp
                             lookupTable
-                            (List.append restOfArgs restOfNodes)
+                            (restOfArgs ++ restOfNodes)
                             (addElementToUniqueList lookupTable node name acc)
 
                     else
@@ -916,10 +916,10 @@ findConstructorsHelp lookupTable nodes acc =
                         findConstructorsHelp lookupTable restOfNodes acc
 
                 Expression.ListExpr subNodes ->
-                    findConstructorsHelp lookupTable (List.append subNodes restOfNodes) acc
+                    findConstructorsHelp lookupTable (subNodes ++ restOfNodes) acc
 
                 Expression.TupledExpression subNodes ->
-                    findConstructorsHelp lookupTable (List.append subNodes restOfNodes) acc
+                    findConstructorsHelp lookupTable (subNodes ++ restOfNodes) acc
 
                 Expression.ParenthesizedExpression expr ->
                     findConstructorsHelp lookupTable (expr :: restOfNodes) acc
@@ -930,7 +930,7 @@ findConstructorsHelp lookupTable nodes acc =
                         expressions =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    findConstructorsHelp lookupTable (List.append expressions restOfNodes) acc
+                    findConstructorsHelp lookupTable (expressions ++ restOfNodes) acc
 
                 Expression.RecordUpdateExpression _ fields ->
                     let
@@ -938,7 +938,7 @@ findConstructorsHelp lookupTable nodes acc =
                         expressions =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    findConstructorsHelp lookupTable (List.append expressions restOfNodes) acc
+                    findConstructorsHelp lookupTable (expressions ++ restOfNodes) acc
 
                 Expression.RecordAccess expr _ ->
                     findConstructorsHelp lookupTable (expr :: restOfNodes) acc
@@ -1009,16 +1009,16 @@ constructorsInPattern lookupTable nodes acc =
                                 Nothing ->
                                     acc
                     in
-                    constructorsInPattern lookupTable (List.append patterns restOfNodes) newAcc
+                    constructorsInPattern lookupTable (patterns ++ restOfNodes) newAcc
 
                 Pattern.TuplePattern patterns ->
-                    constructorsInPattern lookupTable (List.append patterns restOfNodes) acc
+                    constructorsInPattern lookupTable (patterns ++ restOfNodes) acc
 
                 Pattern.UnConsPattern left right ->
                     constructorsInPattern lookupTable (left :: right :: restOfNodes) acc
 
                 Pattern.ListPattern patterns ->
-                    constructorsInPattern lookupTable (List.append patterns restOfNodes) acc
+                    constructorsInPattern lookupTable (patterns ++ restOfNodes) acc
 
                 Pattern.AsPattern pattern _ ->
                     constructorsInPattern lookupTable (pattern :: restOfNodes) acc
@@ -1188,7 +1188,7 @@ collectGenericsFromTypeAnnotation nodes acc =
                     collectGenericsFromTypeAnnotation (a :: b :: restOfNodes) acc
 
                 TypeAnnotation.Typed _ params ->
-                    collectGenericsFromTypeAnnotation (List.append params restOfNodes) acc
+                    collectGenericsFromTypeAnnotation (params ++ restOfNodes) acc
 
                 TypeAnnotation.Record fields ->
                     let
@@ -1196,7 +1196,7 @@ collectGenericsFromTypeAnnotation nodes acc =
                         subNodes =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    collectGenericsFromTypeAnnotation (List.append subNodes restOfNodes) acc
+                    collectGenericsFromTypeAnnotation (subNodes ++ restOfNodes) acc
 
                 TypeAnnotation.GenericRecord (Node _ var) (Node _ fields) ->
                     let
@@ -1204,10 +1204,10 @@ collectGenericsFromTypeAnnotation nodes acc =
                         subNodes =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    collectGenericsFromTypeAnnotation (List.append subNodes restOfNodes) (Set.insert var acc)
+                    collectGenericsFromTypeAnnotation (subNodes ++ restOfNodes) (Set.insert var acc)
 
                 TypeAnnotation.Tupled list ->
-                    collectGenericsFromTypeAnnotation (List.append list restOfNodes) acc
+                    collectGenericsFromTypeAnnotation (list ++ restOfNodes) acc
 
                 TypeAnnotation.GenericType var ->
                     collectGenericsFromTypeAnnotation restOfNodes (Set.insert var acc)
@@ -1260,14 +1260,14 @@ collectTypesUsedAsPhantomVariables moduleContext phantomVariables nodes used =
                             collectTypesUsedAsPhantomVariables
                                 moduleContext
                                 phantomVariables
-                                (List.append params restOfNodes)
+                                (params ++ restOfNodes)
                                 newUsed
 
                         Nothing ->
                             collectTypesUsedAsPhantomVariables
                                 moduleContext
                                 phantomVariables
-                                (List.append params restOfNodes)
+                                (params ++ restOfNodes)
                                 used
 
                 TypeAnnotation.Record fields ->
@@ -1276,7 +1276,7 @@ collectTypesUsedAsPhantomVariables moduleContext phantomVariables nodes used =
                         subNodes =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    collectTypesUsedAsPhantomVariables moduleContext phantomVariables (List.append subNodes restOfNodes) used
+                    collectTypesUsedAsPhantomVariables moduleContext phantomVariables (subNodes ++ restOfNodes) used
 
                 TypeAnnotation.GenericRecord _ (Node _ fields) ->
                     let
@@ -1284,10 +1284,10 @@ collectTypesUsedAsPhantomVariables moduleContext phantomVariables nodes used =
                         subNodes =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    collectTypesUsedAsPhantomVariables moduleContext phantomVariables (List.append subNodes restOfNodes) used
+                    collectTypesUsedAsPhantomVariables moduleContext phantomVariables (subNodes ++ restOfNodes) used
 
                 TypeAnnotation.Tupled list ->
-                    collectTypesUsedAsPhantomVariables moduleContext phantomVariables (List.append list restOfNodes) used
+                    collectTypesUsedAsPhantomVariables moduleContext phantomVariables (list ++ restOfNodes) used
 
                 TypeAnnotation.GenericType _ ->
                     collectTypesUsedAsPhantomVariables moduleContext phantomVariables restOfNodes used

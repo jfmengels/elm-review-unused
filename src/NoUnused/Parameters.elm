@@ -462,7 +462,7 @@ registerFunctionCall fnName numberOfIgnoredArguments arguments context =
                 | locationsToIgnoreForUsed =
                     Dict.merge
                         Dict.insert
-                        (\key new old -> Dict.insert key (List.append new old))
+                        (\key new old -> Dict.insert key (new ++ old))
                         Dict.insert
                         locationsToIgnore
                         context.locationsToIgnoreForUsed
