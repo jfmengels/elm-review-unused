@@ -68,7 +68,7 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Varia
 rule : Rule
 rule =
     Rule.newProjectRuleSchema "NoUnused.Variables" initialContext
-        |> Rule.withElmJsonProjectVisitor elmJsonVisitor
+        |> Rule.withElmJsonProjectVisitor (\project context -> ( [], elmJsonVisitor project context ))
         |> Rule.withDependenciesProjectVisitor dependenciesVisitor
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
@@ -83,15 +83,15 @@ rule =
 moduleVisitor : Rule.ModuleRuleSchema schemaState ModuleContext -> Rule.ModuleRuleSchema { schemaState | hasAtLeastOneVisitor : () } ModuleContext
 moduleVisitor schema =
     schema
-        |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
+        |> Rule.withModuleDefinitionVisitor (\module_ context -> ( [], moduleDefinitionVisitor module_ context ))
         |> Rule.withImportVisitor importVisitor
-        |> Rule.withDeclarationListVisitor declarationListVisitor
+        |> Rule.withDeclarationListVisitor (\nodes context -> ( [], declarationListVisitor nodes context ))
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withDeclarationExitVisitor declarationExitVisitor
-        |> Rule.withExpressionEnterVisitor expressionEnterVisitor
+        |> Rule.withExpressionEnterVisitor (\node context -> ( [], expressionEnterVisitor node context ))
         |> Rule.withLetDeclarationEnterVisitor letDeclarationEnterVisitor
         |> Rule.withLetDeclarationExitVisitor letDeclarationExitVisitor
-        |> Rule.withCaseBranchEnterVisitor caseBranchEnterVisitor
+        |> Rule.withCaseBranchEnterVisitor (\_ casePattern context -> ( [], caseBranchEnterVisitor casePattern context ))
         |> Rule.withCaseBranchExitVisitor caseBranchExitVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
 
@@ -272,18 +272,18 @@ details =
 -- ELM.JSON VISITOR
 
 
-elmJsonVisitor : Maybe { a | project : Elm.Project.Project } -> ProjectContext -> ( List nothing, ProjectContext )
+elmJsonVisitor : Maybe { a | project : Elm.Project.Project } -> ProjectContext -> ProjectContext
 elmJsonVisitor maybeElmJson projectContext =
     case Maybe.map .project maybeElmJson of
         Just (Elm.Project.Application _) ->
-            ( [], { projectContext | isApplication = True } )
+            { projectContext | isApplication = True }
 
         Just (Elm.Project.Package _) ->
-            ( [], { projectContext | isApplication = False } )
+            { projectContext | isApplication = False }
 
         Nothing ->
             -- Sensible default, because now `main` won't be reported.
-            ( [], { projectContext | isApplication = True } )
+            { projectContext | isApplication = True }
 
 
 
@@ -315,11 +315,11 @@ dependenciesVisitor dependencies projectContext =
 -- MODULE DEFINITION VISITOR
 
 
-moduleDefinitionVisitor : Node Module -> ModuleContext -> ( List nothing, ModuleContext )
+moduleDefinitionVisitor : Node Module -> ModuleContext -> ModuleContext
 moduleDefinitionVisitor (Node _ moduleNode) context =
     case Module.exposingList moduleNode of
         Exposing.All _ ->
-            ( [], { context | exposesEverything = True } )
+            { context | exposesEverything = True }
 
         Exposing.Explicit list ->
             let
@@ -327,7 +327,7 @@ moduleDefinitionVisitor (Node _ moduleNode) context =
                 names =
                     List.map getExposingName list
             in
-            ( [], markAllAsUsed names context )
+            markAllAsUsed names context
 
 
 getExposingName : Node Exposing.TopLevelExpose -> String
@@ -579,64 +579,58 @@ moduleAliasRange (Node _ { moduleName }) range =
     { range | start = (Node.range moduleName).end }
 
 
-expressionEnterVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
+expressionEnterVisitor : Node Expression -> ModuleContext -> ModuleContext
 expressionEnterVisitor (Node range value) context =
     case value of
         Expression.FunctionOrValue [] name ->
             case Dict.get name context.constructorNameToTypeName of
                 Just typeName ->
-                    ( [], markValueAsUsed typeName context )
+                    markValueAsUsed typeName context
 
                 Nothing ->
                     case Dict.get name context.importedCustomTypeLookup of
                         Just customTypeName ->
-                            ( [], { context | unusedImportedCustomTypes = Dict.remove customTypeName context.unusedImportedCustomTypes } )
+                            { context | unusedImportedCustomTypes = Dict.remove customTypeName context.unusedImportedCustomTypes }
 
                         Nothing ->
                             case ModuleNameLookupTable.moduleNameAt context.lookupTable range of
                                 Just realModuleName ->
-                                    ( []
-                                    , context
+                                    context
                                         |> markValueAsUsed name
                                         |> markModuleAsUsed ( realModuleName, [] )
-                                    )
 
                                 Nothing ->
-                                    ( [], markValueAsUsed name context )
+                                    markValueAsUsed name context
 
         Expression.FunctionOrValue moduleName _ ->
             case ModuleNameLookupTable.moduleNameAt context.lookupTable range of
                 Just realModuleName ->
-                    ( [], markModuleAsUsed ( realModuleName, moduleName ) context )
+                    markModuleAsUsed ( realModuleName, moduleName ) context
 
                 Nothing ->
-                    ( [], context )
+                    context
 
         Expression.OperatorApplication name _ _ _ ->
-            ( [], markValueAsUsed name context )
+            markValueAsUsed name context
 
         Expression.PrefixOperator name ->
-            ( [], markValueAsUsed name context )
+            markValueAsUsed name context
 
         Expression.RecordUpdateExpression expr _ ->
-            ( [], markValueAsUsed (Node.value expr) context )
+            markValueAsUsed (Node.value expr) context
 
         Expression.LambdaExpression { args } ->
-            ( []
-            , context
+            context
                 |> markValuesFromPatternsAsUsed args
                 |> registerParameters args
-            )
 
         Expression.CaseExpression { cases } ->
-            ( []
-            , markValuesFromPatternsAsUsed
+            markValuesFromPatternsAsUsed
                 (List.map (\( patternNode, _ ) -> patternNode) cases)
                 context
-            )
 
         _ ->
-            ( [], context )
+            context
 
 
 letDeclarationEnterVisitor : Node Expression.LetBlock -> Node Expression.LetDeclaration -> ModuleContext -> ( List (Error {}), ModuleContext )
@@ -729,10 +723,9 @@ letDeclarationExitVisitor _ declaration context =
             ( [], context )
 
 
-caseBranchEnterVisitor : a -> ( Node Pattern, b ) -> ModuleContext -> ( List nothing, ModuleContext )
-caseBranchEnterVisitor _ ( pattern, _ ) context =
-    ( []
-    , { context
+caseBranchEnterVisitor : ( Node Pattern, b ) -> ModuleContext -> ModuleContext
+caseBranchEnterVisitor ( pattern, _ ) context =
+    { context
         | scopes =
             NonemptyList.cons
                 { declared = Dict.empty
@@ -740,8 +733,7 @@ caseBranchEnterVisitor _ ( pattern, _ ) context =
                 , namesToIgnore = Set.fromList (getDeclaredParametersFromPattern pattern)
                 }
                 context.scopes
-      }
-    )
+    }
 
 
 caseBranchExitVisitor : a -> ( Node Pattern, b ) -> ModuleContext -> ( List (Rule.Error {}), ModuleContext )
@@ -960,11 +952,9 @@ introducesVariable patternNode =
 -- DECLARATION LIST VISITOR
 
 
-declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List (Error {}), ModuleContext )
+declarationListVisitor : List (Node Declaration) -> ModuleContext -> ModuleContext
 declarationListVisitor nodes context =
-    ( []
-    , List.foldl registerTypes context nodes
-    )
+    List.foldl registerTypes context nodes
 
 
 registerTypes : Node Declaration -> ModuleContext -> ModuleContext
