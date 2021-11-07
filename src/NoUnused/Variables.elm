@@ -624,13 +624,13 @@ expressionEnterVisitor (Node range value) context =
         Expression.LambdaExpression { args } ->
             ( []
             , context
-                |> getUsedVariablesFromPattern args
+                |> markValuesFromPatternsAsUsed args
                 |> registerParameters args
             )
 
         Expression.CaseExpression { cases } ->
             ( []
-            , getUsedVariablesFromPattern
+            , markValuesFromPatternsAsUsed
                 (List.map (\( patternNode, _ ) -> patternNode) cases)
                 context
             )
@@ -665,7 +665,7 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
                 newContext : ModuleContext
                 newContext =
                     { context | inTheDeclarationOf = Node.value functionDeclaration.name :: context.inTheDeclarationOf }
-                        |> getUsedVariablesFromPattern functionDeclaration.arguments
+                        |> markValuesFromPatternsAsUsed functionDeclaration.arguments
                         |> registerFunction letBlockContext function
             in
             ( []
@@ -715,7 +715,7 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
 
                       else
                         []
-                    , getUsedVariablesFromPattern [ pattern ] context
+                    , markValuesFromPatternsAsUsed [ pattern ] context
                     )
 
 
@@ -814,8 +814,8 @@ getDeclaredParametersFromPatternHelp nodes acc =
             acc
 
 
-getUsedVariablesFromPattern : List (Node Pattern) -> ModuleContext -> ModuleContext
-getUsedVariablesFromPattern nodes context =
+markValuesFromPatternsAsUsed : List (Node Pattern) -> ModuleContext -> ModuleContext
+markValuesFromPatternsAsUsed nodes context =
     case nodes of
         [] ->
             context
@@ -823,13 +823,13 @@ getUsedVariablesFromPattern nodes context =
         node :: restOfNodes ->
             case Node.value node of
                 Pattern.TuplePattern patterns ->
-                    getUsedVariablesFromPattern (patterns ++ restOfNodes) context
+                    markValuesFromPatternsAsUsed (patterns ++ restOfNodes) context
 
                 Pattern.UnConsPattern left right ->
-                    getUsedVariablesFromPattern (left :: right :: restOfNodes) context
+                    markValuesFromPatternsAsUsed (left :: right :: restOfNodes) context
 
                 Pattern.ListPattern patterns ->
-                    getUsedVariablesFromPattern (patterns ++ restOfNodes) context
+                    markValuesFromPatternsAsUsed (patterns ++ restOfNodes) context
 
                 Pattern.NamedPattern qualifiedNameRef patterns ->
                     let
@@ -857,18 +857,18 @@ getUsedVariablesFromPattern nodes context =
                                 Nothing ->
                                     contextAfterTypeUsage
                     in
-                    getUsedVariablesFromPattern
+                    markValuesFromPatternsAsUsed
                         (patterns ++ restOfNodes)
                         contextAfterModuleUsage
 
                 Pattern.AsPattern pattern _ ->
-                    getUsedVariablesFromPattern (pattern :: restOfNodes) context
+                    markValuesFromPatternsAsUsed (pattern :: restOfNodes) context
 
                 Pattern.ParenthesizedPattern pattern ->
-                    getUsedVariablesFromPattern (pattern :: restOfNodes) context
+                    markValuesFromPatternsAsUsed (pattern :: restOfNodes) context
 
                 _ ->
-                    getUsedVariablesFromPattern restOfNodes context
+                    markValuesFromPatternsAsUsed restOfNodes context
 
 
 getUsedModulesFromPattern : ModuleNameLookupTable -> Node Pattern -> List ( ModuleName, ModuleName )
@@ -1120,7 +1120,7 @@ declarationEnterVisitor node context =
                         , scopes = NonemptyList.cons emptyScope newContextWhereFunctionIsRegistered.scopes
                     }
                         |> registerParameters functionImplementation.arguments
-                        |> getUsedVariablesFromPattern (Node.value function.declaration).arguments
+                        |> markValuesFromPatternsAsUsed (Node.value function.declaration).arguments
                         |> markAllAsUsed namesUsedInSignature.types
                         |> markAllModulesAsUsed namesUsedInSignature.modules
 
