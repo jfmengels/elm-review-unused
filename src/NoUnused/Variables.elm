@@ -1531,13 +1531,11 @@ untilEndOfVariable name range =
 
 collectNamesFromTypeAnnotation : ModuleNameLookupTable -> Node TypeAnnotation -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 collectNamesFromTypeAnnotation lookupTable node =
-    { types = (collectTypesFromTypeAnnotation [ node ] { types = [], modules = [] }).types
-    , modules = collectModuleNamesFromTypeAnnotation lookupTable node
-    }
+    collectTypesFromTypeAnnotation lookupTable [ node ] { types = [], modules = [] }
 
 
-collectTypesFromTypeAnnotation : List (Node TypeAnnotation) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
-collectTypesFromTypeAnnotation nodes acc =
+collectTypesFromTypeAnnotation : ModuleNameLookupTable -> List (Node TypeAnnotation) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
+collectTypesFromTypeAnnotation lookupTable nodes acc =
     case nodes of
         [] ->
             acc
@@ -1545,22 +1543,34 @@ collectTypesFromTypeAnnotation nodes acc =
         node :: restOfNodes ->
             case Node.value node of
                 TypeAnnotation.FunctionTypeAnnotation left right ->
-                    collectTypesFromTypeAnnotation (left :: right :: restOfNodes) acc
+                    collectTypesFromTypeAnnotation lookupTable (left :: right :: restOfNodes) acc
 
                 TypeAnnotation.Typed nameNode params ->
                     let
-                        newAcc : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                        newAcc =
+                        types : List String
+                        types =
                             case Node.value nameNode of
                                 ( [], str ) ->
-                                    { types = str :: acc.types
-                                    , modules = acc.modules
-                                    }
+                                    str :: acc.types
 
                                 _ ->
-                                    acc
+                                    acc.types
+
+                        modules : List ( ModuleName, ModuleName )
+                        modules =
+                            case ModuleNameLookupTable.moduleNameFor lookupTable nameNode of
+                                Just realModuleName ->
+                                    ( realModuleName, Tuple.first (Node.value nameNode) ) :: acc.modules
+
+                                Nothing ->
+                                    acc.modules
                     in
-                    collectTypesFromTypeAnnotation (params ++ restOfNodes) newAcc
+                    collectTypesFromTypeAnnotation
+                        lookupTable
+                        (params ++ restOfNodes)
+                        { types = types
+                        , modules = modules
+                        }
 
                 TypeAnnotation.Record fields ->
                     let
@@ -1568,7 +1578,7 @@ collectTypesFromTypeAnnotation nodes acc =
                         subNodes =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    collectTypesFromTypeAnnotation (subNodes ++ restOfNodes) acc
+                    collectTypesFromTypeAnnotation lookupTable (subNodes ++ restOfNodes) acc
 
                 TypeAnnotation.GenericRecord _ (Node _ fields) ->
                     let
@@ -1576,13 +1586,13 @@ collectTypesFromTypeAnnotation nodes acc =
                         subNodes =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    collectTypesFromTypeAnnotation (subNodes ++ restOfNodes) acc
+                    collectTypesFromTypeAnnotation lookupTable (subNodes ++ restOfNodes) acc
 
                 TypeAnnotation.Tupled list ->
-                    collectTypesFromTypeAnnotation (list ++ restOfNodes) acc
+                    collectTypesFromTypeAnnotation lookupTable (list ++ restOfNodes) acc
 
                 _ ->
-                    collectTypesFromTypeAnnotation restOfNodes acc
+                    collectTypesFromTypeAnnotation lookupTable restOfNodes acc
 
 
 collectModuleNamesFromTypeAnnotation : ModuleNameLookupTable -> Node TypeAnnotation -> List ( ModuleName, ModuleName )
