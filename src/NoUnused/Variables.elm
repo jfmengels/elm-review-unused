@@ -871,31 +871,31 @@ getUsedTypesFromPattern context nodes acc =
                     getUsedTypesFromPattern context (patterns ++ restOfNodes) acc
 
                 Pattern.NamedPattern qualifiedNameRef patterns ->
-                    case qualifiedNameRef.moduleName of
-                        [] ->
-                            let
-                                types : List String
-                                types =
+                    let
+                        types : List String
+                        types =
+                            case qualifiedNameRef.moduleName of
+                                [] ->
                                     (Dict.get qualifiedNameRef.name context.constructorNameToTypeName |> Maybe.withDefault qualifiedNameRef.name) :: acc.types
 
-                                modules : List ( ModuleName, ModuleName )
-                                modules =
-                                    case ModuleNameLookupTable.moduleNameFor context.lookupTable node of
-                                        Just realModuleName ->
-                                            ( realModuleName, qualifiedNameRef.moduleName ) :: acc.modules
+                                _ ->
+                                    acc.types
 
-                                        Nothing ->
-                                            acc.modules
-                            in
-                            getUsedTypesFromPattern
-                                context
-                                (patterns ++ restOfNodes)
-                                { types = types
-                                , modules = modules
-                                }
+                        modules : List ( ModuleName, ModuleName )
+                        modules =
+                            case ModuleNameLookupTable.moduleNameFor context.lookupTable node of
+                                Just realModuleName ->
+                                    ( realModuleName, qualifiedNameRef.moduleName ) :: acc.modules
 
-                        _ ->
-                            getUsedTypesFromPattern context (patterns ++ restOfNodes) acc
+                                Nothing ->
+                                    acc.modules
+                    in
+                    getUsedTypesFromPattern
+                        context
+                        (patterns ++ restOfNodes)
+                        { types = types
+                        , modules = modules
+                        }
 
                 Pattern.AsPattern pattern _ ->
                     getUsedTypesFromPattern context (pattern :: restOfNodes) acc
