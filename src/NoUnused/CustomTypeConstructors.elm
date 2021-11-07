@@ -645,7 +645,7 @@ expressionVisitor node moduleContext =
             if operator == "==" || operator == "/=" then
                 let
                     { fromThisModule, fromOtherModules } =
-                        findConstructors moduleContext.lookupTable [ left, right ]
+                        findConstructors moduleContext.lookupTable [ left, right ] moduleContext.wasUsedInOtherModules
 
                     replacement : String
                     replacement =
@@ -668,7 +668,7 @@ expressionVisitor node moduleContext =
                 , { moduleContext
                     | ignoredComparisonRanges = staticRanges node ++ moduleContext.ignoredComparisonRanges
                     , fixesForRemovingConstructor = fixes
-                    , wasUsedInOtherModules = Set.union (Set.fromList fromOtherModules) moduleContext.wasUsedInOtherModules
+                    , wasUsedInOtherModules = fromOtherModules
                   }
                 )
 
@@ -679,7 +679,7 @@ expressionVisitor node moduleContext =
             if operator == "==" || operator == "/=" then
                 let
                     { fromThisModule, fromOtherModules } =
-                        findConstructors moduleContext.lookupTable arguments
+                        findConstructors moduleContext.lookupTable arguments moduleContext.wasUsedInOtherModules
 
                     replacementBoolean : String
                     replacementBoolean =
@@ -710,7 +710,7 @@ expressionVisitor node moduleContext =
                 , { moduleContext
                     | ignoredComparisonRanges = staticRanges node ++ moduleContext.ignoredComparisonRanges
                     , fixesForRemovingConstructor = fixes
-                    , wasUsedInOtherModules = Set.union (Set.fromList fromOtherModules) moduleContext.wasUsedInOtherModules
+                    , wasUsedInOtherModules = fromOtherModules
                   }
                 )
 
@@ -868,16 +868,16 @@ staticRanges node =
             []
 
 
-findConstructors : ModuleNameLookupTable -> List (Node Expression) -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : List ( ModuleNameAsString, ConstructorName ) }
-findConstructors lookupTable nodes =
-    findConstructorsHelp lookupTable nodes { fromThisModule = [], fromOtherModules = [] }
+findConstructors : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleNameAsString, ConstructorName ) -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
+findConstructors lookupTable nodes fromOtherModulesBase =
+    findConstructorsHelp lookupTable nodes { fromThisModule = [], fromOtherModules = fromOtherModulesBase }
 
 
 findConstructorsHelp :
     ModuleNameLookupTable
     -> List (Node Expression)
-    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : List ( ModuleNameAsString, ConstructorName ) }
-    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : List ( ModuleNameAsString, ConstructorName ) }
+    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
+    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
 findConstructorsHelp lookupTable nodes acc =
     case nodes of
         [] ->
@@ -948,8 +948,8 @@ addElementToUniqueList :
     ModuleNameLookupTable
     -> Node Expression
     -> ConstructorName
-    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : List ( ModuleNameAsString, ConstructorName ) }
-    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : List ( ModuleNameAsString, ConstructorName ) }
+    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
+    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
 addElementToUniqueList lookupTable node name acc =
     case ModuleNameLookupTable.moduleNameFor lookupTable node of
         Just realModuleName ->
@@ -971,12 +971,12 @@ addElementToUniqueList lookupTable node name acc =
                     , fromOtherModules = acc.fromOtherModules
                     }
 
-            else if List.member key acc.fromOtherModules then
+            else if Set.member key acc.fromOtherModules then
                 acc
 
             else
                 { fromThisModule = acc.fromThisModule
-                , fromOtherModules = key :: acc.fromOtherModules
+                , fromOtherModules = Set.insert key acc.fromOtherModules
                 }
 
         Nothing ->
