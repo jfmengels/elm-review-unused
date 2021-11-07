@@ -466,12 +466,13 @@ register node context =
     case Node.value node of
         Declaration.CustomTypeDeclaration { name, generics, constructors } ->
             let
+                arguments : List (Node TypeAnnotation)
+                arguments =
+                    List.concatMap (Node.value >> .arguments) constructors
+
                 nonPhantomVariables : Set String
                 nonPhantomVariables =
-                    constructors
-                        |> List.concatMap (Node.value >> .arguments)
-                        |> List.concatMap collectGenericsFromTypeAnnotation
-                        |> Set.fromList
+                    collectGenericsFromTypeAnnotation arguments Set.empty
 
                 newPhantomVariables : Dict (List String) (List ( String, Int ))
                 newPhantomVariables =
@@ -1201,31 +1202,44 @@ insertIntoUsedFunctionsOrValues ( moduleName, constructorName ) dict =
         dict
 
 
-collectGenericsFromTypeAnnotation : Node TypeAnnotation -> List String
-collectGenericsFromTypeAnnotation node =
-    case Node.value node of
-        TypeAnnotation.FunctionTypeAnnotation a b ->
-            collectGenericsFromTypeAnnotation a ++ collectGenericsFromTypeAnnotation b
+collectGenericsFromTypeAnnotation : List (Node TypeAnnotation) -> Set String -> Set String
+collectGenericsFromTypeAnnotation nodes acc =
+    case nodes of
+        [] ->
+            acc
 
-        TypeAnnotation.Typed _ params ->
-            List.concatMap collectGenericsFromTypeAnnotation params
+        (Node _ node) :: restOfNodes ->
+            case node of
+                TypeAnnotation.FunctionTypeAnnotation a b ->
+                    collectGenericsFromTypeAnnotation (a :: b :: restOfNodes) acc
 
-        TypeAnnotation.Record list ->
-            list
-                |> List.concatMap (Node.value >> Tuple.second >> collectGenericsFromTypeAnnotation)
+                TypeAnnotation.Typed _ params ->
+                    collectGenericsFromTypeAnnotation (List.append params restOfNodes) acc
 
-        TypeAnnotation.GenericRecord _ list ->
-            Node.value list
-                |> List.concatMap (Node.value >> Tuple.second >> collectGenericsFromTypeAnnotation)
+                TypeAnnotation.Record fields ->
+                    let
+                        subNodes : List (Node TypeAnnotation)
+                        subNodes =
+                            List.map (\(Node _ ( _, value )) -> value) fields
+                    in
+                    collectGenericsFromTypeAnnotation (List.append subNodes restOfNodes) acc
 
-        TypeAnnotation.Tupled list ->
-            List.concatMap collectGenericsFromTypeAnnotation list
+                TypeAnnotation.GenericRecord (Node _ var) (Node _ fields) ->
+                    let
+                        subNodes : List (Node TypeAnnotation)
+                        subNodes =
+                            List.map (\(Node _ ( _, value )) -> value) fields
+                    in
+                    collectGenericsFromTypeAnnotation (List.append subNodes restOfNodes) (Set.insert var acc)
 
-        TypeAnnotation.GenericType var ->
-            [ var ]
+                TypeAnnotation.Tupled list ->
+                    collectGenericsFromTypeAnnotation (List.append list restOfNodes) acc
 
-        TypeAnnotation.Unit ->
-            []
+                TypeAnnotation.GenericType var ->
+                    collectGenericsFromTypeAnnotation restOfNodes (Set.insert var acc)
+
+                TypeAnnotation.Unit ->
+                    collectGenericsFromTypeAnnotation restOfNodes acc
 
 
 collectTypesUsedAsPhantomVariables : ModuleContext -> Dict ModuleName (List ( CustomTypeName, Int )) -> Node TypeAnnotation -> List ( ModuleName, CustomTypeName )
