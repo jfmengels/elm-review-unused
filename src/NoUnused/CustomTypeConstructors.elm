@@ -629,11 +629,9 @@ expressionVisitor node moduleContext =
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
                 let
-                    constructors : Set ( ModuleNameAsString, ConstructorName )
+                    constructors : List ( ModuleNameAsString, ConstructorName )
                     constructors =
-                        Set.union
-                            (findConstructors moduleContext.lookupTable left)
-                            (findConstructors moduleContext.lookupTable right)
+                        findConstructors moduleContext.lookupTable [ left, right ]
 
                     replacement : String
                     replacement =
@@ -644,9 +642,7 @@ expressionVisitor node moduleContext =
                             "True"
 
                     ( fromThisModule, fromOtherModules ) =
-                        constructors
-                            |> Set.toList
-                            |> List.partition (\( moduleName, _ ) -> moduleName == "")
+                        List.partition (\( moduleName, _ ) -> moduleName == "") constructors
 
                     fixes : Dict ConstructorName (List Fix)
                     fixes =
@@ -668,12 +664,9 @@ expressionVisitor node moduleContext =
         Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: arguments) ->
             if operator == "==" || operator == "/=" then
                 let
-                    constructors : Set ( ModuleNameAsString, ConstructorName )
+                    constructors : List ( ModuleNameAsString, ConstructorName )
                     constructors =
-                        List.foldl
-                            (findConstructors moduleContext.lookupTable >> Set.union)
-                            Set.empty
-                            arguments
+                        findConstructors moduleContext.lookupTable arguments
 
                     replacementBoolean : String
                     replacementBoolean =
@@ -692,9 +685,7 @@ expressionVisitor node moduleContext =
                             "always " ++ replacementBoolean
 
                     ( fromThisModule, fromOtherModules ) =
-                        constructors
-                            |> Set.toList
-                            |> List.partition (\( moduleName, _ ) -> moduleName == "")
+                        List.partition (\( moduleName, _ ) -> moduleName == "") constructors
 
                     fixes : Dict ConstructorName (List Fix)
                     fixes =
@@ -864,64 +855,95 @@ staticRanges node =
             []
 
 
-findConstructors : ModuleNameLookupTable -> Node Expression -> Set ( ModuleNameAsString, ConstructorName )
-findConstructors lookupTable node =
-    case Node.value node of
-        Expression.FunctionOrValue _ name ->
-            if isCapitalized name then
-                case ModuleNameLookupTable.moduleNameFor lookupTable node of
-                    Just realModuleName ->
-                        Set.singleton ( String.join "." realModuleName, name )
+findConstructors : ModuleNameLookupTable -> List (Node Expression) -> List ( ModuleNameAsString, ConstructorName )
+findConstructors lookupTable nodes =
+    findConstructorsHelp lookupTable nodes []
 
-                    Nothing ->
-                        Set.empty
+
+findConstructorsHelp : ModuleNameLookupTable -> List (Node Expression) -> List ( ModuleNameAsString, ConstructorName ) -> List ( ModuleNameAsString, ConstructorName )
+findConstructorsHelp lookupTable nodes acc =
+    case nodes of
+        [] ->
+            acc
+
+        node :: restOfNodes ->
+            case Node.value node of
+                Expression.FunctionOrValue _ name ->
+                    if isCapitalized name then
+                        findConstructorsHelp
+                            lookupTable
+                            restOfNodes
+                            (addElementToUniqueList lookupTable node name acc)
+
+                    else
+                        findConstructorsHelp lookupTable restOfNodes acc
+
+                Expression.Application ((Node _ (Expression.FunctionOrValue _ name)) :: restOfArgs) ->
+                    if isCapitalized name then
+                        findConstructorsHelp
+                            lookupTable
+                            (List.append restOfArgs restOfNodes)
+                            (addElementToUniqueList lookupTable node name acc)
+
+                    else
+                        findConstructorsHelp lookupTable restOfNodes acc
+
+                Expression.OperatorApplication operator _ left right ->
+                    if List.member operator [ "+", "-" ] then
+                        findConstructorsHelp lookupTable (left :: right :: restOfNodes) acc
+
+                    else
+                        findConstructorsHelp lookupTable restOfNodes acc
+
+                Expression.ListExpr subNodes ->
+                    findConstructorsHelp lookupTable (List.append subNodes restOfNodes) acc
+
+                Expression.TupledExpression subNodes ->
+                    findConstructorsHelp lookupTable (List.append subNodes restOfNodes) acc
+
+                Expression.ParenthesizedExpression expr ->
+                    findConstructorsHelp lookupTable (expr :: restOfNodes) acc
+
+                Expression.RecordExpr fields ->
+                    let
+                        expressions : List (Node Expression)
+                        expressions =
+                            List.map (\(Node _ ( _, value )) -> value) fields
+                    in
+                    findConstructorsHelp lookupTable (List.append expressions restOfNodes) acc
+
+                Expression.RecordUpdateExpression _ fields ->
+                    let
+                        expressions : List (Node Expression)
+                        expressions =
+                            List.map (\(Node _ ( _, value )) -> value) fields
+                    in
+                    findConstructorsHelp lookupTable (List.append expressions restOfNodes) acc
+
+                Expression.RecordAccess expr _ ->
+                    findConstructorsHelp lookupTable (expr :: restOfNodes) acc
+
+                _ ->
+                    findConstructorsHelp lookupTable restOfNodes acc
+
+
+addElementToUniqueList : ModuleNameLookupTable -> Node Expression -> ConstructorName -> List ( ModuleNameAsString, ConstructorName ) -> List ( ModuleNameAsString, ConstructorName )
+addElementToUniqueList lookupTable node name acc =
+    case ModuleNameLookupTable.moduleNameFor lookupTable node of
+        Just realModuleName ->
+            let
+                key : ( ModuleNameAsString, ConstructorName )
+                key =
+                    ( String.join "." realModuleName, name )
+            in
+            if List.member key acc then
+                acc
 
             else
-                Set.empty
+                key :: acc
 
-        Expression.Application ((Node _ (Expression.FunctionOrValue _ name)) :: restOfArgs) ->
-            if isCapitalized name then
-                List.foldl
-                    (findConstructors lookupTable >> Set.union)
-                    (case ModuleNameLookupTable.moduleNameFor lookupTable node of
-                        Just realModuleName ->
-                            Set.singleton ( String.join "." realModuleName, name )
-
-                        Nothing ->
-                            Set.empty
-                    )
-                    restOfArgs
-
-            else
-                Set.empty
-
-        Expression.OperatorApplication operator _ left right ->
-            if List.member operator [ "+", "-" ] then
-                List.foldl (findConstructors lookupTable >> Set.union) Set.empty [ left, right ]
-
-            else
-                Set.empty
-
-        Expression.ListExpr nodes ->
-            List.foldl (findConstructors lookupTable >> Set.union) Set.empty nodes
-
-        Expression.TupledExpression nodes ->
-            List.foldl (findConstructors lookupTable >> Set.union) Set.empty nodes
-
-        Expression.ParenthesizedExpression expr ->
-            findConstructors lookupTable expr
-
-        Expression.RecordExpr fields ->
-            List.foldl (Node.value >> Tuple.second >> findConstructors lookupTable >> Set.union) Set.empty fields
-
-        Expression.RecordUpdateExpression _ fields ->
-            List.foldl (Node.value >> Tuple.second >> findConstructors lookupTable >> Set.union) Set.empty fields
-
-        Expression.RecordAccess expr _ ->
-            findConstructors lookupTable expr
-
-        _ ->
-            Set.empty
+        Nothing ->
+            acc
 
 
 constructorsInPattern : ModuleNameLookupTable -> Node Pattern -> Set ( ModuleName, String )
