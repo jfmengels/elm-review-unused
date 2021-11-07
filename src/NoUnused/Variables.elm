@@ -805,7 +805,7 @@ removeParens node =
 
 getUsedVariablesFromPattern : ModuleContext -> Node Pattern -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 getUsedVariablesFromPattern context patternNode =
-    { types = getUsedTypesFromPattern context.constructorNameToTypeName [ patternNode ] []
+    { types = (getUsedTypesFromPattern context.constructorNameToTypeName [ patternNode ] { types = [], modules = [] }).types
     , modules = getUsedModulesFromPattern context.lookupTable patternNode
     }
 
@@ -853,7 +853,7 @@ getDeclaredParametersFromPatternHelp nodes acc =
             acc
 
 
-getUsedTypesFromPattern : Dict String String -> List (Node Pattern) -> List String -> List String
+getUsedTypesFromPattern : Dict String String -> List (Node Pattern) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 getUsedTypesFromPattern constructorNameToTypeName nodes acc =
     case nodes of
         [] ->
@@ -873,10 +873,17 @@ getUsedTypesFromPattern constructorNameToTypeName nodes acc =
                 Pattern.NamedPattern qualifiedNameRef patterns ->
                     case qualifiedNameRef.moduleName of
                         [] ->
+                            let
+                                newAcc : { types : List String, modules : List ( ModuleName, ModuleName ) }
+                                newAcc =
+                                    { types = (Dict.get qualifiedNameRef.name constructorNameToTypeName |> Maybe.withDefault qualifiedNameRef.name) :: acc.types
+                                    , modules = acc.modules
+                                    }
+                            in
                             getUsedTypesFromPattern
                                 constructorNameToTypeName
                                 (patterns ++ restOfNodes)
-                                ((Dict.get qualifiedNameRef.name constructorNameToTypeName |> Maybe.withDefault qualifiedNameRef.name) :: acc)
+                                newAcc
 
                         _ ->
                             getUsedTypesFromPattern constructorNameToTypeName (patterns ++ restOfNodes) acc
