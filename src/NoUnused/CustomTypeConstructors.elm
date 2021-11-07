@@ -142,12 +142,12 @@ rule phantomTypes =
 moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
 moduleVisitor schema =
     schema
-        |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
-        |> Rule.withDeclarationListVisitor declarationListVisitor
-        |> Rule.withDeclarationEnterVisitor declarationVisitor
-        |> Rule.withExpressionEnterVisitor expressionVisitor
-        |> Rule.withCaseBranchEnterVisitor caseBranchEnterVisitor
-        |> Rule.withCaseBranchExitVisitor caseBranchExitVisitor
+        |> Rule.withModuleDefinitionVisitor (\node context -> ( [], moduleDefinitionVisitor node context ))
+        |> Rule.withDeclarationListVisitor (\node context -> ( [], declarationListVisitor node context ))
+        |> Rule.withDeclarationEnterVisitor (\node context -> ( [], declarationVisitor node context ))
+        |> Rule.withExpressionEnterVisitor (\node context -> ( [], expressionVisitor node context ))
+        |> Rule.withCaseBranchEnterVisitor (\caseBlock casePattern context -> ( [], caseBranchEnterVisitor caseBlock casePattern context ))
+        |> Rule.withCaseBranchExitVisitor (\caseBlock casePattern context -> ( [], caseBranchExitVisitor caseBlock casePattern context ))
 
 
 
@@ -438,11 +438,11 @@ elmJsonVisitor maybeElmJson projectContext =
 -- MODULE DEFINITION VISITOR
 
 
-moduleDefinitionVisitor : Node Module -> ModuleContext -> ( List nothing, ModuleContext )
+moduleDefinitionVisitor : Node Module -> ModuleContext -> ModuleContext
 moduleDefinitionVisitor moduleNode context =
     case Module.exposingList (Node.value moduleNode) of
         Exposing.All _ ->
-            ( [], { context | exposesEverything = True } )
+            { context | exposesEverything = True }
 
         Exposing.Explicit list ->
             let
@@ -459,21 +459,19 @@ moduleDefinitionVisitor moduleNode context =
                         )
                         list
             in
-            ( []
-            , { context
+            { context
                 | exposedCustomTypesWithConstructors =
                     Set.union (Set.fromList names) context.exposedCustomTypesWithConstructors
-              }
-            )
+            }
 
 
 
 -- DECLARATION LIST VISITOR
 
 
-declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List nothing, ModuleContext )
+declarationListVisitor : List (Node Declaration) -> ModuleContext -> ModuleContext
 declarationListVisitor nodes context =
-    ( [], List.foldl register context nodes )
+    List.foldl register context nodes
 
 
 register : Node Declaration -> ModuleContext -> ModuleContext
@@ -529,36 +527,32 @@ register node context =
 -- DECLARATION VISITOR
 
 
-declarationVisitor : Node Declaration -> ModuleContext -> ( List nothing, ModuleContext )
+declarationVisitor : Node Declaration -> ModuleContext -> ModuleContext
 declarationVisitor node context =
     case Node.value node of
         Declaration.CustomTypeDeclaration { name, constructors } ->
             if isPhantomCustomType context.lookupTable (Node.value name) constructors then
-                ( [], context )
+                context
 
             else
-                ( []
-                , { context
+                { context
                     | declaredTypesWithConstructors =
                         Dict.insert
                             (Node.value name)
                             (constructorsForCustomType constructors)
                             context.declaredTypesWithConstructors
-                  }
-                )
+                }
 
         Declaration.FunctionDeclaration function ->
-            ( []
-            , markPhantomTypesFromTypeAnnotationAsUsed
+            markPhantomTypesFromTypeAnnotationAsUsed
                 (Maybe.map (\(Node _ value) -> value.typeAnnotation) function.signature)
                 { context | ignoredComparisonRanges = [] }
-            )
 
         Declaration.AliasDeclaration { typeAnnotation } ->
-            ( [], markPhantomTypesFromTypeAnnotationAsUsed (Just typeAnnotation) context )
+            markPhantomTypesFromTypeAnnotationAsUsed (Just typeAnnotation) context
 
         _ ->
-            ( [], context )
+            context
 
 
 constructorsForCustomType : List (Node Type.ValueConstructor) -> Dict String ConstructorInformation
@@ -653,16 +647,16 @@ isNeverOrItself lookupTable typeName node =
 -- EXPRESSION VISITOR
 
 
-expressionVisitor : Node Expression -> ModuleContext -> ( List nothing, ModuleContext )
+expressionVisitor : Node Expression -> ModuleContext -> ModuleContext
 expressionVisitor node moduleContext =
     case Node.value node of
         Expression.FunctionOrValue _ name ->
             case ModuleNameLookupTable.moduleNameFor moduleContext.lookupTable node of
                 Just moduleName ->
-                    ( [], registerUsedFunctionOrValue (Node.range node) moduleName name moduleContext )
+                    registerUsedFunctionOrValue (Node.range node) moduleName name moduleContext
 
                 Nothing ->
-                    ( [], moduleContext )
+                    moduleContext
 
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
@@ -687,16 +681,14 @@ expressionVisitor node moduleContext =
                             moduleContext.fixesForRemovingConstructor
                             fromThisModule
                 in
-                ( []
-                , { moduleContext
+                { moduleContext
                     | ignoredComparisonRanges = staticRanges [ node ] moduleContext.ignoredComparisonRanges
                     , fixesForRemovingConstructor = fixes
                     , wasUsedInOtherModules = fromOtherModules
-                  }
-                )
+                }
 
             else
-                ( [], moduleContext )
+                moduleContext
 
         Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: arguments) ->
             if operator == "==" || operator == "/=" then
@@ -729,20 +721,17 @@ expressionVisitor node moduleContext =
                             moduleContext.fixesForRemovingConstructor
                             fromThisModule
                 in
-                ( []
-                , { moduleContext
+                { moduleContext
                     | ignoredComparisonRanges = staticRanges [ node ] moduleContext.ignoredComparisonRanges
                     , fixesForRemovingConstructor = fixes
                     , wasUsedInOtherModules = fromOtherModules
-                  }
-                )
+                }
 
             else
-                ( [], moduleContext )
+                moduleContext
 
         Expression.LetExpression { declarations } ->
-            ( []
-            , List.foldl
+            List.foldl
                 (\declaration ctx ->
                     case Node.value declaration of
                         Expression.LetFunction function ->
@@ -755,13 +744,12 @@ expressionVisitor node moduleContext =
                 )
                 moduleContext
                 declarations
-            )
 
         _ ->
-            ( [], moduleContext )
+            moduleContext
 
 
-caseBranchEnterVisitor : Node Expression.CaseBlock -> ( Node Pattern, Node Expression ) -> ModuleContext -> ( List nothing, ModuleContext )
+caseBranchEnterVisitor : Node Expression.CaseBlock -> ( Node Pattern, Node Expression ) -> ModuleContext -> ModuleContext
 caseBranchEnterVisitor caseExpression ( casePattern, body ) moduleContext =
     let
         previousLocation : Maybe Elm.Syntax.Range.Location
@@ -795,20 +783,16 @@ caseBranchEnterVisitor caseExpression ( casePattern, body ) moduleContext =
                 (Set.map (\( moduleName, constructorName ) -> ( String.split "." moduleName, constructorName )) constructors.fromOtherModules)
                 (Set.map (\constructorName -> ( [], constructorName )) constructors.fromThisModule)
     in
-    ( []
-    , { moduleContext
+    { moduleContext
         | wasUsedInOtherModules = Set.union constructors.fromOtherModules moduleContext.wasUsedInOtherModules
         , constructorsToIgnore = constructorsToIgnore :: moduleContext.constructorsToIgnore
         , fixesForRemovingConstructor = fixes
-      }
-    )
+    }
 
 
-caseBranchExitVisitor : Node Expression.CaseBlock -> ( Node Pattern, Node Expression ) -> ModuleContext -> ( List nothing, ModuleContext )
+caseBranchExitVisitor : Node Expression.CaseBlock -> ( Node Pattern, Node Expression ) -> ModuleContext -> ModuleContext
 caseBranchExitVisitor _ _ moduleContext =
-    ( []
-    , { moduleContext | constructorsToIgnore = List.drop 1 moduleContext.constructorsToIgnore }
-    )
+    { moduleContext | constructorsToIgnore = List.drop 1 moduleContext.constructorsToIgnore }
 
 
 findEndLocationOfPreviousElement : List ( Node a, Node b ) -> Range -> Maybe Elm.Syntax.Range.Location -> Maybe Elm.Syntax.Range.Location
