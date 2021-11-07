@@ -1531,12 +1531,12 @@ untilEndOfVariable name range =
 
 collectNamesFromTypeAnnotation : ModuleNameLookupTable -> Node TypeAnnotation -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 collectNamesFromTypeAnnotation lookupTable node =
-    { types = collectTypesFromTypeAnnotation [ node ] []
+    { types = (collectTypesFromTypeAnnotation [ node ] { types = [], modules = [] }).types
     , modules = collectModuleNamesFromTypeAnnotation lookupTable node
     }
 
 
-collectTypesFromTypeAnnotation : List (Node TypeAnnotation) -> List String -> List String
+collectTypesFromTypeAnnotation : List (Node TypeAnnotation) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 collectTypesFromTypeAnnotation nodes acc =
     case nodes of
         [] ->
@@ -1549,11 +1549,13 @@ collectTypesFromTypeAnnotation nodes acc =
 
                 TypeAnnotation.Typed nameNode params ->
                     let
-                        newAcc : List String
+                        newAcc : { types : List String, modules : List ( ModuleName, ModuleName ) }
                         newAcc =
                             case Node.value nameNode of
                                 ( [], str ) ->
-                                    str :: acc
+                                    { types = str :: acc.types
+                                    , modules = acc.modules
+                                    }
 
                                 _ ->
                                     acc
