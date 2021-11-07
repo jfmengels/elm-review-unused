@@ -208,9 +208,10 @@ elmJsonVisitor maybeProject projectContext =
 
 listDependencies : List ( Elm.Package.Name, a ) -> Set String
 listDependencies deps =
-    deps
-        |> List.map (Tuple.first >> Elm.Package.toString)
-        |> Set.fromList
+    List.foldl
+        (\( name, _ ) acc -> Set.insert (Elm.Package.toString name) acc)
+        Set.empty
+        deps
 
 
 
