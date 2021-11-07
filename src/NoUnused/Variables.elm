@@ -697,7 +697,10 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
                     )
 
                 _ ->
-                    ( if not (introducesVariable pattern) then
+                    ( if introducesVariable pattern then
+                        []
+
+                      else
                         [ Rule.errorWithFix
                             { message = "Pattern doesn't introduce any variables"
                             , details =
@@ -706,9 +709,6 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
                             (Node.range pattern)
                             [ Fix.removeRange (letDeclarationToRemoveRange letBlockContext (Node.range declaration)) ]
                         ]
-
-                      else
-                        []
                     , markValuesFromPatternsAsUsed [ pattern ] context
                     )
 
