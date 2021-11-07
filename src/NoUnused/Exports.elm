@@ -663,16 +663,22 @@ typesUsedInDeclaration : ModuleContext -> Node Declaration -> ( List ( ModuleNam
 typesUsedInDeclaration moduleContext declaration =
     case Node.value declaration of
         Declaration.FunctionDeclaration function ->
-            ( function.signature
-                |> Maybe.map (Node.value >> .typeAnnotation >> collectTypesFromTypeAnnotation moduleContext)
-                |> Maybe.withDefault []
+            ( case function.signature of
+                Just signature ->
+                    collectTypesFromTypeAnnotation moduleContext [ (Node.value signature).typeAnnotation ] []
+
+                Nothing ->
+                    []
             , False
             )
 
         Declaration.CustomTypeDeclaration type_ ->
-            ( type_.constructors
-                |> List.concatMap (Node.value >> .arguments)
-                |> List.concatMap (collectTypesFromTypeAnnotation moduleContext)
+            let
+                arguments : List (Node TypeAnnotation)
+                arguments =
+                    List.concatMap (Node.value >> .arguments) type_.constructors
+            in
+            ( collectTypesFromTypeAnnotation moduleContext arguments []
             , not <|
                 case Dict.get (Node.value type_.name) moduleContext.exposed |> Maybe.map .elementType of
                     Just ExposedType ->
@@ -683,10 +689,10 @@ typesUsedInDeclaration moduleContext declaration =
             )
 
         Declaration.AliasDeclaration alias_ ->
-            ( collectTypesFromTypeAnnotation moduleContext alias_.typeAnnotation, False )
+            ( collectTypesFromTypeAnnotation moduleContext [ alias_.typeAnnotation ] [], False )
 
         Declaration.PortDeclaration signature ->
-            ( collectTypesFromTypeAnnotation moduleContext signature.typeAnnotation, False )
+            ( collectTypesFromTypeAnnotation moduleContext [ signature.typeAnnotation ] [], False )
 
         Declaration.InfixDeclaration _ ->
             ( [], False )
@@ -695,39 +701,46 @@ typesUsedInDeclaration moduleContext declaration =
             ( [], False )
 
 
-collectTypesFromTypeAnnotation : ModuleContext -> Node TypeAnnotation -> List ( ModuleName, String )
-collectTypesFromTypeAnnotation moduleContext node =
-    case Node.value node of
-        TypeAnnotation.FunctionTypeAnnotation a b ->
-            collectTypesFromTypeAnnotation moduleContext a ++ collectTypesFromTypeAnnotation moduleContext b
+collectTypesFromTypeAnnotation : ModuleContext -> List (Node TypeAnnotation) -> List ( ModuleName, String ) -> List ( ModuleName, String )
+collectTypesFromTypeAnnotation moduleContext nodes acc =
+    case nodes of
+        [] ->
+            acc
 
-        TypeAnnotation.Typed (Node range ( _, name )) params ->
-            case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
-                Just moduleName ->
-                    ( moduleName, name ) :: List.concatMap (collectTypesFromTypeAnnotation moduleContext) params
+        node :: restOfNodes ->
+            case Node.value node of
+                TypeAnnotation.FunctionTypeAnnotation left right ->
+                    collectTypesFromTypeAnnotation moduleContext (left :: right :: restOfNodes) acc
 
-                Nothing ->
-                    List.concatMap (collectTypesFromTypeAnnotation moduleContext) params
+                TypeAnnotation.Typed (Node range ( _, name )) params ->
+                    case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
+                        Just moduleName ->
+                            collectTypesFromTypeAnnotation moduleContext (params ++ restOfNodes) (( moduleName, name ) :: acc)
 
-        TypeAnnotation.Record list ->
-            list
-                |> List.map (Node.value >> Tuple.second)
-                |> List.concatMap (collectTypesFromTypeAnnotation moduleContext)
+                        Nothing ->
+                            collectTypesFromTypeAnnotation moduleContext (params ++ restOfNodes) acc
 
-        TypeAnnotation.GenericRecord _ list ->
-            list
-                |> Node.value
-                |> List.map (Node.value >> Tuple.second)
-                |> List.concatMap (collectTypesFromTypeAnnotation moduleContext)
+                TypeAnnotation.Record fields ->
+                    let
+                        subNodes : List (Node TypeAnnotation)
+                        subNodes =
+                            List.map (\(Node _ ( _, value )) -> value) fields
+                    in
+                    collectTypesFromTypeAnnotation moduleContext (subNodes ++ restOfNodes) acc
 
-        TypeAnnotation.Tupled list ->
-            List.concatMap (collectTypesFromTypeAnnotation moduleContext) list
+                TypeAnnotation.GenericRecord _ (Node _ fields) ->
+                    let
+                        subNodes : List (Node TypeAnnotation)
+                        subNodes =
+                            List.map (\(Node _ ( _, value )) -> value) fields
+                    in
+                    collectTypesFromTypeAnnotation moduleContext (subNodes ++ restOfNodes) acc
 
-        TypeAnnotation.GenericType _ ->
-            []
+                TypeAnnotation.Tupled list ->
+                    collectTypesFromTypeAnnotation moduleContext (list ++ restOfNodes) acc
 
-        TypeAnnotation.Unit ->
-            []
+                _ ->
+                    collectTypesFromTypeAnnotation moduleContext restOfNodes acc
 
 
 
@@ -769,9 +782,12 @@ expressionVisitor node moduleContext =
                         (\declaration ->
                             case Node.value declaration of
                                 Expression.LetFunction function ->
-                                    function.signature
-                                        |> Maybe.map (Node.value >> .typeAnnotation >> collectTypesFromTypeAnnotation moduleContext)
-                                        |> Maybe.withDefault []
+                                    case function.signature of
+                                        Just signature ->
+                                            collectTypesFromTypeAnnotation moduleContext [ (Node.value signature).typeAnnotation ] []
+
+                                        Nothing ->
+                                            []
 
                                 Expression.LetDestructuring _ _ ->
                                     []
