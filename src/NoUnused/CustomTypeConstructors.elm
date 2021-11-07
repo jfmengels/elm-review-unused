@@ -932,9 +932,13 @@ addElementToUniqueList lookupTable node name acc =
     case ModuleNameLookupTable.moduleNameFor lookupTable node of
         Just realModuleName ->
             let
+                moduleName : ModuleNameAsString
+                moduleName =
+                    String.join "." realModuleName
+
                 key : ( ModuleNameAsString, ConstructorName )
                 key =
-                    ( String.join "." realModuleName, name )
+                    ( moduleName, name )
             in
             if List.member key acc then
                 acc
