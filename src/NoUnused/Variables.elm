@@ -805,7 +805,7 @@ removeParens node =
 
 getUsedVariablesFromPattern : ModuleContext -> Node Pattern -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 getUsedVariablesFromPattern context patternNode =
-    { types = getUsedTypesFromPattern context.constructorNameToTypeName patternNode
+    { types = getUsedTypesFromPattern context.constructorNameToTypeName [ patternNode ] []
     , modules = getUsedModulesFromPattern context.lookupTable patternNode
     }
 
@@ -853,59 +853,42 @@ getDeclaredParametersFromPatternHelp nodes acc =
             acc
 
 
-getUsedTypesFromPattern : Dict String String -> Node Pattern -> List String
-getUsedTypesFromPattern constructorNameToTypeName patternNode =
-    case Node.value patternNode of
-        Pattern.AllPattern ->
-            []
+getUsedTypesFromPattern : Dict String String -> List (Node Pattern) -> List String -> List String
+getUsedTypesFromPattern constructorNameToTypeName nodes acc =
+    case nodes of
+        [] ->
+            acc
 
-        Pattern.UnitPattern ->
-            []
+        node :: restOfNodes ->
+            case Node.value node of
+                Pattern.TuplePattern patterns ->
+                    getUsedTypesFromPattern constructorNameToTypeName (patterns ++ restOfNodes) acc
 
-        Pattern.CharPattern _ ->
-            []
+                Pattern.UnConsPattern left right ->
+                    getUsedTypesFromPattern constructorNameToTypeName (left :: right :: restOfNodes) acc
 
-        Pattern.StringPattern _ ->
-            []
+                Pattern.ListPattern patterns ->
+                    getUsedTypesFromPattern constructorNameToTypeName (patterns ++ restOfNodes) acc
 
-        Pattern.IntPattern _ ->
-            []
+                Pattern.NamedPattern qualifiedNameRef patterns ->
+                    case qualifiedNameRef.moduleName of
+                        [] ->
+                            getUsedTypesFromPattern
+                                constructorNameToTypeName
+                                (patterns ++ restOfNodes)
+                                ((Dict.get qualifiedNameRef.name constructorNameToTypeName |> Maybe.withDefault qualifiedNameRef.name) :: acc)
 
-        Pattern.HexPattern _ ->
-            []
+                        _ ->
+                            getUsedTypesFromPattern constructorNameToTypeName (patterns ++ restOfNodes) acc
 
-        Pattern.FloatPattern _ ->
-            []
+                Pattern.AsPattern pattern _ ->
+                    getUsedTypesFromPattern constructorNameToTypeName (pattern :: restOfNodes) acc
 
-        Pattern.TuplePattern patterns ->
-            List.concatMap (getUsedTypesFromPattern constructorNameToTypeName) patterns
-
-        Pattern.RecordPattern _ ->
-            []
-
-        Pattern.UnConsPattern pattern1 pattern2 ->
-            List.concatMap (getUsedTypesFromPattern constructorNameToTypeName) [ pattern1, pattern2 ]
-
-        Pattern.ListPattern patterns ->
-            List.concatMap (getUsedTypesFromPattern constructorNameToTypeName) patterns
-
-        Pattern.VarPattern _ ->
-            []
-
-        Pattern.NamedPattern qualifiedNameRef patterns ->
-            case qualifiedNameRef.moduleName of
-                [] ->
-                    (Dict.get qualifiedNameRef.name constructorNameToTypeName |> Maybe.withDefault qualifiedNameRef.name)
-                        :: List.concatMap (getUsedTypesFromPattern constructorNameToTypeName) patterns
+                Pattern.ParenthesizedPattern pattern ->
+                    getUsedTypesFromPattern constructorNameToTypeName (pattern :: restOfNodes) acc
 
                 _ ->
-                    List.concatMap (getUsedTypesFromPattern constructorNameToTypeName) patterns
-
-        Pattern.AsPattern pattern _ ->
-            getUsedTypesFromPattern constructorNameToTypeName pattern
-
-        Pattern.ParenthesizedPattern pattern ->
-            getUsedTypesFromPattern constructorNameToTypeName pattern
+                    getUsedTypesFromPattern constructorNameToTypeName restOfNodes acc
 
 
 getUsedModulesFromPattern : ModuleNameLookupTable -> Node Pattern -> List ( ModuleName, ModuleName )
