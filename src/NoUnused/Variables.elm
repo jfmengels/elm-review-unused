@@ -805,7 +805,7 @@ removeParens node =
 
 getUsedVariablesFromPattern : ModuleContext -> Node Pattern -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 getUsedVariablesFromPattern context patternNode =
-    { types = (getUsedTypesFromPattern context.constructorNameToTypeName [ patternNode ] { types = [], modules = [] }).types
+    { types = (getUsedTypesFromPattern context [ patternNode ] { types = [], modules = [] }).types
     , modules = getUsedModulesFromPattern context.lookupTable patternNode
     }
 
@@ -853,8 +853,8 @@ getDeclaredParametersFromPatternHelp nodes acc =
             acc
 
 
-getUsedTypesFromPattern : Dict String String -> List (Node Pattern) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
-getUsedTypesFromPattern constructorNameToTypeName nodes acc =
+getUsedTypesFromPattern : ModuleContext -> List (Node Pattern) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
+getUsedTypesFromPattern context nodes acc =
     case nodes of
         [] ->
             acc
@@ -862,40 +862,49 @@ getUsedTypesFromPattern constructorNameToTypeName nodes acc =
         node :: restOfNodes ->
             case Node.value node of
                 Pattern.TuplePattern patterns ->
-                    getUsedTypesFromPattern constructorNameToTypeName (patterns ++ restOfNodes) acc
+                    getUsedTypesFromPattern context (patterns ++ restOfNodes) acc
 
                 Pattern.UnConsPattern left right ->
-                    getUsedTypesFromPattern constructorNameToTypeName (left :: right :: restOfNodes) acc
+                    getUsedTypesFromPattern context (left :: right :: restOfNodes) acc
 
                 Pattern.ListPattern patterns ->
-                    getUsedTypesFromPattern constructorNameToTypeName (patterns ++ restOfNodes) acc
+                    getUsedTypesFromPattern context (patterns ++ restOfNodes) acc
 
                 Pattern.NamedPattern qualifiedNameRef patterns ->
                     case qualifiedNameRef.moduleName of
                         [] ->
                             let
-                                newAcc : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                                newAcc =
-                                    { types = (Dict.get qualifiedNameRef.name constructorNameToTypeName |> Maybe.withDefault qualifiedNameRef.name) :: acc.types
-                                    , modules = acc.modules
-                                    }
+                                types : List String
+                                types =
+                                    (Dict.get qualifiedNameRef.name context.constructorNameToTypeName |> Maybe.withDefault qualifiedNameRef.name) :: acc.types
+
+                                modules : List ( ModuleName, ModuleName )
+                                modules =
+                                    case ModuleNameLookupTable.moduleNameFor context.lookupTable node of
+                                        Just realModuleName ->
+                                            ( realModuleName, qualifiedNameRef.moduleName ) :: acc.modules
+
+                                        Nothing ->
+                                            acc.modules
                             in
                             getUsedTypesFromPattern
-                                constructorNameToTypeName
+                                context
                                 (patterns ++ restOfNodes)
-                                newAcc
+                                { types = types
+                                , modules = modules
+                                }
 
                         _ ->
-                            getUsedTypesFromPattern constructorNameToTypeName (patterns ++ restOfNodes) acc
+                            getUsedTypesFromPattern context (patterns ++ restOfNodes) acc
 
                 Pattern.AsPattern pattern _ ->
-                    getUsedTypesFromPattern constructorNameToTypeName (pattern :: restOfNodes) acc
+                    getUsedTypesFromPattern context (pattern :: restOfNodes) acc
 
                 Pattern.ParenthesizedPattern pattern ->
-                    getUsedTypesFromPattern constructorNameToTypeName (pattern :: restOfNodes) acc
+                    getUsedTypesFromPattern context (pattern :: restOfNodes) acc
 
                 _ ->
-                    getUsedTypesFromPattern constructorNameToTypeName restOfNodes acc
+                    getUsedTypesFromPattern context restOfNodes acc
 
 
 getUsedModulesFromPattern : ModuleNameLookupTable -> Node Pattern -> List ( ModuleName, ModuleName )
