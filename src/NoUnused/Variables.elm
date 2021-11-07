@@ -818,36 +818,36 @@ getDeclaredParametersFromPattern node =
 getDeclaredParametersFromPatternHelp : List (Node Pattern) -> List String -> List String
 getDeclaredParametersFromPatternHelp nodes acc =
     case nodes of
-        (Node _ node) :: tail ->
+        (Node _ node) :: restOfNodes ->
             case node of
                 Pattern.ParenthesizedPattern pattern ->
-                    getDeclaredParametersFromPatternHelp (pattern :: tail) acc
+                    getDeclaredParametersFromPatternHelp (pattern :: restOfNodes) acc
 
                 Pattern.VarPattern name ->
-                    getDeclaredParametersFromPatternHelp tail (name :: acc)
+                    getDeclaredParametersFromPatternHelp restOfNodes (name :: acc)
 
                 Pattern.AsPattern pattern (Node _ asName) ->
-                    getDeclaredParametersFromPatternHelp (pattern :: tail) (asName :: acc)
+                    getDeclaredParametersFromPatternHelp (pattern :: restOfNodes) (asName :: acc)
 
                 Pattern.RecordPattern fields ->
                     getDeclaredParametersFromPatternHelp
-                        tail
+                        restOfNodes
                         (List.map Node.value fields ++ acc)
 
                 Pattern.TuplePattern patterns ->
-                    getDeclaredParametersFromPatternHelp (patterns ++ tail) acc
+                    getDeclaredParametersFromPatternHelp (patterns ++ restOfNodes) acc
 
                 Pattern.NamedPattern _ patterns ->
-                    getDeclaredParametersFromPatternHelp (patterns ++ tail) acc
+                    getDeclaredParametersFromPatternHelp (patterns ++ restOfNodes) acc
 
                 Pattern.UnConsPattern left right ->
-                    getDeclaredParametersFromPatternHelp (left :: right :: tail) acc
+                    getDeclaredParametersFromPatternHelp (left :: right :: restOfNodes) acc
 
                 Pattern.ListPattern patterns ->
-                    getDeclaredParametersFromPatternHelp (patterns ++ tail) acc
+                    getDeclaredParametersFromPatternHelp (patterns ++ restOfNodes) acc
 
                 _ ->
-                    getDeclaredParametersFromPatternHelp tail acc
+                    getDeclaredParametersFromPatternHelp restOfNodes acc
 
         [] ->
             acc
