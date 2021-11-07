@@ -338,9 +338,16 @@ declarationVisitor node context =
 
 createArguments : ModuleNameLookupTable -> List (Node TypeAnnotation) -> List Range
 createArguments lookupTable arguments =
-    arguments
-        |> List.filter (isNotNever lookupTable)
-        |> List.map Node.range
+    List.foldr
+        (\argument acc ->
+            if isNotNever lookupTable argument then
+                Node.range argument :: acc
+
+            else
+                acc
+        )
+        []
+        arguments
 
 
 collectUsedPatternsFromFunctionDeclaration : ModuleContext -> Expression.Function -> List ( ( ModuleName, String ), Set Int )
