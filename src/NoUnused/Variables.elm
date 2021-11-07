@@ -697,7 +697,7 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
                     )
 
                 _ ->
-                    ( if introducesVariable pattern then
+                    ( if introducesVariable [ pattern ] then
                         []
 
                       else
@@ -863,35 +863,44 @@ markValuesFromPatternsAsUsed nodes context =
                     markValuesFromPatternsAsUsed restOfNodes context
 
 
-introducesVariable : Node Pattern -> Bool
-introducesVariable patternNode =
-    case Node.value patternNode of
-        Pattern.VarPattern _ ->
-            True
-
-        Pattern.AsPattern _ _ ->
-            True
-
-        Pattern.RecordPattern fields ->
-            not (List.isEmpty fields)
-
-        Pattern.TuplePattern patterns ->
-            List.any introducesVariable patterns
-
-        Pattern.UnConsPattern pattern1 pattern2 ->
-            List.any introducesVariable [ pattern1, pattern2 ]
-
-        Pattern.ListPattern patterns ->
-            List.any introducesVariable patterns
-
-        Pattern.NamedPattern _ patterns ->
-            List.any introducesVariable patterns
-
-        Pattern.ParenthesizedPattern pattern ->
-            introducesVariable pattern
-
-        _ ->
+introducesVariable : List (Node Pattern) -> Bool
+introducesVariable nodes =
+    case nodes of
+        [] ->
             False
+
+        patternNode :: restOfNodes ->
+            case Node.value patternNode of
+                Pattern.VarPattern _ ->
+                    True
+
+                Pattern.AsPattern _ _ ->
+                    True
+
+                Pattern.RecordPattern fields ->
+                    if List.isEmpty fields then
+                        introducesVariable restOfNodes
+
+                    else
+                        True
+
+                Pattern.TuplePattern patterns ->
+                    introducesVariable (patterns ++ restOfNodes)
+
+                Pattern.UnConsPattern left right ->
+                    introducesVariable (left :: right :: restOfNodes)
+
+                Pattern.ListPattern patterns ->
+                    introducesVariable (patterns ++ restOfNodes)
+
+                Pattern.NamedPattern _ patterns ->
+                    introducesVariable (patterns ++ restOfNodes)
+
+                Pattern.ParenthesizedPattern pattern ->
+                    introducesVariable (pattern :: restOfNodes)
+
+                _ ->
+                    introducesVariable restOfNodes
 
 
 
