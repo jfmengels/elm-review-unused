@@ -832,7 +832,7 @@ getDeclaredParametersFromPatternHelp nodes acc =
                 Pattern.RecordPattern fields ->
                     getDeclaredParametersFromPatternHelp
                         tail
-                        (List.append (List.map Node.value fields) acc)
+                        (List.map Node.value fields ++ acc)
 
                 Pattern.TuplePattern patterns ->
                     getDeclaredParametersFromPatternHelp (patterns ++ tail) acc
