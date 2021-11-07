@@ -217,9 +217,7 @@ initialProjectContext phantomTypes =
     , phantomVariables =
         List.foldl
             (\{ moduleName, typeName, index } dict ->
-                Dict.update (String.split "." moduleName)
-                    (Maybe.withDefault [] >> (::) ( typeName, index ) >> Just)
-                    dict
+                updateToAdd (String.split "." moduleName) ( typeName, index ) dict
             )
             Dict.empty
             phantomTypes
@@ -760,17 +758,7 @@ caseBranchEnterVisitor caseExpression ( casePattern, body ) moduleContext =
                                     , end = (Node.range body).end
                                     }
                         in
-                        Dict.update
-                            constructorName
-                            (\existing ->
-                                case existing of
-                                    Just list ->
-                                        Just (fix :: list)
-
-                                    Nothing ->
-                                        Just [ fix ]
-                            )
-                            acc
+                        updateToAdd constructorName fix acc
 
                     else
                         acc
