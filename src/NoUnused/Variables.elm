@@ -848,13 +848,11 @@ getDeclaredParametersFromPatternHelp nodes acc =
 
 getUsedVariablesFromPattern : ModuleContext -> Node Pattern -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 getUsedVariablesFromPattern context patternNode =
-    { types = (getUsedTypesFromPattern context [ patternNode ] { types = [], modules = [] }).types
-    , modules = (getUsedTypesFromPattern context [ patternNode ] { types = [], modules = [] }).modules
-    }
+    getUsedVariablesFromPatternHelp context [ patternNode ] { types = [], modules = [] }
 
 
-getUsedTypesFromPattern : ModuleContext -> List (Node Pattern) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
-getUsedTypesFromPattern context nodes acc =
+getUsedVariablesFromPatternHelp : ModuleContext -> List (Node Pattern) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
+getUsedVariablesFromPatternHelp context nodes acc =
     case nodes of
         [] ->
             acc
@@ -862,13 +860,13 @@ getUsedTypesFromPattern context nodes acc =
         node :: restOfNodes ->
             case Node.value node of
                 Pattern.TuplePattern patterns ->
-                    getUsedTypesFromPattern context (patterns ++ restOfNodes) acc
+                    getUsedVariablesFromPatternHelp context (patterns ++ restOfNodes) acc
 
                 Pattern.UnConsPattern left right ->
-                    getUsedTypesFromPattern context (left :: right :: restOfNodes) acc
+                    getUsedVariablesFromPatternHelp context (left :: right :: restOfNodes) acc
 
                 Pattern.ListPattern patterns ->
-                    getUsedTypesFromPattern context (patterns ++ restOfNodes) acc
+                    getUsedVariablesFromPatternHelp context (patterns ++ restOfNodes) acc
 
                 Pattern.NamedPattern qualifiedNameRef patterns ->
                     let
@@ -890,7 +888,7 @@ getUsedTypesFromPattern context nodes acc =
                                 Nothing ->
                                     acc.modules
                     in
-                    getUsedTypesFromPattern
+                    getUsedVariablesFromPatternHelp
                         context
                         (patterns ++ restOfNodes)
                         { types = types
@@ -898,13 +896,13 @@ getUsedTypesFromPattern context nodes acc =
                         }
 
                 Pattern.AsPattern pattern _ ->
-                    getUsedTypesFromPattern context (pattern :: restOfNodes) acc
+                    getUsedVariablesFromPatternHelp context (pattern :: restOfNodes) acc
 
                 Pattern.ParenthesizedPattern pattern ->
-                    getUsedTypesFromPattern context (pattern :: restOfNodes) acc
+                    getUsedVariablesFromPatternHelp context (pattern :: restOfNodes) acc
 
                 _ ->
-                    getUsedTypesFromPattern context restOfNodes acc
+                    getUsedVariablesFromPatternHelp context restOfNodes acc
 
 
 getUsedModulesFromPattern : ModuleNameLookupTable -> Node Pattern -> List ( ModuleName, ModuleName )
