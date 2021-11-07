@@ -116,9 +116,9 @@ type alias ModuleContext =
 moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
 moduleVisitor schema =
     schema
-        |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
-        |> Rule.withDeclarationEnterVisitor declarationVisitor
-        |> Rule.withExpressionEnterVisitor expressionVisitor
+        |> Rule.withModuleDefinitionVisitor (\node context -> ( [], moduleDefinitionVisitor node context ))
+        |> Rule.withDeclarationEnterVisitor (\node context -> ( [], declarationVisitor node context ))
+        |> Rule.withExpressionEnterVisitor (\node context -> ( [], expressionVisitor node context ))
 
 
 elmJsonVisitor : Maybe { a | project : Elm.Project.Project } -> ProjectContext -> ( List nothing, ProjectContext )
@@ -282,9 +282,9 @@ foldProjectContexts newContext previousContext =
 -- MODULE DEFINITION VISITOR
 
 
-moduleDefinitionVisitor : Node Module -> ModuleContext -> ( List nothing, ModuleContext )
+moduleDefinitionVisitor : Node Module -> ModuleContext -> ModuleContext
 moduleDefinitionVisitor node moduleContext =
-    ( [], { moduleContext | exposed = Module.exposingList (Node.value node) } )
+    { moduleContext | exposed = Module.exposingList (Node.value node) }
 
 
 isNotNever : ModuleNameLookupTable -> Node TypeAnnotation -> Bool
@@ -301,22 +301,20 @@ isNotNever lookupTable node =
 -- DECLARATION VISITOR
 
 
-declarationVisitor : Node Declaration -> ModuleContext -> ( List nothing, ModuleContext )
+declarationVisitor : Node Declaration -> ModuleContext -> ModuleContext
 declarationVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            ( []
-            , { context
+            { context
                 | usedArguments =
                     registerUsedPatterns
                         (collectUsedPatternsFromFunctionDeclaration context function)
                         context.usedArguments
-              }
-            )
+            }
 
         Declaration.CustomTypeDeclaration typeDeclaration ->
             if List.isEmpty typeDeclaration.constructors then
-                ( [], context )
+                context
 
             else
                 let
@@ -332,17 +330,15 @@ declarationVisitor node context =
                             )
                             typeDeclaration.constructors
                 in
-                ( []
-                , { context
+                { context
                     | customTypeArgs =
                         Dict.insert (Node.value typeDeclaration.name)
                             (Dict.fromList customTypeConstructors)
                             context.customTypeArgs
-                  }
-                )
+                }
 
         _ ->
-            ( [], context )
+            context
 
 
 collectUsedPatternsFromFunctionDeclaration : ModuleContext -> Expression.Function -> List ( ( ModuleName, String ), Set Int )
@@ -354,7 +350,7 @@ collectUsedPatternsFromFunctionDeclaration context { declaration } =
 -- EXPRESSION VISITOR
 
 
-expressionVisitor : Node Expression -> ModuleContext -> ( List nothing, ModuleContext )
+expressionVisitor : Node Expression -> ModuleContext -> ModuleContext
 expressionVisitor node context =
     case Node.value node of
         Expression.CaseExpression { cases } ->
@@ -363,7 +359,7 @@ expressionVisitor node context =
                 usedArguments =
                     collectUsedCustomTypeArgs context.lookupTable (List.map Tuple.first cases)
             in
-            ( [], { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments } )
+            { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments }
 
         Expression.LetExpression { declarations } ->
             let
@@ -380,17 +376,15 @@ expressionVisitor node context =
                         )
                         declarations
             in
-            ( [], { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments } )
+            { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments }
 
         Expression.LambdaExpression { args } ->
-            ( []
-            , { context
+            { context
                 | usedArguments =
                     registerUsedPatterns
                         (collectUsedCustomTypeArgs context.lookupTable args)
                         context.usedArguments
-              }
-            )
+            }
 
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
@@ -399,10 +393,10 @@ expressionVisitor node context =
                     customTypesNotToReport =
                         findCustomTypes context.lookupTable [ left, right ]
                 in
-                ( [], { context | customTypesNotToReport = Set.union customTypesNotToReport context.customTypesNotToReport } )
+                { context | customTypesNotToReport = Set.union customTypesNotToReport context.customTypesNotToReport }
 
             else
-                ( [], context )
+                context
 
         Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: restOfArgs) ->
             if operator == "==" || operator == "/=" then
@@ -411,13 +405,13 @@ expressionVisitor node context =
                     customTypesNotToReport =
                         findCustomTypes context.lookupTable restOfArgs
                 in
-                ( [], { context | customTypesNotToReport = Set.union customTypesNotToReport context.customTypesNotToReport } )
+                { context | customTypesNotToReport = Set.union customTypesNotToReport context.customTypesNotToReport }
 
             else
-                ( [], context )
+                context
 
         _ ->
-            ( [], context )
+            context
 
 
 findCustomTypes : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleName, String )
