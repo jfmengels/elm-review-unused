@@ -1199,11 +1199,6 @@ declarationEnterVisitor node context =
             ( [], context )
 
 
-foldUsedTypesAndModules : List { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
-foldUsedTypesAndModules =
-    List.foldl (\a b -> { types = a.types ++ b.types, modules = a.modules ++ b.modules }) { types = [], modules = [] }
-
-
 
 -- DECLARATION EXIT VISITOR
 
