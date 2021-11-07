@@ -1531,49 +1531,59 @@ untilEndOfVariable name range =
 
 collectNamesFromTypeAnnotation : ModuleNameLookupTable -> Node TypeAnnotation -> { types : List String, modules : List ( ModuleName, ModuleName ) }
 collectNamesFromTypeAnnotation lookupTable node =
-    { types = collectTypesFromTypeAnnotation node
+    { types = collectTypesFromTypeAnnotation [ node ] []
     , modules = collectModuleNamesFromTypeAnnotation lookupTable node
     }
 
 
-collectTypesFromTypeAnnotation : Node TypeAnnotation -> List String
-collectTypesFromTypeAnnotation node =
-    case Node.value node of
-        TypeAnnotation.FunctionTypeAnnotation a b ->
-            collectTypesFromTypeAnnotation a ++ collectTypesFromTypeAnnotation b
+collectTypesFromTypeAnnotation : List (Node TypeAnnotation) -> List String -> List String
+collectTypesFromTypeAnnotation nodes acc =
+    case nodes of
+        [] ->
+            acc
 
-        TypeAnnotation.Typed nameNode params ->
-            let
-                name : List String
-                name =
-                    case Node.value nameNode of
-                        ( [], str ) ->
-                            [ str ]
+        node :: restOfNodes ->
+            case Node.value node of
+                TypeAnnotation.FunctionTypeAnnotation left right ->
+                    collectTypesFromTypeAnnotation (left :: right :: restOfNodes) acc
 
-                        _ ->
-                            []
-            in
-            name ++ List.concatMap collectTypesFromTypeAnnotation params
+                TypeAnnotation.Typed nameNode params ->
+                    let
+                        newAcc : List String
+                        newAcc =
+                            case Node.value nameNode of
+                                ( [], str ) ->
+                                    str :: acc
 
-        TypeAnnotation.Record list ->
-            list
-                |> List.map (Node.value >> Tuple.second)
-                |> List.concatMap collectTypesFromTypeAnnotation
+                                _ ->
+                                    acc
+                    in
+                    collectTypesFromTypeAnnotation (params ++ restOfNodes) newAcc
 
-        TypeAnnotation.GenericRecord _ list ->
-            list
-                |> Node.value
-                |> List.map (Node.value >> Tuple.second)
-                |> List.concatMap collectTypesFromTypeAnnotation
+                TypeAnnotation.Record fields ->
+                    let
+                        subNodes : List (Node TypeAnnotation)
+                        subNodes =
+                            List.map (\(Node _ ( _, value )) -> value) fields
+                    in
+                    collectTypesFromTypeAnnotation (subNodes ++ restOfNodes) acc
 
-        TypeAnnotation.Tupled list ->
-            List.concatMap collectTypesFromTypeAnnotation list
+                TypeAnnotation.GenericRecord _ (Node _ fields) ->
+                    let
+                        subNodes : List (Node TypeAnnotation)
+                        subNodes =
+                            List.map (\(Node _ ( _, value )) -> value) fields
+                    in
+                    collectTypesFromTypeAnnotation (subNodes ++ restOfNodes) acc
 
-        TypeAnnotation.GenericType _ ->
-            []
+                TypeAnnotation.Tupled list ->
+                    collectTypesFromTypeAnnotation (list ++ restOfNodes) acc
 
-        TypeAnnotation.Unit ->
-            []
+                TypeAnnotation.GenericType _ ->
+                    collectTypesFromTypeAnnotation restOfNodes acc
+
+                TypeAnnotation.Unit ->
+                    collectTypesFromTypeAnnotation restOfNodes acc
 
 
 collectModuleNamesFromTypeAnnotation : ModuleNameLookupTable -> Node TypeAnnotation -> List ( ModuleName, ModuleName )
