@@ -61,7 +61,7 @@ rule =
             , foldProjectContexts = foldProjectContexts
             }
         |> Rule.withContextFromImportedModules
-        |> Rule.withElmJsonProjectVisitor elmJsonVisitor
+        |> Rule.withElmJsonProjectVisitor (\project context -> ( [], elmJsonVisitor project context ))
         |> Rule.withFinalProjectEvaluation finalEvaluationForProject
         |> Rule.fromProjectRuleSchema
 
@@ -69,11 +69,11 @@ rule =
 moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
 moduleVisitor schema =
     schema
-        |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
-        |> Rule.withCommentsVisitor commentsVisitor
-        |> Rule.withImportVisitor importVisitor
-        |> Rule.withDeclarationListVisitor declarationListVisitor
-        |> Rule.withExpressionEnterVisitor expressionVisitor
+        |> Rule.withModuleDefinitionVisitor (\project context -> ( [], moduleDefinitionVisitor project context ))
+        |> Rule.withCommentsVisitor (\project context -> ( [], commentsVisitor project context ))
+        |> Rule.withImportVisitor (\project context -> ( [], importVisitor project context ))
+        |> Rule.withDeclarationListVisitor (\project context -> ( [], declarationListVisitor project context ))
+        |> Rule.withExpressionEnterVisitor (\project context -> ( [], expressionVisitor project context ))
 
 
 
@@ -182,7 +182,7 @@ registerMultipleAsUsed usedElements moduleContext =
 -- ELM JSON VISITOR
 
 
-elmJsonVisitor : Maybe { a | project : Elm.Project.Project } -> ProjectContext -> ( List nothing, ProjectContext )
+elmJsonVisitor : Maybe { a | project : Elm.Project.Project } -> ProjectContext -> ProjectContext
 elmJsonVisitor maybeProject projectContext =
     case maybeProject |> Maybe.map .project of
         Just (Elm.Project.Package { exposed }) ->
@@ -196,15 +196,13 @@ elmJsonVisitor maybeProject projectContext =
                         Elm.Project.ExposedDict fakeDict ->
                             List.concatMap Tuple.second fakeDict
             in
-            ( []
-            , { projectContext
+            { projectContext
                 | projectType =
                     exposedModuleNames
                         |> List.map (Elm.Module.toString >> String.split ".")
                         |> Set.fromList
                         |> IsPackage
-              }
-            )
+            }
 
         Just (Elm.Project.Application { depsDirect }) ->
             let
@@ -216,10 +214,10 @@ elmJsonVisitor maybeProject projectContext =
                     else
                         ElmApplication
             in
-            ( [], { projectContext | projectType = IsApplication elmApplicationType } )
+            { projectContext | projectType = IsApplication elmApplicationType }
 
         Nothing ->
-            ( [], { projectContext | projectType = IsApplication ElmApplication } )
+            { projectContext | projectType = IsApplication ElmApplication }
 
 
 
@@ -304,20 +302,20 @@ removeReviewConfig moduleName dict =
 -- MODULE DEFINITION VISITOR
 
 
-moduleDefinitionVisitor : Node Module -> ModuleContext -> ( List nothing, ModuleContext )
+moduleDefinitionVisitor : Node Module -> ModuleContext -> ModuleContext
 moduleDefinitionVisitor moduleNode moduleContext =
     case Module.exposingList (Node.value moduleNode) of
         Exposing.All _ ->
-            ( [], { moduleContext | exposesEverything = True } )
+            { moduleContext | exposesEverything = True }
 
         Exposing.Explicit list ->
-            ( [], { moduleContext | rawExposed = list } )
+            { moduleContext | rawExposed = list }
 
 
-commentsVisitor : List (Node String) -> ModuleContext -> ( List nothing, ModuleContext )
+commentsVisitor : List (Node String) -> ModuleContext -> ModuleContext
 commentsVisitor nodes moduleContext =
     if List.isEmpty moduleContext.rawExposed then
-        ( [], moduleContext )
+        moduleContext
 
     else
         let
@@ -335,11 +333,9 @@ commentsVisitor nodes moduleContext =
                         )
                     |> Maybe.withDefault []
         in
-        ( []
-        , { moduleContext
+        { moduleContext
             | exposed = collectExposedElements comments moduleContext.rawExposed
-          }
-        )
+        }
 
 
 collectExposedElements : List ( Int, String ) -> List (Node Exposing.TopLevelExpose) -> Dict String ExposedElement
@@ -495,7 +491,7 @@ untilEndOfVariable name range =
 -- IMPORT VISITOR
 
 
-importVisitor : Node Import -> ModuleContext -> ( List nothing, ModuleContext )
+importVisitor : Node Import -> ModuleContext -> ModuleContext
 importVisitor node moduleContext =
     case (Node.value node).exposingList |> Maybe.map Node.value of
         Just (Exposing.Explicit list) ->
@@ -525,20 +521,20 @@ importVisitor node moduleContext =
                                    )
                             )
             in
-            ( [], registerMultipleAsUsed usedElements moduleContext )
+            registerMultipleAsUsed usedElements moduleContext
 
         Just (Exposing.All _) ->
-            ( [], moduleContext )
+            moduleContext
 
         Nothing ->
-            ( [], moduleContext )
+            moduleContext
 
 
 
 -- DECLARATION LIST VISITOR
 
 
-declarationListVisitor : List (Node Declaration) -> ModuleContext -> ( List nothing, ModuleContext )
+declarationListVisitor : List (Node Declaration) -> ModuleContext -> ModuleContext
 declarationListVisitor declarations moduleContext =
     let
         typesUsedInDeclaration_ : List ( List ( ModuleName, String ), Bool )
@@ -560,8 +556,7 @@ declarationListVisitor declarations moduleContext =
         contextWithUsedElements =
             registerMultipleAsUsed allUsedTypes moduleContext
     in
-    ( []
-    , { contextWithUsedElements
+    { contextWithUsedElements
         | exposed =
             contextWithUsedElements.exposed
                 |> (if moduleContext.exposesEverything then
@@ -590,8 +585,7 @@ declarationListVisitor declarations moduleContext =
                 |> List.map Tuple.second
                 |> List.append testFunctions
                 |> Set.fromList
-      }
-    )
+    }
 
 
 isType : String -> Bool
@@ -747,32 +741,28 @@ collectTypesFromTypeAnnotation moduleContext nodes acc =
 -- EXPRESSION VISITOR
 
 
-expressionVisitor : Node Expression -> ModuleContext -> ( List nothing, ModuleContext )
+expressionVisitor : Node Expression -> ModuleContext -> ModuleContext
 expressionVisitor node moduleContext =
     case Node.value node of
         Expression.FunctionOrValue _ name ->
             case ModuleNameLookupTable.moduleNameFor moduleContext.lookupTable node of
                 Just moduleName ->
-                    ( []
-                    , registerAsUsed
+                    registerAsUsed
                         ( moduleName, name )
                         moduleContext
-                    )
 
                 Nothing ->
-                    ( [], moduleContext )
+                    moduleContext
 
         Expression.RecordUpdateExpression (Node range name) _ ->
             case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
                 Just moduleName ->
-                    ( []
-                    , registerAsUsed
+                    registerAsUsed
                         ( moduleName, name )
                         moduleContext
-                    )
 
                 Nothing ->
-                    ( [], moduleContext )
+                    moduleContext
 
         Expression.LetExpression { declarations } ->
             let
@@ -794,7 +784,7 @@ expressionVisitor node moduleContext =
                         )
                         declarations
             in
-            ( [], registerMultipleAsUsed used moduleContext )
+            registerMultipleAsUsed used moduleContext
 
         _ ->
-            ( [], moduleContext )
+            moduleContext
