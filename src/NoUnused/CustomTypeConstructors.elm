@@ -742,17 +742,19 @@ expressionVisitor node moduleContext =
 
         Expression.LetExpression { declarations } ->
             ( []
-            , declarations
-                |> List.filterMap
-                    (\declaration ->
-                        case Node.value declaration of
-                            Expression.LetFunction function ->
-                                Just (Maybe.map (Node.value >> .typeAnnotation) function.signature)
+            , List.foldl
+                (\declaration ctx ->
+                    case Node.value declaration of
+                        Expression.LetFunction function ->
+                            markPhantomTypesFromTypeAnnotationAsUsed
+                                (Maybe.map (\(Node _ value) -> value.typeAnnotation) function.signature)
+                                ctx
 
-                            Expression.LetDestructuring _ _ ->
-                                Nothing
-                    )
-                |> List.foldl markPhantomTypesFromTypeAnnotationAsUsed moduleContext
+                        Expression.LetDestructuring _ _ ->
+                            ctx
+                )
+                moduleContext
+                declarations
             )
 
         _ ->
