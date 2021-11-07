@@ -201,7 +201,7 @@ type alias ModuleContext =
     , declaredTypesWithConstructors : Dict CustomTypeName (Dict ConstructorName ConstructorInformation)
     , usedFunctionsOrValues : Dict ModuleNameAsString (Set ConstructorName)
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
-    , constructorsToIgnore : List (Set ( ModuleName, String ))
+    , constructorsToIgnore : List (Set ( ModuleName, ConstructorName ))
     , wasUsedInLocationThatNeedsItself : Set ( ModuleNameAsString, ConstructorName )
     , wasUsedInComparisons : Set ( ModuleNameAsString, ConstructorName )
     , fixesForRemovingConstructor : Dict ConstructorName (List Fix)
@@ -751,39 +751,37 @@ caseBranchEnterVisitor caseExpression ( casePattern, body ) moduleContext =
         previousLocation =
             findEndLocationOfPreviousElement (Node.value caseExpression).cases (Node.range casePattern) Nothing
 
-        constructors : Set ( ModuleName, String )
+        constructors : { fromThisModule : Set ConstructorName, fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
         constructors =
-            constructorsInPattern moduleContext.lookupTable casePattern
+            constructorsInPattern moduleContext.lookupTable [ casePattern ] { fromThisModule = Set.empty, fromOtherModules = Set.empty }
 
         fixes : Dict ConstructorName (List Fix)
         fixes =
             List.foldl
-                (\( moduleName, constructorName ) acc ->
-                    if moduleName == [] then
-                        let
-                            fix : Fix
-                            fix =
-                                Fix.removeRange
-                                    { start = Maybe.withDefault (Node.range casePattern).start previousLocation
-                                    , end = (Node.range body).end
-                                    }
-                        in
-                        updateToAdd constructorName fix acc
-
-                    else
-                        acc
+                (\constructorName acc ->
+                    let
+                        fix : Fix
+                        fix =
+                            Fix.removeRange
+                                { start = Maybe.withDefault (Node.range casePattern).start previousLocation
+                                , end = (Node.range body).end
+                                }
+                    in
+                    updateToAdd constructorName fix acc
                 )
                 moduleContext.fixesForRemovingConstructor
-                (Set.toList constructors)
+                (Set.toList constructors.fromThisModule)
 
-        wasUsedInOtherModules : Set ( ModuleNameAsString, ConstructorName )
-        wasUsedInOtherModules =
-            toSetOfModuleNameAsString constructors
+        constructorsToIgnore : Set ( ModuleName, ConstructorName )
+        constructorsToIgnore =
+            Set.union
+                (Set.map (\( moduleName, constructorName ) -> ( String.split "." moduleName, constructorName )) constructors.fromOtherModules)
+                (Set.map (\constructorName -> ( [], constructorName )) constructors.fromThisModule)
     in
     ( []
     , { moduleContext
-        | wasUsedInOtherModules = Set.union wasUsedInOtherModules moduleContext.wasUsedInOtherModules
-        , constructorsToIgnore = constructors :: moduleContext.constructorsToIgnore
+        | wasUsedInOtherModules = Set.union constructors.fromOtherModules moduleContext.wasUsedInOtherModules
+        , constructorsToIgnore = constructorsToIgnore :: moduleContext.constructorsToIgnore
         , fixesForRemovingConstructor = fixes
       }
     )
@@ -810,11 +808,9 @@ findEndLocationOfPreviousElement nodes nodeRange previousRangeEnd =
             Nothing
 
 
-toSetOfModuleNameAsString : Set ( ModuleName, ConstructorName ) -> Set ( ModuleNameAsString, ConstructorName )
-toSetOfModuleNameAsString set =
-    set
-        |> Set.map (Tuple.mapFirst (String.join "."))
-        |> Set.filter (\( moduleName, _ ) -> moduleName /= "")
+filterOutLocalModules : Set ( ModuleNameAsString, ConstructorName ) -> Set ( ModuleNameAsString, ConstructorName )
+filterOutLocalModules set =
+    Set.filter (\( moduleName, _ ) -> moduleName /= "") set
 
 
 staticRanges : List (Node Expression) -> List Range -> List Range
@@ -993,41 +989,51 @@ addElementToUniqueList lookupTable node name acc =
             acc
 
 
-constructorsInPattern : ModuleNameLookupTable -> Node Pattern -> Set ( ModuleName, String )
-constructorsInPattern lookupTable node =
-    case Node.value node of
-        Pattern.NamedPattern qualifiedNameRef patterns ->
-            let
-                initialSet : Set ( ModuleName, String )
-                initialSet =
-                    case ModuleNameLookupTable.moduleNameFor lookupTable node of
-                        Just realModuleName ->
-                            Set.fromList [ ( realModuleName, qualifiedNameRef.name ) ]
+constructorsInPattern : ModuleNameLookupTable -> List (Node Pattern) -> { fromThisModule : Set ConstructorName, fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) } -> { fromThisModule : Set ConstructorName, fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
+constructorsInPattern lookupTable nodes acc =
+    case nodes of
+        [] ->
+            acc
 
-                        Nothing ->
-                            Set.empty
-            in
-            List.foldl (\pattern acc -> Set.union (constructorsInPattern lookupTable pattern) acc) initialSet patterns
+        node :: restOfNodes ->
+            case Node.value node of
+                Pattern.NamedPattern qualifiedNameRef patterns ->
+                    let
+                        newAcc : { fromThisModule : Set ConstructorName, fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
+                        newAcc =
+                            case ModuleNameLookupTable.moduleNameFor lookupTable node of
+                                Just [] ->
+                                    { fromThisModule = Set.insert qualifiedNameRef.name acc.fromThisModule
+                                    , fromOtherModules = acc.fromOtherModules
+                                    }
 
-        Pattern.TuplePattern patterns ->
-            List.foldl (\pattern acc -> Set.union (constructorsInPattern lookupTable pattern) acc) Set.empty patterns
+                                Just realModuleName ->
+                                    { fromThisModule = acc.fromThisModule
+                                    , fromOtherModules = Set.insert ( String.join "." realModuleName, qualifiedNameRef.name ) acc.fromOtherModules
+                                    }
 
-        Pattern.UnConsPattern left right ->
-            Set.union
-                (constructorsInPattern lookupTable left)
-                (constructorsInPattern lookupTable right)
+                                Nothing ->
+                                    acc
+                    in
+                    constructorsInPattern lookupTable (List.append patterns restOfNodes) newAcc
 
-        Pattern.ListPattern patterns ->
-            List.foldl (\pattern acc -> Set.union (constructorsInPattern lookupTable pattern) acc) Set.empty patterns
+                Pattern.TuplePattern patterns ->
+                    constructorsInPattern lookupTable (List.append patterns restOfNodes) acc
 
-        Pattern.AsPattern pattern _ ->
-            constructorsInPattern lookupTable pattern
+                Pattern.UnConsPattern left right ->
+                    constructorsInPattern lookupTable (left :: right :: restOfNodes) acc
 
-        Pattern.ParenthesizedPattern pattern ->
-            constructorsInPattern lookupTable pattern
+                Pattern.ListPattern patterns ->
+                    constructorsInPattern lookupTable (List.append patterns restOfNodes) acc
 
-        _ ->
-            Set.empty
+                Pattern.AsPattern pattern _ ->
+                    constructorsInPattern lookupTable (pattern :: restOfNodes) acc
+
+                Pattern.ParenthesizedPattern pattern ->
+                    constructorsInPattern lookupTable (pattern :: restOfNodes) acc
+
+                _ ->
+                    constructorsInPattern lookupTable restOfNodes acc
 
 
 registerUsedFunctionOrValue : Range -> ModuleName -> ConstructorName -> ModuleContext -> ModuleContext
