@@ -622,31 +622,17 @@ expressionEnterVisitor (Node range value) context =
             ( [], markValueAsUsed (Node.value expr) context )
 
         Expression.LambdaExpression { args } ->
-            let
-                namesUsedInArgumentPatterns : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                namesUsedInArgumentPatterns =
-                    getUsedVariablesFromPattern context args
-            in
             ( []
-            , List.foldl markValueAsUsed context namesUsedInArgumentPatterns.types
-                |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
+            , context
+                |> getUsedVariablesFromPattern args
                 |> registerParameters args
             )
 
         Expression.CaseExpression { cases } ->
-            let
-                usedVariables : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                usedVariables =
-                    cases
-                        |> List.map (\( patternNode, _ ) -> patternNode)
-                        |> getUsedVariablesFromPattern context
-            in
             ( []
-            , List.foldl
-                markValueAsUsed
+            , getUsedVariablesFromPattern
+                (List.map (\( patternNode, _ ) -> patternNode) cases)
                 context
-                usedVariables.types
-                |> markAllModulesAsUsed usedVariables.modules
             )
 
         _ ->
@@ -671,10 +657,6 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
                 functionDeclaration =
                     Node.value function.declaration
 
-                namesUsedInArgumentPatterns : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                namesUsedInArgumentPatterns =
-                    getUsedVariablesFromPattern context functionDeclaration.arguments
-
                 namesToIgnore : Set String
                 namesToIgnore =
                     List.concatMap getDeclaredParametersFromPattern functionDeclaration.arguments
@@ -683,8 +665,7 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
                 newContext : ModuleContext
                 newContext =
                     { context | inTheDeclarationOf = Node.value functionDeclaration.name :: context.inTheDeclarationOf }
-                        |> (\ctx -> List.foldl markValueAsUsed ctx namesUsedInArgumentPatterns.types)
-                        |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
+                        |> getUsedVariablesFromPattern functionDeclaration.arguments
                         |> registerFunction letBlockContext function
             in
             ( []
@@ -722,11 +703,6 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
                     )
 
                 _ ->
-                    let
-                        namesUsedInPattern : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                        namesUsedInPattern =
-                            getUsedVariablesFromPattern context [ pattern ]
-                    in
                     ( if not (introducesVariable pattern) then
                         [ Rule.errorWithFix
                             { message = "Pattern doesn't introduce any variables"
@@ -739,8 +715,7 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
 
                       else
                         []
-                    , List.foldl markValueAsUsed context namesUsedInPattern.types
-                        |> markAllModulesAsUsed namesUsedInPattern.modules
+                    , getUsedVariablesFromPattern [ pattern ] context
                     )
 
 
@@ -839,63 +814,61 @@ getDeclaredParametersFromPatternHelp nodes acc =
             acc
 
 
-getUsedVariablesFromPattern : ModuleContext -> List (Node Pattern) -> { types : List String, modules : List ( ModuleName, ModuleName ) }
-getUsedVariablesFromPattern context nodes =
-    getUsedVariablesFromPatternHelp context nodes { types = [], modules = [] }
-
-
-getUsedVariablesFromPatternHelp : ModuleContext -> List (Node Pattern) -> { types : List String, modules : List ( ModuleName, ModuleName ) } -> { types : List String, modules : List ( ModuleName, ModuleName ) }
-getUsedVariablesFromPatternHelp context nodes acc =
+getUsedVariablesFromPattern : List (Node Pattern) -> ModuleContext -> ModuleContext
+getUsedVariablesFromPattern nodes context =
     case nodes of
         [] ->
-            acc
+            context
 
         node :: restOfNodes ->
             case Node.value node of
                 Pattern.TuplePattern patterns ->
-                    getUsedVariablesFromPatternHelp context (patterns ++ restOfNodes) acc
+                    getUsedVariablesFromPattern (patterns ++ restOfNodes) context
 
                 Pattern.UnConsPattern left right ->
-                    getUsedVariablesFromPatternHelp context (left :: right :: restOfNodes) acc
+                    getUsedVariablesFromPattern (left :: right :: restOfNodes) context
 
                 Pattern.ListPattern patterns ->
-                    getUsedVariablesFromPatternHelp context (patterns ++ restOfNodes) acc
+                    getUsedVariablesFromPattern (patterns ++ restOfNodes) context
 
                 Pattern.NamedPattern qualifiedNameRef patterns ->
                     let
-                        types : List String
-                        types =
+                        contextAfterTypeUsage : ModuleContext
+                        contextAfterTypeUsage =
                             case qualifiedNameRef.moduleName of
                                 [] ->
-                                    (Dict.get qualifiedNameRef.name context.constructorNameToTypeName |> Maybe.withDefault qualifiedNameRef.name) :: acc.types
+                                    let
+                                        name : String
+                                        name =
+                                            Dict.get qualifiedNameRef.name context.constructorNameToTypeName
+                                                |> Maybe.withDefault qualifiedNameRef.name
+                                    in
+                                    markValueAsUsed name context
 
                                 _ ->
-                                    acc.types
+                                    context
 
-                        modules : List ( ModuleName, ModuleName )
-                        modules =
+                        contextAfterModuleUsage : ModuleContext
+                        contextAfterModuleUsage =
                             case ModuleNameLookupTable.moduleNameFor context.lookupTable node of
                                 Just realModuleName ->
-                                    ( realModuleName, qualifiedNameRef.moduleName ) :: acc.modules
+                                    markModuleAsUsed ( realModuleName, qualifiedNameRef.moduleName ) contextAfterTypeUsage
 
                                 Nothing ->
-                                    acc.modules
+                                    contextAfterTypeUsage
                     in
-                    getUsedVariablesFromPatternHelp
-                        context
+                    getUsedVariablesFromPattern
                         (patterns ++ restOfNodes)
-                        { types = types
-                        , modules = modules
-                        }
+                        contextAfterModuleUsage
 
                 Pattern.AsPattern pattern _ ->
-                    getUsedVariablesFromPatternHelp context (pattern :: restOfNodes) acc
+                    getUsedVariablesFromPattern (pattern :: restOfNodes) context
 
                 Pattern.ParenthesizedPattern pattern ->
-                    getUsedVariablesFromPatternHelp context (pattern :: restOfNodes) acc
+                    getUsedVariablesFromPattern (pattern :: restOfNodes) context
 
                 _ ->
-                    getUsedVariablesFromPatternHelp context restOfNodes acc
+                    getUsedVariablesFromPattern restOfNodes context
 
 
 getUsedModulesFromPattern : ModuleNameLookupTable -> Node Pattern -> List ( ModuleName, ModuleName )
@@ -1121,13 +1094,6 @@ declarationEnterVisitor node context =
                         Nothing ->
                             { types = [], modules = [] }
 
-                namesUsedInArgumentPatterns : { types : List String, modules : List ( ModuleName, ModuleName ) }
-                namesUsedInArgumentPatterns =
-                    function.declaration
-                        |> Node.value
-                        |> .arguments
-                        |> getUsedVariablesFromPattern context
-
                 newContextWhereFunctionIsRegistered : ModuleContext
                 newContextWhereFunctionIsRegistered =
                     if
@@ -1154,10 +1120,9 @@ declarationEnterVisitor node context =
                         , scopes = NonemptyList.cons emptyScope newContextWhereFunctionIsRegistered.scopes
                     }
                         |> registerParameters functionImplementation.arguments
-                        |> (\ctx -> List.foldl markValueAsUsed ctx namesUsedInArgumentPatterns.types)
+                        |> getUsedVariablesFromPattern (Node.value function.declaration).arguments
                         |> markAllAsUsed namesUsedInSignature.types
                         |> markAllModulesAsUsed namesUsedInSignature.modules
-                        |> markAllModulesAsUsed namesUsedInArgumentPatterns.modules
 
                 shadowingImportError : List (Error {})
                 shadowingImportError =
