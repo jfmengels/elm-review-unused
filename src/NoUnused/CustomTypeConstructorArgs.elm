@@ -316,20 +316,23 @@ declarationVisitor node context =
 
             else
                 let
-                    customTypeConstructors : List ( String, List Range )
+                    customTypeConstructors : Dict String (List Range)
                     customTypeConstructors =
-                        List.map
-                            (\(Node _ { name, arguments }) ->
-                                ( Node.value name
-                                , arguments
-                                    |> List.filter (isNotNever context.lookupTable)
-                                    |> List.map Node.range
-                                )
+                        List.foldl
+                            (\(Node _ { name, arguments }) acc ->
+                                Dict.insert
+                                    (Node.value name)
+                                    (arguments
+                                        |> List.filter (isNotNever context.lookupTable)
+                                        |> List.map Node.range
+                                    )
+                                    acc
                             )
+                            Dict.empty
                             typeDeclaration.constructors
                 in
                 { context
-                    | customTypeArgs = ( Node.value typeDeclaration.name, Dict.fromList customTypeConstructors ) :: context.customTypeArgs
+                    | customTypeArgs = ( Node.value typeDeclaration.name, customTypeConstructors ) :: context.customTypeArgs
                 }
 
         _ ->
