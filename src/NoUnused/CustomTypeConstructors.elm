@@ -483,7 +483,7 @@ register node context =
             let
                 arguments : List (Node TypeAnnotation)
                 arguments =
-                    List.concatMap (Node.value >> .arguments) constructors
+                    List.concatMap (\(Node _ value) -> value.arguments) constructors
 
                 nonPhantomVariables : Set String
                 nonPhantomVariables =
@@ -550,7 +550,7 @@ declarationVisitor node context =
         Declaration.FunctionDeclaration function ->
             ( []
             , markPhantomTypesFromTypeAnnotationAsUsed
-                (Maybe.map (Node.value >> .typeAnnotation) function.signature)
+                (Maybe.map (\(Node _ value) -> value.typeAnnotation) function.signature)
                 { context | ignoredComparisonRanges = [] }
             )
 
