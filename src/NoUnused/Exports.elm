@@ -326,11 +326,24 @@ commentsVisitor nodes moduleContext =
             comments =
                 case List.Extra.find (\(Node _ comment) -> String.startsWith "{-|" comment) nodes of
                     Just (Node range comment) ->
-                        comment
-                            |> String.lines
-                            |> List.drop 1
-                            |> List.indexedMap (\i line -> ( i + range.start.row + 1, line ))
-                            |> List.filter (Tuple.second >> String.startsWith "@docs ")
+                        let
+                            lines : List String
+                            lines =
+                                comment
+                                    |> String.lines
+                                    |> List.drop 1
+                        in
+                        List.Extra.indexedFilterMap
+                            (\lineNumber line ->
+                                if String.startsWith "@docs " line then
+                                    Just ( lineNumber, line )
+
+                                else
+                                    Nothing
+                            )
+                            (range.start.row + 1)
+                            lines
+                            []
 
                     Nothing ->
                         []
