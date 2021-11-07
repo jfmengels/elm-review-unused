@@ -629,8 +629,7 @@ expressionVisitor node moduleContext =
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
                 let
-                    constructors : List ( ModuleNameAsString, ConstructorName )
-                    constructors =
+                    { fromThisModule, fromOtherModules } =
                         findConstructors moduleContext.lookupTable [ left, right ]
 
                     replacement : String
@@ -640,9 +639,6 @@ expressionVisitor node moduleContext =
 
                         else
                             "True"
-
-                    ( fromThisModule, fromOtherModules ) =
-                        List.partition (\( moduleName, _ ) -> moduleName == "") constructors
 
                     fixes : Dict ConstructorName (List Fix)
                     fixes =
@@ -664,8 +660,7 @@ expressionVisitor node moduleContext =
         Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: arguments) ->
             if operator == "==" || operator == "/=" then
                 let
-                    constructors : List ( ModuleNameAsString, ConstructorName )
-                    constructors =
+                    { fromThisModule, fromOtherModules } =
                         findConstructors moduleContext.lookupTable arguments
 
                     replacementBoolean : String
@@ -683,9 +678,6 @@ expressionVisitor node moduleContext =
 
                         else
                             "always " ++ replacementBoolean
-
-                    ( fromThisModule, fromOtherModules ) =
-                        List.partition (\( moduleName, _ ) -> moduleName == "") constructors
 
                     fixes : Dict ConstructorName (List Fix)
                     fixes =
@@ -855,12 +847,16 @@ staticRanges node =
             []
 
 
-findConstructors : ModuleNameLookupTable -> List (Node Expression) -> List ( ModuleNameAsString, ConstructorName )
+findConstructors : ModuleNameLookupTable -> List (Node Expression) -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : List ( ModuleNameAsString, ConstructorName ) }
 findConstructors lookupTable nodes =
-    findConstructorsHelp lookupTable nodes []
+    findConstructorsHelp lookupTable nodes { fromThisModule = [], fromOtherModules = [] }
 
 
-findConstructorsHelp : ModuleNameLookupTable -> List (Node Expression) -> List ( ModuleNameAsString, ConstructorName ) -> List ( ModuleNameAsString, ConstructorName )
+findConstructorsHelp :
+    ModuleNameLookupTable
+    -> List (Node Expression)
+    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : List ( ModuleNameAsString, ConstructorName ) }
+    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : List ( ModuleNameAsString, ConstructorName ) }
 findConstructorsHelp lookupTable nodes acc =
     case nodes of
         [] ->
@@ -927,7 +923,12 @@ findConstructorsHelp lookupTable nodes acc =
                     findConstructorsHelp lookupTable restOfNodes acc
 
 
-addElementToUniqueList : ModuleNameLookupTable -> Node Expression -> ConstructorName -> List ( ModuleNameAsString, ConstructorName ) -> List ( ModuleNameAsString, ConstructorName )
+addElementToUniqueList :
+    ModuleNameLookupTable
+    -> Node Expression
+    -> ConstructorName
+    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : List ( ModuleNameAsString, ConstructorName ) }
+    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : List ( ModuleNameAsString, ConstructorName ) }
 addElementToUniqueList lookupTable node name acc =
     case ModuleNameLookupTable.moduleNameFor lookupTable node of
         Just realModuleName ->
@@ -940,11 +941,22 @@ addElementToUniqueList lookupTable node name acc =
                 key =
                     ( moduleName, name )
             in
-            if List.member key acc then
+            if moduleName == "" then
+                if List.member key acc.fromThisModule then
+                    acc
+
+                else
+                    { fromThisModule = key :: acc.fromThisModule
+                    , fromOtherModules = acc.fromOtherModules
+                    }
+
+            else if List.member key acc.fromOtherModules then
                 acc
 
             else
-                key :: acc
+                { fromThisModule = acc.fromThisModule
+                , fromOtherModules = key :: acc.fromOtherModules
+                }
 
         Nothing ->
             acc
