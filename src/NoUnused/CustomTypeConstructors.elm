@@ -19,6 +19,7 @@ import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Type as Type
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import List.Extra
 import Review.Fix as Fix exposing (Fix)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
@@ -474,11 +475,17 @@ register node context =
 
                 phantomVariables : List ( String, Int )
                 phantomVariables =
-                    generics
-                        |> List.map Node.value
-                        |> List.indexedMap Tuple.pair
-                        |> List.filter (\( _, genericName ) -> not <| Set.member genericName nonPhantomVariables)
-                        |> List.map (\( indexOfPhantomVariable, _ ) -> ( Node.value name, indexOfPhantomVariable ))
+                    List.Extra.indexedFilterMap
+                        (\indexOfPhantomVariable (Node _ genericName) ->
+                            if Set.member genericName nonPhantomVariables then
+                                Nothing
+
+                            else
+                                Just ( Node.value name, indexOfPhantomVariable )
+                        )
+                        0
+                        generics
+                        []
 
                 newPhantomVariables : Dict (List String) (List ( String, Int ))
                 newPhantomVariables =
