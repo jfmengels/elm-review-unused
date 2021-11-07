@@ -372,6 +372,21 @@ mergeDictsWithLists left right =
         Dict.empty
 
 
+updateToAdd : comparable -> a -> Dict comparable (List a) -> Dict comparable (List a)
+updateToAdd key value dict =
+    Dict.update
+        key
+        (\existingValues ->
+            case existingValues of
+                Just values ->
+                    Just (value :: values)
+
+                Nothing ->
+                    Just [ value ]
+        )
+        dict
+
+
 
 -- ELM.JSON VISITOR
 
@@ -642,14 +657,17 @@ expressionVisitor node moduleContext =
 
                     fixes : Dict ConstructorName (List Fix)
                     fixes =
-                        fromThisModule
-                            |> List.map (\( _, constructor ) -> Dict.singleton constructor [ Fix.replaceRangeBy (Node.range node) replacement ])
-                            |> List.foldl mergeDictsWithLists Dict.empty
+                        List.foldl
+                            (\( _, constructor ) dict ->
+                                updateToAdd constructor (Fix.replaceRangeBy (Node.range node) replacement) dict
+                            )
+                            moduleContext.fixesForRemovingConstructor
+                            fromThisModule
                 in
                 ( []
                 , { moduleContext
                     | ignoredComparisonRanges = staticRanges node ++ moduleContext.ignoredComparisonRanges
-                    , fixesForRemovingConstructor = mergeDictsWithLists fixes moduleContext.fixesForRemovingConstructor
+                    , fixesForRemovingConstructor = fixes
                     , wasUsedInOtherModules = Set.union (Set.fromList fromOtherModules) moduleContext.wasUsedInOtherModules
                   }
                 )
@@ -681,14 +699,17 @@ expressionVisitor node moduleContext =
 
                     fixes : Dict ConstructorName (List Fix)
                     fixes =
-                        fromThisModule
-                            |> List.map (\( _, constructor ) -> Dict.singleton constructor [ Fix.replaceRangeBy (Node.range node) replacement ])
-                            |> List.foldl mergeDictsWithLists Dict.empty
+                        List.foldl
+                            (\( _, constructor ) dict ->
+                                updateToAdd constructor (Fix.replaceRangeBy (Node.range node) replacement) dict
+                            )
+                            moduleContext.fixesForRemovingConstructor
+                            fromThisModule
                 in
                 ( []
                 , { moduleContext
                     | ignoredComparisonRanges = staticRanges node ++ moduleContext.ignoredComparisonRanges
-                    , fixesForRemovingConstructor = mergeDictsWithLists fixes moduleContext.fixesForRemovingConstructor
+                    , fixesForRemovingConstructor = fixes
                     , wasUsedInOtherModules = Set.union (Set.fromList fromOtherModules) moduleContext.wasUsedInOtherModules
                   }
                 )
