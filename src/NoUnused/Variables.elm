@@ -89,6 +89,7 @@ moduleVisitor schema =
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withDeclarationExitVisitor declarationExitVisitor
         |> Rule.withExpressionEnterVisitor (\node context -> ( [], expressionEnterVisitor node context ))
+        |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withLetDeclarationEnterVisitor letDeclarationEnterVisitor
         |> Rule.withLetDeclarationExitVisitor letDeclarationExitVisitor
         |> Rule.withCaseBranchEnterVisitor (\_ casePattern context -> ( [], caseBranchEnterVisitor casePattern context ))
@@ -620,17 +621,34 @@ expressionEnterVisitor (Node range value) context =
             markValueAsUsed (Node.value expr) context
 
         Expression.LambdaExpression { args } ->
-            context
-                |> markValuesFromPatternsAsUsed args
-                |> registerParameters args
+            markValuesFromPatternsAsUsed args
+                { context | scopes = NonemptyList.cons (scopeWithPatternsToIgnore args) context.scopes }
 
         Expression.CaseExpression { cases } ->
             markValuesFromPatternsAsUsed
                 (List.map (\( patternNode, _ ) -> patternNode) cases)
                 context
 
+        Expression.LetExpression _ ->
+            { context
+                | scopes = NonemptyList.cons { declared = Dict.empty, used = Dict.empty, namesToIgnore = Set.empty } context.scopes
+            }
+
         _ ->
             context
+
+
+expressionExitVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
+expressionExitVisitor node context =
+    case Node.value node of
+        Expression.LetExpression _ ->
+            makeReport context
+
+        Expression.LambdaExpression _ ->
+            makeReport context
+
+        _ ->
+            ( [], context )
 
 
 letDeclarationEnterVisitor : Node Expression.LetBlock -> Node Expression.LetDeclaration -> ModuleContext -> ( List (Error {}), ModuleContext )
@@ -1062,9 +1080,8 @@ declarationEnterVisitor node context =
                 newContext =
                     { newContextWhereFunctionIsRegistered
                         | inTheDeclarationOf = [ functionName ]
-                        , scopes = NonemptyList.cons emptyScope newContextWhereFunctionIsRegistered.scopes
+                        , scopes = NonemptyList.cons (scopeWithPatternsToIgnore functionImplementation.arguments) newContextWhereFunctionIsRegistered.scopes
                     }
-                        |> registerParameters functionImplementation.arguments
                         |> markValuesFromPatternsAsUsed (Node.value function.declaration).arguments
                         |> collectNamesFromTypeAnnotation Nothing typeAnnotation
 
@@ -1371,25 +1388,14 @@ registerFunction letBlockContext function context =
             (Node.value declaration.name)
 
 
-registerParameters : List (Node Pattern) -> ModuleContext -> ModuleContext
-registerParameters patterns context =
-    { context
-        | scopes =
-            NonemptyList.mapHead
-                (setNamesToIgnoreFromPattern patterns)
-                context.scopes
+scopeWithPatternsToIgnore : List (Node Pattern) -> Scope
+scopeWithPatternsToIgnore patterns =
+    { declared = Dict.empty
+    , used = Dict.empty
+    , namesToIgnore =
+        List.concatMap getDeclaredParametersFromPattern patterns
+            |> Set.fromList
     }
-
-
-setNamesToIgnoreFromPattern : List (Node Pattern) -> { a | namesToIgnore : Set String } -> { a | namesToIgnore : Set String }
-setNamesToIgnoreFromPattern patterns scope =
-    let
-        namesToIgnore : Set String
-        namesToIgnore =
-            List.concatMap getDeclaredParametersFromPattern patterns
-                |> Set.fromList
-    in
-    { scope | namesToIgnore = namesToIgnore }
 
 
 type ExposedElement
