@@ -1596,9 +1596,16 @@ makeReportHelp { declared, used, namesToIgnore } =
 
         errors : List (Error {})
         errors =
-            Dict.filter (\key _ -> not (Set.member key usedLocally)) declared
-                |> Dict.toList
-                |> List.map (\( key, variableInfo ) -> error variableInfo key)
+            Dict.foldl
+                (\key variableInfo acc ->
+                    if not (Set.member key usedLocally) then
+                        error variableInfo key :: acc
+
+                    else
+                        acc
+                )
+                []
+                declared
     in
     ( errors, nonUsedVars )
 
