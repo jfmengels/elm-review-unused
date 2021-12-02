@@ -717,6 +717,13 @@ letDeclarationExitVisitor : a -> Node Expression.LetDeclaration -> ModuleContext
 letDeclarationExitVisitor _ declaration context =
     case Node.value declaration of
         Expression.LetFunction _ ->
+            let
+                _ =
+                    makeReport { context | inTheDeclarationOf = List.drop 1 context.inTheDeclarationOf }
+                        |> Tuple.second
+                        |> .scopes
+                        |> Debug.log "let function exit"
+            in
             makeReport { context | inTheDeclarationOf = List.drop 1 context.inTheDeclarationOf }
 
         Expression.LetDestructuring _ _ ->
@@ -1568,7 +1575,10 @@ makeReport : ModuleContext -> ( List (Error {}), ModuleContext )
 makeReport context =
     let
         ( errors, remainingUsed ) =
-            makeReportHelp (NonemptyList.head context.scopes)
+            makeReportHelp (NonemptyList.head context.scopes |> Debug.log "\n\nHEAD")
+
+        _ =
+            Debug.log "\nremaining" remainingUsed
 
         contextWithPoppedScope : ModuleContext
         contextWithPoppedScope =
