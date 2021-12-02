@@ -593,7 +593,7 @@ expressionEnterVisitor (Node range value) context =
                             { context | unusedImportedCustomTypes = Dict.remove customTypeName context.unusedImportedCustomTypes }
 
                         Nothing ->
-                            case ModuleNameLookupTable.moduleNameAt context.lookupTable range of
+                            case Debug.log name <| ModuleNameLookupTable.moduleNameAt context.lookupTable range of
                                 Just realModuleName ->
                                     context
                                         |> markValueAsUsed name
