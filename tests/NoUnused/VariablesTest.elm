@@ -1452,9 +1452,10 @@ list =
                     )
                     rule
                 |> Review.Test.expectNoErrors
-    , test "should not report used import even if a used let variable is named in the same way elsewhere" <|
-        \() ->
-            """module A exposing (list)
+    , Test.only <|
+        test "should not report used import even if a used let variable is named in the same way elsewhere" <|
+            \() ->
+                """module A exposing (list)
 import Html exposing (Html, label, text)
 
 list : List (Html msg)
@@ -1467,12 +1468,12 @@ list =
       text label
     ]
 """
-                |> Review.Test.runWithProjectData
-                    (Review.Test.Dependencies.projectWithElmCore
-                        |> Project.addDependency Review.Test.Dependencies.elmHtml
-                    )
-                    rule
-                |> Review.Test.expectNoErrors
+                    |> Review.Test.runWithProjectData
+                        (Review.Test.Dependencies.projectWithElmCore
+                            |> Project.addDependency Review.Test.Dependencies.elmHtml
+                        )
+                        rule
+                    |> Review.Test.expectNoErrors
     , test "should report unused import even if a variant arg is named in the same way" <|
         \() ->
             [ """module A exposing (identity)
