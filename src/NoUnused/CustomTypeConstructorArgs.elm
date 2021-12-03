@@ -525,16 +525,7 @@ collectUsedCustomTypeArgsHelp lookupTable nodes acc =
                         newAcc =
                             case ModuleNameLookupTable.moduleNameAt lookupTable range of
                                 Just moduleName ->
-                                    let
-                                        usedPositions : Set Int
-                                        usedPositions =
-                                            args
-                                                |> List.indexedMap Tuple.pair
-                                                |> List.filter (\( _, subPattern ) -> not <| isWildcard subPattern)
-                                                |> List.map Tuple.first
-                                                |> Set.fromList
-                                    in
-                                    ( ( moduleName, name ), usedPositions ) :: acc
+                                    ( ( moduleName, name ), computeUsedPositions 0 args Set.empty ) :: acc
 
                                 Nothing ->
                                     acc
@@ -558,6 +549,25 @@ collectUsedCustomTypeArgsHelp lookupTable nodes acc =
 
                 _ ->
                     collectUsedCustomTypeArgsHelp lookupTable restOfNodes acc
+
+
+computeUsedPositions : Int -> List (Node Pattern) -> Set Int -> Set Int
+computeUsedPositions index arguments acc =
+    case arguments of
+        [] ->
+            acc
+
+        arg :: restOfArgs ->
+            let
+                newAcc : Set Int
+                newAcc =
+                    if isWildcard arg then
+                        acc
+
+                    else
+                        Set.insert index acc
+            in
+            computeUsedPositions (index + 1) restOfArgs newAcc
 
 
 isWildcard : Node Pattern -> Bool
