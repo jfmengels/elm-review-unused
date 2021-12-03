@@ -187,18 +187,27 @@ declarationExitVisitor node context =
 
 getArgNames : List (List Declared) -> FunctionArgs
 getArgNames declared =
-    declared
-        |> List.indexedMap
-            (\index args ->
-                case args of
-                    [ arg ] ->
-                        Just ( index, arg.name )
+    getArgNamesHelp declared 0 Dict.empty
 
-                    _ ->
-                        Nothing
-            )
-        |> List.filterMap identity
-        |> Dict.fromList
+
+getArgNamesHelp : List (List Declared) -> Int -> FunctionArgs -> FunctionArgs
+getArgNamesHelp declared index acc =
+    case declared of
+        [] ->
+            acc
+
+        args :: restOfDeclared ->
+            let
+                newAcc : Dict Int String
+                newAcc =
+                    case args of
+                        [ arg ] ->
+                            Dict.insert index arg.name acc
+
+                        _ ->
+                            acc
+            in
+            getArgNamesHelp restOfDeclared (index + 1) newAcc
 
 
 getParametersFromPatterns : Source -> Node Pattern -> List Declared
