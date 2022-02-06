@@ -16,6 +16,7 @@ import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Signature exposing (Signature)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import NoUnused.RecordFields.RangeSet as RangeSet exposing (RangeSet)
 import NoUnused.RecordFields.Variable as Variable exposing (Variable)
 import Review.ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
@@ -93,7 +94,7 @@ type alias ModuleContext =
     , typeByNameLookup : TypeByNameLookup
     , typeInference : TypeInference.ModuleContext
     , variableRegister : Variable.Register
-    , directAccessesToIgnore : Set String
+    , directAccessesToIgnore : RangeSet
     , exposes : Exposes
     }
 
@@ -111,7 +112,7 @@ fromProjectToModule =
             { typeInference = TypeInference.fromProjectToModule projectContext
             , moduleNameLookupTable = moduleNameLookupTable
             , variableRegister = Variable.emptyRegister
-            , directAccessesToIgnore = Set.empty
+            , directAccessesToIgnore = RangeSet.empty
             , exposes = ExposesEverything
             , typeByNameLookup = TypeByNameLookup.empty
             }
@@ -290,7 +291,7 @@ declarationEnterVisitor : Node Declaration -> ModuleContext -> ( List (Error {})
 declarationEnterVisitor node moduleContext =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
-            handleDeclaration { moduleContext | directAccessesToIgnore = Set.empty } function
+            handleDeclaration { moduleContext | directAccessesToIgnore = RangeSet.empty } function
 
         _ ->
             ( [], moduleContext )
@@ -503,7 +504,7 @@ expressionEnterVisitor node context =
                     updateRegister name (Variable.markFieldAsUsed (Node.value fieldName)) context
             in
             ( []
-            , { newContext | directAccessesToIgnore = Set.insert (stringifyRange functionOrValueRange) context.directAccessesToIgnore }
+            , { newContext | directAccessesToIgnore = RangeSet.insert functionOrValueRange context.directAccessesToIgnore }
             )
 
         Expression.RecordAccess _ _ ->
@@ -559,10 +560,9 @@ expressionEnterVisitor node context =
                         summarizedArgumentMatchResults =
                             extractOutOfArgumentMatchResults argumentMatchResults
 
-                        variableExpressionToIgnore : Set String
+                        variableExpressionToIgnore : RangeSet
                         variableExpressionToIgnore =
-                            List.map stringifyRange summarizedArgumentMatchResults.variableExpressionToIgnore
-                                |> Set.fromList
+                            RangeSet.fromList summarizedArgumentMatchResults.variableExpressionToIgnore
 
                         newContext : ModuleContext
                         newContext =
@@ -570,7 +570,7 @@ expressionEnterVisitor node context =
                                 (\{ variableName, declaredFields } ctx ->
                                     updateRegister variableName (Variable.markFieldsAsUsed declaredFields) ctx
                                 )
-                                { context | directAccessesToIgnore = Set.union variableExpressionToIgnore context.directAccessesToIgnore }
+                                { context | directAccessesToIgnore = RangeSet.union variableExpressionToIgnore context.directAccessesToIgnore }
                                 summarizedArgumentMatchResults.variables
                     in
                     ( summarizedArgumentMatchResults.errors, newContext )
@@ -642,7 +642,7 @@ expressionEnterVisitor node context =
             ( [], context )
 
         Expression.FunctionOrValue [] name ->
-            if Set.member (stringifyRange (Node.range node)) context.directAccessesToIgnore then
+            if RangeSet.member (Node.range node) context.directAccessesToIgnore then
                 ( [], updateRegister name Variable.markAsUsed context )
 
             else
@@ -844,17 +844,6 @@ expressionExitVisitor node context =
 updateRegister : String -> (Variable -> Variable) -> ModuleContext -> ModuleContext
 updateRegister name func context =
     { context | variableRegister = Variable.updateVariable name func context.variableRegister }
-
-
-stringifyRange : Range -> String
-stringifyRange range =
-    [ range.start.row
-    , range.start.column
-    , range.end.row
-    , range.end.column
-    ]
-        |> List.map String.fromInt
-        |> String.join "-"
 
 
 
