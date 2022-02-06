@@ -187,7 +187,7 @@ c =
                             }
                             |> Review.Test.atExactly { start = { row = 10, column = 10 }, end = { row = 10, column = 13 } }
                         ]
-        , test "should not report unused field if it is used in a let expression below" <|
+        , test "should not report field if it is used in a nested let expression" <|
             \() ->
                 """module A exposing (a)
 a : {foo:Int,bar:Int} -> Int
@@ -200,7 +200,7 @@ a b =
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
-        , test "should not report unused field if it is used in a let expression below 2" <|
+        , test "should not report field if it is used in a let expression nested inside of a case expression" <|
             \() ->
                 """module A exposing (a)
 foo : { used : Bool, thing : Thing } -> Bool
@@ -221,10 +221,7 @@ a =
   in foo
 """
                     |> Review.Test.run rule
-                    |> Review.Test.expectErrors
-                        [ unusedError
-                            |> Review.Test.atExactly { start = { row = 4, column = 21 }, end = { row = 4, column = 27 } }
-                        ]
+                    |> Review.Test.expectErrors [ unusedError ]
         , test "should not report a field when used with a `.field` accessor function" <|
             \() ->
                 """module A exposing (b)
@@ -237,7 +234,7 @@ b = .foo a
                         [ unusedError
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
                         ]
-        , test "should not report a field when used with a function that uses only a select number of fields" <|
+        , test "should report a unused field when used with a function that uses only a select number of fields" <|
             \() ->
                 """module A exposing (b)
 a : {foo:Int,unused:Int}
@@ -253,7 +250,7 @@ getFoo data =
                         [ unusedError
                             |> Review.Test.atExactly { start = { row = 3, column = 13 }, end = { row = 3, column = 19 } }
                         ]
-        , test "should not report a field when used with a function that uses only a select number of fields, not as the first argument" <|
+        , test "should report a unused field when used with a function that uses only a select number of fields, not as the first argument" <|
             \() ->
                 """module A exposing (b)
 a : {foo:Int,unused:Int}
@@ -275,7 +272,7 @@ getFoo _ _ data =
                     """module A exposing (b)
 a : {foo:Int,unused:Int}
 a = {foo=1, unused=2}
-b = { a | unused = unused + 1 }
+b = { a | unused = a.unused + 1 }
 c = a.foo
 """
                         |> Review.Test.run rule
