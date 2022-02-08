@@ -856,9 +856,9 @@ finalEvaluation context =
 
 
 createError : Node String -> Error {}
-createError unusedFieldNode =
+createError (Node range name) =
     Rule.error
-        { message = "Unused field `" ++ Node.value unusedFieldNode ++ "`"
+        { message = "Unused field `" ++ name ++ "`"
         , details = [ "This field has been declared and may have been assigned to, but is never used. You may have forgotten to use it where needed. Please do so or remove the field." ]
         }
-        (Node.range unusedFieldNode)
+        range
