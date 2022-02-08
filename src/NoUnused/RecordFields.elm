@@ -810,8 +810,7 @@ matchRecordWithArgument fields node =
                         |> Set.fromList
             in
             recordSetters
-                |> List.map Node.value
-                |> List.map Tuple.first
+                |> List.map (\(Node _ ( declaredField, _ )) -> declaredField)
                 |> List.filter (\declaredField -> not (Set.member (Node.value declaredField) usedFields))
                 |> ArgumentMatch_ReportErrors
                 |> Just
