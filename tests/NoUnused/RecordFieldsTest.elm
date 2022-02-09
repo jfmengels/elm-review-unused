@@ -352,20 +352,31 @@ func thing = thing.foo + thing.used
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
-        , Test.only <|
-            test "TODO name2" <|
-                \() ->
-                    """module A exposing (b)
+        , test "should not report anything when record is wrapped in a function where the argument is a generic" <|
+            \() ->
+                """module A exposing (b)
+value =
+    { foo = ()
+    , unused = ()
+    }
+
+b = Just value
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report anything when record is wrapped in a record and passed to an unknown function" <|
+            \() ->
+                """module A exposing (b)
 import B
 value =
     { foo = ()
     , unused = ()
     }
 
-b = B.function { value = Just value }
+b = B.function { value = value }
 """
-                        |> Review.Test.run rule
-                        |> Review.Test.expectNoErrors
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         , Test.skip <|
             test "TODO name" <|
                 \() ->

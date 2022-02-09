@@ -763,7 +763,7 @@ isGenericUsed genericToFind type_ =
             False
 
         Type.Type moduleName string types ->
-            False
+            List.any (isGenericUsed genericToFind) types
 
         Type.Record record ->
             False
