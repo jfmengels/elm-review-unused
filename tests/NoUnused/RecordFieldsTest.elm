@@ -81,7 +81,7 @@ b = a.foo
             \() ->
                 """module A exposing (b)
 a argument = {foo=1, unused=2}
-b = a.foo
+b = (a 1).foo
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
