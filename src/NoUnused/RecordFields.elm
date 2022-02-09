@@ -520,8 +520,7 @@ expressionEnterVisitor node context =
 
                         allElements : Array Type
                         allElements =
-                            input
-                                :: argumentsAndReturnType output
+                            (input :: argumentsAndReturnType output)
                                 |> Array.fromList
 
                         removeAt : Int -> Array a -> List a
