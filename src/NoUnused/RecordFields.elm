@@ -76,7 +76,7 @@ rule =
 moduleVisitor : Rule.ModuleRuleSchema schemaState ModuleContext -> Rule.ModuleRuleSchema { schemaState | hasAtLeastOneVisitor : () } ModuleContext
 moduleVisitor schema =
     schema
-        |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
+        |> Rule.withModuleDefinitionVisitor (\node context -> ( [], moduleDefinitionVisitor node context ))
         |> Rule.withDeclarationListVisitor declarationListVisitor
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
@@ -148,11 +148,11 @@ type Exposes
 -- MODULE DEFINITION VISITOR
 
 
-moduleDefinitionVisitor : Node Module -> ModuleContext -> ( List nothing, ModuleContext )
+moduleDefinitionVisitor : Node Module -> ModuleContext -> ModuleContext
 moduleDefinitionVisitor moduleNode moduleContext =
     case Module.exposingList (Node.value moduleNode) of
         Exposing.All _ ->
-            ( [], { moduleContext | exposes = ExposesEverything } )
+            { moduleContext | exposes = ExposesEverything }
 
         Exposing.Explicit list ->
             let
@@ -175,7 +175,7 @@ moduleDefinitionVisitor moduleNode moduleContext =
                         )
                         list
             in
-            ( [], { moduleContext | exposes = ExposesExplicitly (Set.fromList names) } )
+            { moduleContext | exposes = ExposesExplicitly (Set.fromList names) }
 
 
 
