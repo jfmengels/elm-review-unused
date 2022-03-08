@@ -89,6 +89,7 @@ type alias ProjectContext =
             , exposed : Dict String ExposedElement
             }
     , used : Set ( ModuleName, String )
+    , constructors : Dict ( ModuleName, String ) String
     }
 
 
@@ -112,7 +113,7 @@ type ElmApplicationType
 type ExposedElementType
     = Function
     | TypeOrTypeAlias
-    | ExposedType
+    | ExposedType (List String)
 
 
 type alias ModuleContext =
@@ -130,6 +131,7 @@ initialProjectContext =
     { projectType = IsApplication ElmApplication
     , modules = Dict.empty
     , used = Set.empty
+    , constructors = Dict.empty
     }
 
 
@@ -146,17 +148,37 @@ fromProjectToModule lookupTable _ =
 
 fromModuleToProject : Rule.ModuleKey -> Rule.Metadata -> ModuleContext -> ProjectContext
 fromModuleToProject moduleKey metadata moduleContext =
+    let
+        moduleName : ModuleName
+        moduleName =
+            Rule.moduleNameFromMetadata metadata
+    in
     { projectType = IsApplication ElmApplication
     , modules =
         Dict.singleton
-            (Rule.moduleNameFromMetadata metadata)
+            moduleName
             { moduleKey = moduleKey
             , exposed = moduleContext.exposed
             }
     , used =
         moduleContext.elementsNotToReport
-            |> Set.map (Tuple.pair <| Rule.moduleNameFromMetadata metadata)
+            |> Set.map (Tuple.pair moduleName)
             |> Set.union moduleContext.used
+    , constructors =
+        Dict.foldl
+            (\name element acc ->
+                case element.elementType of
+                    ExposedType constructorNames ->
+                        List.foldl
+                            (\constructorName listAcc -> Dict.insert ( moduleName, constructorName ) name listAcc)
+                            acc
+                            constructorNames
+
+                    _ ->
+                        acc
+            )
+            Dict.empty
+            moduleContext.exposed
     }
 
 
@@ -165,6 +187,7 @@ foldProjectContexts newContext previousContext =
     { projectType = previousContext.projectType
     , modules = Dict.union previousContext.modules newContext.modules
     , used = Set.union newContext.used previousContext.used
+    , constructors = Dict.union previousContext.constructors newContext.constructors
     }
 
 
@@ -229,18 +252,33 @@ elmJsonVisitor maybeProject projectContext =
 
 finalEvaluationForProject : ProjectContext -> List (Error { useErrorForModule : () })
 finalEvaluationForProject projectContext =
+    let
+        used : Set ( ModuleName, String )
+        used =
+            Set.foldl
+                (\(( moduleName, _ ) as key) acc ->
+                    case Dict.get key projectContext.constructors of
+                        Just typeName ->
+                            Set.insert ( moduleName, typeName ) acc
+
+                        Nothing ->
+                            acc
+                )
+                projectContext.used
+                projectContext.used
+    in
     projectContext.modules
         |> removeExposedPackages projectContext
         |> Dict.toList
-        |> List.concatMap (errorsForModule projectContext)
+        |> List.concatMap (errorsForModule projectContext used)
 
 
-errorsForModule : ProjectContext -> ( ModuleName, { moduleKey : Rule.ModuleKey, exposed : Dict String ExposedElement } ) -> List (Error scope)
-errorsForModule projectContext ( moduleName, { moduleKey, exposed } ) =
+errorsForModule : ProjectContext -> Set ( ModuleName, String ) -> ( ModuleName, { moduleKey : Rule.ModuleKey, exposed : Dict String ExposedElement } ) -> List (Error scope)
+errorsForModule projectContext used ( moduleName, { moduleKey, exposed } ) =
     exposed
         |> removeApplicationExceptions projectContext
         |> removeReviewConfig moduleName
-        |> Dict.filter (\name _ -> not <| Set.member ( moduleName, name ) projectContext.used)
+        |> Dict.filter (\name _ -> not <| Set.member ( moduleName, name ) used)
         |> Dict.toList
         |> List.concatMap
             (\( name, element ) ->
@@ -254,7 +292,7 @@ errorsForModule projectContext ( moduleName, { moduleKey, exposed } ) =
                             TypeOrTypeAlias ->
                                 "Exposed type or type alias"
 
-                            ExposedType ->
+                            ExposedType _ ->
                                 "Exposed type"
                 in
                 [ Rule.errorForModuleWithFix moduleKey
@@ -400,7 +438,7 @@ collectExposedElements comments nodes =
                             ( name
                             , { range = untilEndOfVariable name range
                               , rangesToRemove = []
-                              , elementType = ExposedType
+                              , elementType = ExposedType []
                               }
                             )
 
@@ -550,15 +588,19 @@ importVisitor node moduleContext =
 declarationListVisitor : List (Node Declaration) -> ModuleContext -> ModuleContext
 declarationListVisitor declarations moduleContext =
     let
+        moduleContextWithUpdatedConstructors : ModuleContext
+        moduleContextWithUpdatedConstructors =
+            { moduleContext | exposed = List.foldl addConstructorsToExposedCustomTypes moduleContext.exposed declarations }
+
         typesUsedInDeclaration_ : List ( List ( ModuleName, String ), Bool )
         typesUsedInDeclaration_ =
             declarations
-                |> List.map (typesUsedInDeclaration moduleContext)
+                |> List.map (typesUsedInDeclaration moduleContextWithUpdatedConstructors)
 
         testFunctions : List String
         testFunctions =
             declarations
-                |> List.filterMap (testFunctionName moduleContext)
+                |> List.filterMap (testFunctionName moduleContextWithUpdatedConstructors)
 
         allUsedTypes : List ( ModuleName, String )
         allUsedTypes =
@@ -567,24 +609,22 @@ declarationListVisitor declarations moduleContext =
 
         contextWithUsedElements : ModuleContext
         contextWithUsedElements =
-            registerMultipleAsUsed allUsedTypes moduleContext
+            registerMultipleAsUsed allUsedTypes moduleContextWithUpdatedConstructors
     in
     { contextWithUsedElements
         | exposed =
-            contextWithUsedElements.exposed
-                |> (if moduleContext.exposesEverything then
-                        identity
+            if moduleContextWithUpdatedConstructors.exposesEverything then
+                contextWithUsedElements.exposed
 
-                    else
-                        let
-                            declaredNames : Set String
-                            declaredNames =
-                                declarations
-                                    |> List.filterMap (\(Node _ declaration) -> declarationName declaration)
-                                    |> Set.fromList
-                        in
-                        Dict.filter (\name _ -> Set.member name declaredNames)
-                   )
+            else
+                let
+                    declaredNames : Set String
+                    declaredNames =
+                        declarations
+                            |> List.filterMap (\(Node _ declaration) -> declarationName declaration)
+                            |> Set.fromList
+                in
+                Dict.filter (\name _ -> Set.member name declaredNames) contextWithUsedElements.exposed
         , elementsNotToReport =
             typesUsedInDeclaration_
                 |> List.concatMap
@@ -599,6 +639,34 @@ declarationListVisitor declarations moduleContext =
                 |> List.append testFunctions
                 |> Set.fromList
     }
+
+
+addConstructorsToExposedCustomTypes : Node Declaration -> Dict String ExposedElement -> Dict String ExposedElement
+addConstructorsToExposedCustomTypes node exposed =
+    case Node.value node of
+        Declaration.CustomTypeDeclaration type_ ->
+            case Dict.get (Node.value type_.name) exposed of
+                Just exposedElement ->
+                    case exposedElement.elementType of
+                        ExposedType [] ->
+                            let
+                                constructors : List String
+                                constructors =
+                                    List.map (\c -> c |> Node.value |> .name |> Node.value) type_.constructors
+                            in
+                            Dict.insert
+                                (Node.value type_.name)
+                                { exposedElement | elementType = ExposedType constructors }
+                                exposed
+
+                        _ ->
+                            exposed
+
+                Nothing ->
+                    exposed
+
+        _ ->
+            exposed
 
 
 isType : String -> Bool
@@ -683,13 +751,12 @@ typesUsedInDeclaration moduleContext declaration =
                     List.concatMap (\constructor -> (Node.value constructor).arguments) type_.constructors
             in
             ( collectTypesFromTypeAnnotation moduleContext arguments []
-            , not <|
-                case Dict.get (Node.value type_.name) moduleContext.exposed |> Maybe.map .elementType of
-                    Just ExposedType ->
-                        True
+            , case Dict.get (Node.value type_.name) moduleContext.exposed |> Maybe.map .elementType of
+                Just (ExposedType _) ->
+                    False
 
-                    _ ->
-                        False
+                _ ->
+                    True
             )
 
         Declaration.AliasDeclaration alias_ ->
