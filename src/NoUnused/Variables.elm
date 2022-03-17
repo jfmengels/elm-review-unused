@@ -39,21 +39,54 @@ import Set exposing (Set)
 
 ## Fail
 
-    module A exposing (a)
+    module A exposing (a, b)
+
+    import UnusedImport
 
     a n =
         n + 1
 
     b =
+        let
+            unused =
+                some thing
+
+            _ =
+                someOther thing
+        in
+        2
+
+    c =
         a 2
 
 
 ## Success
 
-    module A exposing (a)
+    module A exposing (a, b)
 
     a n =
         n + 1
+
+    b =
+        2
+
+
+## Exception
+
+To avoid resorting to weird workarounds that are sometimes used in internal interactive examples, the rule won't report
+values assigned to `_` if a direct call to `Debug.log` is assigned to it.
+
+    a value =
+        let
+            _ =
+                Debug.log "value" value
+        in
+        value + 1
+
+If you enable the [`NoDebug.Log`](https://package.elm-lang.org/packages/jfmengels/elm-review-debug/latest/NoDebug-Log) rule
+from the [`jfmengels/elm-review-debug`](https://package.elm-lang.org/packages/jfmengels/elm-review-debug/latest/) package,
+and configure it to ignore the locations where it's acceptable, then the combination of both rules will make sure to
+clean up code like the above in all the other locations.
 
 
 ## Try it out
@@ -686,20 +719,24 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
               }
             )
 
-        Expression.LetDestructuring pattern _ ->
-            case removeParens pattern of
+        Expression.LetDestructuring pattern value ->
+            case removeParensFromPattern pattern of
                 Node wildCardRange Pattern.AllPattern ->
-                    ( [ Rule.errorWithFix
-                            { message = "Value assigned to `_` is unused"
-                            , details =
-                                [ "This value has been assigned to a wildcard, which makes the value unusable. You should remove it at the location I pointed at."
-                                ]
-                            }
-                            wildCardRange
-                            [ Fix.removeRange (letDeclarationToRemoveRange letBlockContext (Node.range declaration)) ]
-                      ]
-                    , context
-                    )
+                    if isDebugLog context.lookupTable value then
+                        ( [], context )
+
+                    else
+                        ( [ Rule.errorWithFix
+                                { message = "Value assigned to `_` is unused"
+                                , details =
+                                    [ "This value has been assigned to a wildcard, which makes the value unusable. You should remove it at the location I pointed at."
+                                    ]
+                                }
+                                wildCardRange
+                                [ Fix.removeRange (letDeclarationToRemoveRange letBlockContext (Node.range declaration)) ]
+                          ]
+                        , context
+                        )
 
                 Node unitPattern Pattern.UnitPattern ->
                     ( [ Rule.errorWithFix
@@ -729,6 +766,62 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
                         ]
                     , markValuesFromPatternsAsUsed [ pattern ] context
                     )
+
+
+isDebugLog : ModuleNameLookupTable -> Node Expression -> Bool
+isDebugLog lookupTable node =
+    case Node.value node of
+        Expression.Application [ functionWithParens, _, _ ] ->
+            let
+                function : Node Expression
+                function =
+                    removeParensFromExpression functionWithParens
+            in
+            case Node.value function of
+                Expression.FunctionOrValue _ "log" ->
+                    ModuleNameLookupTable.moduleNameFor lookupTable function == Just [ "Debug" ]
+
+                _ ->
+                    False
+
+        Expression.OperatorApplication "|>" _ _ pipeFunction ->
+            case Node.value (removeParensFromExpression pipeFunction) of
+                Expression.Application [ functionWithParens, _ ] ->
+                    let
+                        function : Node Expression
+                        function =
+                            removeParensFromExpression functionWithParens
+                    in
+                    case Node.value function of
+                        Expression.FunctionOrValue _ "log" ->
+                            ModuleNameLookupTable.moduleNameFor lookupTable function == Just [ "Debug" ]
+
+                        _ ->
+                            False
+
+                _ ->
+                    False
+
+        Expression.OperatorApplication "<|" _ pipeFunction _ ->
+            case Node.value (removeParensFromExpression pipeFunction) of
+                Expression.Application [ functionWithParens, _ ] ->
+                    let
+                        function : Node Expression
+                        function =
+                            removeParensFromExpression functionWithParens
+                    in
+                    case Node.value function of
+                        Expression.FunctionOrValue _ "log" ->
+                            ModuleNameLookupTable.moduleNameFor lookupTable function == Just [ "Debug" ]
+
+                        _ ->
+                            False
+
+                _ ->
+                    False
+
+        _ ->
+            False
 
 
 letDeclarationExitVisitor : a -> Node Expression.LetDeclaration -> ModuleContext -> ( List (Error {}), ModuleContext )
@@ -771,11 +864,21 @@ letDeclarationToRemoveRange letBlockContext range =
             letDeclarationsRange
 
 
-removeParens : Node Pattern -> Node Pattern
-removeParens node =
+removeParensFromPattern : Node Pattern -> Node Pattern
+removeParensFromPattern node =
     case Node.value node of
         Pattern.ParenthesizedPattern pattern ->
-            removeParens pattern
+            removeParensFromPattern pattern
+
+        _ ->
+            node
+
+
+removeParensFromExpression : Node Expression -> Node Expression
+removeParensFromExpression node =
+    case Node.value node of
+        Expression.ParenthesizedExpression expr ->
+            removeParensFromExpression expr
 
         _ ->
             node
