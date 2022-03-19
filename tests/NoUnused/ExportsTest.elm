@@ -283,7 +283,7 @@ a = Test.describe "thing" []
 """
                     |> Review.Test.runWithProjectData package rule
                     |> Review.Test.expectNoErrors
-        , test "should not ReviewConfig.config" <|
+        , test "should not report ReviewConfig.config" <|
             \() ->
                 """
 module ReviewConfig exposing (config)
@@ -348,6 +348,74 @@ type Exposed = VariantA | VariantB
 module B exposing (main)
 import A
 main = A.VariantA
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report a used exposed custom type (case expression usage)" <|
+            \() ->
+                [ """
+module A exposing (main)
+import Variant
+import Html
+
+main =
+    case config of
+        Variant.A -> Html.text "a"
+""", """
+module Variant exposing (Variant(..))
+
+type Variant = A
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report a used exposed custom type (argument destructuring usage)" <|
+            \() ->
+                [ """
+module A exposing (main)
+import Variant
+import Html
+
+main a =
+    let
+        fn (Variant.A str) = value
+    in
+    fn a
+""", """
+module Variant exposing (Variant(..))
+
+type Variant = A String
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report a used exposed custom type (function declaration destructuring)" <|
+            \() ->
+                [ """
+module A exposing (fn)
+import Variant
+import Html
+
+n (Variant.A str) = value
+""", """
+module Variant exposing (Variant(..))
+
+type Variant = A String
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report a used exposed custom type (let destructuring usage)" <|
+            \() ->
+                [ """
+module A exposing (main)
+import Variant
+import Html
+
+main =
+    let (Variant.A str) = value
+    in str
+""", """
+module Variant exposing (Variant(..))
+
+type Variant = A String
 """ ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors

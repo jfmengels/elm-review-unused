@@ -19,6 +19,7 @@ import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
+import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import List.Extra
@@ -737,10 +738,12 @@ typesUsedInDeclaration moduleContext declaration =
         Declaration.FunctionDeclaration function ->
             ( case function.signature of
                 Just signature ->
-                    collectTypesFromTypeAnnotation moduleContext [ (Node.value signature).typeAnnotation ] []
+                    []
+                        |> collectTypesFromTypeAnnotation moduleContext [ (Node.value signature).typeAnnotation ]
+                        |> findUsedConstructors moduleContext.lookupTable (Node.value function.declaration).arguments
 
                 Nothing ->
-                    []
+                    findUsedConstructors moduleContext.lookupTable (Node.value function.declaration).arguments []
             , False
             )
 
@@ -845,23 +848,77 @@ expressionVisitor node moduleContext =
             let
                 used : List ( ModuleName, String )
                 used =
-                    List.concatMap
-                        (\declaration ->
+                    List.foldl
+                        (\declaration acc ->
                             case Node.value declaration of
                                 Expression.LetFunction function ->
                                     case function.signature of
                                         Just signature ->
-                                            collectTypesFromTypeAnnotation moduleContext [ (Node.value signature).typeAnnotation ] []
+                                            acc
+                                                |> collectTypesFromTypeAnnotation moduleContext [ (Node.value signature).typeAnnotation ]
+                                                |> findUsedConstructors moduleContext.lookupTable (Node.value function.declaration).arguments
 
                                         Nothing ->
-                                            []
+                                            findUsedConstructors moduleContext.lookupTable (Node.value function.declaration).arguments acc
 
-                                Expression.LetDestructuring _ _ ->
-                                    []
+                                Expression.LetDestructuring pattern _ ->
+                                    findUsedConstructors moduleContext.lookupTable [ pattern ] acc
                         )
+                        []
                         declarations
             in
             registerMultipleAsUsed used moduleContext
 
+        Expression.CaseExpression { cases } ->
+            let
+                usedConstructors : List ( ModuleName, String )
+                usedConstructors =
+                    findUsedConstructors
+                        moduleContext.lookupTable
+                        (List.map Tuple.first cases)
+                        []
+            in
+            registerMultipleAsUsed usedConstructors moduleContext
+
         _ ->
             moduleContext
+
+
+findUsedConstructors : ModuleNameLookupTable -> List (Node Pattern) -> List ( ModuleName, String ) -> List ( ModuleName, String )
+findUsedConstructors lookupTable patterns acc =
+    case patterns of
+        [] ->
+            acc
+
+        pattern :: restOfPatterns ->
+            case Node.value pattern of
+                Pattern.NamedPattern qualifiedNameRef newPatterns ->
+                    let
+                        newAcc : List ( ModuleName, String )
+                        newAcc =
+                            case ModuleNameLookupTable.moduleNameFor lookupTable pattern of
+                                Just moduleName ->
+                                    ( moduleName, qualifiedNameRef.name ) :: acc
+
+                                Nothing ->
+                                    acc
+                    in
+                    findUsedConstructors lookupTable (newPatterns ++ restOfPatterns) newAcc
+
+                Pattern.TuplePattern newPatterns ->
+                    findUsedConstructors lookupTable (newPatterns ++ restOfPatterns) acc
+
+                Pattern.UnConsPattern left right ->
+                    findUsedConstructors lookupTable (left :: right :: restOfPatterns) acc
+
+                Pattern.ListPattern newPatterns ->
+                    findUsedConstructors lookupTable (newPatterns ++ restOfPatterns) acc
+
+                Pattern.AsPattern node _ ->
+                    findUsedConstructors lookupTable (node :: restOfPatterns) acc
+
+                Pattern.ParenthesizedPattern node ->
+                    findUsedConstructors lookupTable (node :: restOfPatterns) acc
+
+                _ ->
+                    findUsedConstructors lookupTable restOfPatterns acc
