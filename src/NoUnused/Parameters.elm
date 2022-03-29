@@ -35,7 +35,7 @@ We're only offering fixes for lambdas here because we believe unused parameters 
 
 ## Fail
 
-Value `something` is not used:
+Value `number` is not used:
 
     add1 number =
         1
