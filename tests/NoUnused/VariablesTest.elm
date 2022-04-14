@@ -383,7 +383,36 @@ a = let b = 1
                         , under = "b"
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 9 }, end = { row = 2, column = 10 } }
-                        |> Review.Test.whenFixed "module SomeModule exposing (a, b)\na = let \n        c = 2\n    in c"
+                        |> Review.Test.whenFixed ("""module SomeModule exposing (a, b)
+a = let$
+        c = 2
+    in c""" |> String.replace "$" " ")
+                    ]
+    , test "should report unused variables from let even if they are exposed by name (multiple ones with type annotations)" <|
+        \() ->
+            """module SomeModule exposing (a, b)
+a = let
+        b : number
+        b = 1
+
+        c : number
+        c = 2
+    in c"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "`let in` variable `b` is not used"
+                        , details = details
+                        , under = "b"
+                        }
+                        |> Review.Test.atExactly { start = { row = 4, column = 9 }, end = { row = 4, column = 10 } }
+                        |> Review.Test.whenFixed ("""module SomeModule exposing (a, b)
+a = let
+       $
+
+        c : number
+        c = 2
+    in c""" |> String.replace "$" " ")
                     ]
     , test "should report unused function from let even if they are exposed by name" <|
         \() ->

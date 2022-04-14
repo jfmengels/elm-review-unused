@@ -711,7 +711,7 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
                 newContext =
                     { context | inTheDeclarationOf = Node.value functionDeclaration.name :: context.inTheDeclarationOf }
                         |> markValuesFromPatternsAsUsed functionDeclaration.arguments
-                        |> registerFunction letBlockContext function
+                        |> registerFunction letBlockContext function (Node.range declaration)
             in
             ( []
             , { newContext
@@ -1464,8 +1464,8 @@ errorForLocalType ( name, type_ ) =
         [ Fix.removeRange type_.rangeToRemove ]
 
 
-registerFunction : LetBlockContext -> Function -> ModuleContext -> ModuleContext
-registerFunction letBlockContext function context =
+registerFunction : LetBlockContext -> Function -> Range -> ModuleContext -> ModuleContext
+registerFunction letBlockContext function functionDeclarationRange context =
     let
         declaration : FunctionImplementation
         declaration =
@@ -1485,7 +1485,7 @@ registerFunction letBlockContext function context =
         |> registerVariable
             { typeName = "`let in` variable"
             , under = Node.range declaration.name
-            , rangeToRemove = Just (letDeclarationToRemoveRange letBlockContext (Node.range function.declaration))
+            , rangeToRemove = Just (letDeclarationToRemoveRange letBlockContext functionDeclarationRange)
             , warning = ""
             }
             (Node.value declaration.name)
