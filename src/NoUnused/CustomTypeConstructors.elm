@@ -196,6 +196,7 @@ type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
     , exposedCustomTypesWithConstructors : Set CustomTypeName
     , isExposed : Bool
+    , isFileIgnored : Bool
     , exposesEverything : Bool
     , exposedConstructors : Dict ModuleNameAsString ExposedConstructors
     , declaredTypesWithConstructors : Dict CustomTypeName (Dict ConstructorName ConstructorInformation)
@@ -232,10 +233,11 @@ initialProjectContext phantomTypes =
 fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
 fromProjectToModule =
     Rule.initContextCreator
-        (\lookupTable moduleName projectContext ->
+        (\lookupTable moduleName filePath projectContext ->
             { lookupTable = lookupTable
             , exposedCustomTypesWithConstructors = Set.empty
             , isExposed = Set.member (String.join "." moduleName) projectContext.exposedModules
+            , isFileIgnored = String.startsWith "src/Evergreen/" filePath
             , exposedConstructors = projectContext.declaredConstructors
             , exposesEverything = False
             , declaredTypesWithConstructors = Dict.empty
@@ -251,6 +253,7 @@ fromProjectToModule =
         )
         |> Rule.withModuleNameLookupTable
         |> Rule.withModuleName
+        |> Rule.withFilePath
 
 
 fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
