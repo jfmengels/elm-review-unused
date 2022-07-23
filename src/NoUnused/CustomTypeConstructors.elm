@@ -541,7 +541,7 @@ declarationVisitor : Node Declaration -> ModuleContext -> ModuleContext
 declarationVisitor node context =
     case Node.value node of
         Declaration.CustomTypeDeclaration { name, constructors } ->
-            if isPhantomCustomType context.lookupTable (Node.value name) constructors then
+            if context.isFileIgnored || isPhantomCustomType context.lookupTable (Node.value name) constructors then
                 context
 
             else
