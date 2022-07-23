@@ -119,6 +119,7 @@ type ExposedElementType
 
 type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
+    , isFileIgnored : Bool
     , exposed : Dict String ExposedElement
     , used : Set ( ModuleName, String )
     , elementsNotToReport : Set String
@@ -141,7 +142,7 @@ initialProjectContext =
 fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
 fromProjectToModule =
     Rule.initContextCreator
-        (\lookupTable ast moduleDocumentation projectContext ->
+        (\lookupTable filePath ast moduleDocumentation projectContext ->
             let
                 exposed : Dict String ExposedElement
                 exposed =
@@ -153,6 +154,7 @@ fromProjectToModule =
                             collectExposedElements moduleDocumentation explicitlyExposed ast.declarations
             in
             { lookupTable = lookupTable
+            , isFileIgnored = Debug.log filePath (String.startsWith "src/Evergreen/" filePath)
             , exposed = exposed
             , used = Set.empty
             , elementsNotToReport = Set.empty
@@ -162,6 +164,7 @@ fromProjectToModule =
             }
         )
         |> Rule.withModuleNameLookupTable
+        |> Rule.withFilePath
         |> Rule.withFullAst
         |> Rule.withModuleDocumentation
 
@@ -170,41 +173,57 @@ fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
 fromModuleToProject =
     Rule.initContextCreator
         (\moduleKey (Node moduleNameRange moduleName) moduleContext ->
-            { projectType = IsApplication ElmApplication
-            , modules =
-                Dict.singleton
-                    moduleName
-                    { moduleKey = moduleKey
-                    , exposed = moduleContext.exposed
-                    , moduleNameLocation = moduleNameRange
-                    }
-            , used =
-                Set.foldl
-                    (\element acc -> Set.insert ( moduleName, element ) acc)
-                    moduleContext.used
-                    moduleContext.elementsNotToReport
-            , usedModules =
-                if Set.member [ "Test" ] moduleContext.importedModules || moduleContext.containsMainFunction then
-                    Set.insert moduleName moduleContext.importedModules
+            let
+                used : Set ( ModuleName, String )
+                used =
+                    Set.foldl
+                        (\element acc -> Set.insert ( moduleName, element ) acc)
+                        moduleContext.used
+                        moduleContext.elementsNotToReport
 
-                else
-                    moduleContext.importedModules
-            , constructors =
-                Dict.foldl
-                    (\name element acc ->
-                        case element.elementType of
-                            ExposedType constructorNames ->
-                                List.foldl
-                                    (\constructorName listAcc -> Dict.insert ( moduleName, constructorName ) name listAcc)
+                usedModules : Set ModuleName
+                usedModules =
+                    if Set.member [ "Test" ] moduleContext.importedModules || moduleContext.containsMainFunction then
+                        Set.insert moduleName moduleContext.importedModules
+
+                    else
+                        moduleContext.importedModules
+            in
+            if moduleContext.isFileIgnored then
+                { projectType = IsApplication ElmApplication
+                , modules = Dict.empty
+                , used = used
+                , usedModules = usedModules
+                , constructors = Dict.empty
+                }
+
+            else
+                { projectType = IsApplication ElmApplication
+                , modules =
+                    Dict.singleton
+                        moduleName
+                        { moduleKey = moduleKey
+                        , exposed = moduleContext.exposed
+                        , moduleNameLocation = moduleNameRange
+                        }
+                , used = used
+                , usedModules = usedModules
+                , constructors =
+                    Dict.foldl
+                        (\name element acc ->
+                            case element.elementType of
+                                ExposedType constructorNames ->
+                                    List.foldl
+                                        (\constructorName listAcc -> Dict.insert ( moduleName, constructorName ) name listAcc)
+                                        acc
+                                        constructorNames
+
+                                _ ->
                                     acc
-                                    constructorNames
-
-                            _ ->
-                                acc
-                    )
-                    Dict.empty
-                    moduleContext.exposed
-            }
+                        )
+                        Dict.empty
+                        moduleContext.exposed
+                }
         )
         |> Rule.withModuleKey
         |> Rule.withModuleNameNode
