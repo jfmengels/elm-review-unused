@@ -144,17 +144,25 @@ fromProjectToModule =
     Rule.initContextCreator
         (\lookupTable filePath ast moduleDocumentation projectContext ->
             let
+                isFileIgnored : Bool
+                isFileIgnored =
+                    Debug.log filePath (String.startsWith "src/Evergreen/" filePath)
+
                 exposed : Dict String ExposedElement
                 exposed =
-                    case Module.exposingList (Node.value ast.moduleDefinition) of
-                        Exposing.All _ ->
-                            Dict.empty
+                    if isFileIgnored then
+                        Dict.empty
 
-                        Exposing.Explicit explicitlyExposed ->
-                            collectExposedElements moduleDocumentation explicitlyExposed ast.declarations
+                    else
+                        case Module.exposingList (Node.value ast.moduleDefinition) of
+                            Exposing.All _ ->
+                                Dict.empty
+
+                            Exposing.Explicit explicitlyExposed ->
+                                collectExposedElements moduleDocumentation explicitlyExposed ast.declarations
             in
             { lookupTable = lookupTable
-            , isFileIgnored = Debug.log filePath (String.startsWith "src/Evergreen/" filePath)
+            , isFileIgnored = isFileIgnored
             , exposed = exposed
             , used = Set.empty
             , elementsNotToReport = Set.empty
