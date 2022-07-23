@@ -279,7 +279,10 @@ fromModuleToProject =
             in
             { exposedModules = Set.empty
             , declaredConstructors =
-                if moduleContext.isExposed then
+                if moduleContext.isFileIgnored then
+                    Dict.empty
+
+                else if moduleContext.isExposed then
                     if moduleContext.exposesEverything then
                         Dict.empty
 
