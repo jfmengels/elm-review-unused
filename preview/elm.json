@@ -9,7 +9,7 @@
         "direct": {
             "elm/core": "1.0.5",
             "elm/project-metadata-utils": "1.0.2",
-            "jfmengels/elm-review": "2.6.0",
+            "jfmengels/elm-review": "2.8.1",
             "stil4m/elm-syntax": "7.2.7"
         },
         "indirect": {
@@ -18,7 +18,7 @@
             "elm/parser": "1.1.0",
             "elm/random": "1.0.0",
             "elm/time": "1.0.0",
-            "elm/virtual-dom": "1.0.2",
+            "elm/virtual-dom": "1.0.3",
             "elm-community/list-extra": "8.4.0",
             "elm-explorations/test": "1.2.2",
             "miniBill/elm-unicode": "1.0.2",
