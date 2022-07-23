@@ -106,6 +106,7 @@ type alias ProjectContext =
 type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
     , isModuleExposed : Bool
+    , isFileIgnored : Bool
     , exposed : Exposing
     , customTypeArgs : List ( String, Dict String (List Range) )
     , usedArguments : Dict ( ModuleName, String ) (Set Int)
@@ -159,9 +160,10 @@ initialProjectContext =
 fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
 fromProjectToModule =
     Rule.initContextCreator
-        (\lookupTable moduleName projectContext ->
+        (\lookupTable moduleName filePath projectContext ->
             { lookupTable = lookupTable
             , isModuleExposed = Set.member moduleName projectContext.exposedModules
+            , isFileIgnored = Debug.log filePath (String.startsWith "src/Evergreen/" filePath)
             , exposed = Exposing.Explicit []
             , customTypeArgs = []
             , usedArguments = Dict.empty
@@ -170,6 +172,7 @@ fromProjectToModule =
         )
         |> Rule.withModuleNameLookupTable
         |> Rule.withModuleName
+        |> Rule.withFilePath
 
 
 fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
@@ -178,31 +181,39 @@ fromModuleToProject =
         (\moduleKey moduleName moduleContext ->
             { exposedModules = Set.empty
             , customTypeArgs =
-                Dict.singleton
-                    moduleName
-                    { moduleKey = moduleKey
-                    , args = getNonExposedCustomTypes moduleContext
-                    }
+                if moduleContext.isFileIgnored then
+                    Dict.empty
+
+                else
+                    Dict.singleton
+                        moduleName
+                        { moduleKey = moduleKey
+                        , args = getNonExposedCustomTypes moduleContext
+                        }
             , usedArguments = replaceLocalModuleNameForDict moduleName moduleContext.usedArguments
-            , customTypesNotToReport = replaceLocalModuleNameForSet moduleName moduleContext.customTypesNotToReport
+            , customTypesNotToReport = replaceLocalModuleNameForSet moduleName moduleContext.isFileIgnored moduleContext.customTypesNotToReport
             }
         )
         |> Rule.withModuleKey
         |> Rule.withModuleName
 
 
-replaceLocalModuleNameForSet : ModuleName -> Set ( ModuleName, comparable ) -> Set ( ModuleName, comparable )
-replaceLocalModuleNameForSet moduleName set =
-    Set.map
-        (\( moduleNameForType, name ) ->
-            case moduleNameForType of
-                [] ->
-                    ( moduleName, name )
+replaceLocalModuleNameForSet : ModuleName -> Bool -> Set ( ModuleName, comparable ) -> Set ( ModuleName, comparable )
+replaceLocalModuleNameForSet moduleName isFileIgnored set =
+    if isFileIgnored then
+        Set.filter (\( moduleNameForType, _ ) -> not <| List.isEmpty moduleNameForType) set
 
-                _ ->
-                    ( moduleNameForType, name )
-        )
-        set
+    else
+        Set.map
+            (\( moduleNameForType, name ) ->
+                case moduleNameForType of
+                    [] ->
+                        ( moduleName, name )
+
+                    _ ->
+                        ( moduleNameForType, name )
+            )
+            set
 
 
 replaceLocalModuleNameForDict : ModuleName -> Dict ( ModuleName, comparable ) b -> Dict ( ModuleName, comparable ) b
