@@ -33,6 +33,7 @@ import NoUnused.Exports
 import NoUnused.Parameters
 import NoUnused.Patterns
 import NoUnused.Variables
+import NoUnused.RecordFields
 import Review.Rule as Rule exposing (Rule)
 import Simplify
 
@@ -62,6 +63,7 @@ config =
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
     , Simplify.rule Simplify.defaults
+    , NoUnused.RecordFields.rule
     , -- TODO Reduce to 10
       CognitiveComplexity.rule 29
     ]
