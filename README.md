@@ -8,10 +8,12 @@ Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-revi
 - [🔧 `NoUnused.CustomTypeConstructors`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.22/NoUnused-CustomTypeConstructors/ "Provides automatic fixes") - Reports unused constructors for a custom type.
 - [`NoUnused.CustomTypeConstructorArgs`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.22/NoUnused-CustomTypeConstructorArgs/ "Provides automatic fixes") - Reports arguments of custom type constructors that are never used.
 - [🔧 `NoUnused.Exports`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.22/NoUnused-Exports/ "Provides automatic fixes") - Reports unused exposed elements from a module.
-- [`NoUnused.Modules`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.22/NoUnused-Modules/ "Provides automatic fixes") - Reports unused modules in the project.
 - [🔧 `NoUnused.Dependencies`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.22/NoUnused-Dependencies/ "Provides automatic fixes") - Reports unused dependencies in the project.
 - [🔧 `NoUnused.Parameters`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.22/NoUnused-Parameters/ "Provides automatic fixes") - Report unused parameters.
 - [🔧 `NoUnused.Patterns`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.22/NoUnused-Patterns/ "Provides automatic fixes") - Report useless patterns and pattern values that are not used.
+
+
+- **(DEPRECATED)** [`NoUnused.Modules`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.22/NoUnused-Modules/ "Provides automatic fixes") - Reports unused modules in the project.
 
 ## Example configuration
 
@@ -22,7 +24,6 @@ import NoUnused.CustomTypeConstructorArgs
 import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
 import NoUnused.Exports
-import NoUnused.Modules
 import NoUnused.Parameters
 import NoUnused.Patterns
 import NoUnused.Variables
@@ -35,7 +36,6 @@ config =
     , NoUnused.CustomTypeConstructorArgs.rule
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule
-    , NoUnused.Modules.rule
     , NoUnused.Parameters.rule
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
