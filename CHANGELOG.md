@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [1.1.23] - 2022-08-24
 
 This version merges the [`NoUnused.Modules`] into the [`NoUnused.Exports`] rule.
 
@@ -29,6 +29,7 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
+[1.1.23]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.23
 [1.1.22]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.22
 
 [24237116ada98791d8ff79630ca5d4eb632ef6ea]: https://github.com/jfmengels/elm-review-unused/commit/24237116ada98791d8ff79630ca5d4eb632ef6ea
