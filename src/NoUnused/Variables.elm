@@ -402,10 +402,10 @@ importVisitor ((Node importRange import_) as node) context =
                 Nothing ->
                     []
 
-        newContext =
+        ( exposingErrors, newContext ) =
             case import_.exposingList of
                 Nothing ->
-                    registerModuleNameOrAlias node context
+                    ( [], registerModuleNameOrAlias node context )
 
                 Just declaredImports ->
                     let
@@ -421,7 +421,8 @@ importVisitor ((Node importRange import_) as node) context =
                     case Node.value declaredImports of
                         Exposing.All _ ->
                             if Dict.member (Node.value import_.moduleName) context.customTypes then
-                                { contextWithAlias
+                                ( []
+                                , { contextWithAlias
                                     | exposingAllModules =
                                         { name = Node.value import_.moduleName
                                         , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
@@ -432,10 +433,11 @@ importVisitor ((Node importRange import_) as node) context =
                                         , wasUsedWithModuleName = False
                                         }
                                             :: context.exposingAllModules
-                                }
+                                  }
+                                )
 
                             else
-                                contextWithAlias
+                                ( [], contextWithAlias )
 
                         Exposing.Explicit list ->
                             let
@@ -445,12 +447,14 @@ importVisitor ((Node importRange import_) as node) context =
                                         |> Dict.get (Node.value import_.moduleName)
                                         |> Maybe.withDefault Dict.empty
                             in
-                            List.foldl
+                            ( []
+                            , List.foldl
                                 (registerExposedElements customTypesFromModule)
                                 contextWithAlias
                                 (collectExplicitlyExposedElements (Node.range declaredImports) list)
+                            )
     in
-    ( errors, newContext )
+    ( exposingErrors ++ errors, newContext )
 
 
 registerExposedElements : Dict String (List String) -> ExposedElement -> ModuleContext -> ModuleContext
