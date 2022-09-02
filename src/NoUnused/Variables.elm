@@ -449,12 +449,18 @@ importVisitor ((Node importRange import_) as node) context =
                             in
                             ( []
                             , List.foldl
-                                (registerExposedElements customTypesFromModule)
+                                (handleExposedElements customTypesFromModule)
                                 contextWithAlias
                                 (collectExplicitlyExposedElements (Node.range declaredImports) list)
                             )
     in
     ( exposingErrors ++ errors, newContext )
+
+
+handleExposedElements : Dict String (List String) -> ExposedElement -> ModuleContext -> ModuleContext
+handleExposedElements customTypesFromModule =
+    \importedElement context ->
+        registerExposedElements customTypesFromModule importedElement context
 
 
 registerExposedElements : Dict String (List String) -> ExposedElement -> ModuleContext -> ModuleContext
