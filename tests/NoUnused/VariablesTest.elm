@@ -1310,6 +1310,38 @@ type C = C_Value
             ]
                 |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
+    , test "should report unused imported element when another import imports the same" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (SomeType)
+import C exposing (SomeType)
+a : SomeType
+a = x
+"""
+            , """module B exposing (SomeType)
+type SomeType = SomeType
+"""
+            , """module C exposing (SomeType)
+type SomeType = SomeType
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported type `C` is not used"
+                            , details = details
+                            , under = "SomeType"
+                            }
+                            |> Review.Test.whenFixed """module A exposing (a)
+import B
+import C exposing (SomeType)
+a : SomeType
+a = x
+"""
+                        ]
+                      )
+                    ]
     , test "should report open type import when none of the exposed constructors are used, but only remove the (..) when type is used" <|
         \() ->
             [ """module A exposing (a)
