@@ -1313,13 +1313,14 @@ type C = C_Value
     , test "should report unused imported element when another import imports the same" <|
         \() ->
             [ """module A exposing (a)
-import B exposing (SomeType)
+import B exposing (SomeType, b)
 import C exposing (SomeType)
 a : SomeType
-a = x
+a = b
 """
-            , """module B exposing (SomeType)
+            , """module B exposing (SomeType, b)
 type SomeType = SomeType
+b = SomeType
 """
             , """module C exposing (SomeType)
 type SomeType = SomeType
@@ -1329,15 +1330,16 @@ type SomeType = SomeType
                 |> Review.Test.expectErrorsForModules
                     [ ( "A"
                       , [ Review.Test.error
-                            { message = "Imported type `C` is not used"
+                            { message = "Imported type `SomeType` is not used"
                             , details = details
                             , under = "SomeType"
                             }
+                            |> Review.Test.atExactly { start = { row = 2, column = 20 }, end = { row = 2, column = 28 } }
                             |> Review.Test.whenFixed """module A exposing (a)
-import B
+import B exposing (b)
 import C exposing (SomeType)
 a : SomeType
-a = x
+a = b
 """
                         ]
                       )
