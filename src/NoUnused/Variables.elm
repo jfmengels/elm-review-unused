@@ -455,10 +455,29 @@ importVisitor ((Node importRange import_) as node) context =
     ( exposingErrors ++ errors, newContext )
 
 
-handleExposedElements : Dict String a -> Dict String (List String) -> ExposedElement -> ( List (Rule.Error {}), ModuleContext ) -> ( List (Rule.Error {}), ModuleContext )
+handleExposedElements : Dict String VariableInfo -> Dict String (List String) -> ExposedElement -> ( List (Rule.Error {}), ModuleContext ) -> ( List (Rule.Error {}), ModuleContext )
 handleExposedElements declared customTypesFromModule =
     \importedElement ( errors, context ) ->
-        ( errors, registerExposedElements customTypesFromModule importedElement context )
+        let
+            name : String
+            name =
+                case importedElement of
+                    CustomType elementName _ ->
+                        elementName
+
+                    TypeOrValue elementName _ ->
+                        elementName
+
+            newErrors : List (Rule.Error {})
+            newErrors =
+                case Dict.get name declared of
+                    Just variableInfo ->
+                        error variableInfo name :: errors
+
+                    Nothing ->
+                        errors
+        in
+        ( newErrors, registerExposedElements customTypesFromModule importedElement context )
 
 
 registerExposedElements : Dict String (List String) -> ExposedElement -> ModuleContext -> ModuleContext
