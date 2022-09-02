@@ -448,15 +448,15 @@ importVisitor ((Node importRange import_) as node) context =
                                         |> Maybe.withDefault Dict.empty
                             in
                             List.foldl
-                                (handleExposedElements customTypesFromModule)
+                                (handleExposedElements (NonemptyList.head contextWithAlias.scopes) customTypesFromModule)
                                 ( [], contextWithAlias )
                                 (collectExplicitlyExposedElements (Node.range declaredImports) list)
     in
     ( exposingErrors ++ errors, newContext )
 
 
-handleExposedElements : Dict String (List String) -> ExposedElement -> ( List (Rule.Error {}), ModuleContext ) -> ( List (Rule.Error {}), ModuleContext )
-handleExposedElements customTypesFromModule =
+handleExposedElements : Scope -> Dict String (List String) -> ExposedElement -> ( List (Rule.Error {}), ModuleContext ) -> ( List (Rule.Error {}), ModuleContext )
+handleExposedElements scope customTypesFromModule =
     \importedElement ( errors, context ) ->
         ( errors, registerExposedElements customTypesFromModule importedElement context )
 
