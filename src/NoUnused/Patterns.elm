@@ -298,79 +298,109 @@ valueVisitor (Node _ ( moduleName, value )) context =
 
 
 findPatterns : PatternUse -> Node Pattern -> List FoundPattern
-findPatterns use (Node range pattern) =
-    case pattern of
-        Pattern.VarPattern name ->
-            [ SingleValue
-                { name = name
-                , message = "Value `" ++ name ++ "` is not used"
-                , details = singularReplaceDetails
-                , range = range
-                , fix = [ Fix.replaceRangeBy range "_" ]
-                }
-            ]
+findPatterns use pattern =
+    findPatternsHelp use [ pattern ] []
 
-        Pattern.TuplePattern [ Node _ Pattern.AllPattern, Node _ Pattern.AllPattern ] ->
-            [ SimplifiablePattern
-                (Rule.errorWithFix
-                    { message = "Tuple pattern is not needed"
-                    , details = redundantDetails
-                    }
-                    range
-                    [ Fix.replaceRangeBy range "_" ]
-                )
-            ]
 
-        Pattern.TuplePattern [ Node _ Pattern.AllPattern, Node _ Pattern.AllPattern, Node _ Pattern.AllPattern ] ->
-            [ SimplifiablePattern
-                (Rule.errorWithFix
-                    { message = "Tuple pattern is not needed"
-                    , details = redundantDetails
-                    }
-                    range
-                    [ Fix.replaceRangeBy range "_" ]
-                )
-            ]
+findPatternsHelp : PatternUse -> List (Node Pattern) -> List FoundPattern -> List FoundPattern
+findPatternsHelp use patterns acc =
+    case patterns of
+        [] ->
+            acc
 
-        Pattern.TuplePattern patterns ->
-            List.concatMap (findPatterns use) patterns
+        (Node range pattern) :: rest ->
+            case pattern of
+                Pattern.VarPattern name ->
+                    let
+                        foundPattern : FoundPattern
+                        foundPattern =
+                            SingleValue
+                                { name = name
+                                , message = "Value `" ++ name ++ "` is not used"
+                                , details = singularReplaceDetails
+                                , range = range
+                                , fix = [ Fix.replaceRangeBy range "_" ]
+                                }
+                    in
+                    findPatternsHelp use rest (foundPattern :: acc)
 
-        Pattern.RecordPattern fields ->
-            [ RecordPattern
-                { fields = fields
-                , recordRange = range
-                }
-            ]
+                Pattern.TuplePattern [ Node _ Pattern.AllPattern, Node _ Pattern.AllPattern ] ->
+                    let
+                        foundPattern : FoundPattern
+                        foundPattern =
+                            SimplifiablePattern
+                                (Rule.errorWithFix
+                                    { message = "Tuple pattern is not needed"
+                                    , details = redundantDetails
+                                    }
+                                    range
+                                    [ Fix.replaceRangeBy range "_" ]
+                                )
+                    in
+                    findPatternsHelp use rest (foundPattern :: acc)
 
-        Pattern.UnConsPattern first second ->
-            findPatterns use first ++ findPatterns use second
+                Pattern.TuplePattern [ Node _ Pattern.AllPattern, Node _ Pattern.AllPattern, Node _ Pattern.AllPattern ] ->
+                    let
+                        foundPattern : FoundPattern
+                        foundPattern =
+                            SimplifiablePattern
+                                (Rule.errorWithFix
+                                    { message = "Tuple pattern is not needed"
+                                    , details = redundantDetails
+                                    }
+                                    range
+                                    [ Fix.replaceRangeBy range "_" ]
+                                )
+                    in
+                    findPatternsHelp use rest (foundPattern :: acc)
 
-        Pattern.ListPattern patterns ->
-            List.concatMap (findPatterns use) patterns
+                Pattern.TuplePattern subPatterns ->
+                    findPatternsHelp use (subPatterns ++ rest) acc
 
-        Pattern.NamedPattern _ patterns ->
-            if use == Destructuring && List.all isAllPattern patterns then
-                [ SimplifiablePattern
-                    (Rule.errorWithFix
-                        { message = "Named pattern is not needed"
-                        , details = redundantDetails
-                        }
-                        range
-                        [ Fix.replaceRangeBy range "_" ]
-                    )
-                ]
+                Pattern.RecordPattern fields ->
+                    let
+                        foundPattern : FoundPattern
+                        foundPattern =
+                            RecordPattern
+                                { fields = fields
+                                , recordRange = range
+                                }
+                    in
+                    findPatternsHelp use rest (foundPattern :: acc)
 
-            else
-                List.concatMap (findPatterns use) patterns
+                Pattern.UnConsPattern first second ->
+                    findPatternsHelp use (first :: second :: rest) acc
 
-        Pattern.AsPattern inner name ->
-            findPatternForAsPattern range inner name :: findPatterns use inner
+                Pattern.ListPattern subPatterns ->
+                    findPatternsHelp use (subPatterns ++ rest) acc
 
-        Pattern.ParenthesizedPattern inner ->
-            findPatterns use inner
+                Pattern.NamedPattern _ subPatterns ->
+                    if use == Destructuring && List.all isAllPattern subPatterns then
+                        let
+                            foundPattern : FoundPattern
+                            foundPattern =
+                                SimplifiablePattern
+                                    (Rule.errorWithFix
+                                        { message = "Named pattern is not needed"
+                                        , details = redundantDetails
+                                        }
+                                        range
+                                        [ Fix.replaceRangeBy range "_" ]
+                                    )
+                        in
+                        findPatternsHelp use rest (foundPattern :: acc)
 
-        _ ->
-            []
+                    else
+                        findPatternsHelp use (subPatterns ++ rest) acc
+
+                Pattern.AsPattern inner name ->
+                    findPatternsHelp use (inner :: rest) (findPatternForAsPattern range inner name :: acc)
+
+                Pattern.ParenthesizedPattern inner ->
+                    findPatternsHelp use (inner :: rest) acc
+
+                _ ->
+                    findPatternsHelp use rest acc
 
 
 
