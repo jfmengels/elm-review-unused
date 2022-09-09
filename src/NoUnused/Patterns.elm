@@ -627,8 +627,8 @@ errorsForAsPattern patternRange inner (Node range name) context =
 
 
 findPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
-findPatternForAsPattern patternRange inner ((Node range name) as nameNode) =
-    case Node.value inner of
+findPatternForAsPattern patternRange pattern ((Node range name) as nameNode) =
+    case Node.value pattern of
         Pattern.ParenthesizedPattern subPattern ->
             findPatternForAsPattern patternRange subPattern nameNode
 
@@ -638,15 +638,24 @@ findPatternForAsPattern patternRange inner ((Node range name) as nameNode) =
                     { message = "Pattern `_` is not needed"
                     , details = removeDetails
                     }
-                    (Node.range inner)
+                    (Node.range pattern)
                     [ Fix.replaceRangeBy patternRange name ]
+                )
+
+        Pattern.AsPattern _ (Node innerRange innerName) ->
+            SimplifiablePattern
+                (Rule.error
+                    { message = "Unnecessary duplicate alias `" ++ innerName ++ "`"
+                    , details = [ "This name is redundant because the value is already aliased as `" ++ name ++ "`. I suggest you remove one of them." ]
+                    }
+                    innerRange
                 )
 
         _ ->
             let
                 fix : List Fix
                 fix =
-                    [ inner
+                    [ pattern
                         |> writePattern
                         |> Fix.replaceRangeBy patternRange
                     ]
