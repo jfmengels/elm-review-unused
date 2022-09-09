@@ -304,7 +304,7 @@ findPatterns use (Node range pattern) =
         Pattern.VarPattern name ->
             [ SingleValue
                 { name = name
-                , message = "Value `" ++ name ++ "` is not used."
+                , message = "Value `" ++ name ++ "` is not used"
                 , details = singularReplaceDetails
                 , range = range
                 , fix = [ Fix.replaceRangeBy range "_" ]
@@ -546,10 +546,10 @@ listToMessage : String -> List String -> String
 listToMessage first rest =
     case List.reverse rest of
         [] ->
-            "Value `" ++ first ++ "` is not used."
+            "Value `" ++ first ++ "` is not used"
 
         last :: middle ->
-            "Values `" ++ String.join "`, `" (first :: middle) ++ "` and `" ++ last ++ "` are not used."
+            "Values `" ++ String.join "`, `" (first :: middle) ++ "` and `" ++ last ++ "` are not used"
 
 
 listToDetails : String -> List String -> List String
@@ -575,7 +575,7 @@ errorsForAsPattern patternRange inner (Node range name) context =
                 ]
         in
         ( [ Rule.errorWithFix
-                { message = "Pattern alias `" ++ name ++ "` is not used."
+                { message = "Pattern alias `" ++ name ++ "` is not used"
                 , details = singularRemoveDetails
                 }
                 range
@@ -623,7 +623,7 @@ findPatternForAsPattern patternRange inner (Node range name) =
         in
         SingleValue
             { name = name
-            , message = "Pattern alias `" ++ name ++ "` is not used."
+            , message = "Pattern alias `" ++ name ++ "` is not used"
             , details = singularRemoveDetails
             , range = range
             , fix = fix
