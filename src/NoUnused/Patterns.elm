@@ -628,32 +628,33 @@ errorsForAsPattern patternRange inner (Node range name) context =
 
 findPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
 findPatternForAsPattern patternRange inner (Node range name) =
-    if isAllPattern inner then
-        SimplifiablePattern
-            (Rule.errorWithFix
-                { message = "Pattern `_` is not needed"
-                , details = removeDetails
-                }
-                (Node.range inner)
-                [ Fix.replaceRangeBy patternRange name ]
-            )
+    case Node.value inner of
+        Pattern.AllPattern ->
+            SimplifiablePattern
+                (Rule.errorWithFix
+                    { message = "Pattern `_` is not needed"
+                    , details = removeDetails
+                    }
+                    (Node.range inner)
+                    [ Fix.replaceRangeBy patternRange name ]
+                )
 
-    else
-        let
-            fix : List Fix
-            fix =
-                [ inner
-                    |> writePattern
-                    |> Fix.replaceRangeBy patternRange
-                ]
-        in
-        SingleValue
-            { name = name
-            , message = "Pattern alias `" ++ name ++ "` is not used"
-            , details = singularRemoveDetails
-            , range = range
-            , fix = fix
-            }
+        _ ->
+            let
+                fix : List Fix
+                fix =
+                    [ inner
+                        |> writePattern
+                        |> Fix.replaceRangeBy patternRange
+                    ]
+            in
+            SingleValue
+                { name = name
+                , message = "Pattern alias `" ++ name ++ "` is not used"
+                , details = singularRemoveDetails
+                , range = range
+                , fix = fix
+                }
 
 
 isAllPattern : Node Pattern -> Bool
