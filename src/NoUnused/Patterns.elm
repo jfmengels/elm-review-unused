@@ -6,6 +6,7 @@ module NoUnused.Patterns exposing (rule)
 
 -}
 
+import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
@@ -63,6 +64,7 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Patte
 rule : Rule
 rule =
     Rule.newModuleRuleSchema "NoUnused.Patterns" initialContext
+        |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withCaseBranchEnterVisitor caseBranchEnterVisitor
@@ -105,7 +107,19 @@ initialContext =
 -- EXPRESSION ENTER VISITOR
 
 
-expressionEnterVisitor : Node Expression -> Context -> ( List nothing, Context )
+declarationEnterVisitor : Node Declaration -> Context -> ( List (Rule.Error {}), Context )
+declarationEnterVisitor node context =
+    case Node.value node of
+        Declaration.FunctionDeclaration { declaration } ->
+            ( findAsPatternsErrors (Node.value declaration).arguments []
+            , context
+            )
+
+        _ ->
+            ( [], context )
+
+
+expressionEnterVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
 expressionEnterVisitor node context =
     case Node.value node of
         Expression.LetExpression { declarations } ->
@@ -118,13 +132,25 @@ expressionEnterVisitor node context =
 
                         Expression.LetDestructuring pattern _ ->
                             findPatterns Destructuring pattern
+
+                asPatternsErrors : Node Expression.LetDeclaration -> List (Rule.Error {})
+                asPatternsErrors letDeclaration =
+                    case Node.value letDeclaration of
+                        Expression.LetFunction { declaration } ->
+                            findAsPatternsErrors (Node.value declaration).arguments []
+
+                        Expression.LetDestructuring _ _ ->
+                            []
             in
-            ( []
+            ( List.concatMap asPatternsErrors declarations
             , { declared = List.concatMap findPatternsInLetDeclaration declarations
               , used = Set.empty
               }
                 :: context
             )
+
+        Expression.LambdaExpression { args } ->
+            ( findAsPatternsErrors args [], context )
 
         _ ->
             ( [], context )
@@ -624,6 +650,49 @@ errorsForAsPattern patternRange inner (Node range name) context =
 
     else
         ( [], context )
+
+
+findAsPatternsErrors : List (Node Pattern) -> List (Rule.Error {}) -> List (Rule.Error {})
+findAsPatternsErrors patterns acc =
+    case patterns of
+        [] ->
+            acc
+
+        pattern :: rest ->
+            case Node.value pattern of
+                Pattern.AsPattern inner name ->
+                    let
+                        newAcc : List (Rule.Error {})
+                        newAcc =
+                            case findPatternForAsPattern (Node.range pattern) inner name of
+                                SimplifiablePattern error ->
+                                    error :: acc
+
+                                SingleValue _ ->
+                                    acc
+
+                                RecordPattern _ ->
+                                    acc
+                    in
+                    findAsPatternsErrors (inner :: rest) newAcc
+
+                Pattern.TuplePattern subPatterns ->
+                    findAsPatternsErrors (subPatterns ++ rest) acc
+
+                Pattern.UnConsPattern first second ->
+                    findAsPatternsErrors (first :: second :: rest) acc
+
+                Pattern.ListPattern subPatterns ->
+                    findAsPatternsErrors (subPatterns ++ rest) acc
+
+                Pattern.NamedPattern _ subPatterns ->
+                    findAsPatternsErrors (subPatterns ++ rest) acc
+
+                Pattern.ParenthesizedPattern inner ->
+                    findAsPatternsErrors (inner :: rest) acc
+
+                _ ->
+                    findAsPatternsErrors rest acc
 
 
 findPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern

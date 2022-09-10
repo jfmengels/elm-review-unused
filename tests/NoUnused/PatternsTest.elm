@@ -35,12 +35,13 @@ all =
         , describe "in Let Functions" letFunctionTests
 
         --- patterns
-        , describe "with as pattern" asPatternTests
         , describe "with list pattern" listPatternTests
         , describe "with named pattern" namedPatternTests
         , describe "with record pattern" recordPatternTests
         , describe "with tuple pattern" tuplePatternTests
         , describe "with uncons pattern" unconsPatternTests
+        , describe "with as pattern" asPatternTests
+        , describe "with as pattern in parameters" asPatternInParametersTests
         ]
 
 
@@ -690,6 +691,91 @@ foo =
                         , under = "bosh"
                         }
                         |> Review.Test.atExactly { start = { row = 5, column = 31 }, end = { row = 5, column = 35 } }
+                    ]
+    ]
+
+
+asPatternInParametersTests : List Test
+asPatternInParametersTests =
+    [ test "should report aliases to a name (top-level declaration)" <|
+        \() ->
+            """module A exposing (..)
+foo (bosh as bash) =
+    bosh + bash
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary duplicate alias `bash`"
+                        , details = [ "This alias is redundant because the value is already named `bosh`. I suggest you remove one of them." ]
+                        , under = "bash"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 14 }, end = { row = 2, column = 18 } }
+                    ]
+    , test "should report aliases to a name (lambda)" <|
+        \() ->
+            """module A exposing (..)
+foo =
+    (\\(bosh as bash) -> bosh + bash)
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary duplicate alias `bash`"
+                        , details = [ "This alias is redundant because the value is already named `bosh`. I suggest you remove one of them." ]
+                        , under = "bash"
+                        }
+                        |> Review.Test.atExactly { start = { row = 3, column = 16 }, end = { row = 3, column = 20 } }
+                    ]
+    , test "should report aliases to a name (let function)" <|
+        \() ->
+            """module A exposing (..)
+foo =
+    let bar (bosh as bash) = bosh + bash
+    in
+    bar
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary duplicate alias `bash`"
+                        , details = [ "This alias is redundant because the value is already named `bosh`. I suggest you remove one of them." ]
+                        , under = "bash"
+                        }
+                        |> Review.Test.atExactly { start = { row = 3, column = 22 }, end = { row = 3, column = 26 } }
+                    ]
+    , test "should report duplicate aliases (top-level declaration)" <|
+        \() ->
+            """module A exposing (..)
+foo (((Foo bash) as bosh) as bish) =
+    bash + bosh + bish
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary duplicate alias `bosh`"
+                        , details = [ "This name is redundant because the value is already aliased as `bish`. I suggest you remove one of them." ]
+                        , under = "bosh"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 21 }, end = { row = 2, column = 25 } }
+                    ]
+    , test "should report aliasing of _ in arguments" <|
+        \() ->
+            """module A exposing (..)
+foo (_ as x) =
+    x
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Pattern `_` is not needed"
+                        , details = [ "This pattern is redundant and should be removed." ]
+                        , under = "_"
+                        }
+                        |> Review.Test.whenFixed """module A exposing (..)
+foo (x) =
+    x
+"""
                     ]
     ]
 
