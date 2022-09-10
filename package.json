@@ -15,9 +15,9 @@
   },
   "dependencies": {
     "elm-doc-preview": "^5.0.5",
-    "elm-review": "^2.7.3",
-    "elm-test": "^0.19.1-revision6",
-    "elm-tooling": "^1.4.0",
+    "elm-review": "^2.7.4",
+    "elm-test": "^0.19.1-revision9",
+    "elm-tooling": "^1.8.0",
     "fs-extra": "9.0.0",
     "glob": "7.1.6",
     "npm-run-all": "^4.1.5"
