@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.25] - 2022-09-10
+
+- [`NoUnused.Patterns`] now reports multiple aliases `(((A a) as y) as z)`
+- [`NoUnused.Patterns`] now reports aliases on a variable pattern `(name as otherName)`
+- [`NoUnused.Patterns`] now reports aliases to wildcard `(_ as thing)` in parameters, and [`NoUnused.Parameters`] now doesn't
+- Improved the fixes for [`NoUnused.Patterns`] to not include unnecessary patterns
+- Improved the fixes for [`NoUnused.Patterns`] to have formatting look more like `elm-format`
+
 ## [1.1.24] - 2022-09-02
 
 - [`NoUnused.Variables`] now reports imports that get shadowed by other imports ([252475888b79a88f107571c1002d0ed650622ddb])
@@ -33,6 +41,7 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
+[1.1.25]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.25
 [1.1.24]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.24
 [1.1.23]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.23
 [1.1.22]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.22
@@ -44,3 +53,5 @@ Help would be appreciated to fill the blanks!
 [`NoUnused.Modules`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Modules)
 [`NoUnused.Exports`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Exports)
 [`NoUnused.Variables`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Variables)
+[`NoUnused.Patterns`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Patterns)
+[`NoUnused.Parameters`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Parameters)
