@@ -627,8 +627,11 @@ errorsForAsPattern patternRange inner (Node range name) context =
 
 
 findPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
-findPatternForAsPattern patternRange inner (Node range name) =
+findPatternForAsPattern patternRange inner ((Node range name) as nameNode) =
     case Node.value inner of
+        Pattern.ParenthesizedPattern subPattern ->
+            findPatternForAsPattern patternRange subPattern nameNode
+
         Pattern.AllPattern ->
             SimplifiablePattern
                 (Rule.errorWithFix

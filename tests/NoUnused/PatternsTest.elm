@@ -645,7 +645,7 @@ foo =
 module A exposing (..)
 foo =
     case maybeTupleMaybe of
-        Just ( _, (Just _) ) ->
+        Just ( _, Just _ ) ->
             bash
         _ ->
             bosh
