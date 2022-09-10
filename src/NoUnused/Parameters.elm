@@ -120,7 +120,6 @@ type alias FunctionArgs =
 type Kind
     = Parameter
     | Alias
-    | AsWithoutVariables
     | TupleWithoutVariables
 
 
@@ -301,18 +300,7 @@ getParametersFromAsPattern source pattern asName =
             , source = source
             }
     in
-    if List.isEmpty parametersFromPatterns && isPatternWildCard pattern then
-        [ asParameter
-        , { name = ""
-          , range = Node.range pattern
-          , kind = AsWithoutVariables
-          , fix = [ Fix.removeRange { start = (Node.range pattern).start, end = (Node.range asName).start } ]
-          , source = source
-          }
-        ]
-
-    else
-        asParameter :: parametersFromPatterns
+    asParameter :: parametersFromPatterns
 
 
 isPatternWildCard : Node Pattern -> Bool
@@ -587,11 +575,6 @@ errorMessage kind name =
         Alias ->
             { message = "Pattern alias `" ++ name ++ "` is not used"
             , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
-            }
-
-        AsWithoutVariables ->
-            { message = "Pattern does not introduce any variables"
-            , details = [ "You should remove this pattern." ]
             }
 
         TupleWithoutVariables ->
