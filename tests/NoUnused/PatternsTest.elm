@@ -532,7 +532,7 @@ foo =
 module A exposing (..)
 foo =
     case bar of
-        ({bish, bash}) ->
+        ({ bish, bash }) ->
             ( bish, bash )
 """
                     ]
@@ -557,7 +557,7 @@ foo =
 module A exposing (..)
 foo =
     case bar of
-        ({bish} as bosh) ->
+        ({ bish } as bosh) ->
             ( bish, bosh )
 """
                     ]
@@ -582,7 +582,7 @@ foo =
 module A exposing (..)
 foo =
     case bar of
-        ({bish} as bosh) ->
+        ({ bish } as bosh) ->
             bish
 """
                     , Review.Test.error
@@ -595,7 +595,7 @@ foo =
 module A exposing (..)
 foo =
     case bar of
-        ({bish, bash}) ->
+        ({ bish, bash }) ->
             bish
 """
                     ]
@@ -645,7 +645,7 @@ foo =
 module A exposing (..)
 foo =
     case maybeTupleMaybe of
-        Just ( _, ( Just _ ) ) ->
+        Just ( _, (Just _) ) ->
             bash
         _ ->
             bosh
@@ -914,7 +914,7 @@ foo =
 module A exposing (..)
 foo =
     let
-        {bash} =
+        { bash } =
             bar
     in
     bash
@@ -972,7 +972,7 @@ foo =
 module A exposing (..)
 foo =
     let
-        {bish} =
+        { bish } =
             bar
     in
     bish

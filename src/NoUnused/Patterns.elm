@@ -246,8 +246,7 @@ recordErrors context { fields, recordRange } =
                             _ ->
                                 ( Range.combine (List.map Node.range unused)
                                 , Node Range.emptyRange (Pattern.RecordPattern used)
-                                    |> Writer.writePattern
-                                    |> Writer.write
+                                    |> writePattern
                                     |> Fix.replaceRangeBy recordRange
                                 )
                 in
@@ -526,8 +525,7 @@ errorsForRecordValueList recordRange list context =
                         _ ->
                             ( Range.combine (List.map Node.range unused)
                             , Node Range.emptyRange (Pattern.RecordPattern used)
-                                |> Writer.writePattern
-                                |> Writer.write
+                                |> writePattern
                                 |> Fix.replaceRangeBy recordRange
                             )
             in
@@ -569,8 +567,7 @@ errorsForAsPattern patternRange inner (Node range name) context =
             fix : List Fix
             fix =
                 [ inner
-                    |> Writer.writePattern
-                    |> Writer.write
+                    |> writePattern
                     |> Fix.replaceRangeBy patternRange
                 ]
         in
@@ -616,8 +613,7 @@ findPatternForAsPattern patternRange inner (Node range name) =
             fix : List Fix
             fix =
                 [ inner
-                    |> Writer.writePattern
-                    |> Writer.write
+                    |> writePattern
                     |> Fix.replaceRangeBy patternRange
                 ]
         in
@@ -685,3 +681,59 @@ isUnused name context =
 
         headScope :: _ ->
             not <| Set.member name headScope.used
+
+
+{-| Write a pattern.
+-}
+writePattern : Node Pattern -> String
+writePattern pattern =
+    case Node.value pattern of
+        Pattern.AllPattern ->
+            "_"
+
+        Pattern.UnitPattern ->
+            "()"
+
+        Pattern.CharPattern c ->
+            "'" ++ String.fromChar c ++ "'"
+
+        Pattern.StringPattern s ->
+            "\"" ++ String.replace "\"" "\\\"" s ++ "\""
+
+        Pattern.HexPattern _ ->
+            pattern
+                |> Writer.writePattern
+                |> Writer.write
+
+        Pattern.IntPattern i ->
+            String.fromInt i
+
+        Pattern.FloatPattern f ->
+            String.fromFloat f
+
+        Pattern.TuplePattern inner ->
+            "( " ++ String.join ", " (List.map writePattern inner) ++ " )"
+
+        Pattern.RecordPattern inner ->
+            "{ " ++ String.join ", " (List.map Node.value inner) ++ " }"
+
+        Pattern.UnConsPattern left right ->
+            writePattern left ++ " :: " ++ writePattern right
+
+        Pattern.ListPattern inner ->
+            "[ " ++ String.join ", " (List.map writePattern inner) ++ " ]"
+
+        Pattern.VarPattern var ->
+            var
+
+        Pattern.NamedPattern qnr others ->
+            String.join " "
+                (String.join "." (qnr.moduleName ++ [ qnr.name ])
+                    :: List.map writePattern others
+                )
+
+        Pattern.AsPattern innerPattern asName ->
+            writePattern innerPattern ++ " as " ++ Node.value asName
+
+        Pattern.ParenthesizedPattern innerPattern ->
+            "(" ++ writePattern innerPattern ++ ")"
