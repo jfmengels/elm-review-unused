@@ -651,6 +651,26 @@ foo =
             bosh
 """
                     ]
+    , test "should report aliases to a name" <|
+        \() ->
+            """
+module A exposing (..)
+foo =
+    case maybeTupleMaybe of
+        Just ( bosh as bish ) ->
+            bosh + bish
+        _ ->
+            0
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary duplicate alias `bish`"
+                        , details = [ "This alias is redundant because the value is already named `bosh`. I suggest you remove one of them." ]
+                        , under = "bish"
+                        }
+                        |> Review.Test.atExactly { start = { row = 5, column = 24 }, end = { row = 5, column = 28 } }
+                    ]
     , test "should report duplicate aliases" <|
         \() ->
             """

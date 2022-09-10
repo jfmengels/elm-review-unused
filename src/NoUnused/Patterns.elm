@@ -642,6 +642,15 @@ findPatternForAsPattern patternRange pattern ((Node range name) as nameNode) =
                     [ Fix.replaceRangeBy patternRange name ]
                 )
 
+        Pattern.VarPattern innerName ->
+            SimplifiablePattern
+                (Rule.error
+                    { message = "Unnecessary duplicate alias `" ++ name ++ "`"
+                    , details = [ "This alias is redundant because the value is already named `" ++ innerName ++ "`. I suggest you remove one of them." ]
+                    }
+                    range
+                )
+
         Pattern.AsPattern _ (Node innerRange innerName) ->
             SimplifiablePattern
                 (Rule.error
