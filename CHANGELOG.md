@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.1.26] - 2022-09-11
+
+- Fixed an issue in [`NoUnused.Dependencies`] that led the `elm.json` to become corrupt
+
 ## [1.1.25] - 2022-09-10
 
 - [`NoUnused.Patterns`] now reports multiple aliases `(((A a) as y) as z)`
@@ -41,6 +45,7 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
+[1.1.26]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.26
 [1.1.25]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.25
 [1.1.24]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.24
 [1.1.23]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.23
