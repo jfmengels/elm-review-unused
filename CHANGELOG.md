@@ -54,9 +54,9 @@ Help would be appreciated to fill the blanks!
 [252475888b79a88f107571c1002d0ed650622ddb]: https://github.com/jfmengels/elm-review-unused/commit/252475888b79a88f107571c1002d0ed650622ddb
 [24237116ada98791d8ff79630ca5d4eb632ef6ea]: https://github.com/jfmengels/elm-review-unused/commit/24237116ada98791d8ff79630ca5d4eb632ef6ea
 
-
 [`NoUnused.Modules`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Modules)
 [`NoUnused.Exports`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Exports)
 [`NoUnused.Variables`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Variables)
 [`NoUnused.Patterns`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Patterns)
 [`NoUnused.Parameters`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Parameters)
+[`NoUnused.Dependencies`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Dependencies)
