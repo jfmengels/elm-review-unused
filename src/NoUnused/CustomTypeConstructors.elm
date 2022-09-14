@@ -123,14 +123,14 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Custo
 rule : List { moduleName : String, typeName : String, index : Int } -> Rule
 rule phantomTypes =
     Rule.newProjectRuleSchema "NoUnused.CustomTypeConstructors" (initialProjectContext phantomTypes)
-        |> Rule.withContextFromImportedModules
+        |> Rule.withElmJsonProjectVisitor elmJsonVisitor
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
             { fromProjectToModule = fromProjectToModule
             , fromModuleToProject = fromModuleToProject
             , foldProjectContexts = foldProjectContexts
             }
-        |> Rule.withElmJsonProjectVisitor elmJsonVisitor
+        |> Rule.withContextFromImportedModules
         |> Rule.withFinalProjectEvaluation finalProjectEvaluation
         |> Rule.fromProjectRuleSchema
 
