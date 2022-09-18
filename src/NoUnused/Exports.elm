@@ -792,11 +792,14 @@ typesUsedInDeclaration moduleContext declaration =
 
         Declaration.CustomTypeDeclaration type_ ->
             let
-                arguments : List (Node TypeAnnotation)
-                arguments =
-                    List.concatMap (\constructor -> (Node.value constructor).arguments) type_.constructors
+                typesUsedInArguments : List ( ModuleName, String )
+                typesUsedInArguments =
+                    List.foldl
+                        (\constructor acc -> collectTypesFromTypeAnnotation moduleContext (Node.value constructor).arguments acc)
+                        []
+                        type_.constructors
             in
-            ( collectTypesFromTypeAnnotation moduleContext arguments []
+            ( typesUsedInArguments
             , case Dict.get (Node.value type_.name) moduleContext.exposed |> Maybe.map .elementType of
                 Just (ExposedType _) ->
                     False
