@@ -618,9 +618,17 @@ filterOut declarations exposed =
     let
         declaredNames : Set String
         declaredNames =
-            declarations
-                |> List.filterMap (\(Node _ declaration) -> declarationName declaration)
-                |> Set.fromList
+            List.foldl
+                (\(Node _ declaration) acc ->
+                    case declarationName declaration of
+                        Just name ->
+                            Set.insert name acc
+
+                        Nothing ->
+                            acc
+                )
+                Set.empty
+                declarations
     in
     Dict.filter (\name _ -> Set.member name declaredNames) exposed
 
