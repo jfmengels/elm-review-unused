@@ -179,9 +179,10 @@ fromModuleToProject =
                     , moduleNameLocation = moduleNameRange
                     }
             , used =
-                moduleContext.elementsNotToReport
-                    |> Set.map (Tuple.pair moduleName)
-                    |> Set.union moduleContext.used
+                Set.foldl
+                    (\element acc -> Set.insert ( moduleName, element ) acc)
+                    moduleContext.used
+                    moduleContext.elementsNotToReport
             , usedModules =
                 if Set.member [ "Test" ] moduleContext.importedModules || moduleContext.containsMainFunction then
                     Set.insert moduleName moduleContext.importedModules
