@@ -213,10 +213,10 @@ fromModuleToProject =
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
     { projectType = previousContext.projectType
-    , modules = Dict.union previousContext.modules newContext.modules
-    , usedModules = Set.union previousContext.usedModules newContext.usedModules
+    , modules = Dict.union newContext.modules previousContext.modules
+    , usedModules = Set.union newContext.usedModules previousContext.usedModules
     , used = Set.union newContext.used previousContext.used
-    , constructors = Dict.union previousContext.constructors newContext.constructors
+    , constructors = Dict.union newContext.constructors previousContext.constructors
     }
 
 
