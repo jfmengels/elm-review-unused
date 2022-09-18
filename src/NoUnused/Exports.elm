@@ -684,13 +684,13 @@ doesModuleContainMainFunction projectType declaration =
 
 
 isMainFunction : ElmApplicationType -> String -> Bool
-isMainFunction elmApplicationType =
+isMainFunction elmApplicationType name =
     case elmApplicationType of
         ElmApplication ->
-            \name -> name == "main"
+            name == "main"
 
         LamderaApplication ->
-            \name -> name == "main" || name == "app"
+            name == "main" || name == "app"
 
 
 maybeSetInsert : Maybe comparable -> Set comparable -> Set comparable
