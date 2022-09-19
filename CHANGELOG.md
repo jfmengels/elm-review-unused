@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.1.27] - 2022-09-19
+
+This release contains HUGE performance updates. Rough benchmarks show some of the slow rules ([`NoUnused.Exports`], [`NoUnused.CustomTypeConstructors`] and [`NoUnused.CustomTypeConstructorArgs`]) are now 20-40 times faster compared to the previous release.
+
 ## [1.1.26] - 2022-09-11
 
 - Fixed an issue in [`NoUnused.Dependencies`] that led the `elm.json` to become corrupt
@@ -45,6 +49,7 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
+[1.1.27]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.27
 [1.1.26]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.26
 [1.1.25]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.25
 [1.1.24]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.24
@@ -60,3 +65,5 @@ Help would be appreciated to fill the blanks!
 [`NoUnused.Patterns`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Patterns)
 [`NoUnused.Parameters`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Parameters)
 [`NoUnused.Dependencies`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-Dependencies)
+[`NoUnused.CustomTypeConstructors`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-CustomTypeConstructors)
+[`NoUnused.CustomTypeConstructorArgs`]: (https://package.elm-lang.org/packages/jfmengels/elm-review-unused/latest/NoUnused-CustomTypeConstructorArgs)
