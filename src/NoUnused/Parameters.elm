@@ -446,28 +446,37 @@ registerFunctionCall fnName numberOfIgnoredArguments arguments context =
             let
                 locationsToIgnore : LocationsToIgnore
                 locationsToIgnore =
-                    arguments
-                        |> List.indexedMap Tuple.pair
-                        |> List.filterMap
-                            (\( index, arg ) ->
-                                Dict.get (numberOfIgnoredArguments + index) fnArgs
-                                    |> Maybe.map (\argName -> ( argName, [ Node.range arg ] ))
-                            )
-                        |> Dict.fromList
+                    ignoreLocations fnArgs numberOfIgnoredArguments arguments 0 context.locationsToIgnoreForUsed
             in
-            { context
-                | locationsToIgnoreForUsed =
-                    Dict.merge
-                        Dict.insert
-                        (\key new old -> Dict.insert key (new ++ old))
-                        Dict.insert
-                        locationsToIgnore
-                        context.locationsToIgnoreForUsed
-                        Dict.empty
-            }
+            { context | locationsToIgnoreForUsed = locationsToIgnore }
 
         Nothing ->
             context
+
+
+ignoreLocations : FunctionArgs -> Int -> List (Node a) -> Int -> LocationsToIgnore -> LocationsToIgnore
+ignoreLocations fnArgs numberOfIgnoredArguments nodes index acc =
+    case nodes of
+        [] ->
+            acc
+
+        (Node range _) :: rest ->
+            let
+                newAcc : LocationsToIgnore
+                newAcc =
+                    case Dict.get (numberOfIgnoredArguments + index) fnArgs of
+                        Just argName ->
+                            case Dict.get argName acc of
+                                Just existingLocations ->
+                                    Dict.insert argName (range :: existingLocations) acc
+
+                                Nothing ->
+                                    Dict.insert argName [ range ] acc
+
+                        Nothing ->
+                            acc
+            in
+            ignoreLocations fnArgs numberOfIgnoredArguments rest (index + 1) newAcc
 
 
 markValueAsUsed : Range -> String -> Context -> Context
