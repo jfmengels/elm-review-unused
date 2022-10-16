@@ -1076,36 +1076,50 @@ isCapitalized name =
 
 finalProjectEvaluation : ProjectContext -> List (Error { useErrorForModule : () })
 finalProjectEvaluation projectContext =
-    projectContext.declaredConstructors
-        |> Dict.toList
-        |> List.concatMap
-            (\( moduleName, ExposedConstructors { moduleKey, customTypes } ) ->
-                let
-                    usedConstructors : Set ConstructorName
-                    usedConstructors =
-                        Dict.get moduleName projectContext.usedConstructors
-                            |> Maybe.withDefault Set.empty
-                in
-                customTypes
-                    |> Dict.values
-                    |> List.concatMap
-                        (\constructors ->
-                            constructors
-                                |> Dict.filter (\constructorName _ -> not <| Set.member constructorName usedConstructors)
-                                |> Dict.values
-                                |> List.map
-                                    (\constructorInformation ->
-                                        errorForModule
-                                            moduleKey
-                                            { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInLocationThatNeedsItself
-                                            , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
-                                            , isUsedInOtherModules = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInOtherModules
-                                            , fixesForRemovingConstructor = Dict.get ( moduleName, constructorInformation.name ) projectContext.fixesForRemovingConstructor |> Maybe.withDefault []
-                                            }
-                                            constructorInformation
-                                    )
-                        )
-            )
+    Dict.foldl
+        (\moduleName (ExposedConstructors { moduleKey, customTypes }) acc ->
+            let
+                usedConstructors : Set ConstructorName
+                usedConstructors =
+                    Dict.get moduleName projectContext.usedConstructors
+                        |> Maybe.withDefault Set.empty
+            in
+            errorsForCustomTypes projectContext usedConstructors moduleName moduleKey customTypes acc
+        )
+        []
+        projectContext.declaredConstructors
+
+
+errorsForCustomTypes : ProjectContext -> Set String -> String -> Rule.ModuleKey -> Dict CustomTypeName (Dict ConstructorName ConstructorInformation) -> List (Error scope) -> List (Error scope)
+errorsForCustomTypes projectContext usedConstructors moduleName moduleKey customTypes acc =
+    Dict.foldl
+        (\_ constructors subAcc ->
+            errorsForConstructors projectContext usedConstructors moduleName moduleKey constructors subAcc
+        )
+        acc
+        customTypes
+
+
+errorsForConstructors : ProjectContext -> Set String -> String -> Rule.ModuleKey -> Dict ConstructorName ConstructorInformation -> List (Error scope) -> List (Error scope)
+errorsForConstructors projectContext usedConstructors moduleName moduleKey constructors acc =
+    Dict.foldl
+        (\constructorName constructorInformation subAcc ->
+            if Set.member constructorName usedConstructors then
+                subAcc
+
+            else
+                errorForModule
+                    moduleKey
+                    { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInLocationThatNeedsItself
+                    , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
+                    , isUsedInOtherModules = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInOtherModules
+                    , fixesForRemovingConstructor = Dict.get ( moduleName, constructorInformation.name ) projectContext.fixesForRemovingConstructor |> Maybe.withDefault []
+                    }
+                    constructorInformation
+                    :: subAcc
+        )
+        acc
+        constructors
 
 
 
