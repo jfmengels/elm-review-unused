@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.1.28] - 2022-11-08
+
+Add better support for `jfmengels/elm-review` v2.10.0.
+
 ## [1.1.27] - 2022-09-19
 
 This release contains HUGE performance updates. Rough benchmarks show some of the slow rules ([`NoUnused.Exports`], [`NoUnused.CustomTypeConstructors`] and [`NoUnused.CustomTypeConstructorArgs`]) are now 20-40 times faster compared to the previous release.
@@ -49,6 +53,7 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
+[1.1.28]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.28
 [1.1.27]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.27
 [1.1.26]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.26
 [1.1.25]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.25
