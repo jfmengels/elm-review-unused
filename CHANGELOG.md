@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.1.29] - 2022-12-07
+
+Fix false positive in [`NoUnused.CustomTypeConstructors`].
+
 ## [1.1.28] - 2022-11-08
 
 Add better support for `jfmengels/elm-review` v2.10.0.
@@ -53,6 +57,7 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
+[1.1.29]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.29
 [1.1.28]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.28
 [1.1.27]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.27
 [1.1.26]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.26
