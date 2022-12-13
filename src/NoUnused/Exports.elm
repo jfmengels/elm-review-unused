@@ -296,33 +296,31 @@ finalEvaluationForProject projectContext =
         filterExposedPackage_ =
             filterExposedPackage projectContext
 
-        ( usedModules, unusedModules ) =
+        ( usedModules, unusedModuleErrors ) =
             Dict.foldl
-                (\moduleName module_ (( usedAcc, unusedAcc ) as acc) ->
+                (\moduleName module_ (( usedAcc, unusedErrors ) as acc) ->
                     if not (filterExposedPackage_ moduleName) then
                         acc
 
                     else if Set.member moduleName projectContext.usedModules then
-                        ( Dict.insert moduleName module_ usedAcc, unusedAcc )
+                        ( Dict.insert moduleName module_ usedAcc, unusedErrors )
 
                     else
-                        ( usedAcc, Dict.insert moduleName module_ unusedAcc )
+                        ( usedAcc, unusedModuleError moduleName module_ :: unusedErrors )
                 )
-                ( Dict.empty, Dict.empty )
+                ( Dict.empty, [] )
                 projectContext.modules
     in
     List.concat
         [ usedModules
             |> Dict.toList
             |> List.concatMap (errorsForModule projectContext used)
-        , unusedModules
-            |> Dict.toList
-            |> List.map unusedModuleError
+        , unusedModuleErrors
         ]
 
 
-unusedModuleError : ( ModuleName, { a | moduleKey : Rule.ModuleKey, moduleNameLocation : Range } ) -> Error scope
-unusedModuleError ( moduleName, { moduleKey, moduleNameLocation } ) =
+unusedModuleError : ModuleName -> { a | moduleKey : Rule.ModuleKey, moduleNameLocation : Range } -> Error scope
+unusedModuleError moduleName { moduleKey, moduleNameLocation } =
     Rule.errorForModule moduleKey
         { message = "Module `" ++ String.join "." moduleName ++ "` is never used."
         , details = [ "This module is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
