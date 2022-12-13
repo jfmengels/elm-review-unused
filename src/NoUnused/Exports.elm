@@ -324,10 +324,9 @@ errorsForModule : ProjectContext -> Set ( ModuleName, String ) -> ModuleName -> 
 errorsForModule projectContext used moduleName { moduleKey, exposed } acc =
     exposed
         |> removeApplicationExceptions projectContext
-        |> removeReviewConfig moduleName
         |> Dict.foldl
             (\name element subAcc ->
-                if Set.member ( moduleName, name ) used then
+                if Set.member ( moduleName, name ) used || moduleName == [ "ReviewConfig" ] then
                     subAcc
 
                 else
@@ -378,15 +377,6 @@ removeApplicationExceptions projectContext dict =
             dict
                 |> Dict.remove "main"
                 |> Dict.remove "app"
-
-
-removeReviewConfig : ModuleName -> Dict String a -> Dict String a
-removeReviewConfig moduleName dict =
-    if moduleName == [ "ReviewConfig" ] then
-        Dict.remove "config" dict
-
-    else
-        dict
 
 
 getRangesToRemove : List ( Int, String ) -> Bool -> String -> Int -> Maybe Range -> Range -> Range -> List Range
