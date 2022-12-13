@@ -295,26 +295,20 @@ finalEvaluationForProject projectContext =
         filterExposedPackage_ : ModuleName -> Bool
         filterExposedPackage_ =
             filterExposedPackage projectContext
-
-        ( usedModuleErrors, unusedModuleErrors ) =
-            Dict.foldl
-                (\moduleName module_ (( usedAcc, unusedErrors ) as acc) ->
-                    if not (filterExposedPackage_ moduleName) then
-                        acc
-
-                    else if Set.member moduleName projectContext.usedModules then
-                        ( errorsForModule projectContext used moduleName module_ ++ usedAcc, unusedErrors )
-
-                    else
-                        ( usedAcc, unusedModuleError moduleName module_ :: unusedErrors )
-                )
-                ( [], [] )
-                projectContext.modules
     in
-    List.concat
-        [ usedModuleErrors
-        , unusedModuleErrors
-        ]
+    Dict.foldl
+        (\moduleName module_ acc ->
+            if not (filterExposedPackage_ moduleName) then
+                acc
+
+            else if Set.member moduleName projectContext.usedModules then
+                errorsForModule projectContext used moduleName module_ ++ acc
+
+            else
+                unusedModuleError moduleName module_ :: acc
+        )
+        []
+        projectContext.modules
 
 
 unusedModuleError : ModuleName -> { a | moduleKey : Rule.ModuleKey, moduleNameLocation : Range } -> Error scope
