@@ -295,7 +295,15 @@ finalEvaluationForProject projectContext =
         ( usedModules, unusedModules ) =
             projectContext.modules
                 |> removeExposedPackages projectContext
-                |> Dict.partition (\moduleName _ -> Set.member moduleName projectContext.usedModules)
+                |> Dict.foldl
+                    (\moduleName module_ ( usedAcc, unusedAcc ) ->
+                        if Set.member moduleName projectContext.usedModules then
+                            ( Dict.insert moduleName module_ usedAcc, unusedAcc )
+
+                        else
+                            ( usedAcc, Dict.insert moduleName module_ unusedAcc )
+                    )
+                    ( Dict.empty, Dict.empty )
     in
     List.concat
         [ usedModules
