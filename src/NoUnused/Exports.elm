@@ -322,36 +322,35 @@ unusedModuleError moduleName { moduleKey, moduleNameLocation } =
 
 errorsForModule : ProjectContext -> Set ( ModuleName, String ) -> ModuleName -> { a | moduleKey : Rule.ModuleKey, exposed : Dict String ExposedElement } -> List (Error scope) -> List (Error scope)
 errorsForModule projectContext used moduleName { moduleKey, exposed } acc =
-    exposed
-        |> removeApplicationExceptions projectContext
-        |> Dict.foldl
-            (\name element subAcc ->
-                if isUsedOrException used moduleName name then
-                    subAcc
+    Dict.foldl
+        (\name element subAcc ->
+            if isUsedOrException projectContext used moduleName name then
+                subAcc
 
-                else
-                    let
-                        what : String
-                        what =
-                            case element.elementType of
-                                Function ->
-                                    "Exposed function or value"
+            else
+                let
+                    what : String
+                    what =
+                        case element.elementType of
+                            Function ->
+                                "Exposed function or value"
 
-                                TypeOrTypeAlias ->
-                                    "Exposed type or type alias"
+                            TypeOrTypeAlias ->
+                                "Exposed type or type alias"
 
-                                ExposedType _ ->
-                                    "Exposed type"
-                    in
-                    Rule.errorForModuleWithFix moduleKey
-                        { message = what ++ " `" ++ name ++ "` is never used outside this module."
-                        , details = [ "This exposed element is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
-                        }
-                        element.range
-                        (List.map Fix.removeRange element.rangesToRemove)
-                        :: subAcc
-            )
-            acc
+                            ExposedType _ ->
+                                "Exposed type"
+                in
+                Rule.errorForModuleWithFix moduleKey
+                    { message = what ++ " `" ++ name ++ "` is never used outside this module."
+                    , details = [ "This exposed element is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
+                    }
+                    element.range
+                    (List.map Fix.removeRange element.rangesToRemove)
+                    :: subAcc
+        )
+        acc
+        exposed
 
 
 filterExposedPackage : ProjectContext -> ModuleName -> Bool
@@ -364,25 +363,24 @@ filterExposedPackage projectContext =
             \moduleName -> not <| Set.member moduleName exposedModuleNames
 
 
-removeApplicationExceptions : ProjectContext -> Dict String a -> Dict String a
-removeApplicationExceptions projectContext dict =
+isUsedOrException : ProjectContext -> Set ( ModuleName, String ) -> List String -> String -> Bool
+isUsedOrException projectContext used moduleName name =
+    Set.member ( moduleName, name ) used
+        || isApplicationException projectContext name
+        || (moduleName == [ "ReviewConfig" ])
+
+
+isApplicationException : ProjectContext -> String -> Bool
+isApplicationException projectContext name =
     case projectContext.projectType of
         IsPackage _ ->
-            dict
+            False
 
         IsApplication ElmApplication ->
-            Dict.remove "main" dict
+            name == "main"
 
         IsApplication LamderaApplication ->
-            dict
-                |> Dict.remove "main"
-                |> Dict.remove "app"
-
-
-isUsedOrException : Set ( List String, comparable ) -> List String -> comparable -> Bool
-isUsedOrException used moduleName name =
-    Set.member ( moduleName, name ) used
-        || (moduleName == [ "ReviewConfig" ])
+            name == "main" || name == "app"
 
 
 getRangesToRemove : List ( Int, String ) -> Bool -> String -> Int -> Maybe Range -> Range -> Range -> List Range
