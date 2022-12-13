@@ -326,9 +326,8 @@ errorsForModule projectContext used moduleName { moduleKey, exposed } acc =
         |> removeApplicationExceptions projectContext
         |> removeReviewConfig moduleName
         |> Dict.filter (\name _ -> not <| Set.member ( moduleName, name ) used)
-        |> Dict.toList
-        |> List.foldl
-            (\( name, element ) subAcc ->
+        |> Dict.foldl
+            (\name element subAcc ->
                 let
                     what : String
                     what =
