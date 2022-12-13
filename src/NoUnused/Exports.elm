@@ -292,18 +292,24 @@ finalEvaluationForProject projectContext =
                 projectContext.used
                 projectContext.used
 
-        ( usedModules, unusedModules ) =
-            projectContext.modules
-                |> removeExposedPackages projectContext
-                |> Dict.foldl
-                    (\moduleName module_ ( usedAcc, unusedAcc ) ->
-                        if Set.member moduleName projectContext.usedModules then
-                            ( Dict.insert moduleName module_ usedAcc, unusedAcc )
+        filterExposedPackage_ : ModuleName -> Bool
+        filterExposedPackage_ =
+            filterExposedPackage projectContext
 
-                        else
-                            ( usedAcc, Dict.insert moduleName module_ unusedAcc )
-                    )
-                    ( Dict.empty, Dict.empty )
+        ( usedModules, unusedModules ) =
+            Dict.foldl
+                (\moduleName module_ (( usedAcc, unusedAcc ) as acc) ->
+                    if not (filterExposedPackage_ moduleName) then
+                        acc
+
+                    else if Set.member moduleName projectContext.usedModules then
+                        ( Dict.insert moduleName module_ usedAcc, unusedAcc )
+
+                    else
+                        ( usedAcc, Dict.insert moduleName module_ unusedAcc )
+                )
+                ( Dict.empty, Dict.empty )
+                projectContext.modules
     in
     List.concat
         [ usedModules
@@ -356,14 +362,14 @@ errorsForModule projectContext used ( moduleName, { moduleKey, exposed } ) =
             )
 
 
-removeExposedPackages : ProjectContext -> Dict ModuleName a -> Dict ModuleName a
-removeExposedPackages projectContext dict =
+filterExposedPackage : ProjectContext -> ModuleName -> Bool
+filterExposedPackage projectContext =
     case projectContext.projectType of
         IsApplication _ ->
-            dict
+            always True
 
         IsPackage exposedModuleNames ->
-            Dict.filter (\name _ -> not <| Set.member name exposedModuleNames) dict
+            \moduleName -> not <| Set.member moduleName exposedModuleNames
 
 
 removeApplicationExceptions : ProjectContext -> Dict String a -> Dict String a
