@@ -302,7 +302,7 @@ finalEvaluationForProject projectContext =
                 acc
 
             else if Set.member moduleName projectContext.usedModules then
-                errorsForModule projectContext used moduleName module_ ++ acc
+                errorsForModule projectContext used moduleName module_ acc
 
             else
                 unusedModuleError moduleName module_ :: acc
@@ -320,15 +320,15 @@ unusedModuleError moduleName { moduleKey, moduleNameLocation } =
         moduleNameLocation
 
 
-errorsForModule : ProjectContext -> Set ( ModuleName, String ) -> ModuleName -> { a | moduleKey : Rule.ModuleKey, exposed : Dict String ExposedElement } -> List (Error scope)
-errorsForModule projectContext used moduleName { moduleKey, exposed } =
+errorsForModule : ProjectContext -> Set ( ModuleName, String ) -> ModuleName -> { a | moduleKey : Rule.ModuleKey, exposed : Dict String ExposedElement } -> List (Error scope) -> List (Error scope)
+errorsForModule projectContext used moduleName { moduleKey, exposed } acc =
     exposed
         |> removeApplicationExceptions projectContext
         |> removeReviewConfig moduleName
         |> Dict.filter (\name _ -> not <| Set.member ( moduleName, name ) used)
         |> Dict.toList
-        |> List.concatMap
-            (\( name, element ) ->
+        |> List.foldl
+            (\( name, element ) subAcc ->
                 let
                     what : String
                     what =
@@ -342,14 +342,15 @@ errorsForModule projectContext used moduleName { moduleKey, exposed } =
                             ExposedType _ ->
                                 "Exposed type"
                 in
-                [ Rule.errorForModuleWithFix moduleKey
+                Rule.errorForModuleWithFix moduleKey
                     { message = what ++ " `" ++ name ++ "` is never used outside this module."
                     , details = [ "This exposed element is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
                     }
                     element.range
                     (List.map Fix.removeRange element.rangesToRemove)
-                ]
+                    :: subAcc
             )
+            acc
 
 
 filterExposedPackage : ProjectContext -> ModuleName -> Bool
