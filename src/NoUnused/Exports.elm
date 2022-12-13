@@ -325,29 +325,32 @@ errorsForModule projectContext used moduleName { moduleKey, exposed } acc =
     exposed
         |> removeApplicationExceptions projectContext
         |> removeReviewConfig moduleName
-        |> Dict.filter (\name _ -> not <| Set.member ( moduleName, name ) used)
         |> Dict.foldl
             (\name element subAcc ->
-                let
-                    what : String
-                    what =
-                        case element.elementType of
-                            Function ->
-                                "Exposed function or value"
+                if Set.member ( moduleName, name ) used then
+                    subAcc
 
-                            TypeOrTypeAlias ->
-                                "Exposed type or type alias"
+                else
+                    let
+                        what : String
+                        what =
+                            case element.elementType of
+                                Function ->
+                                    "Exposed function or value"
 
-                            ExposedType _ ->
-                                "Exposed type"
-                in
-                Rule.errorForModuleWithFix moduleKey
-                    { message = what ++ " `" ++ name ++ "` is never used outside this module."
-                    , details = [ "This exposed element is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
-                    }
-                    element.range
-                    (List.map Fix.removeRange element.rangesToRemove)
-                    :: subAcc
+                                TypeOrTypeAlias ->
+                                    "Exposed type or type alias"
+
+                                ExposedType _ ->
+                                    "Exposed type"
+                    in
+                    Rule.errorForModuleWithFix moduleKey
+                        { message = what ++ " `" ++ name ++ "` is never used outside this module."
+                        , details = [ "This exposed element is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
+                        }
+                        element.range
+                        (List.map Fix.removeRange element.rangesToRemove)
+                        :: subAcc
             )
             acc
 
