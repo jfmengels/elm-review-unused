@@ -296,25 +296,23 @@ finalEvaluationForProject projectContext =
         filterExposedPackage_ =
             filterExposedPackage projectContext
 
-        ( usedModules, unusedModuleErrors ) =
+        ( usedModuleErrors, unusedModuleErrors ) =
             Dict.foldl
                 (\moduleName module_ (( usedAcc, unusedErrors ) as acc) ->
                     if not (filterExposedPackage_ moduleName) then
                         acc
 
                     else if Set.member moduleName projectContext.usedModules then
-                        ( Dict.insert moduleName module_ usedAcc, unusedErrors )
+                        ( errorsForModule projectContext used moduleName module_ ++ usedAcc, unusedErrors )
 
                     else
                         ( usedAcc, unusedModuleError moduleName module_ :: unusedErrors )
                 )
-                ( Dict.empty, [] )
+                ( [], [] )
                 projectContext.modules
     in
     List.concat
-        [ usedModules
-            |> Dict.toList
-            |> List.concatMap (errorsForModule projectContext used)
+        [ usedModuleErrors
         , unusedModuleErrors
         ]
 
@@ -328,8 +326,8 @@ unusedModuleError moduleName { moduleKey, moduleNameLocation } =
         moduleNameLocation
 
 
-errorsForModule : ProjectContext -> Set ( ModuleName, String ) -> ( ModuleName, { a | moduleKey : Rule.ModuleKey, exposed : Dict String ExposedElement } ) -> List (Error scope)
-errorsForModule projectContext used ( moduleName, { moduleKey, exposed } ) =
+errorsForModule : ProjectContext -> Set ( ModuleName, String ) -> ModuleName -> { a | moduleKey : Rule.ModuleKey, exposed : Dict String ExposedElement } -> List (Error scope)
+errorsForModule projectContext used moduleName { moduleKey, exposed } =
     exposed
         |> removeApplicationExceptions projectContext
         |> removeReviewConfig moduleName
