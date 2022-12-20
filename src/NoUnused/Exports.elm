@@ -170,45 +170,58 @@ fromProjectToModule =
 fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
 fromModuleToProject =
     Rule.initContextCreator
-        (\moduleKey (Node moduleNameRange moduleName) moduleContext ->
+        (\moduleKey (Node moduleNameRange moduleName) isFileIgnored moduleContext ->
             { projectType = IsApplication ElmApplication
             , modules =
-                Dict.singleton
-                    moduleName
-                    { moduleKey = moduleKey
-                    , exposed = moduleContext.exposed
-                    , moduleNameLocation = moduleNameRange
-                    }
+                if isFileIgnored then
+                    Dict.empty
+
+                else
+                    Dict.singleton
+                        moduleName
+                        { moduleKey = moduleKey
+                        , exposed = moduleContext.exposed
+                        , moduleNameLocation = moduleNameRange
+                        }
             , used =
-                Set.foldl
-                    (\element acc -> Set.insert ( moduleName, element ) acc)
+                if isFileIgnored then
                     moduleContext.used
-                    moduleContext.elementsNotToReport
+
+                else
+                    Set.foldl
+                        (\element acc -> Set.insert ( moduleName, element ) acc)
+                        moduleContext.used
+                        moduleContext.elementsNotToReport
             , usedModules =
-                if Set.member [ "Test" ] moduleContext.importedModules || moduleContext.containsMainFunction then
+                if not isFileIgnored && (Set.member [ "Test" ] moduleContext.importedModules || moduleContext.containsMainFunction) then
                     Set.insert moduleName moduleContext.importedModules
 
                 else
                     moduleContext.importedModules
             , constructors =
-                Dict.foldl
-                    (\name element acc ->
-                        case element.elementType of
-                            ExposedType constructorNames ->
-                                List.foldl
-                                    (\constructorName listAcc -> Dict.insert ( moduleName, constructorName ) name listAcc)
-                                    acc
-                                    constructorNames
-
-                            _ ->
-                                acc
-                    )
+                if isFileIgnored then
                     Dict.empty
-                    moduleContext.exposed
+
+                else
+                    Dict.foldl
+                        (\name element acc ->
+                            case element.elementType of
+                                ExposedType constructorNames ->
+                                    List.foldl
+                                        (\constructorName listAcc -> Dict.insert ( moduleName, constructorName ) name listAcc)
+                                        acc
+                                        constructorNames
+
+                                _ ->
+                                    acc
+                        )
+                        Dict.empty
+                        moduleContext.exposed
             }
         )
         |> Rule.withModuleKey
         |> Rule.withModuleNameNode
+        |> Rule.withIsFileIgnored
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
