@@ -326,15 +326,16 @@ fromModuleToProject =
                     )
                     moduleContext.wasUsedInComparisons
             , wasUsedInOtherModules =
-                List.foldl
-                    (\( moduleName_, constructors ) acc ->
-                        Set.union
-                            (Set.map (Tuple.pair moduleName_) constructors)
-                            acc
-                    )
-                    moduleContext.wasUsedInOtherModules
-                    -- TODO add test to make sure we don't fix something that is pattern matched in other modules
-                    (Dict.toList <| Dict.remove "" moduleContext.usedFunctionsOrValues)
+                -- TODO add test to make sure we don't fix something that is pattern matched in other modules
+                moduleContext.usedFunctionsOrValues
+                    |> Dict.remove ""
+                    |> Dict.foldl
+                        (\moduleName_ constructors acc ->
+                            Set.union
+                                (Set.map (Tuple.pair moduleName_) constructors)
+                                acc
+                        )
+                        moduleContext.wasUsedInOtherModules
             , fixesForRemovingConstructor =
                 mapDictKeys
                     (\constructorName ->
