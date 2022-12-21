@@ -208,13 +208,18 @@ replaceLocalModuleNameForSet moduleName set =
 replaceLocalModuleNameForDict : ModuleName -> Dict ( ModuleName, comparable ) b -> Dict ( ModuleName, comparable ) b
 replaceLocalModuleNameForDict moduleName dict =
     Dict.foldl
-        (\( moduleNameForType, name ) value acc ->
-            case moduleNameForType of
-                [] ->
-                    Dict.insert ( moduleName, name ) value acc
+        (\(( moduleNameForType, name ) as key) value acc ->
+            let
+                newKey : ( ModuleName, comparable )
+                newKey =
+                    case moduleNameForType of
+                        [] ->
+                            ( moduleName, name )
 
-                _ ->
-                    Dict.insert ( moduleNameForType, name ) value acc
+                        _ ->
+                            key
+            in
+            Dict.insert newKey value acc
         )
         Dict.empty
         dict
