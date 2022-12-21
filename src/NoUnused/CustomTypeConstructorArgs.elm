@@ -194,13 +194,13 @@ fromModuleToProject =
 replaceLocalModuleNameForSet : ModuleName -> Set ( ModuleName, comparable ) -> Set ( ModuleName, comparable )
 replaceLocalModuleNameForSet moduleName set =
     Set.map
-        (\( moduleNameForType, name ) ->
+        (\(( moduleNameForType, name ) as untouched) ->
             case moduleNameForType of
                 [] ->
                     ( moduleName, name )
 
                 _ ->
-                    ( moduleNameForType, name )
+                    untouched
         )
         set
 
