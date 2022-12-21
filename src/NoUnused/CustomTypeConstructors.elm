@@ -331,9 +331,10 @@ fromModuleToProject =
                     |> Dict.remove ""
                     |> Dict.foldl
                         (\moduleName_ constructors acc ->
-                            Set.union
-                                (Set.map (Tuple.pair moduleName_) constructors)
+                            Set.foldl
+                                (\constructor subAcc -> Set.insert ( moduleName_, constructor ) subAcc)
                                 acc
+                                constructors
                         )
                         moduleContext.wasUsedInOtherModules
             , fixesForRemovingConstructor =
