@@ -257,96 +257,146 @@ fromProjectToModule =
 fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
 fromModuleToProject =
     Rule.initContextCreator
-        (\moduleKey moduleName moduleContext ->
+        (\moduleKey isFileIgnored moduleName moduleContext ->
             let
-                localUsed : Set ConstructorName
-                localUsed =
+                usedConstructors : Dict String (Set ConstructorName)
+                usedConstructors =
                     moduleContext.usedFunctionsOrValues
-                        |> Dict.get ""
-                        |> Maybe.withDefault Set.empty
-
-                localPhantomTypes : List ( CustomTypeName, Int )
-                localPhantomTypes =
-                    moduleContext.phantomVariables
-                        |> Dict.get []
-                        |> Maybe.withDefault []
-
-                moduleNameAsString : ModuleNameAsString
-                moduleNameAsString =
-                    String.join "." moduleName
+                        |> Dict.remove ""
             in
-            { exposedModules = Set.empty
-            , declaredConstructors =
-                if moduleContext.isExposed then
-                    if moduleContext.exposesEverything then
-                        Dict.empty
+            if isFileIgnored then
+                ignoredFromModuleToProject moduleName usedConstructors moduleContext
+
+            else
+                let
+                    localUsed : Set ConstructorName
+                    localUsed =
+                        moduleContext.usedFunctionsOrValues
+                            |> Dict.get ""
+                            |> Maybe.withDefault Set.empty
+
+                    localPhantomTypes : List ( CustomTypeName, Int )
+                    localPhantomTypes =
+                        moduleContext.phantomVariables
+                            |> Dict.get []
+                            |> Maybe.withDefault []
+
+                    moduleNameAsString : ModuleNameAsString
+                    moduleNameAsString =
+                        String.join "." moduleName
+                in
+                { exposedModules = Set.empty
+                , declaredConstructors =
+                    if moduleContext.isExposed || isFileIgnored then
+                        if moduleContext.exposesEverything || isFileIgnored then
+                            Dict.empty
+
+                        else
+                            Dict.singleton
+                                moduleNameAsString
+                                (ExposedConstructors
+                                    { moduleKey = moduleKey
+                                    , customTypes =
+                                        moduleContext.declaredTypesWithConstructors
+                                            |> Dict.filter (\typeName _ -> not <| Set.member typeName moduleContext.exposedCustomTypesWithConstructors)
+                                    }
+                                )
 
                     else
                         Dict.singleton
                             moduleNameAsString
                             (ExposedConstructors
                                 { moduleKey = moduleKey
-                                , customTypes =
-                                    moduleContext.declaredTypesWithConstructors
-                                        |> Dict.filter (\typeName _ -> not <| Set.member typeName moduleContext.exposedCustomTypesWithConstructors)
+                                , customTypes = moduleContext.declaredTypesWithConstructors
                                 }
                             )
+                , usedConstructors =
+                    if isFileIgnored then
+                        usedConstructors
 
-                else
-                    Dict.singleton
-                        moduleNameAsString
-                        (ExposedConstructors
-                            { moduleKey = moduleKey
-                            , customTypes = moduleContext.declaredTypesWithConstructors
-                            }
+                    else
+                        Dict.insert moduleNameAsString localUsed usedConstructors
+                , phantomVariables = Dict.singleton moduleName localPhantomTypes
+                , wasUsedInLocationThatNeedsItself =
+                    Set.map
+                        (\(( moduleName_, constructorName ) as untouched) ->
+                            if moduleName_ == "" then
+                                ( moduleNameAsString, constructorName )
+
+                            else
+                                untouched
                         )
-            , usedConstructors =
-                moduleContext.usedFunctionsOrValues
-                    |> Dict.remove ""
-                    |> Dict.insert moduleNameAsString localUsed
-            , phantomVariables = Dict.singleton moduleName localPhantomTypes
-            , wasUsedInLocationThatNeedsItself =
-                Set.map
-                    (\(( moduleName_, constructorName ) as untouched) ->
-                        if moduleName_ == "" then
-                            ( moduleNameAsString, constructorName )
+                        moduleContext.wasUsedInLocationThatNeedsItself
+                , wasUsedInComparisons =
+                    Set.map
+                        (\(( moduleName_, constructorName ) as untouched) ->
+                            if moduleName_ == "" then
+                                ( moduleNameAsString, constructorName )
 
-                        else
-                            untouched
-                    )
-                    moduleContext.wasUsedInLocationThatNeedsItself
-            , wasUsedInComparisons =
-                Set.map
-                    (\(( moduleName_, constructorName ) as untouched) ->
-                        if moduleName_ == "" then
-                            ( moduleNameAsString, constructorName )
-
-                        else
-                            untouched
-                    )
-                    moduleContext.wasUsedInComparisons
-            , wasUsedInOtherModules =
-                -- TODO add test to make sure we don't fix something that is pattern matched in other modules
-                moduleContext.usedFunctionsOrValues
-                    |> Dict.remove ""
-                    |> Dict.foldl
-                        (\moduleName_ constructors acc ->
-                            Set.foldl
-                                (\constructor subAcc -> Set.insert ( moduleName_, constructor ) subAcc)
-                                acc
-                                constructors
+                            else
+                                untouched
                         )
-                        moduleContext.wasUsedInOtherModules
-            , fixesForRemovingConstructor =
-                mapDictKeys
-                    (\constructorName ->
-                        ( moduleNameAsString, constructorName )
-                    )
-                    moduleContext.fixesForRemovingConstructor
-            }
+                        moduleContext.wasUsedInComparisons
+                , wasUsedInOtherModules = wasUsedInOtherModules usedConstructors moduleContext
+                , fixesForRemovingConstructor =
+                    mapDictKeys
+                        (\constructorName ->
+                            ( moduleNameAsString, constructorName )
+                        )
+                        moduleContext.fixesForRemovingConstructor
+                }
         )
         |> Rule.withModuleKey
+        |> Rule.withIsFileIgnored
         |> Rule.withModuleName
+
+
+ignoredFromModuleToProject : ModuleName -> Dict String (Set ConstructorName) -> ModuleContext -> ProjectContext
+ignoredFromModuleToProject moduleName usedConstructors moduleContext =
+    let
+        localPhantomTypes : List ( CustomTypeName, Int )
+        localPhantomTypes =
+            moduleContext.phantomVariables
+                |> Dict.get []
+                |> Maybe.withDefault []
+
+        moduleNameAsString : String
+        moduleNameAsString =
+            String.join "." moduleName
+    in
+    { exposedModules = Set.empty
+    , declaredConstructors = Dict.empty
+    , usedConstructors = usedConstructors
+    , phantomVariables = Dict.singleton moduleName localPhantomTypes
+    , wasUsedInLocationThatNeedsItself = Set.empty
+    , wasUsedInComparisons =
+        Set.map
+            (\(( moduleName_, constructorName ) as untouched) ->
+                if moduleName_ == "" then
+                    ( moduleNameAsString, constructorName )
+
+                else
+                    untouched
+            )
+            moduleContext.wasUsedInComparisons
+    , wasUsedInOtherModules = wasUsedInOtherModules usedConstructors moduleContext
+
+    -- TODO add test to make sure we don't fix something that is pattern matched in other modules
+    , fixesForRemovingConstructor = Dict.empty
+    }
+
+
+wasUsedInOtherModules : Dict String (Set ConstructorName) -> ModuleContext -> Set ( String, String )
+wasUsedInOtherModules usedConstructors moduleContext =
+    usedConstructors
+        |> Dict.foldl
+            (\moduleName_ constructors acc ->
+                Set.foldl
+                    (\constructor subAcc -> Set.insert ( moduleName_, constructor ) subAcc)
+                    acc
+                    constructors
+            )
+            moduleContext.wasUsedInOtherModules
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
