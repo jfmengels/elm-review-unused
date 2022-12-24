@@ -236,22 +236,22 @@ getNonExposedCustomTypes moduleContext =
                 let
                     exposedCustomTypes : Set String
                     exposedCustomTypes =
-                        list
-                            |> List.filterMap
-                                (\exposed ->
-                                    case Node.value exposed of
-                                        Exposing.TypeExpose { name, open } ->
-                                            case open of
-                                                Just _ ->
-                                                    Just name
+                        List.foldl
+                            (\exposed acc ->
+                                case Node.value exposed of
+                                    Exposing.TypeExpose { name, open } ->
+                                        case open of
+                                            Just _ ->
+                                                Set.insert name acc
 
-                                                Nothing ->
-                                                    Nothing
+                                            Nothing ->
+                                                acc
 
-                                        _ ->
-                                            Nothing
-                                )
-                            |> Set.fromList
+                                    _ ->
+                                        acc
+                            )
+                            Set.empty
+                            list
                 in
                 List.foldl
                     (\( typeName, args ) acc ->
