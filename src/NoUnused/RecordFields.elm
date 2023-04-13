@@ -218,6 +218,27 @@ registerDeclaration exposedNames node =
             else
                 Nothing
 
+        Declaration.AliasDeclaration typeAlias ->
+            case Node.value typeAlias.typeAnnotation of
+                TypeAnnotation.Record recordDefinition ->
+                    let
+                        name : String
+                        name =
+                            Node.value typeAlias.name
+
+                        recordFields : List (Node String)
+                        recordFields =
+                            List.map (Node.value >> Tuple.first) recordDefinition
+                    in
+                    if not (Set.member name exposedNames) && List.isEmpty typeAlias.generics then
+                        Just ( name, Variable.newVariable recordFields Set.empty )
+
+                    else
+                        Nothing
+
+                _ ->
+                    Nothing
+
         _ ->
             Nothing
 
@@ -309,7 +330,7 @@ handleDeclaration moduleContext { signature, declaration } =
             let
                 recordArguments : List (Maybe (List (Node String)))
                 recordArguments =
-                    recordDefinitionsFromTypeAnnotation typeAnnotation
+                    recordDefinitionsFromTypeAnnotation moduleContext typeAnnotation
 
                 arguments : List (Node Pattern)
                 arguments =
@@ -440,24 +461,34 @@ fieldsFromPattern node =
             []
 
 
-recordDefinitionsFromTypeAnnotation : Node TypeAnnotation -> List (Maybe (List (Node String)))
-recordDefinitionsFromTypeAnnotation typeAnnotation =
+recordDefinitionsFromTypeAnnotation : ModuleContext -> Node TypeAnnotation -> List (Maybe (List (Node String)))
+recordDefinitionsFromTypeAnnotation moduleContext typeAnnotation =
     case Node.value typeAnnotation of
         TypeAnnotation.FunctionTypeAnnotation input output ->
-            extractRecordDefinition input :: recordDefinitionsFromTypeAnnotation output
+            extractRecordDefinition moduleContext input :: recordDefinitionsFromTypeAnnotation moduleContext output
 
         _ ->
             []
 
 
-extractRecordDefinition : Node TypeAnnotation -> Maybe (List (Node String))
-extractRecordDefinition typeAnnotation =
+extractRecordDefinition : ModuleContext -> Node TypeAnnotation -> Maybe (List (Node String))
+extractRecordDefinition moduleContext typeAnnotation =
     case Node.value typeAnnotation of
         TypeAnnotation.Record recordDefinition ->
             Just (List.map (Node.value >> Tuple.first) recordDefinition)
 
         TypeAnnotation.GenericRecord _ recordDefinition ->
             Just (List.map (Node.value >> Tuple.first) (Node.value recordDefinition))
+
+        TypeAnnotation.Typed moduleNameAndName args ->
+            case ( Node.value moduleNameAndName, args ) of
+                ( ( [], name ), [] ) ->
+                    moduleContext.variableRegister
+                        |> Variable.getVariableByName name
+                        |> Maybe.map Variable.declaredFields
+
+                _ ->
+                    Nothing
 
         _ ->
             Nothing
