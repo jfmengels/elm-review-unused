@@ -4,6 +4,7 @@ Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-revi
 
 ## Provided rules
 
+- [`NoUnused.AliasRecordFields`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.29/NoUnused-AliasRecordFields) - Reports REPLACEME.
 - [🔧 `NoUnused.Variables`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.29/NoUnused-Variables/ "Provides automatic fixes") - Reports unused top-level variables and types, imports and imported variables and types inside of a module.
 - [🔧 `NoUnused.CustomTypeConstructors`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.29/NoUnused-CustomTypeConstructors/ "Provides automatic fixes") - Reports unused constructors for a custom type.
 - [`NoUnused.CustomTypeConstructorArgs`](https://package.elm-lang.org/packages/jfmengels/elm-review-unused/1.1.29/NoUnused-CustomTypeConstructorArgs/ "Provides automatic fixes") - Reports arguments of custom type constructors that are never used.
@@ -20,6 +21,7 @@ Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-revi
 ```elm
 module ReviewConfig exposing (config)
 
+import NoUnused.AliasRecordFields
 import NoUnused.CustomTypeConstructorArgs
 import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
@@ -35,6 +37,7 @@ config : List Rule
 config =
     [ NoUnused.CustomTypeConstructors.rule []
     , NoUnused.RecordFields.rule
+    , NoUnused.AliasRecordFields.rule
     , NoUnused.CustomTypeConstructorArgs.rule
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule

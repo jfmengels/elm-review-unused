@@ -1,4 +1,4 @@
-module NoUnused.RecordFields exposing (rule)
+module NoUnused.AliasRecordFields exposing (rule)
 
 {-|
 
@@ -7,6 +7,7 @@ module NoUnused.RecordFields exposing (rule)
 -}
 
 import Array exposing (Array)
+import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression)
@@ -29,7 +30,7 @@ import TypeInference.TypeByNameLookup as TypeByNameLookup exposing (TypeByNameLo
 {-| Reports... REPLACEME
 
     config =
-        [ NoUnused.RecordFields.rule
+        [ NoUnused.AliasRecordFields.rule
         ]
 
 
@@ -56,13 +57,13 @@ This rule is not useful when REPLACEME.
 You can try this rule out by running the following command:
 
 ```bash
-elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.RecordFields
+elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.AliasRecordFields
 ```
 
 -}
 rule : Rule
 rule =
-    Rule.newProjectRuleSchema "NoUnused.RecordFields" initialContext
+    Rule.newProjectRuleSchema "NoUnused.AliasRecordFields" initialContext
         |> TypeInference.addProjectVisitors
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
@@ -81,6 +82,7 @@ moduleVisitor schema =
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
         |> Rule.withExpressionExitVisitor expressionExitVisitor
+        |> Rule.withDeclarationExitVisitor declarationExitVisitor
         |> Rule.withFinalModuleEvaluation finalEvaluation
 
 
@@ -90,12 +92,14 @@ type alias ProjectContext =
 
 
 type alias ModuleContext =
-    { moduleNameLookupTable : ModuleNameLookupTable
+    { directAccessesToIgnore : RangeSet
+    , exposes : Exposes
+    , moduleNameLookupTable : ModuleNameLookupTable
+    , recordRegister : Variable.Register
     , typeByNameLookup : TypeByNameLookup
     , typeInference : TypeInference.ModuleContext
+    , variableRecord : Dict String String
     , variableRegister : Variable.Register
-    , directAccessesToIgnore : RangeSet
-    , exposes : Exposes
     }
 
 
@@ -109,12 +113,14 @@ fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
 fromProjectToModule =
     Rule.initContextCreator
         (\moduleNameLookupTable projectContext ->
-            { typeInference = TypeInference.fromProjectToModule projectContext
-            , moduleNameLookupTable = moduleNameLookupTable
-            , variableRegister = Variable.emptyRegister
-            , directAccessesToIgnore = RangeSet.empty
+            { directAccessesToIgnore = RangeSet.empty
             , exposes = ExposesEverything
+            , moduleNameLookupTable = moduleNameLookupTable
+            , recordRegister = Variable.emptyRegister
             , typeByNameLookup = TypeByNameLookup.empty
+            , typeInference = TypeInference.fromProjectToModule projectContext
+            , variableRecord = Dict.empty
+            , variableRegister = Variable.emptyRegister
             }
         )
         |> Rule.withModuleNameLookupTable
@@ -192,99 +198,42 @@ declarationListVisitor nodes context =
             let
                 variables : List ( String, Variable )
                 variables =
-                    nodes
-                        |> List.filterMap (registerDeclaration exposedNames)
+                    List.filterMap (registerDeclaration exposedNames) nodes
+                        |> Debug.log "01. declarationListVisitor recordRegister"
             in
-            ( [], { context | variableRegister = Variable.addVariables variables context.variableRegister } )
+            ( [], { context | recordRegister = Variable.addVariables variables context.recordRegister } )
 
 
 registerDeclaration : Set String -> Node Declaration -> Maybe ( String, Variable )
 registerDeclaration exposedNames node =
     case Node.value node of
-        Declaration.FunctionDeclaration function ->
-            let
-                declaration : Expression.FunctionImplementation
-                declaration =
-                    Node.value function.declaration
+        Declaration.AliasDeclaration typeAlias ->
+            case Node.value typeAlias.typeAnnotation of
+                TypeAnnotation.Record recordDefinition ->
+                    let
+                        name : String
+                        name =
+                            Node.value typeAlias.name
 
-                name : String
-                name =
-                    Node.value declaration.name
-            in
-            if not (Set.member name exposedNames) && List.isEmpty declaration.arguments then
-                declarationFields function
-                    |> Maybe.map (\( name_, declaredFields ) -> ( name_, Variable.newVariable declaredFields Set.empty ))
+                        recordFields : List (Node String)
+                        recordFields =
+                            List.map (Node.value >> Tuple.first) recordDefinition
+                    in
+                    if not (Set.member name exposedNames) && List.isEmpty typeAlias.generics then
+                        Just ( name, Variable.newVariable recordFields Set.empty )
 
-            else
-                Nothing
+                    else
+                        Nothing
 
-        _ ->
-            Nothing
-
-
-declarationFields :
-    { a | signature : Maybe (Node Signature), declaration : Node Expression.FunctionImplementation }
-    -> Maybe ( String, List (Node String) )
-declarationFields function =
-    let
-        declaration : Expression.FunctionImplementation
-        declaration =
-            Node.value function.declaration
-
-        name : String
-        name =
-            Node.value declaration.name
-    in
-    case Maybe.map (Node.value >> .typeAnnotation) function.signature of
-        Just typeAnnotation ->
-            case returnType typeAnnotation of
-                NoActionableReturnType ->
+                _ ->
                     Nothing
 
-                LiteralRecord ->
-                    findDeclarationFields declaration.expression
-                        |> Maybe.map (\declaredFields -> ( name, declaredFields ))
-
-        Nothing ->
-            findDeclarationFields declaration.expression
-                |> Maybe.map (\declaredFields -> ( name, declaredFields ))
-
-
-findDeclarationFields : Node Expression -> Maybe (List (Node String))
-findDeclarationFields expression =
-    case Node.value expression of
-        Expression.RecordExpr fields ->
-            let
-                declaredFields : List (Node String)
-                declaredFields =
-                    List.map (Node.value >> Tuple.first) fields
-            in
-            Just declaredFields
-
         _ ->
             Nothing
 
 
-type ReturnType
-    = NoActionableReturnType
-    | LiteralRecord
 
-
-returnType : Node TypeAnnotation -> ReturnType
-returnType node =
-    case Node.value node of
-        TypeAnnotation.FunctionTypeAnnotation _ output ->
-            returnType output
-
-        TypeAnnotation.Record _ ->
-            LiteralRecord
-
-        _ ->
-            NoActionableReturnType
-
-
-
--- DECLARATION VISITOR
+-- DECLARATION ENTER VISITOR
 
 
 declarationEnterVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
@@ -297,44 +246,56 @@ declarationEnterVisitor node moduleContext =
             ( [], moduleContext )
 
 
-type VariableOrError
-    = VariableOrError_Variable ( String, Variable )
-    | VariableOrError_Errors (List (Node String))
-
-
 handleDeclaration : ModuleContext -> Expression.Function -> ( List (Error {}), ModuleContext )
 handleDeclaration moduleContext { signature, declaration } =
     case Maybe.map (Node.value >> .typeAnnotation) signature of
         Just typeAnnotation ->
             let
-                recordArguments : List (Maybe (List (Node String)))
+                recordArguments : List (Maybe ( String, List (Node String) ))
                 recordArguments =
-                    recordDefinitionsFromTypeAnnotation typeAnnotation
+                    recordDefinitionsFromTypeAnnotation moduleContext typeAnnotation
+                        |> Debug.log "02. handleDeclaration recordArguments"
 
                 arguments : List (Node Pattern)
                 arguments =
                     (Node.value declaration).arguments
+                        |> Debug.log "03. handleDeclaration arguments"
 
-                variableOrErrors : List (Maybe VariableOrError)
-                variableOrErrors =
+                variables : List ( String, Variable )
+                variables =
                     List.map2
                         (\recordArgument argument ->
                             case recordArgument of
-                                Just ((_ :: _) as declaredFields) ->
-                                    createVariableOrErrors declaredFields argument
+                                Just ( _, (_ :: _) as declaredFields ) ->
+                                    createVariable declaredFields argument
 
                                 _ ->
                                     Nothing
                         )
                         recordArguments
                         arguments
-
-                ( errorsToReport, variables ) =
-                    getErrorsAndVariables variableOrErrors
+                        |> List.filterMap identity
+                        |> Debug.log "04. handleDeclaration variables"
             in
-            ( errorsToReport
+            ( []
             , { moduleContext
-                | variableRegister = Variable.addVariables variables moduleContext.variableRegister
+                | variableRecord =
+                    List.map2
+                        (\recordArgument argument ->
+                            case recordArgument of
+                                Just ( recordName, (_ :: _) as declaredFields ) ->
+                                    createVariable declaredFields argument
+                                        |> Maybe.map (Tuple.mapSecond (\_ -> recordName))
+
+                                _ ->
+                                    Nothing
+                        )
+                        recordArguments
+                        arguments
+                        |> List.filterMap identity
+                        |> Dict.fromList
+                        |> Debug.log "04. handleDeclaration variableRecord"
+                , variableRegister = Variable.addVariables variables moduleContext.variableRegister
               }
             )
 
@@ -342,47 +303,44 @@ handleDeclaration moduleContext { signature, declaration } =
             ( [], moduleContext )
 
 
-getErrorsAndVariables : List (Maybe VariableOrError) -> ( List (Error {}), List ( String, Variable ) )
-getErrorsAndVariables variableOrErrors =
-    List.foldl
-        (\variableOrError (( errors, variables ) as acc) ->
-            case variableOrError of
-                Just (VariableOrError_Variable variable) ->
-                    ( errors, variable :: variables )
+recordDefinitionsFromTypeAnnotation : ModuleContext -> Node TypeAnnotation -> List (Maybe ( String, List (Node String) ))
+recordDefinitionsFromTypeAnnotation moduleContext typeAnnotation =
+    case Node.value typeAnnotation of
+        TypeAnnotation.FunctionTypeAnnotation input output ->
+            extractRecordDefinition moduleContext input :: recordDefinitionsFromTypeAnnotation moduleContext output
 
-                Just (VariableOrError_Errors unusedFieldNodes) ->
-                    ( List.map createError unusedFieldNodes ++ errors, variables )
-
-                Nothing ->
-                    acc
-        )
-        ( [], [] )
-        variableOrErrors
+        _ ->
+            []
 
 
-createVariableOrErrors : List (Node String) -> Node Pattern -> Maybe VariableOrError
-createVariableOrErrors declaredFields argument =
+extractRecordDefinition : ModuleContext -> Node TypeAnnotation -> Maybe ( String, List (Node String) )
+extractRecordDefinition moduleContext typeAnnotation =
+    case Node.value typeAnnotation of
+        TypeAnnotation.Typed moduleNameAndName args ->
+            case ( Node.value moduleNameAndName, args ) of
+                ( ( [], name ), [] ) ->
+                    moduleContext.recordRegister
+                        |> Variable.getVariableByName name
+                        |> Maybe.map (\variable -> ( name, Variable.declaredFields variable ))
+
+                _ ->
+                    Nothing
+
+        _ ->
+            Nothing
+
+
+createVariable : List (Node String) -> Node Pattern -> Maybe ( String, Variable )
+createVariable declaredFields argument =
     case Node.value argument of
         Pattern.VarPattern name ->
-            Just (VariableOrError_Variable ( name, Variable.newVariable declaredFields Set.empty ))
+            Just ( name, Variable.newVariable declaredFields Set.empty )
 
         Pattern.ParenthesizedPattern pattern ->
-            createVariableOrErrors declaredFields pattern
+            createVariable declaredFields pattern
 
         Pattern.AsPattern pattern name ->
-            Just (VariableOrError_Variable ( Node.value name, Variable.newVariable declaredFields (Set.fromList (fieldsFromPattern pattern)) ))
-
-        Pattern.RecordPattern nodes ->
-            let
-                destructuredNames : Set String
-                destructuredNames =
-                    List.map Node.value nodes
-                        |> Set.fromList
-            in
-            declaredFields
-                |> List.filter (\node -> not (Set.member (Node.value node) destructuredNames))
-                |> VariableOrError_Errors
-                |> Just
+            Just ( Node.value name, Variable.newVariable declaredFields (Set.fromList (fieldsFromPattern pattern)) )
 
         _ ->
             Nothing
@@ -440,29 +398,6 @@ fieldsFromPattern node =
             []
 
 
-recordDefinitionsFromTypeAnnotation : Node TypeAnnotation -> List (Maybe (List (Node String)))
-recordDefinitionsFromTypeAnnotation typeAnnotation =
-    case Node.value typeAnnotation of
-        TypeAnnotation.FunctionTypeAnnotation input output ->
-            extractRecordDefinition input :: recordDefinitionsFromTypeAnnotation output
-
-        _ ->
-            []
-
-
-extractRecordDefinition : Node TypeAnnotation -> Maybe (List (Node String))
-extractRecordDefinition typeAnnotation =
-    case Node.value typeAnnotation of
-        TypeAnnotation.Record recordDefinition ->
-            Just (List.map (Node.value >> Tuple.first) recordDefinition)
-
-        TypeAnnotation.GenericRecord _ recordDefinition ->
-            Just (List.map (Node.value >> Tuple.first) (Node.value recordDefinition))
-
-        _ ->
-            Nothing
-
-
 
 -- EXPRESSION ENTER VISITOR
 
@@ -494,9 +429,32 @@ extractOutOfArgumentMatchResults argumentMatchResults =
         argumentMatchResults
 
 
+type VariableOrError
+    = VariableOrError_Variable ( String, Variable )
+    | VariableOrError_Errors (List (Node String))
+
+
+getErrorsAndVariables : List (Maybe VariableOrError) -> ( List (Error {}), List ( String, Variable ) )
+getErrorsAndVariables variableOrErrors =
+    List.foldl
+        (\variableOrError (( errors, variables ) as acc) ->
+            case variableOrError of
+                Just (VariableOrError_Variable variable) ->
+                    ( errors, variable :: variables )
+
+                Just (VariableOrError_Errors unusedFieldNodes) ->
+                    ( List.map createError unusedFieldNodes ++ errors, variables )
+
+                Nothing ->
+                    acc
+        )
+        ( [], [] )
+        variableOrErrors
+
+
 expressionEnterVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionEnterVisitor node context =
-    case Node.value node of
+    case Debug.log "05. expressionEnterVisitor" (Node.value node) of
         Expression.RecordAccess (Node functionOrValueRange (Expression.FunctionOrValue [] name)) fieldName ->
             let
                 newContext : ModuleContext
@@ -580,64 +538,7 @@ expressionEnterVisitor node context =
         Expression.Application [] ->
             ( [], context )
 
-        Expression.OperatorApplication operator _ left right ->
-            --case TypeInference.inferOperatorType context operator of
-            --    Just ((Type.Function _ _) as functionType) ->
-            --        let
-            --            getArgumentsFromType : Type -> List Type
-            --            getArgumentsFromType type_ =
-            --                case type_ of
-            --                    Type.Function input output ->
-            --                        input :: getArgumentsFromType output
-            --
-            --                    _ ->
-            --                        []
-            --
-            --            argumentMatchResults : List Foo
-            --            argumentMatchResults =
-            --                List.map2
-            --                    (\type_ argument ->
-            --                        case ( type_, argument ) of
-            --                            ( Type.Record { fields }, Node functionOrValueRange (Expression.FunctionOrValue [] name) ) ->
-            --                                Just (Foo_Variable { variableName = name, declaredFields = List.map Tuple.first fields, variableExpressionToIgnore = functionOrValueRange })
-            --
-            --                            ( Type.Record { fields }, Node _ (Expression.RecordExpr recordSetters) ) ->
-            --                                let
-            --                                    usedFields : Set String
-            --                                    usedFields =
-            --                                        List.map Tuple.first fields
-            --                                            |> Set.fromList
-            --                                in
-            --                                recordSetters
-            --                                    |> List.map Node.value
-            --                                    |> List.map Tuple.first
-            --                                    |> List.filter (\declaredField -> not (Set.member (Node.value declaredField) usedFields))
-            --                                    |> Foo_Errors
-            --                                    |> Just
-            --
-            --                            _ ->
-            --                                Nothing
-            --                    )
-            --                    (getArgumentsFromType functionType)
-            --                    [ left, right ]
-            --                    |> List.filterMap identity
-            --
-            --            ( errors, foundUsedFields ) =
-            --                extractOutOfArgumentMatchResults argumentMatchResults
-            --
-            --            newContext : ModuleContext
-            --            newContext =
-            --                List.foldl
-            --                    (\{ variableName, declaredFields, variableExpressionToIgnore } ctx ->
-            --                        { ctx | directAccessesToIgnore = Set.insert (stringifyRange variableExpressionToIgnore) ctx.directAccessesToIgnore }
-            --                            |> updateRegister variableName (Variable.markFieldsAsUsed declaredFields)
-            --                    )
-            --                    context
-            --                    foundUsedFields
-            --        in
-            --        ( errors, newContext )
-            --
-            --    _ ->
+        Expression.OperatorApplication _ _ _ _ ->
             ( [], context )
 
         Expression.FunctionOrValue [] name ->
@@ -647,7 +548,7 @@ expressionEnterVisitor node context =
             else
                 ( [], updateRegister name Variable.markAsUsedInAnUnknownManner context )
 
-        Expression.FunctionOrValue _ name ->
+        Expression.FunctionOrValue _ _ ->
             ( [], context )
 
         Expression.RecordUpdateExpression name _ ->
@@ -695,7 +596,7 @@ expressionEnterVisitor node context =
         Expression.RecordAccessFunction _ ->
             ( [], context )
 
-        Expression.RecordExpr nodes ->
+        Expression.RecordExpr _ ->
             ( [], context )
 
         Expression.UnitExpr ->
@@ -716,7 +617,7 @@ expressionEnterVisitor node context =
         Expression.Hex _ ->
             ( [], context )
 
-        Expression.Floatable float ->
+        Expression.Floatable _ ->
             ( [], context )
 
         Expression.Negation _ ->
@@ -756,16 +657,16 @@ isGenericUsed genericToFind type_ =
         Type.Unknown ->
             False
 
-        Type.Function input output ->
+        Type.Function _ _ ->
             False
 
-        Type.Tuple types ->
+        Type.Tuple _ ->
             False
 
-        Type.Type moduleName string types ->
+        Type.Type _ _ types ->
             List.any (isGenericUsed genericToFind) types
 
-        Type.Record record ->
+        Type.Record _ ->
             False
 
 
@@ -821,13 +722,74 @@ matchRecordWithArgument fields node =
             Nothing
 
 
+declarationFields :
+    { a | signature : Maybe (Node Signature), declaration : Node Expression.FunctionImplementation }
+    -> Maybe ( String, List (Node String) )
+declarationFields function =
+    let
+        declaration : Expression.FunctionImplementation
+        declaration =
+            Node.value function.declaration
+
+        name : String
+        name =
+            Node.value declaration.name
+    in
+    case Maybe.map (Node.value >> .typeAnnotation) function.signature of
+        Just typeAnnotation ->
+            case returnType typeAnnotation of
+                NoActionableReturnType ->
+                    Nothing
+
+                LiteralRecord ->
+                    findDeclarationFields declaration.expression
+                        |> Maybe.map (\declaredFields -> ( name, declaredFields ))
+
+        Nothing ->
+            findDeclarationFields declaration.expression
+                |> Maybe.map (\declaredFields -> ( name, declaredFields ))
+
+
+findDeclarationFields : Node Expression -> Maybe (List (Node String))
+findDeclarationFields expression =
+    case Node.value expression of
+        Expression.RecordExpr fields ->
+            let
+                declaredFields : List (Node String)
+                declaredFields =
+                    List.map (Node.value >> Tuple.first) fields
+            in
+            Just declaredFields
+
+        _ ->
+            Nothing
+
+
+type ReturnType
+    = NoActionableReturnType
+    | LiteralRecord
+
+
+returnType : Node TypeAnnotation -> ReturnType
+returnType node =
+    case Node.value node of
+        TypeAnnotation.FunctionTypeAnnotation _ output ->
+            returnType output
+
+        TypeAnnotation.Record _ ->
+            LiteralRecord
+
+        _ ->
+            NoActionableReturnType
+
+
 
 -- EXPRESSION EXIT VISITOR
 
 
 expressionExitVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
 expressionExitVisitor node context =
-    case Node.value node of
+    case Debug.log "06. expressionExitVisitor" (Node.value node) of
         Expression.LetExpression _ ->
             let
                 ( unusedDeclaredFields, variableRegister ) =
@@ -845,12 +807,76 @@ updateRegister name func context =
 
 
 
+-- DECLARATION EXIT VISITOR
+
+
+declarationExitVisitor : Node Declaration -> ModuleContext -> ( List (Error {}), ModuleContext )
+declarationExitVisitor node moduleContext =
+    case Node.value node of
+        Declaration.FunctionDeclaration _ ->
+            let
+                _ =
+                    Debug.log "07. declarationExitVisitor" moduleContext.variableRegister
+
+                updatedRecordRegister =
+                    Dict.foldl
+                        (\variableName recordName recordRegister ->
+                            case Variable.getVariableByName variableName moduleContext.variableRegister of
+                                Just variable ->
+                                    Variable.updateVariable recordName
+                                        (\recordVariable ->
+                                            let
+                                                usedFields =
+                                                    Set.toList (Variable.usedFields variable)
+
+                                                updateWasUsed =
+                                                    if Variable.wasUsed variable then
+                                                        Variable.markAsUsed
+
+                                                    else
+                                                        identity
+
+                                                updateWasUsedInAnUnknownManner =
+                                                    if Variable.wasUsedInAnUnknownManner variable then
+                                                        Variable.markAsUsedInAnUnknownManner
+
+                                                    else
+                                                        identity
+                                            in
+                                            recordVariable
+                                                |> Variable.markFieldsAsUsed usedFields
+                                                |> updateWasUsed
+                                                |> updateWasUsedInAnUnknownManner
+                                        )
+                                        recordRegister
+
+                                Nothing ->
+                                    recordRegister
+                        )
+                        moduleContext.recordRegister
+                        moduleContext.variableRecord
+            in
+            ( []
+            , { moduleContext
+                | recordRegister = updatedRecordRegister
+                , variableRecord = Dict.empty
+                , variableRegister = Variable.emptyRegister
+              }
+            )
+
+        _ ->
+            ( [], moduleContext )
+
+
+
 -- FINAL EVALUATION
 
 
 finalEvaluation : ModuleContext -> List (Error {})
 finalEvaluation context =
-    Variable.unusedDeclaredFieldsForScope context.variableRegister
+    context.recordRegister
+        |> Debug.log "08. finalEvaluation recordRegister"
+        |> Variable.unusedDeclaredFieldsForScope
         |> Tuple.first
         |> List.map createError
 

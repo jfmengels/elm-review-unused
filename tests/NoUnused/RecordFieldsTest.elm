@@ -392,29 +392,4 @@ repoParams =
 """
                         |> Review.Test.run rule
                         |> Review.Test.expectErrors [ unusedError ]
-        , Test.describe "Type alias"
-            [ Test.test "should report an unused field on a type alias" <|
-                \() ->
-                    """module A exposing (a)
-type alias Record = {foo:Int,unused:Int}
-a : Record -> Int
-a record = record.foo
-"""
-                        |> Review.Test.run rule
-                        |> Review.Test.expectErrors
-                            [ unusedError
-                                |> Review.Test.atExactly { start = { row = 2, column = 30 }, end = { row = 2, column = 36 } }
-                            ]
-            , Test.test "should not report a type alias where all fields are used across more than one function" <|
-                \() ->
-                    """module A exposing (a, b)
-type alias Record = {foo:Int,bar:Int}
-a : Record -> Int
-a record = record.foo
-b : Record -> Int
-b record = record.bar
-"""
-                        |> Review.Test.run rule
-                        |> Review.Test.expectNoErrors
-            ]
         ]
