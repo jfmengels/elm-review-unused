@@ -5,6 +5,7 @@ module NoUnused.RecordFields.Variable exposing
     , addVariablesInNewScope
     , declaredFields
     , emptyRegister
+    , getVariableByName
     , markAsUsed
     , markAsUsedInAnUnknownManner
     , markFieldAsUsed
@@ -179,3 +180,8 @@ unusedDeclaredFieldsForVariable (Variable variable) =
     else
         variable.declaredFields
             |> List.filter (\node -> not <| Set.member (Node.value node) variable.usedFields)
+
+
+getVariableByName : String -> Register -> Maybe Variable
+getVariableByName name (Register register _) =
+    Dict.get name register

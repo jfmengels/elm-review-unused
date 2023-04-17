@@ -11,6 +11,7 @@ when inside the directory containing this file.
 
 -}
 
+import NoUnused.AliasRecordFields
 import NoUnused.CustomTypeConstructorArgs
 import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
@@ -26,6 +27,7 @@ config : List Rule
 config =
     [ NoUnused.CustomTypeConstructors.rule []
     , NoUnused.RecordFields.rule
+    , NoUnused.AliasRecordFields.rule
     , NoUnused.CustomTypeConstructorArgs.rule
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule
