@@ -242,6 +242,31 @@ declarationEnterVisitor node moduleContext =
         Declaration.FunctionDeclaration function ->
             handleDeclaration { moduleContext | directAccessesToIgnore = RangeSet.empty } function
 
+        Declaration.AliasDeclaration typeAlias ->
+            case Node.value typeAlias.typeAnnotation of
+                TypeAnnotation.Record recordDefinition ->
+                    ( []
+                    , List.foldl
+                        (\(Node _ recordField) acc ->
+                            case recordField of
+                                ( _, Node _ (TypeAnnotation.Typed (Node _ ( [], name )) _) ) ->
+                                    { acc
+                                        | recordRegister =
+                                            Variable.updateVariable name
+                                                Variable.markAsUsedInAnUnknownManner
+                                                acc.recordRegister
+                                    }
+
+                                _ ->
+                                    acc
+                        )
+                        moduleContext
+                        recordDefinition
+                    )
+
+                _ ->
+                    ( [], moduleContext )
+
         _ ->
             ( [], moduleContext )
 
