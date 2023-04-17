@@ -47,15 +47,27 @@ b r2 = r2.bar
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
-        , Test.test "should not report record fields on a nested record" <|
+        , Test.test "should not report a record referenced on another record" <|
             \() ->
                 """module A exposing (a, b)
-type alias Record = {foo:Int,bar:Int}
-type alias Wrapper = {record:Record}
-a : Record -> Int
-a record = record.foo
-b : Wrapper -> Int
-b wrapper = wrapper.record.bar
+type alias X = {foo:Int,bar:Int}
+type alias Y = {x:X}
+a : X -> Int
+a x = x.foo
+b : Y -> Int
+b y = y.x.bar
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
+        , Test.test "should not report a record referenced on a custom type" <|
+            \() ->
+                """module A exposing (a, b)
+type alias X = {foo:Int,bar:Int}
+type Y = Y X
+a : X -> Int
+a x = x.foo
+b : Y -> Int
+b (Y x) = x.bar
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors

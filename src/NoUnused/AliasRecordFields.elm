@@ -267,6 +267,31 @@ declarationEnterVisitor node moduleContext =
                 _ ->
                     ( [], moduleContext )
 
+        Declaration.CustomTypeDeclaration type_ ->
+            ( []
+            , List.foldl
+                (\(Node _ constructor) acc ->
+                    List.foldl
+                        (\(Node _ typeAnnotation) acc2 ->
+                            case typeAnnotation of
+                                TypeAnnotation.Typed (Node _ ( [], name )) _ ->
+                                    { acc
+                                        | recordRegister =
+                                            Variable.updateVariable name
+                                                Variable.markAsUsedInAnUnknownManner
+                                                acc2.recordRegister
+                                    }
+
+                                _ ->
+                                    acc2
+                        )
+                        acc
+                        constructor.arguments
+                )
+                moduleContext
+                type_.constructors
+            )
+
         _ ->
             ( [], moduleContext )
 
