@@ -24,6 +24,7 @@ import Review.Fix as Fix exposing (Fix)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
+import String.Extra
 
 
 {-| Forbid having unused custom type constructors.
@@ -832,7 +833,7 @@ staticRanges nodes acc =
                     staticRanges restOfNodes (Node.range node :: acc)
 
                 Expression.Application ((Node _ (Expression.FunctionOrValue _ name)) :: restOfArgs) ->
-                    if isCapitalized name then
+                    if String.Extra.isCapitalized name then
                         staticRanges (restOfArgs ++ restOfNodes) (Node.range node :: acc)
 
                     else
@@ -902,7 +903,7 @@ findConstructorsHelp lookupTable nodes acc =
         node :: restOfNodes ->
             case Node.value node of
                 Expression.FunctionOrValue _ name ->
-                    if isCapitalized name then
+                    if String.Extra.isCapitalized name then
                         findConstructorsHelp
                             lookupTable
                             restOfNodes
@@ -912,7 +913,7 @@ findConstructorsHelp lookupTable nodes acc =
                         findConstructorsHelp lookupTable restOfNodes acc
 
                 Expression.Application ((Node _ (Expression.FunctionOrValue _ name)) :: restOfArgs) ->
-                    if isCapitalized name then
+                    if String.Extra.isCapitalized name then
                         findConstructorsHelp
                             lookupTable
                             (restOfArgs ++ restOfNodes)
@@ -1045,7 +1046,7 @@ constructorsInPattern lookupTable nodes acc =
 
 registerUsedFunctionOrValue : Range -> ModuleName -> ConstructorName -> ModuleContext -> ModuleContext
 registerUsedFunctionOrValue range moduleName name moduleContext =
-    if not (isCapitalized name) then
+    if not (String.Extra.isCapitalized name) then
         moduleContext
 
     else if List.member range moduleContext.ignoredComparisonRanges then
@@ -1061,16 +1062,6 @@ registerUsedFunctionOrValue range moduleName name moduleContext =
 
     else
         { moduleContext | usedFunctionsOrValues = updateToInsert (String.join "." moduleName) name moduleContext.usedFunctionsOrValues }
-
-
-isCapitalized : String -> Bool
-isCapitalized name =
-    case String.uncons name of
-        Just ( char, _ ) ->
-            Char.isUpper char
-
-        Nothing ->
-            False
 
 
 

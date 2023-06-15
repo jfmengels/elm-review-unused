@@ -152,6 +152,25 @@ type Foo = Baz"""
 module MyModule exposing (b)
 type Foo = Bar"""
                         ]
+        , test "should report unused and not report used type constructors starting with a non-ASCII letter" <|
+            \() ->
+                """
+module MyModule exposing (b)
+type Foo = Ö_Used | Ö_NotUsed
+b = Ö_Used"""
+                    |> Review.Test.runWithProjectData project (rule [])
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "Type constructor `Ö_NotUsed` is not used."
+                            , details = [ defaultDetails ]
+                            , under = "Ö_NotUsed"
+                            }
+                            |> Review.Test.whenFixed
+                                """
+module MyModule exposing (b)
+type Foo = Ö_Used
+b = Ö_Used"""
+                        ]
         , test "should report unused type constructors, even if the type is exposed" <|
             \() ->
                 """

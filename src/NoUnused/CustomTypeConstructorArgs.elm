@@ -22,6 +22,7 @@ import List.Extra
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
+import String.Extra
 
 
 {-| Reports arguments of custom type constructors that are never used.
@@ -456,7 +457,7 @@ findCustomTypesHelp lookupTable nodes acc =
         node :: restOfNodes ->
             case Node.value node of
                 Expression.FunctionOrValue rawModuleName functionName ->
-                    if isCustomTypeConstructor functionName then
+                    if String.Extra.isCapitalized functionName then
                         case ModuleNameLookupTable.moduleNameFor lookupTable node of
                             Just moduleName ->
                                 findCustomTypesHelp lookupTable restOfNodes (( moduleName, functionName ) :: acc)
@@ -474,7 +475,7 @@ findCustomTypesHelp lookupTable nodes acc =
                     findCustomTypesHelp lookupTable (expression :: restOfNodes) acc
 
                 Expression.Application (((Node _ (Expression.FunctionOrValue _ functionName)) as first) :: expressions) ->
-                    if isCustomTypeConstructor functionName then
+                    if String.Extra.isCapitalized functionName then
                         findCustomTypesHelp lookupTable (first :: (expressions ++ restOfNodes)) acc
 
                     else
@@ -491,12 +492,6 @@ findCustomTypesHelp lookupTable nodes acc =
 
                 _ ->
                     findCustomTypesHelp lookupTable restOfNodes acc
-
-
-isCustomTypeConstructor : String -> Bool
-isCustomTypeConstructor functionName =
-    String.slice 0 1 functionName
-        |> String.all Char.isUpper
 
 
 registerUsedPatterns : List ( ( ModuleName, String ), Set Int ) -> Dict ( ModuleName, String ) (Set Int) -> Dict ( ModuleName, String ) (Set Int)
