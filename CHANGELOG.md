@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+## [1.1.30] - 2023-06-16
+
+Fix false positive in [`NoUnused.CustomTypeConstructors`] related to non-ASCII constructor names ([#79](https://github.com/jfmengels/elm-review-unused/pull/79)). Thanks [@lydell](https://github.com/lydell) and [@marc136](https://github.com/marc136).
+
 ## [1.1.29] - 2022-12-07
 
 Fix false positive in [`NoUnused.CustomTypeConstructors`].
@@ -57,6 +63,8 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
+[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.1.30...HEAD
+[1.1.30]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.30
 [1.1.29]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.29
 [1.1.28]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.28
 [1.1.27]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.27
