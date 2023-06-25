@@ -774,7 +774,7 @@ caseBranchEnterVisitor caseExpression ( casePattern, body ) moduleContext =
 
         fixes : Dict ConstructorName (List Fix)
         fixes =
-            List.foldl
+            Set.foldl
                 (\constructorName acc ->
                     let
                         fix : Fix
@@ -787,7 +787,7 @@ caseBranchEnterVisitor caseExpression ( casePattern, body ) moduleContext =
                     updateToAdd constructorName fix acc
                 )
                 moduleContext.fixesForRemovingConstructor
-                (Set.toList constructors.fromThisModule)
+                constructors.fromThisModule
 
         constructorsToIgnore : Set ( ModuleName, ConstructorName )
         constructorsToIgnore =
