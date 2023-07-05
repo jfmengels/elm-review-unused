@@ -1,6 +1,6 @@
 module NoUnused.Exports exposing
     ( rule
-    , Configuration, defaults, ignoreUsagesIn, toRule
+    , ignoreUsagesIn
     )
 
 {-| Forbid the use of exposed elements that are never used in your project.
@@ -58,11 +58,14 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Expor
 -}
 rule : Rule
 rule =
-    toRule defaults
+    ignoreUsagesIn
+        { filePredicate = always False
+        , helperTags = []
+        }
 
 
-toRule : Configuration -> Rule
-toRule (Configuration config) =
+ignoreUsagesIn : { filePredicate : { moduleName : ModuleName, filePath : String } -> Bool, helperTags : List String } -> Rule
+ignoreUsagesIn config =
     Rule.newProjectRuleSchema "NoUnused.Exports" initialProjectContext
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
@@ -76,27 +79,10 @@ toRule (Configuration config) =
         |> Rule.fromProjectRuleSchema
 
 
-type Configuration
-    = Configuration Config
-
-
 type alias Config =
     { filePredicate : { moduleName : ModuleName, filePath : String } -> Bool
     , helperTags : List String
     }
-
-
-defaults : Configuration
-defaults =
-    Configuration
-        { filePredicate = always False
-        , helperTags = []
-        }
-
-
-ignoreUsagesIn : { filePredicate : { moduleName : ModuleName, filePath : String } -> Bool, helperTags : List String } -> Configuration
-ignoreUsagesIn =
-    Configuration
 
 
 moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
