@@ -78,20 +78,22 @@ toRule configuration =
 
 type Configuration
     = Configuration
-        { testHelperTags : List String
+        { filePredicate : { moduleName : ModuleName, filePath : String } -> Bool
+        , helperTags : List String
         }
 
 
 defaults : Configuration
 defaults =
     Configuration
-        { testHelperTags = []
+        { filePredicate = always False
+        , helperTags = []
         }
 
 
-ignoreUsagesIn : { helperTags : List String } -> Configuration
-ignoreUsagesIn { helperTags } =
-    Configuration { testHelperTags = helperTags }
+ignoreUsagesIn : { filePredicate : { moduleName : ModuleName, filePath : String } -> Bool, helperTags : List String } -> Configuration
+ignoreUsagesIn =
+    Configuration
 
 
 moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
