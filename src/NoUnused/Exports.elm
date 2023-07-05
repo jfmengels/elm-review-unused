@@ -105,6 +105,7 @@ type alias ProjectContext =
             { moduleKey : Rule.ModuleKey
             , exposed : Dict String ExposedElement
             , moduleNameLocation : Range
+            , isModuleIgnored : Bool
             }
     , usedModules : Set ModuleName
     , used : Set ( ModuleName, String )
@@ -209,6 +210,7 @@ fromModuleToProject filePredicate =
                     { moduleKey = moduleKey
                     , exposed = moduleContext.exposed
                     , moduleNameLocation = moduleNameRange
+                    , isModuleIgnored = isModuleIgnored
                     }
             , used =
                 if isModuleIgnored then
@@ -374,8 +376,20 @@ unusedModuleError moduleName { moduleKey, moduleNameLocation } =
         moduleNameLocation
 
 
-errorsForModule : List String -> ProjectContext -> { used : Set ( ModuleName, String ), usedInIgnoredModules : Set ( ModuleName, String ) } -> ModuleName -> { a | moduleKey : Rule.ModuleKey, exposed : Dict String ExposedElement } -> List (Error scope) -> List (Error scope)
-errorsForModule helperTags projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed } acc =
+errorsForModule :
+    List String
+    -> ProjectContext
+    -> { used : Set ( ModuleName, String ), usedInIgnoredModules : Set ( ModuleName, String ) }
+    -> ModuleName
+    ->
+        { a
+            | moduleKey : Rule.ModuleKey
+            , exposed : Dict String ExposedElement
+            , isModuleIgnored : Bool
+        }
+    -> List (Error scope)
+    -> List (Error scope)
+errorsForModule helperTags projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isModuleIgnored } acc =
     Dict.foldl
         (\name element subAcc ->
             if isUsedOrException projectContext used moduleName name then
