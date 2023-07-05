@@ -1257,4 +1257,6 @@ a = A.unusedInProductionCode
                             ]
                           )
                         ]
+
+        -- TODO Report unused exports in ignored files as regular errors
         ]
