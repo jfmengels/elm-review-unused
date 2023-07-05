@@ -64,7 +64,7 @@ rule =
         }
 
 
-ignoreUsagesIn : { filePredicate : { moduleName : ModuleName, filePath : String } -> Bool, helperTags : List String } -> Rule
+ignoreUsagesIn : { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool, helperTags : List String } -> Rule
 ignoreUsagesIn config =
     Rule.newProjectRuleSchema "NoUnused.Exports" initialProjectContext
         |> Rule.withModuleVisitor moduleVisitor
@@ -80,7 +80,7 @@ ignoreUsagesIn config =
 
 
 type alias Config =
-    { filePredicate : { moduleName : ModuleName, filePath : String } -> Bool
+    { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , helperTags : List String
     }
 
@@ -187,10 +187,10 @@ fromProjectToModule =
         |> Rule.withModuleDocumentation
 
 
-fromModuleToProject : ({ moduleName : ModuleName, filePath : String } -> Bool) -> Rule.ContextCreator ModuleContext ProjectContext
+fromModuleToProject : ({ moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool) -> Rule.ContextCreator ModuleContext ProjectContext
 fromModuleToProject filePredicate =
     Rule.initContextCreator
-        (\moduleKey (Node moduleNameRange moduleName) filePath moduleContext ->
+        (\moduleKey (Node moduleNameRange moduleName) filePath isInSourceDirectories moduleContext ->
             let
                 used : Set ( ModuleName, String )
                 used =
@@ -201,7 +201,7 @@ fromModuleToProject filePredicate =
 
                 isModuleIgnored : Bool
                 isModuleIgnored =
-                    filePredicate { moduleName = moduleName, filePath = filePath }
+                    filePredicate { moduleName = moduleName, filePath = filePath, isInSourceDirectories = isInSourceDirectories }
             in
             { projectType = IsApplication ElmApplication
             , modules =
@@ -250,6 +250,7 @@ fromModuleToProject filePredicate =
         |> Rule.withModuleKey
         |> Rule.withModuleNameNode
         |> Rule.withFilePath
+        |> Rule.withIsInSourceDirectories
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
