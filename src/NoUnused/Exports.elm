@@ -69,8 +69,8 @@ ignoreUsagesIn config =
     Rule.newProjectRuleSchema "NoUnused.Exports" initialProjectContext
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
-            { fromProjectToModule = fromProjectToModule config.filePredicate
-            , fromModuleToProject = fromModuleToProject
+            { fromProjectToModule = fromProjectToModule
+            , fromModuleToProject = fromModuleToProject config.filePredicate
             , foldProjectContexts = foldProjectContexts
             }
         |> Rule.withElmJsonProjectVisitor (\elmJson context -> ( [], elmJsonVisitor elmJson context ))
@@ -143,7 +143,6 @@ type alias ModuleContext =
     , elementsNotToReport : Set String
     , importedModules : Set ModuleName
     , containsMainFunction : Bool
-    , isIgnoredModule : Bool
     , projectType : ProjectType
     }
 
@@ -159,10 +158,10 @@ initialProjectContext =
     }
 
 
-fromProjectToModule : ({ moduleName : ModuleName, filePath : String } -> Bool) -> Rule.ContextCreator ProjectContext ModuleContext
-fromProjectToModule filePredicate =
+fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
+fromProjectToModule =
     Rule.initContextCreator
-        (\lookupTable moduleName filePath ast moduleDocumentation projectContext ->
+        (\lookupTable ast moduleDocumentation projectContext ->
             let
                 exposed : Dict String ExposedElement
                 exposed =
@@ -179,21 +178,18 @@ fromProjectToModule filePredicate =
             , elementsNotToReport = Set.empty
             , importedModules = Set.empty
             , containsMainFunction = False
-            , isIgnoredModule = filePredicate { moduleName = moduleName, filePath = filePath }
             , projectType = projectContext.projectType
             }
         )
         |> Rule.withModuleNameLookupTable
-        |> Rule.withModuleName
-        |> Rule.withFilePath
         |> Rule.withFullAst
         |> Rule.withModuleDocumentation
 
 
-fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
-fromModuleToProject =
+fromModuleToProject : ({ moduleName : ModuleName, filePath : String } -> Bool) -> Rule.ContextCreator ModuleContext ProjectContext
+fromModuleToProject filePredicate =
     Rule.initContextCreator
-        (\moduleKey (Node moduleNameRange moduleName) moduleContext ->
+        (\moduleKey (Node moduleNameRange moduleName) filePath moduleContext ->
             let
                 used : Set ( ModuleName, String )
                 used =
@@ -201,6 +197,10 @@ fromModuleToProject =
                         (\element acc -> Set.insert ( moduleName, element ) acc)
                         moduleContext.used
                         moduleContext.elementsNotToReport
+
+                isModuleIgnored : Bool
+                isModuleIgnored =
+                    filePredicate { moduleName = moduleName, filePath = filePath }
             in
             { projectType = IsApplication ElmApplication
             , modules =
@@ -211,13 +211,13 @@ fromModuleToProject =
                     , moduleNameLocation = moduleNameRange
                     }
             , used =
-                if moduleContext.isIgnoredModule then
+                if isModuleIgnored then
                     Set.empty
 
                 else
                     used
             , usedInIgnoredModules =
-                if moduleContext.isIgnoredModule then
+                if isModuleIgnored then
                     used
 
                 else
@@ -247,6 +247,7 @@ fromModuleToProject =
         )
         |> Rule.withModuleKey
         |> Rule.withModuleNameNode
+        |> Rule.withFilePath
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
