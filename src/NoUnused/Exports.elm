@@ -332,6 +332,20 @@ finalEvaluationForProject projectContext =
                 projectContext.used
                 projectContext.used
 
+        usedInIgnoredModules : Set ( ModuleName, String )
+        usedInIgnoredModules =
+            Set.foldl
+                (\(( moduleName, _ ) as key) acc ->
+                    case Dict.get key projectContext.constructors of
+                        Just typeName ->
+                            Set.insert ( moduleName, typeName ) acc
+
+                        Nothing ->
+                            acc
+                )
+                projectContext.usedInIgnoredModules
+                projectContext.usedInIgnoredModules
+
         filterExposedPackage_ : ModuleName -> Bool
         filterExposedPackage_ =
             filterExposedPackage projectContext
