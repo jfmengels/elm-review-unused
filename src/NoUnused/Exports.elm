@@ -356,7 +356,7 @@ finalEvaluationForProject projectContext =
                 acc
 
             else if Set.member moduleName projectContext.usedModules then
-                errorsForModule projectContext used moduleName module_ acc
+                errorsForModule projectContext { used = used, usedInIgnoredModules = usedInIgnoredModules } moduleName module_ acc
 
             else
                 unusedModuleError moduleName module_ :: acc
@@ -374,8 +374,8 @@ unusedModuleError moduleName { moduleKey, moduleNameLocation } =
         moduleNameLocation
 
 
-errorsForModule : ProjectContext -> Set ( ModuleName, String ) -> ModuleName -> { a | moduleKey : Rule.ModuleKey, exposed : Dict String ExposedElement } -> List (Error scope) -> List (Error scope)
-errorsForModule projectContext used moduleName { moduleKey, exposed } acc =
+errorsForModule : ProjectContext -> { used : Set ( ModuleName, String ), usedInIgnoredModules : Set ( ModuleName, String ) } -> ModuleName -> { a | moduleKey : Rule.ModuleKey, exposed : Dict String ExposedElement } -> List (Error scope) -> List (Error scope)
+errorsForModule projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed } acc =
     Dict.foldl
         (\name element subAcc ->
             if isUsedOrException projectContext used moduleName name then
