@@ -1225,7 +1225,7 @@ main = text ""
 ignoredUsages : Test
 ignoredUsages =
     describe "Ignoring usages in folders"
-        [ test "should report functions that are only used in ignored files" <|
+        [ test "should report functions that are only used in ignored files (no tags defined)" <|
             \() ->
                 [ """
 module Main exposing (main)
@@ -1248,8 +1248,44 @@ a = A.unusedInProductionCode
                                 { message = "Exposed function or value `unusedInProductionCode` is never used in production code."
                                 , details =
                                     [ "This exposed element is only used in files/folders you ignore (e.g. the test folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
-                                    , "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can annotate this element using documentation annotations."
+                                    , "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can annotate this element by including documentation annotations."
                                     , "You have not configured this rule with any possible annotations though. Check out the documentation for this rule on how to enable that."
+                                    ]
+                                , under = "unusedInProductionCode"
+                                }
+                                |> Review.Test.atExactly { start = { row = 2, column = 26 }, end = { row = 2, column = 48 } }
+                            ]
+                          )
+                        ]
+        , test "should report functions that are only used in ignored files (tags defined)" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import A
+import ATest -- TODO to prevent reports of ATest
+main = A.used
+""", """
+module A exposing (used, unusedInProductionCode)
+used = 1
+unusedInProductionCode = 2
+""", """
+module ATest exposing (..)
+import A
+a = A.unusedInProductionCode
+""" ]
+                    |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [ "@helper", "@test-helper", "@foo" ] })
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "A"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `unusedInProductionCode` is never used in production code."
+                                , details =
+                                    [ "This exposed element is only used in files/folders you ignore (e.g. the test folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
+                                    , "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can annotate this element by including documentation annotations:"
+                                    , """    {-| Some element.
+    @helper (or @test-helper, @foo)
+    -}
+    yourElement = ...
+"""
                                     ]
                                 , under = "unusedInProductionCode"
                                 }

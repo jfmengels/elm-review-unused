@@ -74,7 +74,7 @@ ignoreUsagesIn config =
             , foldProjectContexts = foldProjectContexts
             }
         |> Rule.withElmJsonProjectVisitor (\elmJson context -> ( [], elmJsonVisitor elmJson context ))
-        |> Rule.withFinalProjectEvaluation finalEvaluationForProject
+        |> Rule.withFinalProjectEvaluation (finalEvaluationForProject config.helperTags)
         |> Rule.providesFixesForProjectRule
         |> Rule.fromProjectRuleSchema
 
@@ -315,8 +315,8 @@ elmJsonVisitor maybeProject projectContext =
 -- PROJECT EVALUATION
 
 
-finalEvaluationForProject : ProjectContext -> List (Error { useErrorForModule : () })
-finalEvaluationForProject projectContext =
+finalEvaluationForProject : List String -> ProjectContext -> List (Error { useErrorForModule : () })
+finalEvaluationForProject helperTags projectContext =
     let
         used : Set ( ModuleName, String )
         used =
@@ -356,7 +356,7 @@ finalEvaluationForProject projectContext =
                 acc
 
             else if Set.member moduleName projectContext.usedModules then
-                errorsForModule projectContext { used = used, usedInIgnoredModules = usedInIgnoredModules } moduleName module_ acc
+                errorsForModule helperTags projectContext { used = used, usedInIgnoredModules = usedInIgnoredModules } moduleName module_ acc
 
             else
                 unusedModuleError moduleName module_ :: acc
@@ -374,8 +374,8 @@ unusedModuleError moduleName { moduleKey, moduleNameLocation } =
         moduleNameLocation
 
 
-errorsForModule : ProjectContext -> { used : Set ( ModuleName, String ), usedInIgnoredModules : Set ( ModuleName, String ) } -> ModuleName -> { a | moduleKey : Rule.ModuleKey, exposed : Dict String ExposedElement } -> List (Error scope) -> List (Error scope)
-errorsForModule projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed } acc =
+errorsForModule : List String -> ProjectContext -> { used : Set ( ModuleName, String ), usedInIgnoredModules : Set ( ModuleName, String ) } -> ModuleName -> { a | moduleKey : Rule.ModuleKey, exposed : Dict String ExposedElement } -> List (Error scope) -> List (Error scope)
+errorsForModule helperTags projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed } acc =
     Dict.foldl
         (\name element subAcc ->
             if isUsedOrException projectContext used moduleName name then
@@ -398,10 +398,21 @@ errorsForModule projectContext { used, usedInIgnoredModules } moduleName { modul
                 Rule.errorForModule moduleKey
                     { message = what ++ " `" ++ name ++ "` is never used in production code."
                     , details =
-                        [ "This exposed element is only used in files/folders you ignore (e.g. the test folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
-                        , "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can annotate this element using documentation annotations."
-                        , "You have not configured this rule with any possible annotations though. Check out the documentation for this rule on how to enable that."
-                        ]
+                        "This exposed element is only used in files/folders you ignore (e.g. the test folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
+                            :: (if List.isEmpty helperTags then
+                                    [ "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can annotate this element by including documentation annotations."
+                                    , "You have not configured this rule with any possible annotations though. Check out the documentation for this rule on how to enable that."
+                                    ]
+
+                                else
+                                    [ "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can annotate this element by including documentation annotations:"
+                                    , """    {-| Some element.
+    @helper (or @test-helper, @foo)
+    -}
+    yourElement = ...
+"""
+                                    ]
+                               )
                     }
                     element.range
                     :: subAcc
