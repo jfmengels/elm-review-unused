@@ -77,12 +77,16 @@ toRule configuration =
 
 
 type Configuration
-    = Configuration {}
+    = Configuration
+        { testHelperTags : List String
+        }
 
 
 defaults : Configuration
 defaults =
-    Configuration {}
+    Configuration
+        { testHelperTags = []
+        }
 
 
 moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
