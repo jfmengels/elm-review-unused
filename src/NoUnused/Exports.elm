@@ -382,7 +382,25 @@ errorsForModule projectContext { used, usedInIgnoredModules } moduleName { modul
                 subAcc
 
             else if Set.member ( moduleName, name ) usedInIgnoredModules then
-                subAcc
+                let
+                    what : String
+                    what =
+                        case element.elementType of
+                            Function ->
+                                "Exposed function or value"
+
+                            TypeOrTypeAlias ->
+                                "Exposed type or type alias"
+
+                            ExposedType _ ->
+                                "Exposed type"
+                in
+                Rule.errorForModule moduleKey
+                    { message = what ++ " `" ++ name ++ "` is never used outside this module."
+                    , details = [ "This exposed element is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
+                    }
+                    element.range
+                    :: subAcc
 
             else
                 let

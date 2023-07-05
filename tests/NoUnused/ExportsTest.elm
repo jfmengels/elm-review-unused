@@ -1230,6 +1230,7 @@ ignoredUsages =
                 [ """
 module Main exposing (main)
 import A
+import ATest -- TODO to prevent reports of ATest
 main = A.used
 """, """
 module A exposing (used, unusedInProductionCode)
