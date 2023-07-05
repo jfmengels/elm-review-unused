@@ -69,7 +69,7 @@ ignoreUsagesIn config =
     Rule.newProjectRuleSchema "NoUnused.Exports" initialProjectContext
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
-            { fromProjectToModule = fromProjectToModule
+            { fromProjectToModule = fromProjectToModule config.filePredicate
             , fromModuleToProject = fromModuleToProject
             , foldProjectContexts = foldProjectContexts
             }
@@ -142,6 +142,7 @@ type alias ModuleContext =
     , elementsNotToReport : Set String
     , importedModules : Set ModuleName
     , containsMainFunction : Bool
+    , isIgnoredModule : Bool
     , projectType : ProjectType
     }
 
@@ -156,10 +157,10 @@ initialProjectContext =
     }
 
 
-fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
-fromProjectToModule =
+fromProjectToModule : ({ moduleName : ModuleName, filePath : String } -> Bool) -> Rule.ContextCreator ProjectContext ModuleContext
+fromProjectToModule filePredicate =
     Rule.initContextCreator
-        (\lookupTable ast moduleDocumentation projectContext ->
+        (\lookupTable moduleName filePath ast moduleDocumentation projectContext ->
             let
                 exposed : Dict String ExposedElement
                 exposed =
@@ -176,10 +177,13 @@ fromProjectToModule =
             , elementsNotToReport = Set.empty
             , importedModules = Set.empty
             , containsMainFunction = False
+            , isIgnoredModule = filePredicate { moduleName = moduleName, filePath = filePath }
             , projectType = projectContext.projectType
             }
         )
         |> Rule.withModuleNameLookupTable
+        |> Rule.withModuleName
+        |> Rule.withFilePath
         |> Rule.withFullAst
         |> Rule.withModuleDocumentation
 
