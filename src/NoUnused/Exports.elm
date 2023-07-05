@@ -62,7 +62,7 @@ rule =
 
 
 toRule : Configuration -> Rule
-toRule configuration =
+toRule (Configuration config) =
     Rule.newProjectRuleSchema "NoUnused.Exports" initialProjectContext
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
@@ -77,10 +77,13 @@ toRule configuration =
 
 
 type Configuration
-    = Configuration
-        { filePredicate : { moduleName : ModuleName, filePath : String } -> Bool
-        , helperTags : List String
-        }
+    = Configuration Config
+
+
+type alias Config =
+    { filePredicate : { moduleName : ModuleName, filePath : String } -> Bool
+    , helperTags : List String
+    }
 
 
 defaults : Configuration
