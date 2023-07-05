@@ -1293,6 +1293,19 @@ a = A.unusedInProductionCode
                             ]
                           )
                         ]
+        , test "should not report exposed tests even if they're in an ignored module" <|
+            \() ->
+                [ """
+module Main exposing (main)
+main = 1
+""", """
+module ATest exposing (tests)
+import Test exposing (Test)
+tests : Test
+tests = Test.describe "thing" []
+""" ]
+                    |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] })
+                    |> Review.Test.expectNoErrors
 
         -- TODO Report unused exports in ignored files as regular errors
         ]
