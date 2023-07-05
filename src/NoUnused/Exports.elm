@@ -381,6 +381,9 @@ errorsForModule projectContext { used, usedInIgnoredModules } moduleName { modul
             if isUsedOrException projectContext used moduleName name then
                 subAcc
 
+            else if Set.member ( moduleName, name ) usedInIgnoredModules then
+                subAcc
+
             else
                 let
                     what : String
