@@ -108,6 +108,7 @@ type alias ProjectContext =
             }
     , usedModules : Set ModuleName
     , used : Set ( ModuleName, String )
+    , usedInIgnoredModules : Set ( ModuleName, String )
     , constructors : Dict ( ModuleName, String ) String
     }
 
@@ -153,6 +154,7 @@ initialProjectContext =
     , modules = Dict.empty
     , usedModules = Set.singleton [ "ReviewConfig" ]
     , used = Set.empty
+    , usedInIgnoredModules = Set.empty
     , constructors = Dict.empty
     }
 
@@ -192,6 +194,14 @@ fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
 fromModuleToProject =
     Rule.initContextCreator
         (\moduleKey (Node moduleNameRange moduleName) moduleContext ->
+            let
+                used : Set ( ModuleName, String )
+                used =
+                    Set.foldl
+                        (\element acc -> Set.insert ( moduleName, element ) acc)
+                        moduleContext.used
+                        moduleContext.elementsNotToReport
+            in
             { projectType = IsApplication ElmApplication
             , modules =
                 Dict.singleton
@@ -201,10 +211,17 @@ fromModuleToProject =
                     , moduleNameLocation = moduleNameRange
                     }
             , used =
-                Set.foldl
-                    (\element acc -> Set.insert ( moduleName, element ) acc)
-                    moduleContext.used
-                    moduleContext.elementsNotToReport
+                if moduleContext.isIgnoredModule then
+                    Set.empty
+
+                else
+                    used
+            , usedInIgnoredModules =
+                if moduleContext.isIgnoredModule then
+                    used
+
+                else
+                    Set.empty
             , usedModules =
                 if Set.member [ "Test" ] moduleContext.importedModules || moduleContext.containsMainFunction then
                     Set.insert moduleName moduleContext.importedModules
@@ -238,6 +255,7 @@ foldProjectContexts newContext previousContext =
     , modules = Dict.union newContext.modules previousContext.modules
     , usedModules = Set.union newContext.usedModules previousContext.usedModules
     , used = Set.union newContext.used previousContext.used
+    , usedInIgnoredModules = Set.union newContext.usedInIgnoredModules previousContext.usedInIgnoredModules
     , constructors = Dict.union newContext.constructors previousContext.constructors
     }
 
