@@ -1,6 +1,6 @@
 module NoUnused.ExportsTest exposing (all)
 
-import NoUnused.Exports exposing (rule)
+import NoUnused.Exports exposing (ignoreUsagesIn, rule)
 import Review.Test
 import Test exposing (Test, describe, test)
 import TestProject exposing (application, lamderaApplication, package)
@@ -28,6 +28,7 @@ all =
         , importsTests
         , lamderaTests
         , unusedModuleTests
+        , ignoredUsages
 
         -- TODO Add tests that report exposing the type's variants if they are never used.
         ]
@@ -1218,4 +1219,37 @@ main = text ""
 """
                     |> Review.Test.runWithProjectData lamderaApplication rule
                     |> Review.Test.expectNoErrors
+        ]
+
+
+ignoredUsages : Test
+ignoredUsages =
+    describe "Ignoring usages in folders"
+        [ test "should report functions that are only used in ignored files" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import A
+main = A.used
+""", """
+module A exposing (used, unusedInProductionCode)
+used = 1
+unusedInProductionCode = 2
+""", """
+module ATest exposing (..)
+import A
+a = A.unusedInProductionCode
+""" ]
+                    |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] })
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "A"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `unusedInProductionCode` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "unusedInProductionCode"
+                                }
+                                |> Review.Test.atExactly { start = { row = 2, column = 26 }, end = { row = 2, column = 48 } }
+                            ]
+                          )
+                        ]
         ]
