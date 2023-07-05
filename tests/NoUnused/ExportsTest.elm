@@ -1230,7 +1230,6 @@ ignoredUsages =
                 [ """
 module Main exposing (main)
 import A
-import ATest -- TODO to prevent reports of ATest
 main = A.used
 """, """
 module A exposing (used, unusedInProductionCode)
@@ -1239,6 +1238,7 @@ unusedInProductionCode = 2
 """, """
 module ATest exposing (..)
 import A
+import Test
 a = A.unusedInProductionCode
 """ ]
                     |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] })
@@ -1262,7 +1262,6 @@ a = A.unusedInProductionCode
                 [ """
 module Main exposing (main)
 import A
-import ATest -- TODO to prevent reports of ATest
 main = A.used
 """, """
 module A exposing (used, unusedInProductionCode)
@@ -1271,6 +1270,7 @@ unusedInProductionCode = 2
 """, """
 module ATest exposing (..)
 import A
+import Test
 a = A.unusedInProductionCode
 """ ]
                     |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [ "@helper", "@test-helper", "@foo" ] })
