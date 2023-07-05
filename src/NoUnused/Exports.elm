@@ -1,6 +1,6 @@
 module NoUnused.Exports exposing
     ( rule
-    , Configuration, defaults, toRule
+    , Configuration, defaults, ignoreUsagesIn, toRule
     )
 
 {-| Forbid the use of exposed elements that are never used in your project.
@@ -87,6 +87,11 @@ defaults =
     Configuration
         { testHelperTags = []
         }
+
+
+ignoreUsagesIn : { helperTags : List String } -> Configuration
+ignoreUsagesIn { helperTags } =
+    Configuration { testHelperTags = helperTags }
 
 
 moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
