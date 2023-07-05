@@ -1245,8 +1245,12 @@ a = A.unusedInProductionCode
                     |> Review.Test.expectErrorsForModules
                         [ ( "A"
                           , [ Review.Test.error
-                                { message = "Exposed function or value `unusedInProductionCode` is never used outside this module."
-                                , details = unusedExposedElementDetails
+                                { message = "Exposed function or value `unusedInProductionCode` is never used in production code."
+                                , details =
+                                    [ "This exposed element is only used in files/folders you ignore (e.g. the test folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
+                                    , "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can annotate this element using documentation annotations."
+                                    , "You have not configured this rule with any possible annotations though. Check out the documentation for this rule on how to enable that."
+                                    ]
                                 , under = "unusedInProductionCode"
                                 }
                                 |> Review.Test.atExactly { start = { row = 2, column = 26 }, end = { row = 2, column = 48 } }
