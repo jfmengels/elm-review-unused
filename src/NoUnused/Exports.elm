@@ -1,4 +1,7 @@
-module NoUnused.Exports exposing (rule)
+module NoUnused.Exports exposing
+    ( rule
+    , Configuration, defaults, toRule
+    )
 
 {-| Forbid the use of exposed elements that are never used in your project.
 
@@ -55,6 +58,11 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Expor
 -}
 rule : Rule
 rule =
+    toRule defaults
+
+
+toRule : Configuration -> Rule
+toRule configuration =
     Rule.newProjectRuleSchema "NoUnused.Exports" initialProjectContext
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
@@ -66,6 +74,15 @@ rule =
         |> Rule.withFinalProjectEvaluation finalEvaluationForProject
         |> Rule.providesFixesForProjectRule
         |> Rule.fromProjectRuleSchema
+
+
+type Configuration
+    = Configuration {}
+
+
+defaults : Configuration
+defaults =
+    Configuration {}
 
 
 moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
