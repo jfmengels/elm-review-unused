@@ -1047,7 +1047,11 @@ expressionVisitor node moduleContext =
         Expression.FunctionOrValue _ name ->
             case ModuleNameLookupTable.moduleNameFor moduleContext.lookupTable node of
                 Just [] ->
-                    moduleContext
+                    if Dict.member name moduleContext.exposed then
+                        { moduleContext | ignoredElementsNotToReport = Set.insert name moduleContext.ignoredElementsNotToReport }
+
+                    else
+                        moduleContext
 
                 Just moduleName ->
                     registerAsUsed ( moduleName, name ) moduleContext
@@ -1058,7 +1062,11 @@ expressionVisitor node moduleContext =
         Expression.RecordUpdateExpression (Node range name) _ ->
             case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
                 Just [] ->
-                    moduleContext
+                    if Dict.member name moduleContext.exposed then
+                        { moduleContext | ignoredElementsNotToReport = Set.insert name moduleContext.ignoredElementsNotToReport }
+
+                    else
+                        moduleContext
 
                 Just moduleName ->
                     registerAsUsed ( moduleName, name ) moduleContext
