@@ -1335,6 +1335,31 @@ helper = 1
 """ ]
                     |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [ "@ignore-helper" ] })
                     |> Review.Test.expectNoErrors
+        , test "should report elements never used anywhere even if they're annotated with a tag" <|
+            \() ->
+                [ """
+module ATest exposing (tests)
+import Test exposing (Test)
+import B
+tests : Test
+tests = Test.describe "thing" []
+""", """
+module B exposing (helper)
+{-| @ignore-helper -}
+helper = 1
+""" ]
+                    |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [ "@ignore-helper" ] })
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "B"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `helper` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "helper"
+                                }
+                                |> Review.Test.atExactly { start = { row = 2, column = 20 }, end = { row = 2, column = 26 } }
+                            ]
+                          )
+                        ]
 
         -- TODO Report unused exports in ignored files as regular errors
         ]
