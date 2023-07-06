@@ -106,6 +106,7 @@ type alias ProjectContext =
             , exposed : Dict String ExposedElement
             , moduleNameLocation : Range
             , isModuleIgnored : Bool
+            , ignoredElementsNotToReport : Set String
             }
     , usedModules : Set ModuleName
     , used : Set ( ModuleName, String )
@@ -211,6 +212,7 @@ fromModuleToProject filePredicate =
                     , exposed = moduleContext.exposed
                     , moduleNameLocation = moduleNameRange
                     , isModuleIgnored = isModuleIgnored
+                    , ignoredElementsNotToReport = Set.fromList [ "helper" ]
                     }
             , used =
                 if isModuleIgnored then
@@ -387,17 +389,18 @@ errorsForModule :
             | moduleKey : Rule.ModuleKey
             , exposed : Dict String ExposedElement
             , isModuleIgnored : Bool
+            , ignoredElementsNotToReport : Set String
         }
     -> List (Error scope)
     -> List (Error scope)
-errorsForModule helperTags projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isModuleIgnored } acc =
+errorsForModule helperTags projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isModuleIgnored, ignoredElementsNotToReport } acc =
     Dict.foldl
         (\name element subAcc ->
             if isUsedOrException projectContext used moduleName name then
                 subAcc
 
             else if Set.member ( moduleName, name ) usedInIgnoredModules then
-                if isModuleIgnored || Set.member ( moduleName, name ) (Set.fromList [ ( [ "B" ], "helper" ) ]) then
+                if isModuleIgnored || Set.member name ignoredElementsNotToReport then
                     subAcc
 
                 else
