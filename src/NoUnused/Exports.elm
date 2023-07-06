@@ -269,8 +269,8 @@ foldProjectContexts newContext previousContext =
 
 
 registerAsUsed : ( ModuleName, String ) -> ModuleContext -> ModuleContext
-registerAsUsed ( moduleName, name ) moduleContext =
-    { moduleContext | used = Set.insert ( moduleName, name ) moduleContext.used }
+registerAsUsed key moduleContext =
+    { moduleContext | used = Set.insert key moduleContext.used }
 
 
 
