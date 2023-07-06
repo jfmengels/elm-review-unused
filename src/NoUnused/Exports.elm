@@ -401,21 +401,8 @@ errorsForModule helperTags projectContext { used, usedInIgnoredModules } moduleN
                     subAcc
 
                 else
-                    let
-                        what : String
-                        what =
-                            case element.elementType of
-                                Function ->
-                                    "Exposed function or value"
-
-                                TypeOrTypeAlias ->
-                                    "Exposed type or type alias"
-
-                                ExposedType _ ->
-                                    "Exposed type"
-                    in
                     Rule.errorForModule moduleKey
-                        { message = what ++ " `" ++ name ++ "` is never used in production code."
+                        { message = what element.elementType ++ " `" ++ name ++ "` is never used in production code."
                         , details =
                             "This exposed element is only used in files/folders you ignore (e.g. the test folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
                                 :: (case helperTags of
@@ -440,21 +427,8 @@ errorsForModule helperTags projectContext { used, usedInIgnoredModules } moduleN
                         :: subAcc
 
             else
-                let
-                    what : String
-                    what =
-                        case element.elementType of
-                            Function ->
-                                "Exposed function or value"
-
-                            TypeOrTypeAlias ->
-                                "Exposed type or type alias"
-
-                            ExposedType _ ->
-                                "Exposed type"
-                in
                 Rule.errorForModuleWithFix moduleKey
-                    { message = what ++ " `" ++ name ++ "` is never used outside this module."
+                    { message = what element.elementType ++ " `" ++ name ++ "` is never used outside this module."
                     , details = [ "This exposed element is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
                     }
                     element.range
@@ -463,6 +437,19 @@ errorsForModule helperTags projectContext { used, usedInIgnoredModules } moduleN
         )
         acc
         exposed
+
+
+what : ExposedElementType -> String
+what elementType =
+    case elementType of
+        Function ->
+            "Exposed function or value"
+
+        TypeOrTypeAlias ->
+            "Exposed type or type alias"
+
+        ExposedType _ ->
+            "Exposed type"
 
 
 formatTags : String -> List String -> String
