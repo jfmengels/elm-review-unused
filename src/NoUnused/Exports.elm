@@ -101,17 +101,17 @@ type alias ProjectContext =
     { projectType : ProjectType
     , modules :
         Dict
-            ModuleName
+            ModuleNameStr
             { moduleKey : Rule.ModuleKey
             , exposed : Dict String ExposedElement
             , moduleNameLocation : Range
             , isModuleIgnored : Bool
             , ignoredElementsNotToReport : Set String
             }
-    , usedModules : Set ModuleName
-    , used : Set ( ModuleName, String )
-    , usedInIgnoredModules : Set ( ModuleName, String )
-    , constructors : Dict ( ModuleName, String ) String
+    , usedModules : Set ModuleNameStr
+    , used : Set ( ModuleNameStr, String )
+    , usedInIgnoredModules : Set ( ModuleNameStr, String )
+    , constructors : Dict ( ModuleNameStr, String ) String
     }
 
 
@@ -124,7 +124,7 @@ type alias ExposedElement =
 
 type ProjectType
     = IsApplication ElmApplicationType
-    | IsPackage (Set (List String))
+    | IsPackage (Set ModuleNameStr)
 
 
 type ElmApplicationType
@@ -138,13 +138,17 @@ type ExposedElementType
     | ExposedType (List String)
 
 
+type alias ModuleNameStr =
+    String
+
+
 type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
     , exposed : Dict String ExposedElement
-    , used : Set ( ModuleName, String )
+    , used : Set ( ModuleNameStr, String )
     , elementsNotToReport : Set String
     , ignoredElementsNotToReport : Set String
-    , importedModules : Set ModuleName
+    , importedModules : Set ModuleNameStr
     , containsMainFunction : Bool
     , projectType : ProjectType
     }
@@ -154,7 +158,7 @@ initialProjectContext : ProjectContext
 initialProjectContext =
     { projectType = IsApplication ElmApplication
     , modules = Dict.empty
-    , usedModules = Set.singleton [ "ReviewConfig" ]
+    , usedModules = Set.singleton "ReviewConfig"
     , used = Set.empty
     , usedInIgnoredModules = Set.empty
     , constructors = Dict.empty
@@ -195,10 +199,14 @@ fromModuleToProject filePredicate =
     Rule.initContextCreator
         (\moduleKey (Node moduleNameRange moduleName) filePath isInSourceDirectories moduleContext ->
             let
-                used : Set ( ModuleName, String )
+                moduleNameStr : ModuleNameStr
+                moduleNameStr =
+                    String.join "." moduleName
+
+                used : Set ( ModuleNameStr, String )
                 used =
                     Set.foldl
-                        (\element acc -> Set.insert ( moduleName, element ) acc)
+                        (\element acc -> Set.insert ( moduleNameStr, element ) acc)
                         moduleContext.used
                         moduleContext.elementsNotToReport
 
@@ -209,7 +217,7 @@ fromModuleToProject filePredicate =
             { projectType = IsApplication ElmApplication
             , modules =
                 Dict.singleton
-                    moduleName
+                    moduleNameStr
                     { moduleKey = moduleKey
                     , exposed = moduleContext.exposed
                     , moduleNameLocation = moduleNameRange
@@ -229,8 +237,8 @@ fromModuleToProject filePredicate =
                 else
                     Set.empty
             , usedModules =
-                if Set.member [ "Test" ] moduleContext.importedModules || moduleContext.containsMainFunction then
-                    Set.insert moduleName moduleContext.importedModules
+                if Set.member "Test" moduleContext.importedModules || moduleContext.containsMainFunction then
+                    Set.insert moduleNameStr moduleContext.importedModules
 
                 else
                     moduleContext.importedModules
@@ -240,7 +248,7 @@ fromModuleToProject filePredicate =
                         case element.elementType of
                             ExposedType constructorNames ->
                                 List.foldl
-                                    (\constructorName listAcc -> Dict.insert ( moduleName, constructorName ) name listAcc)
+                                    (\constructorName listAcc -> Dict.insert ( moduleNameStr, constructorName ) name listAcc)
                                     acc
                                     constructorNames
 
@@ -268,7 +276,7 @@ foldProjectContexts newContext previousContext =
     }
 
 
-registerAsUsed : ( ModuleName, String ) -> ModuleContext -> ModuleContext
+registerAsUsed : ( ModuleNameStr, String ) -> ModuleContext -> ModuleContext
 registerAsUsed key moduleContext =
     { moduleContext | used = Set.insert key moduleContext.used }
 
@@ -296,7 +304,7 @@ elmJsonVisitor maybeProject projectContext =
                     exposedModuleNames
                         |> List.foldr
                             (\moduleName acc ->
-                                Set.insert (Elm.Module.toString moduleName |> String.split ".") acc
+                                Set.insert (Elm.Module.toString moduleName) acc
                             )
                             Set.empty
                         |> IsPackage
@@ -325,7 +333,7 @@ elmJsonVisitor maybeProject projectContext =
 finalEvaluationForProject : List String -> ProjectContext -> List (Error { useErrorForModule : () })
 finalEvaluationForProject helperTags projectContext =
     let
-        used : Set ( ModuleName, String )
+        used : Set ( ModuleNameStr, String )
         used =
             Set.foldl
                 (\(( moduleName, _ ) as key) acc ->
@@ -339,7 +347,7 @@ finalEvaluationForProject helperTags projectContext =
                 projectContext.used
                 projectContext.used
 
-        usedInIgnoredModules : Set ( ModuleName, String )
+        usedInIgnoredModules : Set ( ModuleNameStr, String )
         usedInIgnoredModules =
             Set.foldl
                 (\(( moduleName, _ ) as key) acc ->
@@ -353,7 +361,7 @@ finalEvaluationForProject helperTags projectContext =
                 projectContext.usedInIgnoredModules
                 projectContext.usedInIgnoredModules
 
-        filterExposedPackage_ : ModuleName -> Bool
+        filterExposedPackage_ : ModuleNameStr -> Bool
         filterExposedPackage_ =
             filterExposedPackage projectContext
     in
@@ -372,10 +380,10 @@ finalEvaluationForProject helperTags projectContext =
         projectContext.modules
 
 
-unusedModuleError : ModuleName -> { a | moduleKey : Rule.ModuleKey, moduleNameLocation : Range } -> Error scope
+unusedModuleError : ModuleNameStr -> { a | moduleKey : Rule.ModuleKey, moduleNameLocation : Range } -> Error scope
 unusedModuleError moduleName { moduleKey, moduleNameLocation } =
     Rule.errorForModule moduleKey
-        { message = "Module `" ++ String.join "." moduleName ++ "` is never used."
+        { message = "Module `" ++ moduleName ++ "` is never used."
         , details = [ "This module is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
         }
         moduleNameLocation
@@ -384,8 +392,8 @@ unusedModuleError moduleName { moduleKey, moduleNameLocation } =
 errorsForModule :
     List String
     -> ProjectContext
-    -> { used : Set ( ModuleName, String ), usedInIgnoredModules : Set ( ModuleName, String ) }
-    -> ModuleName
+    -> { used : Set ( ModuleNameStr, String ), usedInIgnoredModules : Set ( ModuleNameStr, String ) }
+    -> ModuleNameStr
     ->
         { a
             | moduleKey : Rule.ModuleKey
@@ -466,7 +474,7 @@ formatTags first rest =
         first ++ " (or " ++ String.join ", " rest ++ ")"
 
 
-filterExposedPackage : ProjectContext -> ModuleName -> Bool
+filterExposedPackage : ProjectContext -> ModuleNameStr -> Bool
 filterExposedPackage projectContext =
     case projectContext.projectType of
         IsApplication _ ->
@@ -476,11 +484,11 @@ filterExposedPackage projectContext =
             \moduleName -> not <| Set.member moduleName exposedModuleNames
 
 
-isUsedOrException : ProjectContext -> Set ( ModuleName, String ) -> List String -> String -> Bool
+isUsedOrException : ProjectContext -> Set ( ModuleNameStr, String ) -> ModuleNameStr -> String -> Bool
 isUsedOrException projectContext used moduleName name =
     Set.member ( moduleName, name ) used
         || isApplicationException projectContext name
-        || (moduleName == [ "ReviewConfig" ])
+        || (moduleName == "ReviewConfig")
 
 
 isApplicationException : ProjectContext -> String -> Bool
@@ -594,9 +602,10 @@ untilEndOfVariable name range =
 importVisitor : Node Import -> ModuleContext -> ModuleContext
 importVisitor (Node _ import_) moduleContext =
     let
-        moduleName : ModuleName
+        moduleName : ModuleNameStr
         moduleName =
             Node.value import_.moduleName
+                |> String.join "."
     in
     { moduleContext
         | used = collectUsedFromImport moduleName import_.exposingList moduleContext.used
@@ -604,7 +613,7 @@ importVisitor (Node _ import_) moduleContext =
     }
 
 
-collectUsedFromImport : ModuleName -> Maybe (Node Exposing) -> Set ( ModuleName, String ) -> Set ( ModuleName, String )
+collectUsedFromImport : ModuleNameStr -> Maybe (Node Exposing) -> Set ( ModuleNameStr, String ) -> Set ( ModuleNameStr, String )
 collectUsedFromImport moduleName exposingList used =
     case Maybe.map Node.value exposingList of
         Just (Exposing.Explicit list) ->
@@ -779,7 +788,7 @@ declarationVisitor helperTags node moduleContext =
                 Nothing ->
                     moduleContext.ignoredElementsNotToReport
 
-        used : Set ( ModuleName, String )
+        used : Set ( ModuleNameStr, String )
         used =
             List.foldl Set.insert moduleContext.used allUsedTypes
     in
@@ -949,7 +958,7 @@ testFunctionName moduleContext node =
             Nothing
 
 
-typesUsedInDeclaration : ModuleContext -> Node Declaration -> ( List ( ModuleName, String ), Bool )
+typesUsedInDeclaration : ModuleContext -> Node Declaration -> ( List ( ModuleNameStr, String ), Bool )
 typesUsedInDeclaration moduleContext declaration =
     case Node.value declaration of
         Declaration.FunctionDeclaration function ->
@@ -966,7 +975,7 @@ typesUsedInDeclaration moduleContext declaration =
 
         Declaration.CustomTypeDeclaration type_ ->
             let
-                typesUsedInArguments : List ( ModuleName, String )
+                typesUsedInArguments : List ( ModuleNameStr, String )
                 typesUsedInArguments =
                     List.foldl
                         (\constructor acc -> collectTypesFromTypeAnnotation moduleContext (Node.value constructor).arguments acc)
@@ -995,7 +1004,7 @@ typesUsedInDeclaration moduleContext declaration =
             ( [], False )
 
 
-collectTypesFromTypeAnnotation : ModuleContext -> List (Node TypeAnnotation) -> List ( ModuleName, String ) -> List ( ModuleName, String )
+collectTypesFromTypeAnnotation : ModuleContext -> List (Node TypeAnnotation) -> List ( ModuleNameStr, String ) -> List ( ModuleNameStr, String )
 collectTypesFromTypeAnnotation moduleContext nodes acc =
     case nodes of
         [] ->
@@ -1009,7 +1018,7 @@ collectTypesFromTypeAnnotation moduleContext nodes acc =
                 TypeAnnotation.Typed (Node range ( _, name )) params ->
                     case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
                         Just moduleName ->
-                            collectTypesFromTypeAnnotation moduleContext (params ++ restOfNodes) (( moduleName, name ) :: acc)
+                            collectTypesFromTypeAnnotation moduleContext (params ++ restOfNodes) (( String.join "." moduleName, name ) :: acc)
 
                         Nothing ->
                             collectTypesFromTypeAnnotation moduleContext (params ++ restOfNodes) acc
@@ -1052,7 +1061,7 @@ expressionVisitor node moduleContext =
 
         Expression.LetExpression { declarations } ->
             let
-                used : List ( ModuleName, String )
+                used : List ( ModuleNameStr, String )
                 used =
                     List.foldl
                         (\declaration acc ->
@@ -1077,7 +1086,7 @@ expressionVisitor node moduleContext =
 
         Expression.CaseExpression { cases } ->
             let
-                usedConstructors : List ( ModuleName, String )
+                usedConstructors : List ( ModuleNameStr, String )
                 usedConstructors =
                     findUsedConstructors
                         moduleContext.lookupTable
@@ -1101,13 +1110,13 @@ registerLocalValue range name moduleContext =
                 moduleContext
 
         Just moduleName ->
-            registerAsUsed ( moduleName, name ) moduleContext
+            registerAsUsed ( String.join "." moduleName, name ) moduleContext
 
         Nothing ->
             moduleContext
 
 
-findUsedConstructors : ModuleNameLookupTable -> List (Node Pattern) -> List ( ModuleName, String ) -> List ( ModuleName, String )
+findUsedConstructors : ModuleNameLookupTable -> List (Node Pattern) -> List ( ModuleNameStr, String ) -> List ( ModuleNameStr, String )
 findUsedConstructors lookupTable patterns acc =
     case patterns of
         [] ->
@@ -1117,11 +1126,11 @@ findUsedConstructors lookupTable patterns acc =
             case Node.value pattern of
                 Pattern.NamedPattern qualifiedNameRef newPatterns ->
                     let
-                        newAcc : List ( ModuleName, String )
+                        newAcc : List ( ModuleNameStr, String )
                         newAcc =
                             case ModuleNameLookupTable.moduleNameFor lookupTable pattern of
                                 Just moduleName ->
-                                    ( moduleName, qualifiedNameRef.name ) :: acc
+                                    ( String.join "." moduleName, qualifiedNameRef.name ) :: acc
 
                                 Nothing ->
                                     acc
