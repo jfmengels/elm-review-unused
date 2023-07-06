@@ -1047,9 +1047,7 @@ expressionVisitor node moduleContext =
         Expression.FunctionOrValue _ name ->
             case ModuleNameLookupTable.moduleNameFor moduleContext.lookupTable node of
                 Just moduleName ->
-                    registerAsUsed
-                        ( moduleName, name )
-                        moduleContext
+                    registerAsUsed ( moduleName, name ) moduleContext
 
                 Nothing ->
                     moduleContext
@@ -1057,9 +1055,7 @@ expressionVisitor node moduleContext =
         Expression.RecordUpdateExpression (Node range name) _ ->
             case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
                 Just moduleName ->
-                    registerAsUsed
-                        ( moduleName, name )
-                        moduleContext
+                    registerAsUsed ( moduleName, name ) moduleContext
 
                 Nothing ->
                     moduleContext
