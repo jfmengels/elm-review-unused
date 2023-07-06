@@ -1045,34 +1045,10 @@ expressionVisitor : Node Expression -> ModuleContext -> ModuleContext
 expressionVisitor node moduleContext =
     case Node.value node of
         Expression.FunctionOrValue _ name ->
-            case ModuleNameLookupTable.moduleNameFor moduleContext.lookupTable node of
-                Just [] ->
-                    if Dict.member name moduleContext.exposed then
-                        { moduleContext | ignoredElementsNotToReport = Set.insert name moduleContext.ignoredElementsNotToReport }
-
-                    else
-                        moduleContext
-
-                Just moduleName ->
-                    registerAsUsed ( moduleName, name ) moduleContext
-
-                Nothing ->
-                    moduleContext
+            registerLocalValue (Node.range node) name moduleContext
 
         Expression.RecordUpdateExpression (Node range name) _ ->
-            case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
-                Just [] ->
-                    if Dict.member name moduleContext.exposed then
-                        { moduleContext | ignoredElementsNotToReport = Set.insert name moduleContext.ignoredElementsNotToReport }
-
-                    else
-                        moduleContext
-
-                Just moduleName ->
-                    registerAsUsed ( moduleName, name ) moduleContext
-
-                Nothing ->
-                    moduleContext
+            registerLocalValue range name moduleContext
 
         Expression.LetExpression { declarations } ->
             let
@@ -1111,6 +1087,23 @@ expressionVisitor node moduleContext =
             { moduleContext | used = List.foldl Set.insert moduleContext.used usedConstructors }
 
         _ ->
+            moduleContext
+
+
+registerLocalValue : Range -> String -> ModuleContext -> ModuleContext
+registerLocalValue range name moduleContext =
+    case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
+        Just [] ->
+            if Dict.member name moduleContext.exposed then
+                { moduleContext | ignoredElementsNotToReport = Set.insert name moduleContext.ignoredElementsNotToReport }
+
+            else
+                moduleContext
+
+        Just moduleName ->
+            registerAsUsed ( moduleName, name ) moduleContext
+
+        Nothing ->
             moduleContext
 
 
