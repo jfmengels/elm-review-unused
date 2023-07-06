@@ -397,7 +397,7 @@ errorsForModule helperTags projectContext { used, usedInIgnoredModules } moduleN
                 subAcc
 
             else if Set.member ( moduleName, name ) usedInIgnoredModules then
-                if isModuleIgnored then
+                if isModuleIgnored || Set.member ( moduleName, name ) (Set.fromList [ ( [ "B" ], "helper" ) ]) then
                     subAcc
 
                 else

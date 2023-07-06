@@ -1320,6 +1320,21 @@ helper = 1
 """ ]
                     |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] })
                     |> Review.Test.expectNoErrors
+        , test "should not report elements only used in ignored modules if they're annotated with a tag" <|
+            \() ->
+                [ """
+module ATest exposing (tests)
+import B
+import Test exposing (Test)
+tests : Test
+tests = Test.describe "thing" B.helper
+""", """
+module B exposing (helper)
+{-| @ignore-helper -}
+helper = 1
+""" ]
+                    |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [ "@ignore-helper" ] })
+                    |> Review.Test.expectNoErrors
 
         -- TODO Report unused exports in ignored files as regular errors
         ]
