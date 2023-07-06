@@ -67,7 +67,7 @@ rule =
 ignoreUsagesIn : { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool, helperTags : List String } -> Rule
 ignoreUsagesIn config =
     Rule.newProjectRuleSchema "NoUnused.Exports" initialProjectContext
-        |> Rule.withModuleVisitor moduleVisitor
+        |> Rule.withModuleVisitor (moduleVisitor config.helperTags)
         |> Rule.withModuleContextUsingContextCreator
             { fromProjectToModule = fromProjectToModule
             , fromModuleToProject = fromModuleToProject config.filePredicate
@@ -85,11 +85,11 @@ type alias Config =
     }
 
 
-moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
-moduleVisitor schema =
+moduleVisitor : List String -> Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
+moduleVisitor helperTags schema =
     schema
         |> Rule.withImportVisitor (\node context -> ( [], importVisitor node context ))
-        |> Rule.withDeclarationEnterVisitor (\node context -> ( [], declarationVisitor node context ))
+        |> Rule.withDeclarationEnterVisitor (\node context -> ( [], declarationVisitor helperTags node context ))
         |> Rule.withExpressionEnterVisitor (\node context -> ( [], expressionVisitor node context ))
 
 
@@ -754,8 +754,8 @@ collectExposedElementsHelp docsReferences declarations declaredNames canRemoveEx
                 newAcc
 
 
-declarationVisitor : Node Declaration -> ModuleContext -> ModuleContext
-declarationVisitor node moduleContext =
+declarationVisitor : List String -> Node Declaration -> ModuleContext -> ModuleContext
+declarationVisitor helperTags node moduleContext =
     let
         ( allUsedTypes, comesFromCustomTypeWithHiddenConstructors ) =
             typesUsedInDeclaration moduleContext node
