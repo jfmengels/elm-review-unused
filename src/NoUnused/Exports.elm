@@ -770,12 +770,17 @@ declarationVisitor node moduleContext =
             )
                 |> maybeSetInsert (testFunctionName moduleContext node)
 
+        ignoredElementsNotToReport : Set String
+        ignoredElementsNotToReport =
+            moduleContext.ignoredElementsNotToReport
+
         used : Set ( ModuleName, String )
         used =
             List.foldl Set.insert moduleContext.used allUsedTypes
     in
     { moduleContext
         | elementsNotToReport = elementsNotToReport
+        , ignoredElementsNotToReport = ignoredElementsNotToReport
         , used = used
         , containsMainFunction =
             moduleContext.containsMainFunction
