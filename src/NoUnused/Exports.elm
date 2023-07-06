@@ -179,7 +179,7 @@ fromProjectToModule =
             , exposed = exposed
             , used = Set.empty
             , elementsNotToReport = Set.empty
-            , ignoredElementsNotToReport = Set.fromList [ "helper" ]
+            , ignoredElementsNotToReport = Set.empty
             , importedModules = Set.empty
             , containsMainFunction = False
             , projectType = projectContext.projectType
@@ -772,7 +772,12 @@ declarationVisitor helperTags node moduleContext =
 
         ignoredElementsNotToReport : Set String
         ignoredElementsNotToReport =
-            moduleContext.ignoredElementsNotToReport
+            case isAnnotatedWithHelperTag helperTags node of
+                Just name ->
+                    Set.insert name moduleContext.ignoredElementsNotToReport
+
+                Nothing ->
+                    moduleContext.ignoredElementsNotToReport
 
         used : Set ( ModuleName, String )
         used =
@@ -786,6 +791,55 @@ declarationVisitor helperTags node moduleContext =
             moduleContext.containsMainFunction
                 || doesModuleContainMainFunction moduleContext.projectType node
     }
+
+
+isAnnotatedWithHelperTag : List String -> Node Declaration -> Maybe String
+isAnnotatedWithHelperTag helperTags node =
+    if List.isEmpty helperTags then
+        Nothing
+
+    else
+        case getDeclarationNameAndDocumentation node of
+            Just { name, documentation } ->
+                if List.any (\helperTag -> String.contains helperTag documentation) helperTags then
+                    Just name
+
+                else
+                    Nothing
+
+            Nothing ->
+                Nothing
+
+
+getDeclarationNameAndDocumentation : Node Declaration -> Maybe { name : String, documentation : String }
+getDeclarationNameAndDocumentation node =
+    case Node.value node of
+        Declaration.FunctionDeclaration { documentation, declaration } ->
+            case documentation of
+                Just doc ->
+                    Just { name = declaration |> Node.value |> .name |> Node.value, documentation = Node.value doc }
+
+                Nothing ->
+                    Nothing
+
+        Declaration.AliasDeclaration { documentation, name } ->
+            case documentation of
+                Just doc ->
+                    Just { name = Node.value name, documentation = Node.value doc }
+
+                Nothing ->
+                    Nothing
+
+        Declaration.CustomTypeDeclaration { documentation, name } ->
+            case documentation of
+                Just doc ->
+                    Just { name = Node.value name, documentation = Node.value doc }
+
+                Nothing ->
+                    Nothing
+
+        _ ->
+            Nothing
 
 
 doesModuleContainMainFunction : ProjectType -> Node Declaration -> Bool
