@@ -143,6 +143,7 @@ type alias ModuleContext =
     , exposed : Dict String ExposedElement
     , used : Set ( ModuleName, String )
     , elementsNotToReport : Set String
+    , ignoredElementsNotToReport : Set String
     , importedModules : Set ModuleName
     , containsMainFunction : Bool
     , projectType : ProjectType
@@ -178,6 +179,7 @@ fromProjectToModule =
             , exposed = exposed
             , used = Set.empty
             , elementsNotToReport = Set.empty
+            , ignoredElementsNotToReport = Set.fromList [ "helper" ]
             , importedModules = Set.empty
             , containsMainFunction = False
             , projectType = projectContext.projectType
@@ -212,7 +214,7 @@ fromModuleToProject filePredicate =
                     , exposed = moduleContext.exposed
                     , moduleNameLocation = moduleNameRange
                     , isModuleIgnored = isModuleIgnored
-                    , ignoredElementsNotToReport = Set.fromList [ "helper" ]
+                    , ignoredElementsNotToReport = moduleContext.ignoredElementsNotToReport
                     }
             , used =
                 if isModuleIgnored then
