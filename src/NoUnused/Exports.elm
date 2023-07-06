@@ -1046,6 +1046,9 @@ expressionVisitor node moduleContext =
     case Node.value node of
         Expression.FunctionOrValue _ name ->
             case ModuleNameLookupTable.moduleNameFor moduleContext.lookupTable node of
+                Just [] ->
+                    moduleContext
+
                 Just moduleName ->
                     registerAsUsed ( moduleName, name ) moduleContext
 
@@ -1054,6 +1057,9 @@ expressionVisitor node moduleContext =
 
         Expression.RecordUpdateExpression (Node range name) _ ->
             case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
+                Just [] ->
+                    moduleContext
+
                 Just moduleName ->
                     registerAsUsed ( moduleName, name ) moduleContext
 
