@@ -836,19 +836,20 @@ isHelperElement config node =
     else
         case getDeclarationName node of
             Just name ->
-                case getDeclarationDocumentation node of
-                    Just documentation ->
-                        if
-                            List.any (\suffix -> String.endsWith suffix name) config.helperSuffixes
-                                || List.any (\helperTag -> String.contains helperTag documentation) config.helperTags
-                        then
-                            Just name
+                if List.any (\suffix -> String.endsWith suffix name) config.helperSuffixes then
+                    Just name
 
-                        else
+                else
+                    case getDeclarationDocumentation node of
+                        Just documentation ->
+                            if List.any (\helperTag -> String.contains helperTag documentation) config.helperTags then
+                                Just name
+
+                            else
+                                Nothing
+
+                        Nothing ->
                             Nothing
-
-                    Nothing ->
-                        Nothing
 
             Nothing ->
                 Nothing
