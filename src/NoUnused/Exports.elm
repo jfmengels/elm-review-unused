@@ -836,8 +836,8 @@ isHelperElement config node =
     else
         case getDeclarationName node of
             Just name ->
-                case getDeclarationNameAndDocumentation node of
-                    Just { documentation } ->
+                case getDeclarationDocumentation node of
+                    Just documentation ->
                         if
                             List.any (\suffix -> String.endsWith suffix name) config.helperSuffixes
                                 || List.any (\helperTag -> String.contains helperTag documentation) config.helperTags
@@ -873,34 +873,34 @@ getDeclarationName node =
             Nothing
 
 
-getDeclarationNameAndDocumentation : Node Declaration -> Maybe { name : String, documentation : String }
-getDeclarationNameAndDocumentation node =
+getDeclarationDocumentation : Node Declaration -> Maybe String
+getDeclarationDocumentation node =
     case Node.value node of
-        Declaration.FunctionDeclaration { documentation, declaration } ->
+        Declaration.FunctionDeclaration { documentation } ->
             case documentation of
                 Just doc ->
-                    Just { name = declaration |> Node.value |> .name |> Node.value, documentation = Node.value doc }
+                    Just (Node.value doc)
 
                 Nothing ->
                     Nothing
 
-        Declaration.AliasDeclaration { documentation, name } ->
+        Declaration.AliasDeclaration { documentation } ->
             case documentation of
                 Just doc ->
-                    Just { name = Node.value name, documentation = Node.value doc }
+                    Just (Node.value doc)
 
                 Nothing ->
                     Nothing
 
-        Declaration.CustomTypeDeclaration { documentation, name } ->
+        Declaration.CustomTypeDeclaration { documentation } ->
             case documentation of
                 Just doc ->
-                    Just { name = Node.value name, documentation = Node.value doc }
+                    Just (Node.value doc)
 
                 Nothing ->
                     Nothing
 
-        Declaration.PortDeclaration { name } ->
+        Declaration.PortDeclaration _ ->
             -- TODO When we have documentation syntax for ports
             Nothing
 
