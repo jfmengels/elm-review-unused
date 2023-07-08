@@ -1335,6 +1335,25 @@ helper = 1
 """ ]
                     |> Review.Test.runOnModules (defaults |> ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [ "@ignore-helper" ] } |> toRule)
                     |> Review.Test.expectNoErrors
+        , test "should not report elements from ignored modules if they're imported only in tests but also used locally in the module" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import B
+main = B.exposed
+""", """
+module ATest exposing (tests)
+import B
+import Test exposing (Test)
+tests : Test
+tests = Test.describe "thing" B.usedLocally
+""", """
+module B exposing (exposed, usedLocally)
+exposed = usedLocally + 1
+usedLocally = 1
+""" ]
+                    |> Review.Test.runOnModules (defaults |> ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] } |> toRule)
+                    |> Review.Test.expectNoErrors
         , test "should report elements never used anywhere even if they're annotated with a tag" <|
             \() ->
                 [ """
@@ -1360,25 +1379,6 @@ helper = 1
                             ]
                           )
                         ]
-        , test "should not report elements from ignored modules if they're imported only in tests but also used locally in the module" <|
-            \() ->
-                [ """
-module Main exposing (main)
-import B
-main = B.exposed
-""", """
-module ATest exposing (tests)
-import B
-import Test exposing (Test)
-tests : Test
-tests = Test.describe "thing" B.usedLocally
-""", """
-module B exposing (exposed, usedLocally)
-exposed = usedLocally + 1 
-usedLocally = 1
-""" ]
-                    |> Review.Test.runOnModules (defaults |> ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] } |> toRule)
-                    |> Review.Test.expectNoErrors
 
         -- TODO Report unused exports in ignored files as regular errors
         ]
