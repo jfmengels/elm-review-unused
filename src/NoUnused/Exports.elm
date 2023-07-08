@@ -834,19 +834,43 @@ isHelperElement config node =
         Nothing
 
     else
-        case getDeclarationNameAndDocumentation node of
-            Just { name, documentation } ->
-                if
-                    List.any (\suffix -> String.endsWith suffix name) config.helperSuffixes
-                        || List.any (\helperTag -> String.contains helperTag documentation) config.helperTags
-                then
-                    Just name
+        case getDeclarationName node of
+            Just name ->
+                case getDeclarationNameAndDocumentation node of
+                    Just { documentation } ->
+                        if
+                            List.any (\suffix -> String.endsWith suffix name) config.helperSuffixes
+                                || List.any (\helperTag -> String.contains helperTag documentation) config.helperTags
+                        then
+                            Just name
 
-                else
-                    Nothing
+                        else
+                            Nothing
+
+                    Nothing ->
+                        Nothing
 
             Nothing ->
                 Nothing
+
+
+getDeclarationName : Node Declaration -> Maybe String
+getDeclarationName node =
+    case Node.value node of
+        Declaration.FunctionDeclaration { declaration } ->
+            Just (declaration |> Node.value |> .name |> Node.value)
+
+        Declaration.AliasDeclaration { name } ->
+            Just (Node.value name)
+
+        Declaration.CustomTypeDeclaration { name } ->
+            Just (Node.value name)
+
+        Declaration.PortDeclaration { name } ->
+            Just (Node.value name)
+
+        _ ->
+            Nothing
 
 
 getDeclarationNameAndDocumentation : Node Declaration -> Maybe { name : String, documentation : String }
@@ -875,6 +899,10 @@ getDeclarationNameAndDocumentation node =
 
                 Nothing ->
                     Nothing
+
+        Declaration.PortDeclaration { name } ->
+            -- TODO When we have documentation syntax for ports
+            Nothing
 
         _ ->
             Nothing
