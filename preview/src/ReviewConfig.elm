@@ -26,7 +26,7 @@ config =
     [ NoUnused.CustomTypeConstructors.rule []
     , NoUnused.CustomTypeConstructorArgs.rule
     , NoUnused.Dependencies.rule
-    , NoUnused.Exports.ignoreUsagesIn { filePredicate = \{ moduleName, isInSourceDirectories } -> not isInSourceDirectories, helperTags = [ "@test-helper" ] }
+    , NoUnused.Exports.ignoreUsagesIn { filePredicate = \{ moduleName, isInSourceDirectories } -> not isInSourceDirectories, helperTags = [ "@test-helper" ], helperSuffixes = [ "TEST" ] }
     , NoUnused.Parameters.rule
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule

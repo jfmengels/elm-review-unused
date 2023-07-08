@@ -62,10 +62,14 @@ rule =
 
 
 type Configuration
-    = Configuration
-        { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
-        , helperTags : List String
-        }
+    = Configuration Config
+
+
+type alias Config =
+    { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
+    , helperTags : List String
+    , helperSuffixes : List String
+    }
 
 
 defaults : Configuration
@@ -73,15 +77,22 @@ defaults =
     Configuration
         { filePredicate = always False
         , helperTags = []
+        , helperSuffixes = []
         }
 
 
-ignoreUsagesIn : { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool, helperTags : List String } -> Configuration -> Configuration
-ignoreUsagesIn { filePredicate, helperTags } (Configuration config) =
+ignoreUsagesIn :
+    { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
+    , helperTags : List String
+    , helperSuffixes : List String
+    }
+    -> Configuration
+    -> Configuration
+ignoreUsagesIn { filePredicate, helperTags, helperSuffixes } _ =
     Configuration
-        { config
-            | filePredicate = filePredicate
-            , helperTags = helperTags
+        { filePredicate = filePredicate
+        , helperTags = helperTags
+        , helperSuffixes = helperSuffixes
         }
 
 
@@ -98,12 +109,6 @@ toRule (Configuration config) =
         |> Rule.withFinalProjectEvaluation (finalEvaluationForProject config.helperTags)
         |> Rule.providesFixesForProjectRule
         |> Rule.fromProjectRuleSchema
-
-
-type alias Config =
-    { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
-    , helperTags : List String
-    }
 
 
 moduleVisitor : List String -> Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
