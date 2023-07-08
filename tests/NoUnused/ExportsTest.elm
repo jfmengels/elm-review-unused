@@ -1,6 +1,6 @@
 module NoUnused.ExportsTest exposing (all)
 
-import NoUnused.Exports exposing (ignoreUsagesIn, rule)
+import NoUnused.Exports exposing (defaults, ignoreUsagesIn, rule, toRule)
 import Review.Test
 import Test exposing (Test, describe, test)
 import TestProject exposing (application, lamderaApplication, package)
@@ -1241,7 +1241,7 @@ import A
 import Test
 a = A.unusedInProductionCode
 """ ]
-                    |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] })
+                    |> Review.Test.runOnModules (defaults |> ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] } |> toRule)
                     |> Review.Test.expectErrorsForModules
                         [ ( "A"
                           , [ Review.Test.error
@@ -1273,7 +1273,7 @@ import A
 import Test
 a = A.unusedInProductionCode
 """ ]
-                    |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [ "@helper", "@test-helper", "@foo" ] })
+                    |> Review.Test.runOnModules (defaults |> ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [ "@helper", "@test-helper", "@foo" ] } |> toRule)
                     |> Review.Test.expectErrorsForModules
                         [ ( "A"
                           , [ Review.Test.error
@@ -1304,7 +1304,7 @@ import Test exposing (Test)
 tests : Test
 tests = Test.describe "thing" []
 """ ]
-                    |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] })
+                    |> Review.Test.runOnModules (defaults |> ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] } |> toRule)
                     |> Review.Test.expectNoErrors
         , test "should not report elements from ignored modules used in other ignored modules exposed tests even if they're in an ignored module" <|
             \() ->
@@ -1318,7 +1318,7 @@ tests = Test.describe "thing" BTest.helper
 module BTest exposing (helper)
 helper = 1
 """ ]
-                    |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] })
+                    |> Review.Test.runOnModules (defaults |> ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] } |> toRule)
                     |> Review.Test.expectNoErrors
         , test "should not report elements only used in ignored modules if they're annotated with a tag" <|
             \() ->
@@ -1333,7 +1333,7 @@ module B exposing (helper)
 {-| @ignore-helper -}
 helper = 1
 """ ]
-                    |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [ "@ignore-helper" ] })
+                    |> Review.Test.runOnModules (defaults |> ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [ "@ignore-helper" ] } |> toRule)
                     |> Review.Test.expectNoErrors
         , test "should report elements never used anywhere even if they're annotated with a tag" <|
             \() ->
@@ -1348,7 +1348,7 @@ module B exposing (helper)
 {-| @ignore-helper -}
 helper = 1
 """ ]
-                    |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [ "@ignore-helper" ] })
+                    |> Review.Test.runOnModules (defaults |> ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [ "@ignore-helper" ] } |> toRule)
                     |> Review.Test.expectErrorsForModules
                         [ ( "B"
                           , [ Review.Test.error
@@ -1377,7 +1377,7 @@ module B exposing (exposed, usedLocally)
 exposed = usedLocally + 1 
 usedLocally = 1
 """ ]
-                    |> Review.Test.runOnModules (ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] })
+                    |> Review.Test.runOnModules (defaults |> ignoreUsagesIn { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test", helperTags = [] } |> toRule)
                     |> Review.Test.expectNoErrors
 
         -- TODO Report unused exports in ignored files as regular errors
