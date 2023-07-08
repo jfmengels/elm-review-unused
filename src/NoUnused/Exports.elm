@@ -807,7 +807,7 @@ declarationVisitor config node moduleContext =
 
         ignoredElementsNotToReport : Set String
         ignoredElementsNotToReport =
-            case isAnnotatedWithHelperTag config.helperTags node of
+            case isHelperElement config node of
                 Just name ->
                     Set.insert name moduleContext.ignoredElementsNotToReport
 
@@ -828,15 +828,18 @@ declarationVisitor config node moduleContext =
     }
 
 
-isAnnotatedWithHelperTag : List String -> Node Declaration -> Maybe String
-isAnnotatedWithHelperTag helperTags node =
-    if List.isEmpty helperTags then
+isHelperElement : Config -> Node Declaration -> Maybe String
+isHelperElement config node =
+    if List.isEmpty config.helperSuffixes && List.isEmpty config.helperTags then
         Nothing
 
     else
         case getDeclarationNameAndDocumentation node of
             Just { name, documentation } ->
-                if List.any (\helperTag -> String.contains helperTag documentation) helperTags then
+                if
+                    List.any (\suffix -> String.endsWith suffix name) config.helperSuffixes
+                        || List.any (\helperTag -> String.contains helperTag documentation) config.helperTags
+                then
                     Just name
 
                 else
