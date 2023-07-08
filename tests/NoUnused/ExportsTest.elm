@@ -1435,6 +1435,33 @@ helper = 1
                             ]
                           )
                         ]
+        , test "should report elements never used anywhere even if their name ends with the configured suffix" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import B
+main = B.b
+""", """
+module ATest exposing (tests)
+import B
+import Test exposing (Test)
+tests : Test
+tests = Test.describe "thing" B.helperTEST
+""", """
+module B exposing (b, helperTEST)
+b = 1
+helperTEST = 1
+""" ]
+                    |> Review.Test.runOnModules
+                        (defaults
+                            |> ignoreUsagesIn
+                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                , helperTags = []
+                                , helperSuffixes = [ "TEST" ]
+                                }
+                            |> toRule
+                        )
+                    |> Review.Test.expectNoErrors
 
         -- TODO Report unused exports in ignored files as regular errors
         ]
