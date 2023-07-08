@@ -99,7 +99,7 @@ ignoreUsagesIn { filePredicate, helperTags, helperSuffixes } _ =
 toRule : Configuration -> Rule
 toRule (Configuration config) =
     Rule.newProjectRuleSchema "NoUnused.Exports" initialProjectContext
-        |> Rule.withModuleVisitor (moduleVisitor config.helperTags)
+        |> Rule.withModuleVisitor (moduleVisitor config)
         |> Rule.withModuleContextUsingContextCreator
             { fromProjectToModule = fromProjectToModule
             , fromModuleToProject = fromModuleToProject config.filePredicate
@@ -111,11 +111,11 @@ toRule (Configuration config) =
         |> Rule.fromProjectRuleSchema
 
 
-moduleVisitor : List String -> Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
-moduleVisitor helperTags schema =
+moduleVisitor : Config -> Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
+moduleVisitor config schema =
     schema
         |> Rule.withImportVisitor (\node context -> ( [], importVisitor node context ))
-        |> Rule.withDeclarationEnterVisitor (\node context -> ( [], declarationVisitor helperTags node context ))
+        |> Rule.withDeclarationEnterVisitor (\node context -> ( [], declarationVisitor config node context ))
         |> Rule.withExpressionEnterVisitor (\node context -> ( [], expressionVisitor node context ))
 
 
@@ -789,8 +789,8 @@ collectExposedElementsHelp docsReferences declarations declaredNames canRemoveEx
                 newAcc
 
 
-declarationVisitor : List String -> Node Declaration -> ModuleContext -> ModuleContext
-declarationVisitor helperTags node moduleContext =
+declarationVisitor : Config -> Node Declaration -> ModuleContext -> ModuleContext
+declarationVisitor config node moduleContext =
     let
         ( allUsedTypes, comesFromCustomTypeWithHiddenConstructors ) =
             typesUsedInDeclaration moduleContext node
@@ -807,7 +807,7 @@ declarationVisitor helperTags node moduleContext =
 
         ignoredElementsNotToReport : Set String
         ignoredElementsNotToReport =
-            case isAnnotatedWithHelperTag helperTags node of
+            case isAnnotatedWithHelperTag config.helperTags node of
                 Just name ->
                     Set.insert name moduleContext.ignoredElementsNotToReport
 
