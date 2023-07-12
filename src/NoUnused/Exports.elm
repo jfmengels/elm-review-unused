@@ -107,11 +107,20 @@ ignoreUsagesIn :
     -> Configuration
     -> Configuration
 ignoreUsagesIn { filePredicate, helperTags, helperSuffixes, helpersAre } _ =
+    let
+        isHelperByName : Maybe (String -> Bool)
+        isHelperByName =
+            if List.isEmpty helperSuffixes then
+                Nothing
+
+            else
+                Just (\name -> List.any (\suffix -> String.endsWith suffix name) helperSuffixes)
+    in
     Configuration
         { filePredicate = filePredicate
         , helperTags = helperTags
         , helperSuffixes = helperSuffixes
-        , isHelperByName = Nothing
+        , isHelperByName = isHelperByName
         }
 
 
