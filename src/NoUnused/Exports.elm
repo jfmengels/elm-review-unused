@@ -69,6 +69,7 @@ type alias Config =
     { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , helperTags : List String
     , helperSuffixes : List String
+    , isHelperByName : Maybe (String -> Bool)
     }
 
 
@@ -78,6 +79,7 @@ defaults =
         { filePredicate = always False
         , helperTags = []
         , helperSuffixes = []
+        , isHelperByName = Nothing
         }
 
 
@@ -109,6 +111,7 @@ ignoreUsagesIn { filePredicate, helperTags, helperSuffixes, helpersAre } _ =
         { filePredicate = filePredicate
         , helperTags = helperTags
         , helperSuffixes = helperSuffixes
+        , isHelperByName = Nothing
         }
 
 
