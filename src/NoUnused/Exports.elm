@@ -106,10 +106,11 @@ ignoreUsagesIn :
     { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , helperTags : List String
     , helperSuffixes : List String
+    , helpersAre : List HelperPredicate
     }
     -> Configuration
     -> Configuration
-ignoreUsagesIn { filePredicate, helperTags, helperSuffixes } _ =
+ignoreUsagesIn { filePredicate, helperTags, helperSuffixes, helpersAre } _ =
     Configuration
         { filePredicate = filePredicate
         , helperTags = helperTags

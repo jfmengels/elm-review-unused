@@ -1247,6 +1247,7 @@ a = A.unusedInProductionCode
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
                                 , helperTags = []
                                 , helperSuffixes = []
+                                , helpersAre = []
                                 }
                             |> toRule
                         )
@@ -1287,6 +1288,7 @@ a = A.unusedInProductionCode
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
                                 , helperTags = [ "@helper", "@test-helper", "@foo" ]
                                 , helperSuffixes = []
+                                , helpersAre = []
                                 }
                             |> toRule
                         )
@@ -1326,6 +1328,7 @@ tests = Test.describe "thing" []
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
                                 , helperTags = []
                                 , helperSuffixes = []
+                                , helpersAre = []
                                 }
                             |> toRule
                         )
@@ -1348,6 +1351,7 @@ helper = 1
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
                                 , helperTags = []
                                 , helperSuffixes = []
+                                , helpersAre = []
                                 }
                             |> toRule
                         )
@@ -1371,6 +1375,7 @@ helper = 1
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
                                 , helperTags = [ "@ignore-helper" ]
                                 , helperSuffixes = []
+                                , helpersAre = []
                                 }
                             |> toRule
                         )
@@ -1398,6 +1403,7 @@ usedLocally = 1
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
                                 , helperTags = []
                                 , helperSuffixes = []
+                                , helpersAre = []
                                 }
                             |> toRule
                         )
@@ -1421,6 +1427,7 @@ helper = 1
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
                                 , helperTags = [ "@ignore-helper" ]
                                 , helperSuffixes = []
+                                , helpersAre = []
                                 }
                             |> toRule
                         )
@@ -1458,6 +1465,7 @@ helperTEST = 1
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
                                 , helperTags = []
                                 , helperSuffixes = [ "TEST" ]
+                                , helpersAre = []
                                 }
                             |> toRule
                         )
