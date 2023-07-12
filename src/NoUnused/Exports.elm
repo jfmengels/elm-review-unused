@@ -849,7 +849,7 @@ declarationVisitor config node moduleContext =
 
 isHelperElement : Config -> Node Declaration -> Maybe String
 isHelperElement config node =
-    if List.isEmpty config.helperSuffixes && List.isEmpty config.helperTags then
+    if List.isEmpty config.helperSuffixes && config.isHelperByName == Nothing && List.isEmpty config.helperTags then
         Nothing
 
     else
