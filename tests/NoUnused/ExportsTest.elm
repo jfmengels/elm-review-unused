@@ -1,6 +1,6 @@
 module NoUnused.ExportsTest exposing (all)
 
-import NoUnused.Exports exposing (defaults, ignoreUsagesIn, prefixedBy, rule, suffixedBy, toRule)
+import NoUnused.Exports exposing (annotatedBy, defaults, ignoreUsagesIn, prefixedBy, rule, suffixedBy, toRule)
 import Review.Test
 import Test exposing (Test, describe, test)
 import TestProject exposing (application, lamderaApplication, package)
@@ -1245,7 +1245,6 @@ a = A.unusedInProductionCode
                         (defaults
                             |> ignoreUsagesIn
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
-                                , helperTags = []
                                 , helpersAre = []
                                 }
                             |> toRule
@@ -1285,8 +1284,7 @@ a = A.unusedInProductionCode
                         (defaults
                             |> ignoreUsagesIn
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
-                                , helperTags = [ "@helper", "@test-helper", "@foo" ]
-                                , helpersAre = []
+                                , helpersAre = [ annotatedBy "@helper", annotatedBy "@test-helper", annotatedBy "@foo" ]
                                 }
                             |> toRule
                         )
@@ -1324,7 +1322,6 @@ tests = Test.describe "thing" []
                         (defaults
                             |> ignoreUsagesIn
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
-                                , helperTags = []
                                 , helpersAre = []
                                 }
                             |> toRule
@@ -1346,7 +1343,6 @@ helper = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
-                                , helperTags = []
                                 , helpersAre = []
                                 }
                             |> toRule
@@ -1369,8 +1365,7 @@ helper = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
-                                , helperTags = [ "@ignore-helper" ]
-                                , helpersAre = []
+                                , helpersAre = [ annotatedBy "@ignore-helper" ]
                                 }
                             |> toRule
                         )
@@ -1396,7 +1391,6 @@ usedLocally = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
-                                , helperTags = []
                                 , helpersAre = []
                                 }
                             |> toRule
@@ -1419,7 +1413,6 @@ helper = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
-                                , helperTags = [ "@ignore-helper" ]
                                 , helpersAre = []
                                 }
                             |> toRule
@@ -1456,7 +1449,6 @@ helperTEST = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
-                                , helperTags = []
                                 , helpersAre = [ suffixedBy "TEST" ]
                                 }
                             |> toRule
@@ -1483,7 +1475,6 @@ test_helper = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
-                                , helperTags = []
                                 , helpersAre = [ prefixedBy "test_" ]
                                 }
                             |> toRule

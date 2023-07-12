@@ -104,12 +104,11 @@ prefixedBy =
 
 ignoreUsagesIn :
     { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
-    , helperTags : List String
     , helpersAre : List HelperPredicate
     }
     -> Configuration
     -> Configuration
-ignoreUsagesIn { filePredicate, helperTags, helpersAre } _ =
+ignoreUsagesIn { filePredicate, helpersAre } _ =
     let
         affixMatches : List (String -> Bool)
         affixMatches =
@@ -124,6 +123,22 @@ ignoreUsagesIn { filePredicate, helperTags, helpersAre } _ =
 
                         PrefixedBy prefix ->
                             Just (\name -> String.startsWith prefix name)
+                )
+                helpersAre
+
+        helperTags : List String
+        helperTags =
+            List.filterMap
+                (\helper ->
+                    case helper of
+                        AnnotatedBy tag ->
+                            Just tag
+
+                        SuffixedBy _ ->
+                            Nothing
+
+                        PrefixedBy _ ->
+                            Nothing
                 )
                 helpersAre
 
