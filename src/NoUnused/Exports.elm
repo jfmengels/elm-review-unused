@@ -1,6 +1,6 @@
 module NoUnused.Exports exposing
     ( rule
-    , Configuration, defaults, ignoreUsagesIn, toRule
+    , Configuration, HelperPredicate, annotatedBy, defaults, ignoreUsagesIn, prefixedBy, suffixedBy, toRule
     )
 
 {-| Forbid the use of exposed elements that are never used in your project.
@@ -79,6 +79,27 @@ defaults =
         , helperTags = []
         , helperSuffixes = []
         }
+
+
+type HelperPredicate
+    = AnnotatedBy String
+    | SuffixedBy String
+    | PrefixedBy String
+
+
+annotatedBy : String -> HelperPredicate
+annotatedBy =
+    AnnotatedBy
+
+
+suffixedBy : String -> HelperPredicate
+suffixedBy =
+    SuffixedBy
+
+
+prefixedBy : String -> HelperPredicate
+prefixedBy =
+    PrefixedBy
 
 
 ignoreUsagesIn :
