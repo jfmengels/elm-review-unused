@@ -68,7 +68,6 @@ type Configuration
 type alias Config =
     { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , helperTags : List String
-    , helperSuffixes : List String
     , isHelperByName : Maybe (String -> Bool)
     }
 
@@ -78,7 +77,6 @@ defaults =
     Configuration
         { filePredicate = always False
         , helperTags = []
-        , helperSuffixes = []
         , isHelperByName = Nothing
         }
 
@@ -131,7 +129,6 @@ ignoreUsagesIn { filePredicate, helperTags, helpersAre } _ =
     Configuration
         { filePredicate = filePredicate
         , helperTags = helperTags
-        , helperSuffixes = helperSuffixes
         , isHelperByName = isHelperByName
         }
 
@@ -870,26 +867,22 @@ declarationVisitor config node moduleContext =
 
 isHelperElement : Config -> Node Declaration -> Maybe String
 isHelperElement config node =
-    if List.isEmpty config.helperSuffixes && config.isHelperByName == Nothing && List.isEmpty config.helperTags then
+    if config.isHelperByName == Nothing && List.isEmpty config.helperTags then
         Nothing
 
     else
         case getDeclarationName node of
             Just name ->
-                if List.any (\suffix -> String.endsWith suffix name) config.helperSuffixes then
-                    Just name
+                case config.isHelperByName of
+                    Just isHelperByName ->
+                        if isHelperByName name then
+                            Just name
 
-                else
-                    case config.isHelperByName of
-                        Just isHelperByName ->
-                            if isHelperByName name then
-                                Just name
-
-                            else
-                                isHelperByAnnotation config name node
-
-                        Nothing ->
+                        else
                             isHelperByAnnotation config name node
+
+                    Nothing ->
+                        isHelperByAnnotation config name node
 
             Nothing ->
                 Nothing
