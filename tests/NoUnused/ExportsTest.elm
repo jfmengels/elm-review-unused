@@ -1,6 +1,6 @@
 module NoUnused.ExportsTest exposing (all)
 
-import NoUnused.Exports exposing (defaults, ignoreUsagesIn, rule, toRule)
+import NoUnused.Exports exposing (defaults, ignoreUsagesIn, rule, suffixedBy, toRule)
 import Review.Test
 import Test exposing (Test, describe, test)
 import TestProject exposing (application, lamderaApplication, package)
@@ -1465,7 +1465,7 @@ helperTEST = 1
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
                                 , helperTags = []
                                 , helperSuffixes = [ "TEST" ]
-                                , helpersAre = []
+                                , helpersAre = [ suffixedBy "TEST" ]
                                 }
                             |> toRule
                         )

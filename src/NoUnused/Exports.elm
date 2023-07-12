@@ -106,8 +106,21 @@ ignoreUsagesIn :
     }
     -> Configuration
     -> Configuration
-ignoreUsagesIn { filePredicate, helperTags, helperSuffixes, helpersAre } _ =
+ignoreUsagesIn { filePredicate, helperTags, helpersAre } _ =
     let
+        helperSuffixes : List String
+        helperSuffixes =
+            List.filterMap
+                (\helper ->
+                    case helper of
+                        AnnotatedBy _ ->
+                            Nothing
+
+                        SuffixedBy suffix ->
+                            Just suffix
+                )
+                helpersAre
+
         isHelperByName : Maybe (String -> Bool)
         isHelperByName =
             if List.isEmpty helperSuffixes then
