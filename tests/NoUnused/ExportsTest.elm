@@ -1,6 +1,6 @@
 module NoUnused.ExportsTest exposing (all)
 
-import NoUnused.Exports exposing (defaults, ignoreUsagesIn, rule, suffixedBy, toRule)
+import NoUnused.Exports exposing (defaults, ignoreUsagesIn, prefixedBy, rule, suffixedBy, toRule)
 import Review.Test
 import Test exposing (Test, describe, test)
 import TestProject exposing (application, lamderaApplication, package)
@@ -1458,6 +1458,33 @@ helperTEST = 1
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
                                 , helperTags = []
                                 , helpersAre = [ suffixedBy "TEST" ]
+                                }
+                            |> toRule
+                        )
+                    |> Review.Test.expectNoErrors
+        , test "should report elements never used anywhere even if their name starts with the configured suffix" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import B
+main = B.b
+""", """
+module ATest exposing (tests)
+import B
+import Test exposing (Test)
+tests : Test
+tests = Test.describe "thing" B.test_helper
+""", """
+module B exposing (b, test_helper)
+b = 1
+test_helper = 1
+""" ]
+                    |> Review.Test.runOnModules
+                        (defaults
+                            |> ignoreUsagesIn
+                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                , helperTags = []
+                                , helpersAre = [ prefixedBy "test_" ]
                                 }
                             |> toRule
                         )

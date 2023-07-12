@@ -1,6 +1,6 @@
 module NoUnused.Exports exposing
     ( rule
-    , Configuration, HelperPredicate, annotatedBy, defaults, ignoreUsagesIn, suffixedBy, toRule
+    , Configuration, HelperPredicate, annotatedBy, defaults, ignoreUsagesIn, prefixedBy, suffixedBy, toRule
     )
 
 {-| Forbid the use of exposed elements that are never used in your project.
@@ -84,6 +84,7 @@ defaults =
 type HelperPredicate
     = AnnotatedBy String
     | SuffixedBy String
+    | PrefixedBy String
 
 
 annotatedBy : String -> HelperPredicate
@@ -96,6 +97,11 @@ suffixedBy =
     SuffixedBy
 
 
+prefixedBy : String -> HelperPredicate
+prefixedBy =
+    PrefixedBy
+
+
 ignoreUsagesIn :
     { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , helperTags : List String
@@ -105,8 +111,8 @@ ignoreUsagesIn :
     -> Configuration
 ignoreUsagesIn { filePredicate, helperTags, helpersAre } _ =
     let
-        helperSuffixMatches : List (String -> Bool)
-        helperSuffixMatches =
+        affixMatches : List (String -> Bool)
+        affixMatches =
             List.filterMap
                 (\helper ->
                     case helper of
@@ -115,16 +121,19 @@ ignoreUsagesIn { filePredicate, helperTags, helpersAre } _ =
 
                         SuffixedBy suffix ->
                             Just (\name -> String.endsWith suffix name)
+
+                        PrefixedBy prefix ->
+                            Just (\name -> String.startsWith prefix name)
                 )
                 helpersAre
 
         isHelperByName : Maybe (String -> Bool)
         isHelperByName =
-            if List.isEmpty helperSuffixMatches then
+            if List.isEmpty affixMatches then
                 Nothing
 
             else
-                Just (\name -> List.any (\predicate -> predicate name) helperSuffixMatches)
+                Just (\name -> List.any (\predicate -> predicate name) affixMatches)
     in
     Configuration
         { filePredicate = filePredicate
