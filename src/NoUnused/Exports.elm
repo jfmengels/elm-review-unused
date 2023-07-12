@@ -81,27 +81,6 @@ defaults =
         }
 
 
-type HelperPredicate
-    = AnnotatedBy String
-    | SuffixedBy String
-    | PrefixedBy String
-
-
-annotatedBy : String -> HelperPredicate
-annotatedBy =
-    AnnotatedBy
-
-
-suffixedBy : String -> HelperPredicate
-suffixedBy =
-    SuffixedBy
-
-
-prefixedBy : String -> HelperPredicate
-prefixedBy =
-    PrefixedBy
-
-
 ignoreUsagesIn :
     { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , helpersAre : List HelperPredicate
@@ -155,6 +134,27 @@ ignoreUsagesIn { filePredicate, helpersAre } _ =
         , helperTags = helperTags
         , isHelperByName = isHelperByName
         }
+
+
+type HelperPredicate
+    = AnnotatedBy String
+    | SuffixedBy String
+    | PrefixedBy String
+
+
+annotatedBy : String -> HelperPredicate
+annotatedBy =
+    AnnotatedBy
+
+
+suffixedBy : String -> HelperPredicate
+suffixedBy =
+    SuffixedBy
+
+
+prefixedBy : String -> HelperPredicate
+prefixedBy =
+    PrefixedBy
 
 
 toRule : Configuration -> Rule
