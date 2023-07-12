@@ -105,8 +105,8 @@ ignoreUsagesIn :
     -> Configuration
 ignoreUsagesIn { filePredicate, helperTags, helpersAre } _ =
     let
-        helperSuffixes : List String
-        helperSuffixes =
+        helperSuffixMatches : List (String -> Bool)
+        helperSuffixMatches =
             List.filterMap
                 (\helper ->
                     case helper of
@@ -114,17 +114,17 @@ ignoreUsagesIn { filePredicate, helperTags, helpersAre } _ =
                             Nothing
 
                         SuffixedBy suffix ->
-                            Just suffix
+                            Just (\name -> String.endsWith suffix name)
                 )
                 helpersAre
 
         isHelperByName : Maybe (String -> Bool)
         isHelperByName =
-            if List.isEmpty helperSuffixes then
+            if List.isEmpty helperSuffixMatches then
                 Nothing
 
             else
-                Just (\name -> List.any (\suffix -> String.endsWith suffix name) helperSuffixes)
+                Just (\name -> List.any (\predicate -> predicate name) helperSuffixMatches)
     in
     Configuration
         { filePredicate = filePredicate
