@@ -14,7 +14,7 @@ when inside the directory containing this file.
 import NoUnused.CustomTypeConstructorArgs
 import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
-import NoUnused.Exports
+import NoUnused.Exports exposing (annotatedBy, suffixedBy)
 import NoUnused.Parameters
 import NoUnused.Patterns
 import NoUnused.Variables
@@ -28,9 +28,8 @@ config =
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.defaults
         |> NoUnused.Exports.ignoreUsagesIn
-            { filePredicate = \{ moduleName, isInSourceDirectories } -> not isInSourceDirectories
-            , helperTags = [ "@test-helper" ]
-            , helperSuffixes = [ "TEST" ]
+            { filePredicate = \{ moduleName, filePath, isInSourceDirectories } -> not isInSourceDirectories
+            , helpersAre = [ annotatedBy "@helper", suffixedBy "_FOR_TESTS" ]
             }
         |> NoUnused.Exports.toRule
     , NoUnused.Parameters.rule
