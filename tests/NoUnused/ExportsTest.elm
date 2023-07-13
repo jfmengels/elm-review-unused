@@ -1244,7 +1244,7 @@ a = A.unusedInProductionCode
                     |> Review.Test.runOnModules
                         (defaults
                             |> ignoreUsagesIn
-                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , helpersAre = []
                                 }
                             |> toRule
@@ -1282,7 +1282,7 @@ a = A.unusedInProductionCode
                     |> Review.Test.runOnModules
                         (defaults
                             |> ignoreUsagesIn
-                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , helpersAre =
                                     [ annotatedBy "@helper"
                                     , annotatedBy "@test-helper"
@@ -1324,7 +1324,7 @@ tests = Test.describe "thing" []
                     |> Review.Test.runOnModules
                         (defaults
                             |> ignoreUsagesIn
-                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , helpersAre = []
                                 }
                             |> toRule
@@ -1345,7 +1345,7 @@ helper = 1
                     |> Review.Test.runOnModules
                         (defaults
                             |> ignoreUsagesIn
-                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , helpersAre = []
                                 }
                             |> toRule
@@ -1367,7 +1367,7 @@ helper = 1
                     |> Review.Test.runOnModules
                         (defaults
                             |> ignoreUsagesIn
-                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , helpersAre = [ annotatedBy "@ignore-helper" ]
                                 }
                             |> toRule
@@ -1393,7 +1393,7 @@ usedLocally = 1
                     |> Review.Test.runOnModules
                         (defaults
                             |> ignoreUsagesIn
-                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , helpersAre = []
                                 }
                             |> toRule
@@ -1415,7 +1415,7 @@ helper = 1
                     |> Review.Test.runOnModules
                         (defaults
                             |> ignoreUsagesIn
-                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , helpersAre = []
                                 }
                             |> toRule
@@ -1451,7 +1451,7 @@ helperTEST = 1
                     |> Review.Test.runOnModules
                         (defaults
                             |> ignoreUsagesIn
-                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , helpersAre = [ suffixedBy "TEST" ]
                                 }
                             |> toRule
@@ -1477,7 +1477,7 @@ test_helper = 1
                     |> Review.Test.runOnModules
                         (defaults
                             |> ignoreUsagesIn
-                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , helpersAre = [ prefixedBy "test_" ]
                                 }
                             |> toRule
@@ -1499,7 +1499,7 @@ unused = 1
                     |> Review.Test.runOnModules
                         (defaults
                             |> ignoreUsagesIn
-                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , helpersAre = [ prefixedBy "test_" ]
                                 }
                             |> toRule

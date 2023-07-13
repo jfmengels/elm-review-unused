@@ -28,7 +28,7 @@ config =
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.defaults
         |> NoUnused.Exports.ignoreUsagesIn
-            { filePredicate = \{ moduleName, filePath, isInSourceDirectories } -> not isInSourceDirectories
+            { isProductionFile = \{ moduleName, filePath, isInSourceDirectories } -> isInSourceDirectories
             , helpersAre = [ annotatedBy "@helper", suffixedBy "_FOR_TESTS" ]
             }
         |> NoUnused.Exports.toRule

@@ -23,7 +23,7 @@ This rule can be configured to report more unused elements than the default conf
 
 @docs Configuration, defaults, toRule
 
-By default, this rule only reports exposed elements that are never imported in a different module.
+By default, this rule only reports exposed elements that are never imported in other modules.
 It is however pretty common to have elements imported and used in non-production parts of the codebase,
 such as in tests or in a styleguide.
 
@@ -34,7 +34,7 @@ For instance, let's say there is a module `A` that exposes a function `someFunct
     someFunction input =
         doSomethingComplexWith input
 
-And there is this module to test `A.someFunction`:
+And there is this test module to test `A.someFunction`:
 
     module ATest exposing (tests)
 
@@ -50,7 +50,7 @@ And there is this module to test `A.someFunction`:
                         |> Expect.equal someExpectedOutput
             ]
 
-And let's say this is the only use of `A.someFunction` in the entire project.
+Let's say this is the only use of `A.someFunction` in the entire project.
 Because `A.someFunction` is technically used in the project, this rule won't report it.
 
 But since the function is not used in production code, it is a good practice to remove it, as that will remove the
@@ -75,7 +75,7 @@ Using `ignoreUsagesIn` with the following configuration:
 
     NoUnused.Exports.defaults
         |> NoUnused.Exports.ignoreUsagesIn
-            { filePredicate = \{ moduleName, filePath, isInSourceDirectories } -> not isInSourceDirectories
+            { isProductionFile = \{ moduleName, filePath, isInSourceDirectories } -> isInSourceDirectories
             , helpersAre = [ annotatedBy "@helper", suffixedBy "_FOR_TESTS" ]
             }
         |> NoUnused.Exports.toRule
@@ -133,7 +133,7 @@ type Configuration
 
 
 type alias Config =
-    { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
+    { isProductionFile : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , helperTags : List String
     , isHelperByName : Maybe (String -> Bool)
     , helperExplanation : Maybe String
@@ -145,7 +145,7 @@ type alias Config =
 defaults : Configuration
 defaults =
     Configuration
-        { filePredicate = always False
+        { isProductionFile = always True
         , helperTags = []
         , isHelperByName = Nothing
         , helperExplanation = Nothing
@@ -159,10 +159,10 @@ defaults =
     config =
         [ NoUnused.Exports.defaults
             |> NoUnused.Exports.ignoreUsagesIn
-                { filePredicate =
+                { isProductionFile =
                     \{ moduleName, filePath, isInSourceDirectories } ->
-                        not isInSourceDirectories
-                            || String.endsWith "/Example.elm" filePath
+                        isInSourceDirectories
+                            && not (String.endsWith "/Example.elm" filePath)
                 , helpersAre = [ annotatedBy "TEST" ]
                 }
             |> NoUnused.Exports.toRule
@@ -173,11 +173,10 @@ that uses the element.
 
 This function needs to know two things:
 
-1.  Which files should be ignored. This is done by providing a function that returns
-    `True` for files that should be ignored, and `False` otherwise.
-    A common use-case is to ignore files that are not in the `"source-directories"` such as tests, which is indicated by
-    `isInSourceDirectories` that is given as an argument to the function. If you need something more custom, you can use either
-    the `filePath` or `moduleName` of the Elm module.
+1.  Which files are considered to be production files, which is determined by a function that you provide.
+    Generally, production files are the ones that in the `"source-directories"`, which is indicated by
+    `isInSourceDirectories` (that is given as an argument to the function) being `True`. You might need to exclude
+    more files than that using the `filePath` or `moduleName` of the Elm module.
 
 2.  How to mark allowed usages. A problem with this approach is it will also report elements that are legitimately
     exposed to enable non-production use-cases, for instance enabling tests that make assertions on API internals or on
@@ -186,12 +185,12 @@ This function needs to know two things:
 
 -}
 ignoreUsagesIn :
-    { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
+    { isProductionFile : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , helpersAre : List HelperPredicate
     }
     -> Configuration
     -> Configuration
-ignoreUsagesIn { filePredicate, helpersAre } _ =
+ignoreUsagesIn { isProductionFile, helpersAre } _ =
     let
         affixMatches : List (String -> Bool)
         affixMatches =
@@ -234,7 +233,7 @@ ignoreUsagesIn { filePredicate, helpersAre } _ =
                 Just (\name -> List.any (\predicate -> predicate name) affixMatches)
     in
     Configuration
-        { filePredicate = filePredicate
+        { isProductionFile = isProductionFile
         , helperTags = helperTags
         , isHelperByName = isHelperByName
         , helperExplanation = createHelperExplanation helpersAre
@@ -281,7 +280,7 @@ Given the following configuration
 
     NoUnused.Exports.defaults
         |> NoUnused.Exports.ignoreUsagesIn
-            { filePredicate = filePredicate
+            { isProductionFile = isProductionFile
             , helpersAre = [ annotatedBy "@test-helper" ]
             }
         |> NoUnused.Exports.toRule
@@ -309,7 +308,7 @@ Given the following configuration
 
     NoUnused.Exports.defaults
         |> NoUnused.Exports.ignoreUsagesIn
-            { filePredicate = filePredicate
+            { isProductionFile = isProductionFile
             , helpersAre = [ suffixedBy "_FOR_TESTS" ]
             }
         |> NoUnused.Exports.toRule
@@ -333,7 +332,7 @@ Given the following configuration
 
     NoUnused.Exports.defaults
         |> NoUnused.Exports.ignoreUsagesIn
-            { filePredicate = filePredicate
+            { isProductionFile = isProductionFile
             , helpersAre = [ prefixedBy "test_" ]
             }
         |> NoUnused.Exports.toRule
@@ -359,7 +358,7 @@ toRule (Configuration config) =
         |> Rule.withModuleVisitor (moduleVisitor config)
         |> Rule.withModuleContextUsingContextCreator
             { fromProjectToModule = fromProjectToModule
-            , fromModuleToProject = fromModuleToProject config.filePredicate
+            , fromModuleToProject = fromModuleToProject config.isProductionFile
             , foldProjectContexts = foldProjectContexts
             }
         |> Rule.withElmJsonProjectVisitor (\elmJson context -> ( [], elmJsonVisitor elmJson context ))
@@ -388,7 +387,7 @@ type alias ProjectContext =
             { moduleKey : Rule.ModuleKey
             , exposed : Dict String ExposedElement
             , moduleNameLocation : Range
-            , isModuleIgnored : Bool
+            , isProductionFile : Bool
             , ignoredElementsNotToReport : Set String
             }
     , usedModules : Set ModuleNameStr
@@ -478,7 +477,7 @@ fromProjectToModule =
 
 
 fromModuleToProject : ({ moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool) -> Rule.ContextCreator ModuleContext ProjectContext
-fromModuleToProject filePredicate =
+fromModuleToProject isProductionFilePredicate =
     Rule.initContextCreator
         (\moduleKey (Node moduleNameRange moduleName) filePath isInSourceDirectories moduleContext ->
             let
@@ -493,9 +492,9 @@ fromModuleToProject filePredicate =
                         moduleContext.used
                         moduleContext.elementsNotToReport
 
-                isModuleIgnored : Bool
-                isModuleIgnored =
-                    filePredicate { moduleName = moduleName, filePath = filePath, isInSourceDirectories = isInSourceDirectories }
+                isProductionFile : Bool
+                isProductionFile =
+                    isProductionFilePredicate { moduleName = moduleName, filePath = filePath, isInSourceDirectories = isInSourceDirectories }
             in
             { projectType = IsApplication ElmApplication
             , modules =
@@ -504,21 +503,21 @@ fromModuleToProject filePredicate =
                     { moduleKey = moduleKey
                     , exposed = moduleContext.exposed
                     , moduleNameLocation = moduleNameRange
-                    , isModuleIgnored = isModuleIgnored
+                    , isProductionFile = isProductionFile
                     , ignoredElementsNotToReport = moduleContext.ignoredElementsNotToReport
                     }
             , used =
-                if isModuleIgnored then
-                    Set.empty
+                if isProductionFile then
+                    used
 
                 else
-                    used
+                    Set.empty
             , usedInIgnoredModules =
-                if isModuleIgnored then
-                    used
+                if isProductionFile then
+                    Set.empty
 
                 else
-                    Set.empty
+                    used
             , usedModules =
                 if Set.member "Test" moduleContext.importedModules || moduleContext.containsMainFunction then
                     Set.insert moduleNameStr moduleContext.importedModules
@@ -681,19 +680,19 @@ errorsForModule :
         { a
             | moduleKey : Rule.ModuleKey
             , exposed : Dict String ExposedElement
-            , isModuleIgnored : Bool
+            , isProductionFile : Bool
             , ignoredElementsNotToReport : Set String
         }
     -> List (Error scope)
     -> List (Error scope)
-errorsForModule helperExplanation projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isModuleIgnored, ignoredElementsNotToReport } acc =
+errorsForModule helperExplanation projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isProductionFile, ignoredElementsNotToReport } acc =
     Dict.foldl
         (\name element subAcc ->
             if isUsedOrException projectContext used moduleName name then
                 subAcc
 
             else if Set.member ( moduleName, name ) usedInIgnoredModules then
-                if isModuleIgnored || Set.member name ignoredElementsNotToReport then
+                if not isProductionFile || Set.member name ignoredElementsNotToReport then
                     subAcc
 
                 else
