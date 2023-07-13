@@ -2,7 +2,7 @@ module NoUnused.Exports exposing
     ( rule
     , Configuration, defaults, toRule
     , ignoreUsagesIn
-    , HelperPredicate, annotatedBy, suffixedBy, prefixedBy
+    , Exception, annotatedBy, suffixedBy, prefixedBy
     )
 
 {-| Forbid the use of exposed elements that are never used in your project.
@@ -58,7 +58,7 @@ amount of code that needs to be maintained unnecessarily. We can detect that usi
 
 @docs ignoreUsagesIn
 
-@docs HelperPredicate, annotatedBy, suffixedBy, prefixedBy
+@docs Exception, annotatedBy, suffixedBy, prefixedBy
 
 
 ## Try it out
@@ -186,7 +186,7 @@ This function needs to know two things:
 -}
 ignoreUsagesIn :
     { isProductionFile : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
-    , exceptionsAre : List HelperPredicate
+    , exceptionsAre : List Exception
     }
     -> Configuration
     -> Configuration
@@ -240,7 +240,7 @@ ignoreUsagesIn { isProductionFile, exceptionsAre } _ =
         }
 
 
-createExceptionsExplanation : List HelperPredicate -> Maybe String
+createExceptionsExplanation : List Exception -> Maybe String
 createExceptionsExplanation exceptions =
     if List.isEmpty exceptions then
         Nothing
@@ -268,7 +268,7 @@ createExceptionsExplanation exceptions =
 
 {-| Identifies a helper predicate. See [`ignoreUsagesIn`](#ignoreUsagesIn) for how to use and create these.
 -}
-type HelperPredicate
+type Exception
     = AnnotatedBy String
     | SuffixedBy String
     | PrefixedBy String
@@ -297,7 +297,7 @@ A recommended practice is to have annotations start with `@`.
 You can use this function several times to define multiple annotations.
 
 -}
-annotatedBy : String -> HelperPredicate
+annotatedBy : String -> Exception
 annotatedBy =
     AnnotatedBy
 
@@ -321,7 +321,7 @@ any element that ends with `"_FOR_TESTS"` will not be reported as unused (as lon
 You can use this function several times to define multiple suffixes.
 
 -}
-suffixedBy : String -> HelperPredicate
+suffixedBy : String -> Exception
 suffixedBy =
     SuffixedBy
 
@@ -345,7 +345,7 @@ any element that starts with `"test_"` will not be reported as unused (as long a
 You can use this function several times to define multiple prefixes.
 
 -}
-prefixedBy : String -> HelperPredicate
+prefixedBy : String -> Exception
 prefixedBy =
     PrefixedBy
 
