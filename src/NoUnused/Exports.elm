@@ -163,7 +163,7 @@ defaults =
                     \{ moduleName, filePath, isInSourceDirectories } ->
                         isInSourceDirectories
                             && not (String.endsWith "/Example.elm" filePath)
-                , exceptionsAre = [ annotatedBy "TEST" ]
+                , exceptionsAre = [ annotatedBy "@test-helper" ]
                 }
             |> NoUnused.Exports.toRule
         ]
@@ -178,10 +178,7 @@ This function needs to know two things:
     `isInSourceDirectories` (that is given as an argument to the function) being `True`. You might need to exclude
     more files than that using the `filePath` or `moduleName` of the Elm module.
 
-2.  How to mark allowed usages. A problem with this approach is it will also report elements that are legitimately
-    exposed to enable non-production use-cases, for instance enabling tests that make assertions on API internals or on
-    functions that use opaque types that can't be easily constructed. This rule needs help identifying them to avoid
-    reporting these use-cases. This is done by providing a list of [`Exception`](#Exception).
+2.  How to identify exceptions. See [`Exception`](#Exception) for more information.
 
 -}
 ignoreUsagesIn :
@@ -266,7 +263,20 @@ createExceptionsExplanation exceptions =
         Just ("- " ++ String.join "\n- " options)
 
 
-{-| Identifies a helper predicate. See [`ignoreUsagesIn`](#ignoreUsagesIn) for how to use and create these.
+{-| Predicate to identify exceptions (that shouldn't be reported) for elements defined in production code that are only used in non-production code.
+
+A problem with reporting these elements is that it's going to produce false positives, as there are legitimate use-cases
+for exporting these elements, hence the need for the rule to be able to identify them.
+
+For instance, while it's generally discouraged, you might want to test the internals of an API (to make sure some properties hold
+given very specific situations). In this case, your module then needs to expose a way to gain insight to the internals.
+
+Another example is giving the means for tests to create opaque types that are impossible or very hard to create in a test
+environment. This can be the case for types that can only be created through the decoding of an HTTP request.
+
+Note that another common way to handle these use-cases is to move the internals to another module that exposes everything
+while making sure only specific production modules import it.
+
 -}
 type Exception
     = AnnotatedBy String
