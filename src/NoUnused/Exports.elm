@@ -181,7 +181,7 @@ This function needs to know two things:
 2.  How to mark allowed usages. A problem with this approach is it will also report elements that are legitimately
     exposed to enable non-production use-cases, for instance enabling tests that make assertions on API internals or on
     functions that use opaque types that can't be easily constructed. This rule needs help identifying them to avoid
-    reporting these use-cases. This is done by providing a list of [`HelperPredicate`](#HelperPredicate).
+    reporting these use-cases. This is done by providing a list of [`Exception`](#Exception).
 
 -}
 ignoreUsagesIn :
