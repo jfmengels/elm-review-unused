@@ -135,7 +135,7 @@ type Configuration
 type alias Config =
     { isProductionFile : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , exceptionTags : List String
-    , isHelperByName : Maybe (String -> Bool)
+    , exceptionByName : Maybe (String -> Bool)
     , exceptionExplanation : Maybe String
     }
 
@@ -147,7 +147,7 @@ defaults =
     Configuration
         { isProductionFile = always True
         , exceptionTags = []
-        , isHelperByName = Nothing
+        , exceptionByName = Nothing
         , exceptionExplanation = Nothing
         }
 
@@ -224,8 +224,8 @@ ignoreUsagesIn { isProductionFile, exceptionsAre } _ =
                 )
                 exceptionsAre
 
-        isHelperByName : Maybe (String -> Bool)
-        isHelperByName =
+        exceptionByName : Maybe (String -> Bool)
+        exceptionByName =
             if List.isEmpty affixMatches then
                 Nothing
 
@@ -235,7 +235,7 @@ ignoreUsagesIn { isProductionFile, exceptionsAre } _ =
     Configuration
         { isProductionFile = isProductionFile
         , exceptionTags = exceptionTags
-        , isHelperByName = isHelperByName
+        , exceptionByName = exceptionByName
         , exceptionExplanation = createExceptionsExplanation exceptionsAre
         }
 
@@ -1070,15 +1070,15 @@ declarationVisitor config node moduleContext =
 
 isException : Config -> Node Declaration -> Maybe String
 isException config node =
-    if config.isHelperByName == Nothing && List.isEmpty config.exceptionTags then
+    if config.exceptionByName == Nothing && List.isEmpty config.exceptionTags then
         Nothing
 
     else
         case getDeclarationName node of
             Just name ->
-                case config.isHelperByName of
-                    Just isHelperByName ->
-                        if isHelperByName name then
+                case config.exceptionByName of
+                    Just exceptionByName ->
+                        if exceptionByName name then
                             Just name
 
                         else
