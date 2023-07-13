@@ -674,8 +674,7 @@ errorsForModule helperTags projectContext { used, usedInIgnoredModules } moduleN
                             "This exposed element is only used in files/folders you ignore (e.g. the test folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
                                 :: (case helperTags of
                                         [] ->
-                                            [ "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can annotate this element by including documentation annotations."
-                                            , "You have not configured this rule with any possible annotations though. Check out the documentation for this rule on how to enable that."
+                                            [ "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, please read the documentation on how to configure the rule."
                                             ]
 
                                         first :: rest ->
