@@ -1082,17 +1082,17 @@ isException config node =
                             Just name
 
                         else
-                            isHelperByAnnotation config name node
+                            isExceptionByAnnotation config name node
 
                     Nothing ->
-                        isHelperByAnnotation config name node
+                        isExceptionByAnnotation config name node
 
             Nothing ->
                 Nothing
 
 
-isHelperByAnnotation : Config -> b -> Node Declaration -> Maybe b
-isHelperByAnnotation config name node =
+isExceptionByAnnotation : Config -> b -> Node Declaration -> Maybe b
+isExceptionByAnnotation config name node =
     if List.isEmpty config.exceptionTags then
         Nothing
 
