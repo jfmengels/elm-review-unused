@@ -1,14 +1,14 @@
 module NoUnused.Exports exposing
     ( rule
     , Configuration, defaults, toRule
-    , ignoreUsagesIn
+    , reportUnusedProductionElements
     , Exception, annotatedBy, suffixedBy, prefixedBy
     )
 
 {-| Forbid the use of exposed elements that are never used in your project.
 
 🔧 Running with `--fix` will automatically remove all the reported errors,
-except for the ones reported when using [`ignoreUsagesIn`](#ignoreUsagesIn).
+except for the ones reported when using [`reportUnusedProductionElements`](#reportUnusedProductionElements).
 It won't automatically remove unused modules though.
 
 If the project is a package and the module that declared the element is exposed,
@@ -54,9 +54,9 @@ Let's say this is the only use of `A.someFunction` in the entire project.
 Because `A.someFunction` is technically used in the project, this rule won't report it.
 
 But since the function is not used in production code, it is a good practice to remove it, as that will remove the
-amount of code that needs to be maintained unnecessarily. We can detect that using [`ignoreUsagesIn`](#ignoreUsagesIn).
+amount of code that needs to be maintained unnecessarily. We can detect that using [`reportUnusedProductionElements`](#reportUnusedProductionElements).
 
-@docs ignoreUsagesIn
+@docs reportUnusedProductionElements
 
 @docs Exception, annotatedBy, suffixedBy, prefixedBy
 
@@ -71,10 +71,10 @@ Using the default configuration:
 elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Exports
 ```
 
-Using `ignoreUsagesIn` with the following configuration:
+Using `reportUnusedProductionElements` with the following configuration:
 
     NoUnused.Exports.defaults
-        |> NoUnused.Exports.ignoreUsagesIn
+        |> NoUnused.Exports.reportUnusedProductionElements
             { isProductionFile = \{ moduleName, filePath, isInSourceDirectories } -> isInSourceDirectories
             , exceptionsAre = [ annotatedBy "@test-helper", suffixedBy "_FOR_TESTS" ]
             }
@@ -126,7 +126,7 @@ rule =
 
 
 {-| Configuration for the rule. Use [`defaults`](#defaults) to get a default configuration and use [`toRule`](#toRule) to turn it into a rule.
-You can change the configuration using [`ignoreUsagesIn`](#ignoreUsagesIn).
+You can change the configuration using [`reportUnusedProductionElements`](#reportUnusedProductionElements).
 -}
 type Configuration
     = Configuration Config
@@ -152,13 +152,13 @@ defaults =
         }
 
 
-{-| Configures the rule to report elements that are used only in specific locations.
+{-| Configures the rule to report elements defined in production code but only used in non-production files.
 
     import NoUnused.Exports exposing (annotatedBy, prefixedBy, suffixedBy)
 
     config =
         [ NoUnused.Exports.defaults
-            |> NoUnused.Exports.ignoreUsagesIn
+            |> NoUnused.Exports.reportUnusedProductionElements
                 { isProductionFile =
                     \{ moduleName, filePath, isInSourceDirectories } ->
                         isInSourceDirectories
@@ -181,13 +181,13 @@ This function needs to know two things:
 2.  How to identify exceptions. See [`Exception`](#Exception) for more information.
 
 -}
-ignoreUsagesIn :
+reportUnusedProductionElements :
     { isProductionFile : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , exceptionsAre : List Exception
     }
     -> Configuration
     -> Configuration
-ignoreUsagesIn { isProductionFile, exceptionsAre } _ =
+reportUnusedProductionElements { isProductionFile, exceptionsAre } _ =
     let
         affixMatches : List (String -> Bool)
         affixMatches =
@@ -289,7 +289,7 @@ type Exception
 Given the following configuration
 
     NoUnused.Exports.defaults
-        |> NoUnused.Exports.ignoreUsagesIn
+        |> NoUnused.Exports.reportUnusedProductionElements
             { isProductionFile = isProductionFile
             , exceptionsAre = [ annotatedBy "@test-helper" ]
             }
@@ -317,7 +317,7 @@ annotatedBy =
 Given the following configuration
 
     NoUnused.Exports.defaults
-        |> NoUnused.Exports.ignoreUsagesIn
+        |> NoUnused.Exports.reportUnusedProductionElements
             { isProductionFile = isProductionFile
             , exceptionsAre = [ suffixedBy "_FOR_TESTS" ]
             }
@@ -341,7 +341,7 @@ suffixedBy =
 Given the following configuration
 
     NoUnused.Exports.defaults
-        |> NoUnused.Exports.ignoreUsagesIn
+        |> NoUnused.Exports.reportUnusedProductionElements
             { isProductionFile = isProductionFile
             , exceptionsAre = [ prefixedBy "test_" ]
             }
