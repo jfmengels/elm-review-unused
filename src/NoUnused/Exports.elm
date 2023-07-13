@@ -1,11 +1,73 @@
 module NoUnused.Exports exposing
     ( rule
-    , Configuration, HelperPredicate, annotatedBy, defaults, ignoreUsagesIn, prefixedBy, suffixedBy, toRule
+    , Configuration, defaults, toRule
+    , ignoreUsagesIn
+    , HelperPredicate, annotatedBy, suffixedBy, prefixedBy
     )
 
 {-| Forbid the use of exposed elements that are never used in your project.
 
+🔧 Running with `--fix` will automatically remove all the reported errors,
+except for the ones reported when using [`ignoreUsagesIn`](#ignoreUsagesIn).
+It won't automatically remove unused modules though.
+
+If the project is a package and the module that declared the element is exposed,
+then nothing will be reported.
+
 @docs rule
+
+
+## Going one step further
+
+This rule can be configured to report more unused elements than the default configuration.
+
+@docs Configuration, defaults, toRule
+
+By default, this rule only reports exposed elements that are never imported in a different module.
+It is however pretty common to have elements imported and used in non-production parts of the codebase,
+such as in tests or in a styleguide.
+
+For instance, let's say there is a module `A` that exposes a function `someFunction`:
+
+    module A exposing (someFunction)
+
+    someFunction input =
+        doSomethingComplexWith input
+
+And there is this module to test `A.someFunction`:
+
+    module ATest exposing (tests)
+
+    import A
+    import Test exposing (Test, describe, test)
+
+    tests : Test
+    tests =
+        describe "A.someFunction"
+            [ test "does something complex" <|
+                \() ->
+                    A.someFunction someInput
+                        |> Expect.equal someExpectedOutput
+            ]
+
+And let's say this is the only use of `A.someFunction` in the entire project.
+Because `A.someFunction` is technically used in the project, this rule won't report it.
+
+But since the function is not used in production code, it is a good practice to remove it, as that will remove the
+amount of code that needs to be maintained unnecessarily. We can detect that using [`ignoreUsagesIn`](#ignoreUsagesIn).
+
+@docs ignoreUsagesIn
+
+@docs HelperPredicate, annotatedBy, suffixedBy, prefixedBy
+
+
+## Try it out
+
+You can try this rule out (using the default configuration) by running the following command:
+
+```bash
+elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Exports
+```
 
 -}
 
@@ -36,24 +98,11 @@ import Set exposing (Set)
 {-| Report functions and types that are exposed from a module but that are never
 used in other modules. Also reports when a module is entirely unused.
 
-🔧 Running with `--fix` will automatically remove all the reported errors.
-It won't automatically remove unused modules though.
-
-If the project is a package and the module that declared the element is exposed,
-then nothing will be reported.
-
     config =
         [ NoUnused.Exports.rule
         ]
 
-
-## Try it out
-
-You can try this rule out by running the following command:
-
-```bash
-elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Exports
-```
+This is equivalent to `NoUnused.Exports.toRule NoUnused.Exports.defaults`.
 
 -}
 rule : Rule
@@ -61,6 +110,9 @@ rule =
     toRule defaults
 
 
+{-| Configuration for the rule. Use [`defaults`](#defaults) to get a default configuration and use [`toRule`](#toRule) to turn it into a rule.
+You can change the configuration using [`ignoreUsagesIn`](#ignoreUsagesIn).
+-}
 type Configuration
     = Configuration Config
 
@@ -72,6 +124,8 @@ type alias Config =
     }
 
 
+{-| Default configuration.
+-}
 defaults : Configuration
 defaults =
     Configuration
@@ -81,6 +135,39 @@ defaults =
         }
 
 
+{-| Configures the rule to report elements that are used only in specific locations.
+
+    import NoUnused.Exports exposing (annotatedBy, prefixedBy, suffixedBy)
+
+    config =
+        [ NoUnused.Exports.defaults
+            |> NoUnused.Exports.ignoreUsagesIn
+                { filePredicate =
+                    \{ moduleName, filePath, isInSourceDirectories } ->
+                        not isInSourceDirectories
+                            || String.endsWith "/Example.elm" filePath
+                , helpersAre = [ annotatedBy "TEST" ]
+                }
+            |> NoUnused.Exports.toRule
+        ]
+
+Elements reported using this configuration won't be automatically fixed as they require removing the code
+that uses the element.
+
+This function needs to know two things:
+
+1.  Which files should be ignored. This is done by providing a function that returns
+    `True` for files that should be ignored, and `False` otherwise.
+    A common use-case is to ignore files that are not in the `"source-directories"` such as tests, which is indicated by
+    `isInSourceDirectories` that is given as an argument to the function. If you need something more custom, you can use either
+    the `filePath` or `moduleName` of the Elm module.
+
+2.  How to mark allowed usages. A problem with this approach is it will also report elements that are legitimately
+    exposed to enable non-production use-cases, for instance enabling tests that make assertions on API internals or on
+    functions that use opaque types that can't be easily constructed. This rule needs help identifying them to avoid
+    reporting these use-cases. This is done by providing a list of [`HelperPredicate`](#HelperPredicate).
+
+-}
 ignoreUsagesIn :
     { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , helpersAre : List HelperPredicate
@@ -136,27 +223,92 @@ ignoreUsagesIn { filePredicate, helpersAre } _ =
         }
 
 
+{-| Identifies a helper predicate. See [`ignoreUsagesIn`](#ignoreUsagesIn) for how to use and create these.
+-}
 type HelperPredicate
     = AnnotatedBy String
     | SuffixedBy String
     | PrefixedBy String
 
 
+{-| Prevents reporting usages of elements that contain a specific tag in their documentation.
+
+Given the following configuration
+
+    NoUnused.Exports.defaults
+        |> NoUnused.Exports.ignoreUsagesIn
+            { filePredicate = filePredicate
+            , helpersAre = [ annotatedBy "@test-helper" ]
+            }
+        |> NoUnused.Exports.toRule
+
+any element that has `@test-helper` in its documentation will not be reported as unused (as long as its used at least once in the project):
+
+    {-| @test-helper
+    -}
+    someFunction input =
+        doSomethingComplexWith input
+
+A recommended practice is to have annotations start with `@`.
+
+You can use this function several times to define multiple annotations.
+
+-}
 annotatedBy : String -> HelperPredicate
 annotatedBy =
     AnnotatedBy
 
 
+{-| Prevents reporting usages of elements whose name end with a specific string.
+
+Given the following configuration
+
+    NoUnused.Exports.defaults
+        |> NoUnused.Exports.ignoreUsagesIn
+            { filePredicate = filePredicate
+            , helpersAre = [ suffixedBy "_FOR_TESTS" ]
+            }
+        |> NoUnused.Exports.toRule
+
+any element that ends with `"_FOR_TESTS"` will not be reported as unused (as long as its used at least once in the project):
+
+    someFunction_FOR_TESTS input =
+        doSomethingComplexWith input
+
+You can use this function several times to define multiple suffixes.
+
+-}
 suffixedBy : String -> HelperPredicate
 suffixedBy =
     SuffixedBy
 
 
+{-| Prevents reporting usages of elements whose name start with a specific string.
+
+Given the following configuration
+
+    NoUnused.Exports.defaults
+        |> NoUnused.Exports.ignoreUsagesIn
+            { filePredicate = filePredicate
+            , helpersAre = [ prefixedBy "test_" ]
+            }
+        |> NoUnused.Exports.toRule
+
+any element that starts with `"test_"` will not be reported as unused (as long as its used at least once in the project):
+
+    test_someFunction input =
+        doSomethingComplexWith input
+
+You can use this function several times to define multiple prefixes.
+
+-}
 prefixedBy : String -> HelperPredicate
 prefixedBy =
     PrefixedBy
 
 
+{-| Creates a rule that reports unused exports using a [`Configuration`](#Configuration).
+-}
 toRule : Configuration -> Rule
 toRule (Configuration config) =
     Rule.newProjectRuleSchema "NoUnused.Exports" initialProjectContext
