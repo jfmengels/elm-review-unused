@@ -63,10 +63,25 @@ amount of code that needs to be maintained unnecessarily. We can detect that usi
 
 ## Try it out
 
-You can try this rule out (using the default configuration) by running the following command:
+You can try this rule out by running the following commands:
+
+Using the default configuration:
 
 ```bash
 elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Exports
+```
+
+Using `ignoreUsagesIn` with the following configuration:
+
+    NoUnused.Exports.defaults
+        |> NoUnused.Exports.ignoreUsagesIn
+            { filePredicate = \{ moduleName, filePath, isInSourceDirectories } -> not isInSourceDirectories
+            , helpersAre = [ annotatedBy "@helper", suffixedBy "_FOR_TESTS" ]
+            }
+        |> NoUnused.Exports.toRule
+
+```bash
+elm-review --template jfmengels/elm-review-unused/example-ignore-tests --rules NoUnused.Exports
 ```
 
 -}
