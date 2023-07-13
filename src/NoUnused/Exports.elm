@@ -264,7 +264,7 @@ createHelperExplanation helpersAre =
                     )
                     helpersAre
         in
-        Just (" - " ++ String.join "\n - " options)
+        Just ("- " ++ String.join "\n- " options)
 
 
 {-| Identifies a helper predicate. See [`ignoreUsagesIn`](#ignoreUsagesIn) for how to use and create these.
@@ -363,7 +363,7 @@ toRule (Configuration config) =
             , foldProjectContexts = foldProjectContexts
             }
         |> Rule.withElmJsonProjectVisitor (\elmJson context -> ( [], elmJsonVisitor elmJson context ))
-        |> Rule.withFinalProjectEvaluation (finalEvaluationForProject config.helperTags)
+        |> Rule.withFinalProjectEvaluation (finalEvaluationForProject config.helperExplanation)
         |> Rule.providesFixesForProjectRule
         |> Rule.fromProjectRuleSchema
 
@@ -613,8 +613,8 @@ elmJsonVisitor maybeProject projectContext =
 -- PROJECT EVALUATION
 
 
-finalEvaluationForProject : List String -> ProjectContext -> List (Error { useErrorForModule : () })
-finalEvaluationForProject helperTags projectContext =
+finalEvaluationForProject : Maybe String -> ProjectContext -> List (Error { useErrorForModule : () })
+finalEvaluationForProject helperExplanation projectContext =
     let
         used : Set ( ModuleNameStr, String )
         used =
@@ -654,7 +654,7 @@ finalEvaluationForProject helperTags projectContext =
                 acc
 
             else if Set.member moduleName projectContext.usedModules then
-                errorsForModule helperTags projectContext { used = used, usedInIgnoredModules = usedInIgnoredModules } moduleName module_ acc
+                errorsForModule helperExplanation projectContext { used = used, usedInIgnoredModules = usedInIgnoredModules } moduleName module_ acc
 
             else
                 unusedModuleError moduleName module_ :: acc
@@ -673,7 +673,7 @@ unusedModuleError moduleName { moduleKey, moduleNameLocation } =
 
 
 errorsForModule :
-    List String
+    Maybe String
     -> ProjectContext
     -> { used : Set ( ModuleNameStr, String ), usedInIgnoredModules : Set ( ModuleNameStr, String ) }
     -> ModuleNameStr
@@ -686,7 +686,7 @@ errorsForModule :
         }
     -> List (Error scope)
     -> List (Error scope)
-errorsForModule helperTags projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isModuleIgnored, ignoredElementsNotToReport } acc =
+errorsForModule helperExplanation projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isModuleIgnored, ignoredElementsNotToReport } acc =
     Dict.foldl
         (\name element subAcc ->
             if isUsedOrException projectContext used moduleName name then
@@ -701,20 +701,14 @@ errorsForModule helperTags projectContext { used, usedInIgnoredModules } moduleN
                         { message = what element.elementType ++ " `" ++ name ++ "` is never used in production code."
                         , details =
                             "This exposed element is only used in files/folders you ignore (e.g. the test folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
-                                :: (case helperTags of
-                                        [] ->
+                                :: (case helperExplanation of
+                                        Nothing ->
                                             [ "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, please read the documentation on how to configure the rule."
                                             ]
 
-                                        first :: rest ->
-                                            [ "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can annotate this element by including documentation annotations:"
-                                            , """    {-| Some element.
-    """
-                                                ++ formatTags first rest
-                                                ++ """
-    -}
-    yourElement = ...
-"""
+                                        Just explanation ->
+                                            [ "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can"
+                                            , explanation
                                             ]
                                    )
                         }
@@ -745,15 +739,6 @@ what elementType =
 
         ExposedType _ ->
             "Exposed type"
-
-
-formatTags : String -> List String -> String
-formatTags first rest =
-    if List.isEmpty rest then
-        first
-
-    else
-        first ++ " (or " ++ String.join ", " rest ++ ")"
 
 
 filterExposedPackage : ProjectContext -> ModuleNameStr -> Bool

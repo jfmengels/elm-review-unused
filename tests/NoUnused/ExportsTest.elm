@@ -1283,7 +1283,12 @@ a = A.unusedInProductionCode
                         (defaults
                             |> ignoreUsagesIn
                                 { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
-                                , helpersAre = [ annotatedBy "@helper", annotatedBy "@test-helper", annotatedBy "@foo" ]
+                                , helpersAre =
+                                    [ annotatedBy "@helper"
+                                    , annotatedBy "@test-helper"
+                                    , suffixedBy "_FOR_TESTS"
+                                    , prefixedBy "test_"
+                                    ]
                                 }
                             |> toRule
                         )
@@ -1293,12 +1298,11 @@ a = A.unusedInProductionCode
                                 { message = "Exposed function or value `unusedInProductionCode` is never used in production code."
                                 , details =
                                     [ "This exposed element is only used in files/folders you ignore (e.g. the test folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
-                                    , "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can annotate this element by including documentation annotations:"
-                                    , """    {-| Some element.
-    @helper (or @test-helper, @foo)
-    -}
-    yourElement = ...
-"""
+                                    , "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can"
+                                    , """- Include @helper in the documentation of the element
+- Include @test-helper in the documentation of the element
+- Rename the element to end with _FOR_TESTS
+- Rename the element to start with test_"""
                                     ]
                                 , under = "unusedInProductionCode"
                                 }
