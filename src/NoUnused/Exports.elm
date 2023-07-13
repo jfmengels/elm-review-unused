@@ -134,7 +134,7 @@ type Configuration
 
 type alias Config =
     { isProductionFile : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
-    , helperTags : List String
+    , exceptionTags : List String
     , isHelperByName : Maybe (String -> Bool)
     , exceptionExplanation : Maybe String
     }
@@ -146,7 +146,7 @@ defaults : Configuration
 defaults =
     Configuration
         { isProductionFile = always True
-        , helperTags = []
+        , exceptionTags = []
         , isHelperByName = Nothing
         , exceptionExplanation = Nothing
         }
@@ -208,8 +208,8 @@ ignoreUsagesIn { isProductionFile, exceptionsAre } _ =
                 )
                 exceptionsAre
 
-        helperTags : List String
-        helperTags =
+        exceptionTags : List String
+        exceptionTags =
             List.filterMap
                 (\helper ->
                     case helper of
@@ -234,7 +234,7 @@ ignoreUsagesIn { isProductionFile, exceptionsAre } _ =
     in
     Configuration
         { isProductionFile = isProductionFile
-        , helperTags = helperTags
+        , exceptionTags = exceptionTags
         , isHelperByName = isHelperByName
         , exceptionExplanation = createExceptionsExplanation exceptionsAre
         }
@@ -1070,7 +1070,7 @@ declarationVisitor config node moduleContext =
 
 isException : Config -> Node Declaration -> Maybe String
 isException config node =
-    if config.isHelperByName == Nothing && List.isEmpty config.helperTags then
+    if config.isHelperByName == Nothing && List.isEmpty config.exceptionTags then
         Nothing
 
     else
@@ -1093,13 +1093,13 @@ isException config node =
 
 isHelperByAnnotation : Config -> b -> Node Declaration -> Maybe b
 isHelperByAnnotation config name node =
-    if List.isEmpty config.helperTags then
+    if List.isEmpty config.exceptionTags then
         Nothing
 
     else
         case getDeclarationDocumentation node of
             Just documentation ->
-                if List.any (\helperTag -> String.contains helperTag documentation) config.helperTags then
+                if List.any (\exceptionTag -> String.contains exceptionTag documentation) config.exceptionTags then
                     Just name
 
                 else
