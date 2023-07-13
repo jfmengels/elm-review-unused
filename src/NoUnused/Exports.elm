@@ -1094,16 +1094,20 @@ isHelperElement config node =
 
 isHelperByAnnotation : Config -> b -> Node Declaration -> Maybe b
 isHelperByAnnotation config name node =
-    case getDeclarationDocumentation node of
-        Just documentation ->
-            if List.any (\helperTag -> String.contains helperTag documentation) config.helperTags then
-                Just name
+    if List.isEmpty config.helperTags then
+        Nothing
 
-            else
+    else
+        case getDeclarationDocumentation node of
+            Just documentation ->
+                if List.any (\helperTag -> String.contains helperTag documentation) config.helperTags then
+                    Just name
+
+                else
+                    Nothing
+
+            Nothing ->
                 Nothing
-
-        Nothing ->
-            Nothing
 
 
 getDeclarationName : Node Declaration -> Maybe String
