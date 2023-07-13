@@ -29,7 +29,7 @@ config =
     , NoUnused.Exports.defaults
         |> NoUnused.Exports.ignoreUsagesIn
             { isProductionFile = \{ moduleName, filePath, isInSourceDirectories } -> isInSourceDirectories
-            , helpersAre = [ annotatedBy "@helper", suffixedBy "_FOR_TESTS" ]
+            , exceptionsAre = [ annotatedBy "@helper", suffixedBy "_FOR_TESTS" ]
             }
         |> NoUnused.Exports.toRule
     , NoUnused.Parameters.rule

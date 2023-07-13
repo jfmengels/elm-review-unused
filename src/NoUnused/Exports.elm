@@ -76,7 +76,7 @@ Using `ignoreUsagesIn` with the following configuration:
     NoUnused.Exports.defaults
         |> NoUnused.Exports.ignoreUsagesIn
             { isProductionFile = \{ moduleName, filePath, isInSourceDirectories } -> isInSourceDirectories
-            , helpersAre = [ annotatedBy "@helper", suffixedBy "_FOR_TESTS" ]
+            , exceptionsAre = [ annotatedBy "@helper", suffixedBy "_FOR_TESTS" ]
             }
         |> NoUnused.Exports.toRule
 
@@ -136,7 +136,7 @@ type alias Config =
     { isProductionFile : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , helperTags : List String
     , isHelperByName : Maybe (String -> Bool)
-    , helperExplanation : Maybe String
+    , exceptionExplanation : Maybe String
     }
 
 
@@ -148,7 +148,7 @@ defaults =
         { isProductionFile = always True
         , helperTags = []
         , isHelperByName = Nothing
-        , helperExplanation = Nothing
+        , exceptionExplanation = Nothing
         }
 
 
@@ -163,7 +163,7 @@ defaults =
                     \{ moduleName, filePath, isInSourceDirectories } ->
                         isInSourceDirectories
                             && not (String.endsWith "/Example.elm" filePath)
-                , helpersAre = [ annotatedBy "TEST" ]
+                , exceptionsAre = [ annotatedBy "TEST" ]
                 }
             |> NoUnused.Exports.toRule
         ]
@@ -186,11 +186,11 @@ This function needs to know two things:
 -}
 ignoreUsagesIn :
     { isProductionFile : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
-    , helpersAre : List HelperPredicate
+    , exceptionsAre : List HelperPredicate
     }
     -> Configuration
     -> Configuration
-ignoreUsagesIn { isProductionFile, helpersAre } _ =
+ignoreUsagesIn { isProductionFile, exceptionsAre } _ =
     let
         affixMatches : List (String -> Bool)
         affixMatches =
@@ -206,7 +206,7 @@ ignoreUsagesIn { isProductionFile, helpersAre } _ =
                         PrefixedBy prefix ->
                             Just (\name -> String.startsWith prefix name)
                 )
-                helpersAre
+                exceptionsAre
 
         helperTags : List String
         helperTags =
@@ -222,7 +222,7 @@ ignoreUsagesIn { isProductionFile, helpersAre } _ =
                         PrefixedBy _ ->
                             Nothing
                 )
-                helpersAre
+                exceptionsAre
 
         isHelperByName : Maybe (String -> Bool)
         isHelperByName =
@@ -236,13 +236,13 @@ ignoreUsagesIn { isProductionFile, helpersAre } _ =
         { isProductionFile = isProductionFile
         , helperTags = helperTags
         , isHelperByName = isHelperByName
-        , helperExplanation = createHelperExplanation helpersAre
+        , exceptionExplanation = createExceptionsExplanation exceptionsAre
         }
 
 
-createHelperExplanation : List HelperPredicate -> Maybe String
-createHelperExplanation helpersAre =
-    if List.isEmpty helpersAre then
+createExceptionsExplanation : List HelperPredicate -> Maybe String
+createExceptionsExplanation exceptions =
+    if List.isEmpty exceptions then
         Nothing
 
     else
@@ -261,7 +261,7 @@ createHelperExplanation helpersAre =
                             PrefixedBy prefix ->
                                 "Rename the element to start with " ++ prefix
                     )
-                    helpersAre
+                    exceptions
         in
         Just ("- " ++ String.join "\n- " options)
 
@@ -281,7 +281,7 @@ Given the following configuration
     NoUnused.Exports.defaults
         |> NoUnused.Exports.ignoreUsagesIn
             { isProductionFile = isProductionFile
-            , helpersAre = [ annotatedBy "@test-helper" ]
+            , exceptionsAre = [ annotatedBy "@test-helper" ]
             }
         |> NoUnused.Exports.toRule
 
@@ -309,7 +309,7 @@ Given the following configuration
     NoUnused.Exports.defaults
         |> NoUnused.Exports.ignoreUsagesIn
             { isProductionFile = isProductionFile
-            , helpersAre = [ suffixedBy "_FOR_TESTS" ]
+            , exceptionsAre = [ suffixedBy "_FOR_TESTS" ]
             }
         |> NoUnused.Exports.toRule
 
@@ -333,7 +333,7 @@ Given the following configuration
     NoUnused.Exports.defaults
         |> NoUnused.Exports.ignoreUsagesIn
             { isProductionFile = isProductionFile
-            , helpersAre = [ prefixedBy "test_" ]
+            , exceptionsAre = [ prefixedBy "test_" ]
             }
         |> NoUnused.Exports.toRule
 
@@ -362,7 +362,7 @@ toRule (Configuration config) =
             , foldProjectContexts = foldProjectContexts
             }
         |> Rule.withElmJsonProjectVisitor (\elmJson context -> ( [], elmJsonVisitor elmJson context ))
-        |> Rule.withFinalProjectEvaluation (finalEvaluationForProject config.helperExplanation)
+        |> Rule.withFinalProjectEvaluation (finalEvaluationForProject config.exceptionExplanation)
         |> Rule.providesFixesForProjectRule
         |> Rule.fromProjectRuleSchema
 
@@ -613,7 +613,7 @@ elmJsonVisitor maybeProject projectContext =
 
 
 finalEvaluationForProject : Maybe String -> ProjectContext -> List (Error { useErrorForModule : () })
-finalEvaluationForProject helperExplanation projectContext =
+finalEvaluationForProject exceptionExplanation projectContext =
     let
         used : Set ( ModuleNameStr, String )
         used =
@@ -653,7 +653,7 @@ finalEvaluationForProject helperExplanation projectContext =
                 acc
 
             else if Set.member moduleName projectContext.usedModules then
-                errorsForModule helperExplanation projectContext { used = used, usedInIgnoredModules = usedInIgnoredModules } moduleName module_ acc
+                errorsForModule exceptionExplanation projectContext { used = used, usedInIgnoredModules = usedInIgnoredModules } moduleName module_ acc
 
             else
                 unusedModuleError moduleName module_ :: acc
@@ -685,7 +685,7 @@ errorsForModule :
         }
     -> List (Error scope)
     -> List (Error scope)
-errorsForModule helperExplanation projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isProductionFile, ignoredElementsNotToReport } acc =
+errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isProductionFile, ignoredElementsNotToReport } acc =
     Dict.foldl
         (\name element subAcc ->
             if isUsedOrException projectContext used moduleName name then
@@ -700,7 +700,7 @@ errorsForModule helperExplanation projectContext { used, usedInIgnoredModules } 
                         { message = what element.elementType ++ " `" ++ name ++ "` is never used in production code."
                         , details =
                             "This exposed element is only used in files/folders you ignore (e.g. the test folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
-                                :: (case helperExplanation of
+                                :: (case exceptionExplanation of
                                         Nothing ->
                                             [ "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, please read the documentation on how to configure the rule."
                                             ]
@@ -1047,7 +1047,7 @@ declarationVisitor config node moduleContext =
 
         ignoredElementsNotToReport : Set String
         ignoredElementsNotToReport =
-            case isHelperElement config node of
+            case isException config node of
                 Just name ->
                     Set.insert name moduleContext.ignoredElementsNotToReport
 
@@ -1068,8 +1068,8 @@ declarationVisitor config node moduleContext =
     }
 
 
-isHelperElement : Config -> Node Declaration -> Maybe String
-isHelperElement config node =
+isException : Config -> Node Declaration -> Maybe String
+isException config node =
     if config.isHelperByName == Nothing && List.isEmpty config.helperTags then
         Nothing
 

@@ -1245,7 +1245,7 @@ a = A.unusedInProductionCode
                         (defaults
                             |> ignoreUsagesIn
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
-                                , helpersAre = []
+                                , exceptionsAre = []
                                 }
                             |> toRule
                         )
@@ -1283,7 +1283,7 @@ a = A.unusedInProductionCode
                         (defaults
                             |> ignoreUsagesIn
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
-                                , helpersAre =
+                                , exceptionsAre =
                                     [ annotatedBy "@helper"
                                     , annotatedBy "@test-helper"
                                     , suffixedBy "_FOR_TESTS"
@@ -1325,7 +1325,7 @@ tests = Test.describe "thing" []
                         (defaults
                             |> ignoreUsagesIn
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
-                                , helpersAre = []
+                                , exceptionsAre = []
                                 }
                             |> toRule
                         )
@@ -1346,7 +1346,7 @@ helper = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
-                                , helpersAre = []
+                                , exceptionsAre = []
                                 }
                             |> toRule
                         )
@@ -1368,7 +1368,7 @@ helper = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
-                                , helpersAre = [ annotatedBy "@ignore-helper" ]
+                                , exceptionsAre = [ annotatedBy "@ignore-helper" ]
                                 }
                             |> toRule
                         )
@@ -1394,7 +1394,7 @@ usedLocally = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
-                                , helpersAre = []
+                                , exceptionsAre = []
                                 }
                             |> toRule
                         )
@@ -1416,7 +1416,7 @@ helper = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
-                                , helpersAre = []
+                                , exceptionsAre = []
                                 }
                             |> toRule
                         )
@@ -1452,7 +1452,7 @@ helperTEST = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
-                                , helpersAre = [ suffixedBy "TEST" ]
+                                , exceptionsAre = [ suffixedBy "TEST" ]
                                 }
                             |> toRule
                         )
@@ -1478,7 +1478,7 @@ test_helper = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
-                                , helpersAre = [ prefixedBy "test_" ]
+                                , exceptionsAre = [ prefixedBy "test_" ]
                                 }
                             |> toRule
                         )
@@ -1500,7 +1500,7 @@ unused = 1
                         (defaults
                             |> ignoreUsagesIn
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
-                                , helpersAre = [ prefixedBy "test_" ]
+                                , exceptionsAre = [ prefixedBy "test_" ]
                                 }
                             |> toRule
                         )
