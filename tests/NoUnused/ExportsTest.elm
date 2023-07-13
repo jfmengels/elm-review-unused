@@ -1483,6 +1483,43 @@ test_helper = 1
                             |> toRule
                         )
                     |> Review.Test.expectNoErrors
-
-        -- TODO Report unused exports in ignored files as regular errors
+        , test "should report unused exports in ignored files as regular errors" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import B
+main = B.b
+""", """
+module ATest exposing (tests, unused)
+import Test exposing (Test)
+tests : Test
+tests = Test.describe "thing" []
+unused = 1
+""" ]
+                    |> Review.Test.runOnModules
+                        (defaults
+                            |> ignoreUsagesIn
+                                { filePredicate = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test"
+                                , helpersAre = [ prefixedBy "test_" ]
+                                }
+                            |> toRule
+                        )
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "ATest"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "unused"
+                                }
+                                |> Review.Test.atExactly { start = { row = 2, column = 31 }, end = { row = 2, column = 37 } }
+                                |> Review.Test.whenFixed """
+module ATest exposing (tests)
+import Test exposing (Test)
+tests : Test
+tests = Test.describe "thing" []
+unused = 1
+"""
+                            ]
+                          )
+                        ]
         ]
