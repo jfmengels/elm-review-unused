@@ -76,7 +76,7 @@ Using `ignoreUsagesIn` with the following configuration:
     NoUnused.Exports.defaults
         |> NoUnused.Exports.ignoreUsagesIn
             { isProductionFile = \{ moduleName, filePath, isInSourceDirectories } -> isInSourceDirectories
-            , exceptionsAre = [ annotatedBy "@helper", suffixedBy "_FOR_TESTS" ]
+            , exceptionsAre = [ annotatedBy "@test-helper", suffixedBy "_FOR_TESTS" ]
             }
         |> NoUnused.Exports.toRule
 
