@@ -1225,7 +1225,7 @@ main = text ""
 ignoredUsages : Test
 ignoredUsages =
     describe "Ignoring usages in folders"
-        [ test "should report functions that are only used in ignored files (no tags defined)" <|
+        [ test "should report functions that are only used in ignored files (no helpers defined)" <|
             \() ->
                 [ """
 module Main exposing (main)
@@ -1263,7 +1263,7 @@ a = A.unusedInProductionCode
                             ]
                           )
                         ]
-        , test "should report functions that are only used in ignored files (tags defined)" <|
+        , test "should report functions that are only used in ignored files (helpers defined)" <|
             \() ->
                 [ """
 module Main exposing (main)
