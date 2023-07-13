@@ -136,6 +136,7 @@ type alias Config =
     { filePredicate : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
     , helperTags : List String
     , isHelperByName : Maybe (String -> Bool)
+    , helperExplanation : Maybe String
     }
 
 
@@ -147,6 +148,7 @@ defaults =
         { filePredicate = always False
         , helperTags = []
         , isHelperByName = Nothing
+        , helperExplanation = Nothing
         }
 
 
@@ -235,7 +237,34 @@ ignoreUsagesIn { filePredicate, helpersAre } _ =
         { filePredicate = filePredicate
         , helperTags = helperTags
         , isHelperByName = isHelperByName
+        , helperExplanation = createHelperExplanation helpersAre
         }
+
+
+createHelperExplanation : List HelperPredicate -> Maybe String
+createHelperExplanation helpersAre =
+    if List.isEmpty helpersAre then
+        Nothing
+
+    else
+        let
+            options : List String
+            options =
+                List.map
+                    (\helper ->
+                        case helper of
+                            AnnotatedBy tag ->
+                                "Include " ++ tag ++ " in the documentation of the element"
+
+                            SuffixedBy suffix ->
+                                "Rename the element to end with " ++ suffix
+
+                            PrefixedBy prefix ->
+                                "Rename the element to start with " ++ prefix
+                    )
+                    helpersAre
+        in
+        Just (" - " ++ String.join "\n - " options)
 
 
 {-| Identifies a helper predicate. See [`ignoreUsagesIn`](#ignoreUsagesIn) for how to use and create these.
