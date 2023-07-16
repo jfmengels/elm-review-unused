@@ -175,8 +175,9 @@ This function needs to know two things:
 
 1.  Which files are considered to be production files, which is determined by a function that you provide.
     Generally, production files are the ones that in the `"source-directories"`, which is indicated by
-    `isInSourceDirectories` (that is given as an argument to the function) being `True`. You might need to exclude
-    more files than that using the `filePath` or `moduleName` of the Elm module.
+    `isInSourceDirectories` (that is given as an argument to the function) being `True`. If you want to exclude
+    more files, you can use the `filePath` or `moduleName` of the Elm module, whichever is more practical for you to use.
+    `filePath` is relative to the folder containing the `elm.json` file.
 
 2.  How to identify exceptions. See [`Exception`](#Exception) for more information.
 
