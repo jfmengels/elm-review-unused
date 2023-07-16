@@ -710,7 +710,7 @@ errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules
                     Rule.errorForModule moduleKey
                         { message = what element.elementType ++ " `" ++ name ++ "` is never used in production code."
                         , details =
-                            "This exposed element is only used in files/folders you ignore (e.g. the tests folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
+                            "This exposed element is only used in files you have marked as non-production code (e.g. the tests folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
                                 :: (case exceptionExplanation of
                                         Nothing ->
                                             [ "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, please read the documentation on how to configure the rule."
