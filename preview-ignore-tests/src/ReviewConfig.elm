@@ -27,7 +27,7 @@ config =
     , NoUnused.CustomTypeConstructorArgs.rule
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.defaults
-        |> NoUnused.Exports.reportUnusedProductionElements
+        |> NoUnused.Exports.reportUnusedProductionExports
             { isProductionFile = \{ moduleName, filePath, isInSourceDirectories } -> isInSourceDirectories
             , exceptionsAre = [ annotatedBy "@test-helper", suffixedBy "_FOR_TESTS" ]
             }
