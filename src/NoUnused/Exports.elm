@@ -716,7 +716,7 @@ errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules
                                             ]
 
                                         Just explanation ->
-                                            [ "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can"
+                                            [ "It is possible that this element is meant to enable work in your ignored folder (test helpers for instance), in which case you should keep it. To avoid this problem being reported again, you can:"
                                             , explanation
                                             ]
                                    )
