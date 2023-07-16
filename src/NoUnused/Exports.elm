@@ -5,7 +5,7 @@ module NoUnused.Exports exposing
     , Exception, annotatedBy, suffixedBy, prefixedBy
     )
 
-{-| Forbid the use of exposed elements that are never used in your project.
+{-| Forbid the use of exposed elements (functions, values or types) that are never used in your project.
 
 🔧 Running with `--fix` will automatically remove all the reported errors,
 except for the ones reported when using [`reportUnusedProductionExports`](#reportUnusedProductionExports).
