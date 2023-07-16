@@ -1,6 +1,6 @@
 module NoUnused.ExportsTest exposing (all)
 
-import NoUnused.Exports exposing (annotatedBy, defaults, prefixedBy, reportUnusedProductionElements, rule, suffixedBy, toRule)
+import NoUnused.Exports exposing (annotatedBy, defaults, prefixedBy, reportUnusedProductionExports, rule, suffixedBy, toRule)
 import Review.Test
 import Test exposing (Test, describe, test)
 import TestProject exposing (application, lamderaApplication, package)
@@ -1243,7 +1243,7 @@ a = A.unusedInProductionCode
 """ ]
                     |> Review.Test.runOnModules
                         (defaults
-                            |> reportUnusedProductionElements
+                            |> reportUnusedProductionExports
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , exceptionsAre = []
                                 }
@@ -1281,7 +1281,7 @@ a = A.unusedInProductionCode
 """ ]
                     |> Review.Test.runOnModules
                         (defaults
-                            |> reportUnusedProductionElements
+                            |> reportUnusedProductionExports
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , exceptionsAre =
                                     [ annotatedBy "@helper"
@@ -1323,7 +1323,7 @@ tests = Test.describe "thing" []
 """ ]
                     |> Review.Test.runOnModules
                         (defaults
-                            |> reportUnusedProductionElements
+                            |> reportUnusedProductionExports
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , exceptionsAre = []
                                 }
@@ -1344,7 +1344,7 @@ helper = 1
 """ ]
                     |> Review.Test.runOnModules
                         (defaults
-                            |> reportUnusedProductionElements
+                            |> reportUnusedProductionExports
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , exceptionsAre = []
                                 }
@@ -1366,7 +1366,7 @@ helper = 1
 """ ]
                     |> Review.Test.runOnModules
                         (defaults
-                            |> reportUnusedProductionElements
+                            |> reportUnusedProductionExports
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , exceptionsAre = [ annotatedBy "@ignore-helper" ]
                                 }
@@ -1392,7 +1392,7 @@ usedLocally = 1
 """ ]
                     |> Review.Test.runOnModules
                         (defaults
-                            |> reportUnusedProductionElements
+                            |> reportUnusedProductionExports
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , exceptionsAre = []
                                 }
@@ -1414,7 +1414,7 @@ helper = 1
 """ ]
                     |> Review.Test.runOnModules
                         (defaults
-                            |> reportUnusedProductionElements
+                            |> reportUnusedProductionExports
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , exceptionsAre = []
                                 }
@@ -1450,7 +1450,7 @@ helperTEST = 1
 """ ]
                     |> Review.Test.runOnModules
                         (defaults
-                            |> reportUnusedProductionElements
+                            |> reportUnusedProductionExports
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , exceptionsAre = [ suffixedBy "TEST" ]
                                 }
@@ -1476,7 +1476,7 @@ test_helper = 1
 """ ]
                     |> Review.Test.runOnModules
                         (defaults
-                            |> reportUnusedProductionElements
+                            |> reportUnusedProductionExports
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , exceptionsAre = [ prefixedBy "test_" ]
                                 }
@@ -1498,7 +1498,7 @@ unused = 1
 """ ]
                     |> Review.Test.runOnModules
                         (defaults
-                            |> reportUnusedProductionElements
+                            |> reportUnusedProductionExports
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , exceptionsAre = [ prefixedBy "test_" ]
                                 }
