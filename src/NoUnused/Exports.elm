@@ -140,7 +140,7 @@ type alias Config =
     }
 
 
-{-| Default configuration.
+{-| Default configuration. This will only report exported elements that are never used in other modules.
 -}
 defaults : Configuration
 defaults =
