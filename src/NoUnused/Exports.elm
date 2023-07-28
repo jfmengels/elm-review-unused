@@ -156,7 +156,7 @@ defaults =
 
 {-| Configures the rule to report elements defined in production code but only used in non-production files.
 
-    import NoUnused.Exports exposing (annotatedBy, prefixedBy, suffixedBy)
+    import NoUnused.Exports exposing (annotatedBy)
 
     config =
         [ NoUnused.Exports.defaults
@@ -176,8 +176,8 @@ that uses the element.
 This function needs to know two things:
 
 1.  Which files are considered to be production files, which is determined by a function that you provide.
-    Generally, production files are the ones that in the `"source-directories"`, which is indicated by
-    `isInSourceDirectories` (that is given as an argument to the function) being `True`. If you want to exclude
+    Generally, production files are in the `"source-directories"`, which is indicated by
+    `isInSourceDirectories` (given as an argument to the function) being `True`. If you want to exclude
     more files, you can use the `filePath` or `moduleName` of the Elm module, whichever is more practical for you to use.
     `filePath` is relative to the folder containing the `elm.json` file and is written in a UNIX format (`/`, no `\`).
 
