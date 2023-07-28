@@ -179,7 +179,7 @@ This function needs to know two things:
     Generally, production files are the ones that in the `"source-directories"`, which is indicated by
     `isInSourceDirectories` (that is given as an argument to the function) being `True`. If you want to exclude
     more files, you can use the `filePath` or `moduleName` of the Elm module, whichever is more practical for you to use.
-    `filePath` is relative to the folder containing the `elm.json` file.
+    `filePath` is relative to the folder containing the `elm.json` file and is written in a UNIX format (`/`, no `\`).
 
 2.  How to identify exceptions. See [`Exception`](#Exception) for more information.
 
@@ -411,6 +411,8 @@ Given the following configuration
         |> NoUnused.Exports.toRule
 
 no elements from modules named `*.Util.*` or modules inside `src/test-helpers/` will be reported.
+
+The provided `filePath` is relative to the project's `elm.json` and is in a UNIX style (`/`, no `\`).
 
 -}
 definedInModule : ({ moduleName : ModuleName, filePath : String } -> Bool) -> Exception
