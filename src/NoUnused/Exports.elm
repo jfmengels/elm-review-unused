@@ -134,6 +134,7 @@ type Configuration
 
 type alias Config =
     { isProductionFile : { moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool
+    , exceptionModules : List ({ moduleName : ModuleName, filePath : String } -> Bool)
     , exceptionTags : List String
     , exceptionByName : Maybe (String -> Bool)
     , exceptionExplanation : Maybe String
@@ -146,6 +147,7 @@ defaults : Configuration
 defaults =
     Configuration
         { isProductionFile = always True
+        , exceptionModules = []
         , exceptionTags = []
         , exceptionByName = Nothing
         , exceptionExplanation = Nothing
@@ -257,24 +259,11 @@ reportUnusedProductionExports { isProductionFile, exceptionsAre } _ =
     in
     Configuration
         { isProductionFile = isProductionFile
+        , exceptionModules = exceptionModules
         , exceptionTags = exceptionTags
         , exceptionByName = exceptionByName
         , exceptionExplanation = createExceptionsExplanation exceptionsAre
         }
-
-
-none : List (a -> Bool) -> a -> Bool
-none list a =
-    case list of
-        [] ->
-            True
-
-        head :: tail ->
-            if head a then
-                False
-
-            else
-                none tail a
 
 
 createExceptionsExplanation : List Exception -> Maybe String
@@ -417,7 +406,7 @@ toRule (Configuration config) =
         |> Rule.withModuleVisitor (moduleVisitor config)
         |> Rule.withModuleContextUsingContextCreator
             { fromProjectToModule = fromProjectToModule
-            , fromModuleToProject = fromModuleToProject config.isProductionFile
+            , fromModuleToProject = fromModuleToProject config
             , foldProjectContexts = foldProjectContexts
             }
         |> Rule.withElmJsonProjectVisitor (\elmJson context -> ( [], elmJsonVisitor elmJson context ))
@@ -447,6 +436,7 @@ type alias ProjectContext =
             , exposed : Dict String ExposedElement
             , moduleNameLocation : Range
             , isProductionFile : Bool
+            , isProductionFileNotToReport : Bool
             , ignoredElementsNotToReport : Set String
             }
     , usedModules : Set ModuleNameStr
@@ -535,8 +525,8 @@ fromProjectToModule =
         |> Rule.withModuleDocumentation
 
 
-fromModuleToProject : ({ moduleName : ModuleName, filePath : String, isInSourceDirectories : Bool } -> Bool) -> Rule.ContextCreator ModuleContext ProjectContext
-fromModuleToProject isProductionFilePredicate =
+fromModuleToProject : Config -> Rule.ContextCreator ModuleContext ProjectContext
+fromModuleToProject config =
     Rule.initContextCreator
         (\moduleKey (Node moduleNameRange moduleName) filePath isInSourceDirectories moduleContext ->
             let
@@ -553,7 +543,7 @@ fromModuleToProject isProductionFilePredicate =
 
                 isProductionFile : Bool
                 isProductionFile =
-                    isProductionFilePredicate { moduleName = moduleName, filePath = filePath, isInSourceDirectories = isInSourceDirectories }
+                    config.isProductionFile { moduleName = moduleName, filePath = filePath, isInSourceDirectories = isInSourceDirectories }
             in
             { projectType = IsApplication ElmApplication
             , modules =
@@ -563,6 +553,7 @@ fromModuleToProject isProductionFilePredicate =
                     , exposed = moduleContext.exposed
                     , moduleNameLocation = moduleNameRange
                     , isProductionFile = isProductionFile
+                    , isProductionFileNotToReport = any config.exceptionModules { moduleName = moduleName, filePath = filePath }
                     , ignoredElementsNotToReport = moduleContext.ignoredElementsNotToReport
                     }
             , used =
@@ -604,6 +595,20 @@ fromModuleToProject isProductionFilePredicate =
         |> Rule.withModuleNameNode
         |> Rule.withFilePath
         |> Rule.withIsInSourceDirectories
+
+
+any : List (a -> Bool) -> a -> Bool
+any list a =
+    case list of
+        [] ->
+            False
+
+        head :: tail ->
+            if head a then
+                True
+
+            else
+                any tail a
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
@@ -740,18 +745,19 @@ errorsForModule :
             | moduleKey : Rule.ModuleKey
             , exposed : Dict String ExposedElement
             , isProductionFile : Bool
+            , isProductionFileNotToReport : Bool
             , ignoredElementsNotToReport : Set String
         }
     -> List (Error scope)
     -> List (Error scope)
-errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isProductionFile, ignoredElementsNotToReport } acc =
+errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isProductionFile, isProductionFileNotToReport, ignoredElementsNotToReport } acc =
     Dict.foldl
         (\name element subAcc ->
             if isUsedOrException projectContext used moduleName name then
                 subAcc
 
             else if Set.member ( moduleName, name ) usedInIgnoredModules then
-                if not isProductionFile || Set.member name ignoredElementsNotToReport then
+                if not isProductionFile || isProductionFileNotToReport || Set.member name ignoredElementsNotToReport then
                     subAcc
 
                 else
