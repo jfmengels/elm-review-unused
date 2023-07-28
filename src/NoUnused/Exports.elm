@@ -393,6 +393,26 @@ prefixedBy =
     PrefixedBy
 
 
+{-| Prevents reporting usages of elements in some modules.
+
+Given the following configuration
+
+    NoUnused.Exports.defaults
+        |> NoUnused.Exports.reportUnusedProductionExports
+            { isProductionFile = isProductionFile
+            , exceptionsAre =
+                [ definedInModule
+                    (\{ moduleName, filePath } ->
+                        List.member "Util" moduleName
+                            || String.startsWith "src/test-helpers/" filePath
+                    )
+                ]
+            }
+        |> NoUnused.Exports.toRule
+
+no elements from modules named `*.Util.*` or modules inside `src/test-helpers/` will be reported.
+
+-}
 definedInModule : ({ moduleName : ModuleName, filePath : String } -> Bool) -> Exception
 definedInModule =
     DefinedInModule
