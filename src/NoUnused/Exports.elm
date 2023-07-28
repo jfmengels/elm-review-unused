@@ -256,11 +256,25 @@ reportUnusedProductionExports { isProductionFile, exceptionsAre } _ =
                 Just (\name -> List.any (\predicate -> predicate name) affixMatches)
     in
     Configuration
-        { isProductionFile = \mod -> isProductionFile mod
+        { isProductionFile = \mod -> isProductionFile mod && none exceptionModules { moduleName = mod.moduleName, filePath = mod.filePath }
         , exceptionTags = exceptionTags
         , exceptionByName = exceptionByName
         , exceptionExplanation = createExceptionsExplanation exceptionsAre
         }
+
+
+none : List (a -> Bool) -> a -> Bool
+none list a =
+    case list of
+        [] ->
+            True
+
+        head :: tail ->
+            if head a then
+                False
+
+            else
+                none tail a
 
 
 createExceptionsExplanation : List Exception -> Maybe String
