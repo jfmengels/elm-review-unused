@@ -256,7 +256,7 @@ reportUnusedProductionExports { isProductionFile, exceptionsAre } _ =
                 Just (\name -> List.any (\predicate -> predicate name) affixMatches)
     in
     Configuration
-        { isProductionFile = \mod -> isProductionFile mod && none exceptionModules { moduleName = mod.moduleName, filePath = mod.filePath }
+        { isProductionFile = isProductionFile
         , exceptionTags = exceptionTags
         , exceptionByName = exceptionByName
         , exceptionExplanation = createExceptionsExplanation exceptionsAre
