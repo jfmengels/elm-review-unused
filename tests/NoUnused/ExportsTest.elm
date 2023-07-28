@@ -1,6 +1,6 @@
 module NoUnused.ExportsTest exposing (all)
 
-import NoUnused.Exports exposing (annotatedBy, defaults, prefixedBy, reportUnusedProductionExports, rule, suffixedBy, toRule)
+import NoUnused.Exports exposing (annotatedBy, defaults, definedInModule, prefixedBy, reportUnusedProductionExports, rule, suffixedBy, toRule)
 import Review.Test
 import Test exposing (Test, describe, test)
 import TestProject exposing (application, lamderaApplication, package)
@@ -1479,6 +1479,32 @@ test_helper = 1
                             |> reportUnusedProductionExports
                                 { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
                                 , exceptionsAre = [ prefixedBy "test_" ]
+                                }
+                            |> toRule
+                        )
+                    |> Review.Test.expectNoErrors
+        , test "should report elements never used anywhere even if they're defined in a module marked as an exception" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import Project.Utils.B as B
+main = B.b
+""", """
+module ATest exposing (tests)
+import Project.Utils.B as B
+import Test exposing (Test)
+tests : Test
+tests = Test.describe "thing" B.helper
+""", """
+module Project.Utils.B exposing (b, helper)
+b = 1
+helper = 1
+""" ]
+                    |> Review.Test.runOnModules
+                        (defaults
+                            |> reportUnusedProductionExports
+                                { isProductionFile = \{ moduleName } -> String.join "." moduleName |> String.endsWith "Test" |> not
+                                , exceptionsAre = [ definedInModule (\{ moduleName } -> List.member "Utils" moduleName) ]
                                 }
                             |> toRule
                         )

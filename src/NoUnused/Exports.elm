@@ -2,7 +2,7 @@ module NoUnused.Exports exposing
     ( rule
     , Configuration, defaults, toRule
     , reportUnusedProductionExports
-    , Exception, annotatedBy, suffixedBy, prefixedBy
+    , Exception, annotatedBy, suffixedBy, prefixedBy, definedInModule
     )
 
 {-| Forbid the use of exposed elements (functions, values or types) that are never used in your project.
@@ -58,7 +58,7 @@ amount of code that needs to be maintained unnecessarily. We can detect that usi
 
 @docs reportUnusedProductionExports
 
-@docs Exception, annotatedBy, suffixedBy, prefixedBy
+@docs Exception, annotatedBy, suffixedBy, prefixedBy, definedInModule
 
 
 ## Try it out
@@ -203,6 +203,28 @@ reportUnusedProductionExports { isProductionFile, exceptionsAre } _ =
 
                         PrefixedBy prefix ->
                             Just (\name -> String.startsWith prefix name)
+
+                        DefinedInModule _ ->
+                            Nothing
+                )
+                exceptionsAre
+
+        exceptionModules : List ({ moduleName : ModuleName, filePath : String } -> Bool)
+        exceptionModules =
+            List.filterMap
+                (\helper ->
+                    case helper of
+                        AnnotatedBy _ ->
+                            Nothing
+
+                        SuffixedBy _ ->
+                            Nothing
+
+                        PrefixedBy _ ->
+                            Nothing
+
+                        DefinedInModule predicate ->
+                            Just predicate
                 )
                 exceptionsAre
 
@@ -218,6 +240,9 @@ reportUnusedProductionExports { isProductionFile, exceptionsAre } _ =
                             Nothing
 
                         PrefixedBy _ ->
+                            Nothing
+
+                        DefinedInModule _ ->
                             Nothing
                 )
                 exceptionsAre
@@ -258,6 +283,9 @@ createExceptionsExplanation exceptions =
 
                             PrefixedBy prefix ->
                                 "Rename the element to start with " ++ prefix
+
+                            DefinedInModule _ ->
+                                "Adapt your configuration to mark the whole module to as an exception"
                     )
                     exceptions
         in
@@ -283,6 +311,7 @@ type Exception
     = AnnotatedBy String
     | SuffixedBy String
     | PrefixedBy String
+    | DefinedInModule ({ moduleName : ModuleName, filePath : String } -> Bool)
 
 
 {-| Prevents reporting usages of elements that contain a specific tag in their documentation.
@@ -359,6 +388,11 @@ You can use this function several times to define multiple prefixes.
 prefixedBy : String -> Exception
 prefixedBy =
     PrefixedBy
+
+
+definedInModule : ({ moduleName : ModuleName, filePath : String } -> Bool) -> Exception
+definedInModule =
+    DefinedInModule
 
 
 {-| Creates a rule that reports unused exports using a [`Configuration`](#Configuration).
