@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2023-07-28
+
+Add configuration setting for [`NoUnused.Exports`] for reporting exports that is only used in non-production code. This includes multiple new functions and types in that module centered around `reportUnusedProductionExports`. 
+
 ## [1.1.30] - 2023-06-16
 
 Fix false positive in [`NoUnused.CustomTypeConstructors`] related to non-ASCII constructor names ([#79](https://github.com/jfmengels/elm-review-unused/pull/79)). Thanks [@lydell](https://github.com/lydell) and [@marc136](https://github.com/marc136).
@@ -63,7 +67,8 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
-[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.1.30...HEAD
+[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.0
 [1.1.30]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.30
 [1.1.29]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.29
 [1.1.28]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.28
