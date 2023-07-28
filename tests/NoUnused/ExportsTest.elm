@@ -28,7 +28,7 @@ all =
         , importsTests
         , lamderaTests
         , unusedModuleTests
-        , ignoredUsages
+        , reportUnusedProductionExportsTest
 
         -- TODO Add tests that report exposing the type's variants if they are never used.
         ]
@@ -1222,9 +1222,9 @@ main = text ""
         ]
 
 
-ignoredUsages : Test
-ignoredUsages =
-    describe "Ignoring usages in folders"
+reportUnusedProductionExportsTest : Test
+reportUnusedProductionExportsTest =
+    describe "reportUnusedProductionExports"
         [ test "should report functions that are only used in ignored files (no helpers defined)" <|
             \() ->
                 [ """
