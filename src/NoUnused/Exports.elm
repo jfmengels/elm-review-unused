@@ -523,14 +523,20 @@ fromProjectToModule =
     Rule.initContextCreator
         (\lookupTable ast moduleDocumentation projectContext ->
             let
-                exposed : Dict String ExposedElement
-                exposed =
+                nodes : List (Node TopLevelExpose)
+                nodes =
                     case Module.exposingList (Node.value ast.moduleDefinition) of
-                        Exposing.All _ ->
-                            Dict.empty
+                        Exposing.All range ->
+                            List.filterMap
+                                (\(Node _ declaration) -> declarationToTopLevelExpose range declaration |> Maybe.map (Node range))
+                                ast.declarations
 
                         Exposing.Explicit explicitlyExposed ->
-                            collectExposedElements moduleDocumentation explicitlyExposed ast.declarations
+                            explicitlyExposed
+
+                exposed : Dict String ExposedElement
+                exposed =
+                    collectExposedElements moduleDocumentation nodes ast.declarations
             in
             { lookupTable = lookupTable
             , exposed = exposed
@@ -545,6 +551,46 @@ fromProjectToModule =
         |> Rule.withModuleNameLookupTable
         |> Rule.withFullAst
         |> Rule.withModuleDocumentation
+
+
+declarationToTopLevelExpose : Range -> Declaration -> Maybe TopLevelExpose
+declarationToTopLevelExpose range declaration =
+    case declaration of
+        Declaration.FunctionDeclaration function ->
+            function.declaration
+                |> Node.value
+                |> .name
+                |> Node.value
+                |> Exposing.FunctionExpose
+                |> Just
+
+        Declaration.AliasDeclaration typeAlias ->
+            typeAlias.name
+                |> Node.value
+                |> Exposing.TypeOrAliasExpose
+                |> Just
+
+        Declaration.CustomTypeDeclaration type_ ->
+            Just <|
+                Exposing.TypeExpose
+                    { name = Node.value type_.name
+                    , open = Just range
+                    }
+
+        Declaration.PortDeclaration signature ->
+            signature.name
+                |> Node.value
+                |> Exposing.FunctionExpose
+                |> Just
+
+        Declaration.InfixDeclaration infix ->
+            infix.operator
+                |> Node.value
+                |> Exposing.InfixExpose
+                |> Just
+
+        Declaration.Destructuring _ _ ->
+            Nothing
 
 
 fromModuleToProject : Config -> Rule.ContextCreator ModuleContext ProjectContext

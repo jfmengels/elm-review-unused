@@ -29,6 +29,7 @@ all =
         , lamderaTests
         , unusedModuleTests
         , reportUnusedProductionExportsTest
+        , exposingAllTests
 
         -- TODO Add tests that report exposing the type's variants if they are never used.
         ]
@@ -260,16 +261,6 @@ exposed3 = 3
                             ]
                           )
                         ]
-        , test "should not report anything for modules that expose everything" <|
-            \() ->
-                [ """
-module A exposing (..)
-a = 1
-""", """module Exposed exposing (..)
-import A
-a = 1""" ]
-                    |> Review.Test.runOnModulesWithProjectData package rule
-                    |> Review.Test.expectNoErrors
         , test "should not report the `main` function for an application even if it is unused" <|
             \() ->
                 """
@@ -1021,6 +1012,8 @@ main = text ""
 """
                 , """
 module OtherModule exposing (..)
+import Test
+a : Test.Test
 a = 1
 """
                 ]
@@ -1112,6 +1105,7 @@ main = text ""
                 """
 module NotReported exposing (..)
 import Test
+a : Test.Test
 a = 1
 """
                     |> Review.Test.runWithProjectData application rule
@@ -1239,6 +1233,7 @@ unusedInProductionCode = 2
 module ATest exposing (..)
 import A
 import Test
+a : Test.Test
 a = A.unusedInProductionCode
 """ ]
                     |> Review.Test.runOnModules
@@ -1277,6 +1272,7 @@ unusedInProductionCode = 2
 module ATest exposing (..)
 import A
 import Test
+a : Test.Test
 a = A.unusedInProductionCode
 """ ]
                     |> Review.Test.runOnModules
@@ -1545,6 +1541,104 @@ tests : Test
 tests = Test.describe "thing" []
 unused = 1
 """
+                            ]
+                          )
+                        ]
+        ]
+
+
+exposingAllTests : Test
+exposingAllTests =
+    describe "When exposing all"
+        [ test "works with a function" <|
+            \() ->
+                [ """
+module NotReported exposing (..)
+import Reported
+main = text ""
+"""
+                , """
+module Reported exposing (..)
+unused = ()
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = ".."
+                                }
+                            ]
+                          )
+                        ]
+        , test "works with a type alias" <|
+            \() ->
+                [ """
+module NotReported exposing (..)
+import Reported
+main = text ""
+"""
+                , """
+module Reported exposing (..)
+type alias Unused = ()
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed type or type alias `Unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = ".."
+                                }
+                            ]
+                          )
+                        ]
+        , test "works with a custom type" <|
+            \() ->
+                [ """
+module NotReported exposing (..)
+import Reported
+main = text ""
+"""
+                , """
+module Reported exposing (..)
+type UnusedT = UnusedC
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed type `UnusedT` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = ".."
+                                }
+                            ]
+                          )
+                        ]
+        , test "works with a port" <|
+            \() ->
+                [ """
+module NotReported exposing (..)
+import Reported
+main = text ""
+"""
+                , """
+port module Reported exposing (..)
+port unused : ()
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = ".."
+                                }
                             ]
                           )
                         ]
