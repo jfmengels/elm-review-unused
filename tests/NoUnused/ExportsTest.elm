@@ -1568,7 +1568,7 @@ unused = ()
                           , [ Review.Test.error
                                 { message = "Exposed function or value `unused` is never used outside this module."
                                 , details = unusedExposedElementDetails
-                                , under = ".."
+                                , under = "unused = ()"
                                 }
                             ]
                           )
@@ -1591,7 +1591,7 @@ type alias Unused = ()
                           , [ Review.Test.error
                                 { message = "Exposed type or type alias `Unused` is never used outside this module."
                                 , details = unusedExposedElementDetails
-                                , under = ".."
+                                , under = "type alias Unused = ()"
                                 }
                             ]
                           )
@@ -1614,7 +1614,7 @@ type UnusedT = UnusedC
                           , [ Review.Test.error
                                 { message = "Exposed type `UnusedT` is never used outside this module."
                                 , details = unusedExposedElementDetails
-                                , under = ".."
+                                , under = "type UnusedT = UnusedC"
                                 }
                             ]
                           )
@@ -1637,7 +1637,7 @@ port unused : ()
                           , [ Review.Test.error
                                 { message = "Exposed function or value `unused` is never used outside this module."
                                 , details = unusedExposedElementDetails
-                                , under = ".."
+                                , under = "port unused : ()"
                                 }
                             ]
                           )
