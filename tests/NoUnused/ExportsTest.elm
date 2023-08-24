@@ -1550,18 +1550,17 @@ unused = 1
 exposingAllTests : Test
 exposingAllTests =
     describe "When exposing all"
-        [ test "works with a function" <|
+        [ test "reports an unused function" <|
             \() ->
-                [ """
-module NotReported exposing (..)
-import Reported
-main = text ""
-"""
-                , """
-module Reported exposing (..)
-unused = ()
-"""
+                [ [ "module NotReported exposing (..)"
+                  , "import Reported"
+                  , "main = ()"
+                  ]
+                , [ "module Reported exposing (..)"
+                  , "unused = ()"
+                  ]
                 ]
+                    |> List.map (String.join "\n")
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectErrorsForModules
                         [ ( "Reported"
@@ -1573,18 +1572,17 @@ unused = ()
                             ]
                           )
                         ]
-        , test "works with a type alias" <|
+        , test "reports an unused type alias" <|
             \() ->
-                [ """
-module NotReported exposing (..)
-import Reported
-main = text ""
-"""
-                , """
-module Reported exposing (..)
-type alias Unused = ()
-"""
+                [ [ "module NotReported exposing (..)"
+                  , "import Reported"
+                  , "main = ()"
+                  ]
+                , [ "module Reported exposing (..)"
+                  , "type alias Unused = ()"
+                  ]
                 ]
+                    |> List.map (String.join "\n")
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectErrorsForModules
                         [ ( "Reported"
@@ -1596,18 +1594,17 @@ type alias Unused = ()
                             ]
                           )
                         ]
-        , test "works with a custom type" <|
+        , test "reports an unused custom type" <|
             \() ->
-                [ """
-module NotReported exposing (..)
-import Reported
-main = text ""
-"""
-                , """
-module Reported exposing (..)
-type UnusedT = UnusedC
-"""
+                [ [ "module NotReported exposing (..)"
+                  , "import Reported"
+                  , "main = ()"
+                  ]
+                , [ "module Reported exposing (..)"
+                  , "type UnusedT = UnusedC"
+                  ]
                 ]
+                    |> List.map (String.join "\n")
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectErrorsForModules
                         [ ( "Reported"
@@ -1619,18 +1616,17 @@ type UnusedT = UnusedC
                             ]
                           )
                         ]
-        , test "works with a port" <|
+        , test "reports an unused port" <|
             \() ->
-                [ """
-module NotReported exposing (..)
-import Reported
-main = text ""
-"""
-                , """
-port module Reported exposing (..)
-port unused : ()
-"""
+                [ [ "module NotReported exposing (..)"
+                  , "import Reported"
+                  , "main = ()"
+                  ]
+                , [ "port module Reported exposing (..)"
+                  , "port unused : ()"
+                  ]
                 ]
+                    |> List.map (String.join "\n")
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectErrorsForModules
                         [ ( "Reported"
