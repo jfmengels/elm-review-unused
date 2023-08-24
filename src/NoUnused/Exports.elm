@@ -526,9 +526,9 @@ fromProjectToModule =
                 nodes : List (Node TopLevelExpose)
                 nodes =
                     case Module.exposingList (Node.value ast.moduleDefinition) of
-                        Exposing.All range ->
+                        Exposing.All _ ->
                             List.filterMap
-                                (\(Node _ declaration) -> declarationToTopLevelExpose range declaration |> Maybe.map (Node range))
+                                (\(Node range declaration) -> declarationToTopLevelExpose declaration |> Maybe.map (Node range))
                                 ast.declarations
 
                         Exposing.Explicit explicitlyExposed ->
@@ -553,8 +553,8 @@ fromProjectToModule =
         |> Rule.withModuleDocumentation
 
 
-declarationToTopLevelExpose : Range -> Declaration -> Maybe TopLevelExpose
-declarationToTopLevelExpose range declaration =
+declarationToTopLevelExpose : Declaration -> Maybe TopLevelExpose
+declarationToTopLevelExpose declaration =
     case declaration of
         Declaration.FunctionDeclaration function ->
             function.declaration
@@ -574,7 +574,7 @@ declarationToTopLevelExpose range declaration =
             Just <|
                 Exposing.TypeExpose
                     { name = Node.value type_.name
-                    , open = Just range
+                    , open = Just <| Node.range type_.name
                     }
 
         Declaration.PortDeclaration signature ->
