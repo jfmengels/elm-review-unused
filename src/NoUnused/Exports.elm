@@ -528,7 +528,7 @@ fromProjectToModule =
                     case Module.exposingList (Node.value ast.moduleDefinition) of
                         Exposing.All _ ->
                             List.filterMap
-                                (\(Node range declaration) -> declarationToTopLevelExpose declaration |> Maybe.map (Node range))
+                                (Node.value >> declarationToTopLevelExpose)
                                 ast.declarations
 
                         Exposing.Explicit explicitlyExposed ->
@@ -553,40 +553,34 @@ fromProjectToModule =
         |> Rule.withModuleDocumentation
 
 
-declarationToTopLevelExpose : Declaration -> Maybe TopLevelExpose
+declarationToTopLevelExpose : Declaration -> Maybe (Node TopLevelExpose)
 declarationToTopLevelExpose declaration =
     case declaration of
         Declaration.FunctionDeclaration function ->
             function.declaration
                 |> Node.value
                 |> .name
-                |> Node.value
-                |> Exposing.FunctionExpose
+                |> Node.map Exposing.FunctionExpose
                 |> Just
 
         Declaration.AliasDeclaration typeAlias ->
             typeAlias.name
-                |> Node.value
-                |> Exposing.TypeOrAliasExpose
+                |> Node.map Exposing.TypeOrAliasExpose
                 |> Just
 
         Declaration.CustomTypeDeclaration type_ ->
-            Just <|
-                Exposing.TypeExpose
-                    { name = Node.value type_.name
-                    , open = Just <| Node.range type_.name
-                    }
+            type_.name
+                |> Node.map (\name -> Exposing.TypeExpose { name = name, open = Nothing })
+                |> Just
 
         Declaration.PortDeclaration signature ->
             signature.name
-                |> Node.value
-                |> Exposing.FunctionExpose
+                |> Node.map Exposing.FunctionExpose
                 |> Just
 
         Declaration.InfixDeclaration infix ->
             infix.operator
-                |> Node.value
-                |> Exposing.InfixExpose
+                |> Node.map Exposing.InfixExpose
                 |> Just
 
         Declaration.Destructuring _ _ ->
