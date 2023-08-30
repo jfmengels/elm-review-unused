@@ -1550,255 +1550,249 @@ unused = 1
 exposingAllTests : Test
 exposingAllTests =
     describe "When exposing all"
-        [ describe "unused"
-            [ test "reports a function" <|
-                \() ->
-                    [ """
+        [ test "reports an unused function" <|
+            \() ->
+                [ """
 module Main exposing (main)
 import Reported
 main = ()
 """
-                    , """
+                , """
 module Reported exposing (..)
 unused = ()
 """
-                    ]
-                        |> Review.Test.runOnModulesWithProjectData application rule
-                        |> Review.Test.expectErrorsForModules
-                            [ ( "Reported"
-                              , [ Review.Test.error
-                                    { message = "Exposed function or value `unused` is never used outside this module."
-                                    , details = unusedExposedElementDetails
-                                    , under = "unused = ()"
-                                    }
-                                ]
-                              )
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "unused = ()"
+                                }
                             ]
-            , test "reports a type alias" <|
-                \() ->
-                    [ """
+                          )
+                        ]
+        , test "reports an unused type alias" <|
+            \() ->
+                [ """
 module Main exposing (main)
 import Reported
 main = ()
 """
-                    , """
+                , """
 module Reported exposing (..)
 type alias Unused = ()
 """
-                    ]
-                        |> Review.Test.runOnModulesWithProjectData application rule
-                        |> Review.Test.expectErrorsForModules
-                            [ ( "Reported"
-                              , [ Review.Test.error
-                                    { message = "Exposed type or type alias `Unused` is never used outside this module."
-                                    , details = unusedExposedElementDetails
-                                    , under = "type alias Unused = ()"
-                                    }
-                                ]
-                              )
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed type or type alias `Unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "type alias Unused = ()"
+                                }
                             ]
-            , test "reports a custom type" <|
-                \() ->
-                    [ """
+                          )
+                        ]
+        , test "reports an unused custom type" <|
+            \() ->
+                [ """
 module Main exposing (main)
 import Reported
 main = ()
 """
-                    , """
+                , """
 module Reported exposing (..)
 type UnusedT = UnusedC
 """
-                    ]
-                        |> Review.Test.runOnModulesWithProjectData application rule
-                        |> Review.Test.expectErrorsForModules
-                            [ ( "Reported"
-                              , [ Review.Test.error
-                                    { message = "Exposed type `UnusedT` is never used outside this module."
-                                    , details = unusedExposedElementDetails
-                                    , under = "type UnusedT = UnusedC"
-                                    }
-                                ]
-                              )
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed type `UnusedT` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "type UnusedT = UnusedC"
+                                }
                             ]
-            , test "reports a port" <|
-                \() ->
-                    [ """
+                          )
+                        ]
+        , test "reports an unused port" <|
+            \() ->
+                [ """
 module Main exposing (main)
 import Reported
 main = ()
 """
-                    , """
+                , """
 port module Reported exposing (..)
 port unused : ()
 """
-                    ]
-                        |> Review.Test.runOnModulesWithProjectData application rule
-                        |> Review.Test.expectErrorsForModules
-                            [ ( "Reported"
-                              , [ Review.Test.error
-                                    { message = "Exposed function or value `unused` is never used outside this module."
-                                    , details = unusedExposedElementDetails
-                                    , under = "port unused : ()"
-                                    }
-                                ]
-                              )
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "port unused : ()"
+                                }
                             ]
-            ]
-        , describe "used internally"
-            [ test "does not report a function" <|
-                \() ->
-                    [ """
+                          )
+                        ]
+        , test "does not report a function that's used internally" <|
+            \() ->
+                [ """
 module Main exposing (main)
 import Reported
 main = ()
 """
-                    , """
+                , """
 module Reported exposing (..)
 used = ()
 unused = used
 """
-                    ]
-                        |> Review.Test.runOnModulesWithProjectData application rule
-                        |> Review.Test.expectErrorsForModules
-                            [ ( "Reported"
-                              , [ Review.Test.error
-                                    { message = "Exposed function or value `unused` is never used outside this module."
-                                    , details = unusedExposedElementDetails
-                                    , under = "unused = used"
-                                    }
-                                ]
-                              )
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "unused = used"
+                                }
                             ]
-            , test "does not report a type alias" <|
-                \() ->
-                    [ """
+                          )
+                        ]
+        , test "does not report a type alias that's used internally" <|
+            \() ->
+                [ """
 module Main exposing (main)
 import Reported
 main = ()
 """
-                    , """
+                , """
 module Reported exposing (..)
 type alias Used = ()
 type alias Unused = Used
 """
-                    ]
-                        |> Review.Test.runOnModulesWithProjectData application rule
-                        |> Review.Test.expectErrorsForModules
-                            [ ( "Reported"
-                              , [ Review.Test.error
-                                    { message = "Exposed type or type alias `Unused` is never used outside this module."
-                                    , details = unusedExposedElementDetails
-                                    , under = "type alias Unused = Used"
-                                    }
-                                ]
-                              )
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed type or type alias `Unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "type alias Unused = Used"
+                                }
                             ]
-            , test "does not report a custom type" <|
-                \() ->
-                    [ """
+                          )
+                        ]
+        , test "does not report a custom type that's used internally" <|
+            \() ->
+                [ """
 module Main exposing (main)
 import Reported
 main = ()
 """
-                    , """
+                , """
 module Reported exposing (..)
 type UsedT = UsedC
 type UnusedT = UnusedC UsedT
 """
-                    ]
-                        |> Review.Test.runOnModulesWithProjectData application rule
-                        |> Review.Test.expectErrorsForModules
-                            [ ( "Reported"
-                              , [ Review.Test.error
-                                    { message = "Exposed type `UnusedT` is never used outside this module."
-                                    , details = unusedExposedElementDetails
-                                    , under = "type UnusedT = UnusedC UsedT"
-                                    }
-                                ]
-                              )
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed type `UnusedT` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "type UnusedT = UnusedC UsedT"
+                                }
                             ]
-            , test "does not report a port" <|
-                \() ->
-                    [ """
+                          )
+                        ]
+        , test "does not report a port that's used internally" <|
+            \() ->
+                [ """
 module Main exposing (main)
 import Reported
 main = ()
 """
-                    , """
+                , """
 port module Reported exposing (..)
 port used : ()
 unused = used
 """
-                    ]
-                        |> Review.Test.runOnModulesWithProjectData application rule
-                        |> Review.Test.expectErrorsForModules
-                            [ ( "Reported"
-                              , [ Review.Test.error
-                                    { message = "Exposed function or value `unused` is never used outside this module."
-                                    , details = unusedExposedElementDetails
-                                    , under = "unused = used"
-                                    }
-                                ]
-                              )
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "unused = used"
+                                }
                             ]
-            ]
-        , describe "used externally"
-            [ test "does not report a function" <|
-                \() ->
-                    [ """
+                          )
+                        ]
+        , test "does not report a function that's used externally" <|
+            \() ->
+                [ """
 module Main exposing (main)
 import Reported
 main = Reported.used
 """
-                    , """
+                , """
 module Reported exposing (..)
 used = ()
 """
-                    ]
-                        |> Review.Test.runOnModulesWithProjectData application rule
-                        |> Review.Test.expectNoErrors
-            , test "does not report a type alias" <|
-                \() ->
-                    [ """
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        , test "does not report a type alias that's used externally" <|
+            \() ->
+                [ """
 module Main exposing (main)
 import Reported
 main : Reported.Used
 main = ()
 """
-                    , """
+                , """
 module Reported exposing (..)
 type alias Used = ()
 """
-                    ]
-                        |> Review.Test.runOnModulesWithProjectData application rule
-                        |> Review.Test.expectNoErrors
-            , test "does not report a custom type" <|
-                \() ->
-                    [ """
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        , test "does not report a custom type that's used externally" <|
+            \() ->
+                [ """
 module Main exposing (main)
 import Reported
 main : Reported.UsedT
 main = UsedC
 """
-                    , """module Reported exposing (..)
+                , """module Reported exposing (..)
 type UsedT = UsedC
 """
-                    ]
-                        |> Review.Test.runOnModulesWithProjectData application rule
-                        |> Review.Test.expectNoErrors
-            , test "does not report a port" <|
-                \() ->
-                    [ """
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        , test "does not report a port that's used externally" <|
+            \() ->
+                [ """
 module Main exposing (main)
 import Reported
 main = Reported.used
 """
-                    , """
+                , """
 port module Reported exposing (..)
 port used : ()
 """
-                    ]
-                        |> Review.Test.runOnModulesWithProjectData application rule
-                        |> Review.Test.expectNoErrors
-            ]
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
         ]
