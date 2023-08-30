@@ -504,6 +504,7 @@ type alias ModuleContext =
     , importedModules : Set ModuleNameStr
     , containsMainFunction : Bool
     , projectType : ProjectType
+    , isExposingAll : Bool
     }
 
 
@@ -523,9 +524,22 @@ fromProjectToModule =
     Rule.initContextCreator
         (\lookupTable ast moduleDocumentation projectContext ->
             let
+                exposingList : Exposing
+                exposingList =
+                    Module.exposingList (Node.value ast.moduleDefinition)
+
+                isExposingAll : Bool
+                isExposingAll =
+                    case exposingList of
+                        Exposing.All _ ->
+                            True
+
+                        Exposing.Explicit _ ->
+                            False
+
                 nodes : List (Node TopLevelExpose)
                 nodes =
-                    case Module.exposingList (Node.value ast.moduleDefinition) of
+                    case exposingList of
                         Exposing.All _ ->
                             List.filterMap
                                 (Node.value >> declarationToTopLevelExpose)
@@ -546,6 +560,7 @@ fromProjectToModule =
             , importedModules = Set.empty
             , containsMainFunction = False
             , projectType = projectContext.projectType
+            , isExposingAll = isExposingAll
             }
         )
         |> Rule.withModuleNameLookupTable
@@ -1542,7 +1557,10 @@ registerLocalValue : Range -> String -> ModuleContext -> ModuleContext
 registerLocalValue range name moduleContext =
     case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
         Just [] ->
-            if Dict.member name moduleContext.exposed then
+            if moduleContext.isExposingAll then
+                { moduleContext | exposed = Dict.remove name moduleContext.exposed }
+
+            else if Dict.member name moduleContext.exposed then
                 { moduleContext | ignoredElementsNotToReport = Set.insert name moduleContext.ignoredElementsNotToReport }
 
             else

@@ -1661,7 +1661,7 @@ unused = used
                           , [ Review.Test.error
                                 { message = "Exposed function or value `unused` is never used outside this module."
                                 , details = unusedExposedElementDetails
-                                , under = "unused = used"
+                                , under = "unused"
                                 }
                             ]
                           )
@@ -1733,7 +1733,7 @@ unused = used
                           , [ Review.Test.error
                                 { message = "Exposed function or value `unused` is never used outside this module."
                                 , details = unusedExposedElementDetails
-                                , under = "unused = used"
+                                , under = "unused"
                                 }
                             ]
                           )
