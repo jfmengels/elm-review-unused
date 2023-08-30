@@ -1553,15 +1553,16 @@ exposingAllTests =
         [ describe "unused"
             [ test "reports a function" <|
                 \() ->
-                    [ [ "module Main exposing (main)"
-                      , "import Reported"
-                      , "main = ()"
-                      ]
-                    , [ "module Reported exposing (..)"
-                      , "unused = ()"
-                      ]
+                    [ """
+module Main exposing (main)
+import Reported
+main = ()
+"""
+                    , """
+module Reported exposing (..)
+unused = ()
+"""
                     ]
-                        |> List.map (String.join "\n")
                         |> Review.Test.runOnModulesWithProjectData application rule
                         |> Review.Test.expectErrorsForModules
                             [ ( "Reported"
@@ -1575,15 +1576,16 @@ exposingAllTests =
                             ]
             , test "reports a type alias" <|
                 \() ->
-                    [ [ "module Main exposing (main)"
-                      , "import Reported"
-                      , "main = ()"
-                      ]
-                    , [ "module Reported exposing (..)"
-                      , "type alias Unused = ()"
-                      ]
+                    [ """
+module Main exposing (main)
+import Reported
+main = ()
+"""
+                    , """
+module Reported exposing (..)
+type alias Unused = ()
+"""
                     ]
-                        |> List.map (String.join "\n")
                         |> Review.Test.runOnModulesWithProjectData application rule
                         |> Review.Test.expectErrorsForModules
                             [ ( "Reported"
@@ -1597,15 +1599,16 @@ exposingAllTests =
                             ]
             , test "reports a custom type" <|
                 \() ->
-                    [ [ "module Main exposing (main)"
-                      , "import Reported"
-                      , "main = ()"
-                      ]
-                    , [ "module Reported exposing (..)"
-                      , "type UnusedT = UnusedC"
-                      ]
+                    [ """
+module Main exposing (main)
+import Reported
+main = ()
+"""
+                    , """
+module Reported exposing (..)
+type UnusedT = UnusedC
+"""
                     ]
-                        |> List.map (String.join "\n")
                         |> Review.Test.runOnModulesWithProjectData application rule
                         |> Review.Test.expectErrorsForModules
                             [ ( "Reported"
@@ -1619,15 +1622,16 @@ exposingAllTests =
                             ]
             , test "reports a port" <|
                 \() ->
-                    [ [ "module Main exposing (main)"
-                      , "import Reported"
-                      , "main = ()"
-                      ]
-                    , [ "port module Reported exposing (..)"
-                      , "port unused : ()"
-                      ]
+                    [ """
+module Main exposing (main)
+import Reported
+main = ()
+"""
+                    , """
+port module Reported exposing (..)
+port unused : ()
+"""
                     ]
-                        |> List.map (String.join "\n")
                         |> Review.Test.runOnModulesWithProjectData application rule
                         |> Review.Test.expectErrorsForModules
                             [ ( "Reported"
@@ -1643,16 +1647,17 @@ exposingAllTests =
         , describe "used internally"
             [ test "does not report a function" <|
                 \() ->
-                    [ [ "module Main exposing (main)"
-                      , "import Reported"
-                      , "main = ()"
-                      ]
-                    , [ "module Reported exposing (..)"
-                      , "used = ()"
-                      , "unused = used"
-                      ]
+                    [ """
+module Main exposing (main)
+import Reported
+main = ()
+"""
+                    , """
+module Reported exposing (..)
+used = ()
+unused = used
+"""
                     ]
-                        |> List.map (String.join "\n")
                         |> Review.Test.runOnModulesWithProjectData application rule
                         |> Review.Test.expectErrorsForModules
                             [ ( "Reported"
@@ -1666,16 +1671,17 @@ exposingAllTests =
                             ]
             , test "does not report a type alias" <|
                 \() ->
-                    [ [ "module Main exposing (main)"
-                      , "import Reported"
-                      , "main = ()"
-                      ]
-                    , [ "module Reported exposing (..)"
-                      , "type alias Used = ()"
-                      , "type alias Unused = Used"
-                      ]
+                    [ """
+module Main exposing (main)
+import Reported
+main = ()
+"""
+                    , """
+module Reported exposing (..)
+type alias Used = ()
+type alias Unused = Used
+"""
                     ]
-                        |> List.map (String.join "\n")
                         |> Review.Test.runOnModulesWithProjectData application rule
                         |> Review.Test.expectErrorsForModules
                             [ ( "Reported"
@@ -1689,16 +1695,17 @@ exposingAllTests =
                             ]
             , test "does not report a custom type" <|
                 \() ->
-                    [ [ "module Main exposing (main)"
-                      , "import Reported"
-                      , "main = ()"
-                      ]
-                    , [ "module Reported exposing (..)"
-                      , "type UsedT = UsedC"
-                      , "type UnusedT = UnusedC UsedT"
-                      ]
+                    [ """
+module Main exposing (main)
+import Reported
+main = ()
+"""
+                    , """
+module Reported exposing (..)
+type UsedT = UsedC
+type UnusedT = UnusedC UsedT
+"""
                     ]
-                        |> List.map (String.join "\n")
                         |> Review.Test.runOnModulesWithProjectData application rule
                         |> Review.Test.expectErrorsForModules
                             [ ( "Reported"
@@ -1712,16 +1719,17 @@ exposingAllTests =
                             ]
             , test "does not report a port" <|
                 \() ->
-                    [ [ "module Main exposing (main)"
-                      , "import Reported"
-                      , "main = ()"
-                      ]
-                    , [ "port module Reported exposing (..)"
-                      , "port used : ()"
-                      , "unused = used"
-                      ]
+                    [ """
+module Main exposing (main)
+import Reported
+main = ()
+"""
+                    , """
+port module Reported exposing (..)
+port used : ()
+unused = used
+"""
                     ]
-                        |> List.map (String.join "\n")
                         |> Review.Test.runOnModulesWithProjectData application rule
                         |> Review.Test.expectErrorsForModules
                             [ ( "Reported"
@@ -1737,56 +1745,59 @@ exposingAllTests =
         , describe "used externally"
             [ test "does not report a function" <|
                 \() ->
-                    [ [ "module Main exposing (main)"
-                      , "import Reported"
-                      , "main = Reported.used"
-                      ]
-                    , [ "module Reported exposing (..)"
-                      , "used = ()"
-                      ]
+                    [ """
+module Main exposing (main)
+import Reported
+main = Reported.used
+"""
+                    , """
+module Reported exposing (..)
+used = ()
+"""
                     ]
-                        |> List.map (String.join "\n")
                         |> Review.Test.runOnModulesWithProjectData application rule
                         |> Review.Test.expectNoErrors
             , test "does not report a type alias" <|
                 \() ->
-                    [ [ "module Main exposing (main)"
-                      , "import Reported"
-                      , "main : Reported.Used"
-                      , "main = ()"
-                      ]
-                    , [ "module Reported exposing (..)"
-                      , "type alias Used = ()"
-                      ]
+                    [ """
+module Main exposing (main)
+import Reported
+main : Reported.Used
+main = ()
+"""
+                    , """
+module Reported exposing (..)
+type alias Used = ()
+"""
                     ]
-                        |> List.map (String.join "\n")
                         |> Review.Test.runOnModulesWithProjectData application rule
                         |> Review.Test.expectNoErrors
             , test "does not report a custom type" <|
                 \() ->
-                    [ [ "module Main exposing (main)"
-                      , "import Reported"
-                      , "main : Reported.UsedT"
-                      , "main = UsedC"
-                      ]
-                    , [ "module Reported exposing (..)"
-                      , "type UsedT = UsedC"
-                      ]
+                    [ """
+module Main exposing (main)
+import Reported
+main : Reported.UsedT
+main = UsedC
+"""
+                    , """module Reported exposing (..)
+type UsedT = UsedC
+"""
                     ]
-                        |> List.map (String.join "\n")
                         |> Review.Test.runOnModulesWithProjectData application rule
                         |> Review.Test.expectNoErrors
             , test "does not report a port" <|
                 \() ->
-                    [ [ "module Main exposing (main)"
-                      , "import Reported"
-                      , "main = Reported.used"
-                      ]
-                    , [ "port module Reported exposing (..)"
-                      , "port used : ()"
-                      ]
+                    [ """
+module Main exposing (main)
+import Reported
+main = Reported.used
+"""
+                    , """
+port module Reported exposing (..)
+port used : ()
+"""
                     ]
-                        |> List.map (String.join "\n")
                         |> Review.Test.runOnModulesWithProjectData application rule
                         |> Review.Test.expectNoErrors
             ]
