@@ -602,6 +602,22 @@ declarationToTopLevelExpose declaration =
             Nothing
 
 
+topLevelExposeName : TopLevelExpose -> String
+topLevelExposeName topLevelExpose =
+    case topLevelExpose of
+        Exposing.InfixExpose name ->
+            name
+
+        Exposing.FunctionExpose name ->
+            name
+
+        Exposing.TypeOrAliasExpose name ->
+            name
+
+        Exposing.TypeExpose { name } ->
+            name
+
+
 fromModuleToProject : Config -> Rule.ContextCreator ModuleContext ProjectContext
 fromModuleToProject config =
     Rule.initContextCreator
@@ -1252,22 +1268,8 @@ isExceptionByAnnotation config name node =
 
 
 getDeclarationName : Node Declaration -> Maybe String
-getDeclarationName node =
-    case Node.value node of
-        Declaration.FunctionDeclaration { declaration } ->
-            Just (declaration |> Node.value |> .name |> Node.value)
-
-        Declaration.AliasDeclaration { name } ->
-            Just (Node.value name)
-
-        Declaration.CustomTypeDeclaration { name } ->
-            Just (Node.value name)
-
-        Declaration.PortDeclaration { name } ->
-            Just (Node.value name)
-
-        _ ->
-            Nothing
+getDeclarationName =
+    Node.value >> declarationName
 
 
 getDeclarationDocumentation : Node Declaration -> Maybe String
@@ -1361,29 +1363,8 @@ findConstructorsForExposedCustomType typeName declarations =
 
 
 declarationName : Declaration -> Maybe String
-declarationName declaration =
-    case declaration of
-        Declaration.FunctionDeclaration function ->
-            function.declaration
-                |> Node.value
-                |> .name
-                |> Node.value
-                |> Just
-
-        Declaration.CustomTypeDeclaration type_ ->
-            Just <| Node.value type_.name
-
-        Declaration.AliasDeclaration alias_ ->
-            Just <| Node.value alias_.name
-
-        Declaration.PortDeclaration port_ ->
-            Just <| Node.value port_.name
-
-        Declaration.InfixDeclaration { operator } ->
-            Just <| Node.value operator
-
-        Declaration.Destructuring _ _ ->
-            Nothing
+declarationName =
+    declarationToTopLevelExpose >> Maybe.map (Node.value >> topLevelExposeName)
 
 
 testFunctionName : ModuleContext -> Node Declaration -> Maybe String
