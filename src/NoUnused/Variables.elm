@@ -1127,18 +1127,13 @@ registerCustomType range { name, constructors } context =
 
 registerTypeAlias : Range -> TypeAlias -> ModuleContext -> ModuleContext
 registerTypeAlias range { name, typeAnnotation } context =
-    let
-        newContext : ModuleContext
-        newContext =
-            case Node.value typeAnnotation of
-                TypeAnnotation.Record _ ->
-                    { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
-
-                _ ->
-                    context
-    in
     case Node.value typeAnnotation of
         TypeAnnotation.Record _ ->
+            let
+                newContext : ModuleContext
+                newContext =
+                    { context | importedCustomTypeLookup = Dict.remove (Node.value name) context.importedCustomTypeLookup }
+            in
             if context.exposesEverything then
                 newContext
 
@@ -1173,9 +1168,9 @@ registerTypeAlias range { name, typeAnnotation } context =
                     Dict.insert
                         (Node.value name)
                         typeAlias
-                        newContext.localTypes
+                        context.localTypes
             in
-            { newContext | localTypes = localCustomTypes }
+            { context | localTypes = localCustomTypes }
 
 
 
