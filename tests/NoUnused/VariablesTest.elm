@@ -752,7 +752,7 @@ import Foo exposing (a)"""
                         , under = "a"
                         }
                         |> Review.Test.whenFixed """module SomeModule exposing (b)
-import Foo """
+import Foo"""
                     ]
     , test "should report unused imported functions (multiple imports)" <|
         \() ->
@@ -875,7 +875,7 @@ import Parser exposing ((</>))"""
                         , under = "(</>)"
                         }
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
-import Parser """
+import Parser"""
                     ]
     , test "should report unused import" <|
         \() ->
@@ -1070,10 +1070,10 @@ type C = C_Value
                             , details = details
                             , under = "C(..)"
                             }
-                            |> Review.Test.whenFixed ("""module A exposing (a)
-import B$
+                            |> Review.Test.whenFixed """module A exposing (a)
+import B
 type alias C_Value = {}
-a = C_Value""" |> String.replace "$" " ")
+a = C_Value"""
                         ]
                       )
                     ]
@@ -1120,10 +1120,10 @@ type C = C
                             , details = details
                             , under = "C(..)"
                             }
-                            |> Review.Test.whenFixed ("""module A exposing (a)
-import B$
+                            |> Review.Test.whenFixed """module A exposing (a)
+import B
 type Type = C
-a = C""" |> String.replace "$" " ")
+a = C"""
                         ]
                       )
                     ]
@@ -1174,9 +1174,9 @@ a = 1"""
                         , details = details
                         , under = "C(..)"
                         }
-                        |> Review.Test.whenFixed ("""module A exposing (a)
-import Dependency$
-a = 1""" |> String.replace "$" " ")
+                        |> Review.Test.whenFixed """module A exposing (a)
+import Dependency
+a = 1"""
                     ]
     , test "should not report open type import when at least one of the exposed constructors are used as a value (imported dependency)" <|
         \() ->
@@ -1236,10 +1236,10 @@ type C = C_Value
                             , details = details
                             , under = "C(..)"
                             }
-                            |> Review.Test.whenFixed ("""module A exposing (a)
-import B$
+                            |> Review.Test.whenFixed """module A exposing (a)
+import B
 a = 1
-""" |> String.replace "$" " ")
+"""
                         ]
                       )
                     ]
@@ -1479,10 +1479,10 @@ shadowed = ""
                             , under = "shadowed"
                             }
                             |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
-                            |> Review.Test.whenFixed ("""module A exposing (identity)
-import Used$
+                            |> Review.Test.whenFixed """module A exposing (identity)
+import Used
 identity shadowed = shadowed
-""" |> String.replace "$" " ")
+"""
                         ]
                       )
                     ]
@@ -1509,14 +1509,14 @@ shadowed = ""
                             , under = "shadowed"
                             }
                             |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
-                            |> Review.Test.whenFixed ("""module A exposing (identity)
-import Used$
+                            |> Review.Test.whenFixed """module A exposing (identity)
+import Used
 identity x = 
     let
         identityHelp shadowed = shadowed
     in
     identityHelp x
-""" |> String.replace "$" " ")
+"""
                         ]
                       )
                     ]
@@ -1540,11 +1540,11 @@ shadowed = ""
                             , under = "shadowed"
                             }
                             |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
-                            |> Review.Test.whenFixed ("""module A exposing (identity)
-import Used$
+                            |> Review.Test.whenFixed """module A exposing (identity)
+import Used
 identity x = 
     (\\shadowed -> shadowed) x
-""" |> String.replace "$" " ")
+"""
                         ]
                       )
                     ]
@@ -1613,13 +1613,13 @@ shadowed = ""
                             , under = "shadowed"
                             }
                             |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
-                            |> Review.Test.whenFixed ("""module A exposing (identity)
-import Used$
+                            |> Review.Test.whenFixed """module A exposing (identity)
+import Used
 identity x = 
     case Just x of
         Nothing -> x
         Just shadowed -> shadowed
-""" |> String.replace "$" " ")
+"""
                         ]
                       )
                     ]
@@ -1742,9 +1742,9 @@ a = Dependency.C_Value"""
                         , details = details
                         , under = "exposing (..)"
                         }
-                        |> Review.Test.whenFixed ("""module SomeModule exposing (a)
-import Dependency$
-a = Dependency.C_Value""" |> String.replace "$" " ")
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Dependency
+a = Dependency.C_Value"""
                     ]
     , test "should report unused exposing from aliased dependency that exposes everything when it is used with qualified imports" <|
         \() ->
@@ -1758,9 +1758,9 @@ a = D.C_Value"""
                         , details = details
                         , under = "exposing (..)"
                         }
-                        |> Review.Test.whenFixed ("""module SomeModule exposing (a)
-import Dependency as D$
-a = D.C_Value""" |> String.replace "$" " ")
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Dependency as D
+a = D.C_Value"""
                     ]
     , test "should not report used exposing from dependency module that exposes everything" <|
         \() ->
@@ -1868,10 +1868,10 @@ shadowed = 1
                             , under = "shadowed"
                             }
                             |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
-                            |> Review.Test.whenFixed ("""module A exposing (a)
-import Used$
+                            |> Review.Test.whenFixed """module A exposing (a)
+import Used
 shadowed = 1
-a = shadowed""" |> String.replace "$" " ")
+a = shadowed"""
                         ]
                       )
                     ]
@@ -1894,10 +1894,10 @@ shadowed = 1
                             , under = "shadowed"
                             }
                             |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 31 } }
-                            |> Review.Test.whenFixed ("""module A exposing (a)
-import Used$
+                            |> Review.Test.whenFixed """module A exposing (a)
+import Used
 a = shadowed
-shadowed = 1""" |> String.replace "$" " ")
+shadowed = 1"""
                         ]
                       )
                     ]

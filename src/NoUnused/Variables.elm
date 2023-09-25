@@ -182,6 +182,7 @@ type alias ModuleThatExposesEverything =
     , alias : Maybe String
     , moduleNameRange : Range
     , exposingRange : Range
+    , exposingRangeToRemove : Range
     , importRange : Range
     , wasUsedImplicitly : Bool
     , wasUsedWithModuleName : Bool
@@ -410,6 +411,10 @@ importVisitor ((Node importRange import_) as node) context =
 
                 Just declaredImports ->
                     let
+                        moduleNameRange : Range
+                        moduleNameRange =
+                            Node.range import_.moduleName
+
                         contextWithAlias : ModuleContext
                         contextWithAlias =
                             case import_.moduleAlias of
@@ -418,6 +423,15 @@ importVisitor ((Node importRange import_) as node) context =
 
                                 Nothing ->
                                     context
+
+                        exposingRange : Range
+                        exposingRange =
+                            case import_.moduleAlias of
+                                Just (Node aliasRange _) ->
+                                    { start = aliasRange.end, end = (Node.range declaredImports).end }
+
+                                Nothing ->
+                                    { start = moduleNameRange.end, end = (Node.range declaredImports).end }
                     in
                     case Node.value declaredImports of
                         Exposing.All _ ->
@@ -427,8 +441,9 @@ importVisitor ((Node importRange import_) as node) context =
                                     | exposingAllModules =
                                         { name = Node.value import_.moduleName
                                         , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
-                                        , moduleNameRange = Node.range import_.moduleName
+                                        , moduleNameRange = moduleNameRange
                                         , exposingRange = Node.range declaredImports
+                                        , exposingRangeToRemove = exposingRange
                                         , importRange = importRange
                                         , wasUsedImplicitly = False
                                         , wasUsedWithModuleName = False
@@ -451,7 +466,7 @@ importVisitor ((Node importRange import_) as node) context =
                             List.foldl
                                 (handleExposedElements (NonemptyList.head contextWithAlias.scopes).declared customTypesFromModule)
                                 ( [], contextWithAlias )
-                                (collectExplicitlyExposedElements (Node.range declaredImports) list)
+                                (collectExplicitlyExposedElements exposingRange list)
     in
     ( exposingErrors ++ errors, newContext )
 
@@ -1368,7 +1383,7 @@ finalEvaluation context =
         moduleThatExposeEverythingErrors : List ( Maybe (Error {}), Maybe ( ModuleName, ModuleName ) )
         moduleThatExposeEverythingErrors =
             List.map
-                (\({ importRange, exposingRange } as module_) ->
+                (\({ importRange, exposingRange, exposingRangeToRemove } as module_) ->
                     if not module_.wasUsedImplicitly then
                         if module_.wasUsedWithModuleName then
                             ( Just
@@ -1377,7 +1392,7 @@ finalEvaluation context =
                                     , details = details
                                     }
                                     exposingRange
-                                    [ Fix.removeRange exposingRange ]
+                                    [ Fix.removeRange exposingRangeToRemove ]
                                 )
                             , Nothing
                             )
