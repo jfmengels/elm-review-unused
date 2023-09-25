@@ -1154,13 +1154,7 @@ registerTypeAlias range { name, typeAnnotation } context =
                     { kind = TypeAliasKind
                     , under = Node.range name
                     , rangeToRemove = untilStartOfNextLine range
-                    , variants =
-                        case Node.value typeAnnotation of
-                            TypeAnnotation.Record _ ->
-                                [ Node.value name ]
-
-                            _ ->
-                                []
+                    , variants = []
                     }
 
                 localCustomTypes : Dict String TypeData
