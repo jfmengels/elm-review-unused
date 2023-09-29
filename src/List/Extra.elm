@@ -53,6 +53,14 @@ dictToListMap fn dict baseAcc =
 
 insertAllJusts : List ( a, Maybe comparable ) -> Set comparable -> Set comparable
 insertAllJusts list set =
-    Set.union
-        (Set.fromList (List.filterMap Tuple.second list))
-        set
+    case list of
+        [] ->
+            set
+
+        ( _, head ) :: rest ->
+            case head of
+                Nothing ->
+                    insertAllJusts rest set
+
+                Just value ->
+                    insertAllJusts rest (Set.insert value set)
