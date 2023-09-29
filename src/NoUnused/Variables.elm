@@ -1155,14 +1155,14 @@ registerTypeAlias range { name, typeAnnotation } context =
                     , variants = []
                     }
 
-                localCustomTypes : Dict String TypeData
-                localCustomTypes =
+                localTypes : Dict String TypeData
+                localTypes =
                     Dict.insert
                         (Node.value name)
                         typeAlias
                         context.localTypes
             in
-            { context | localTypes = localCustomTypes }
+            { context | localTypes = localTypes }
 
 
 
