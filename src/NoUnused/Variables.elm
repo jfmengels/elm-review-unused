@@ -1344,8 +1344,8 @@ finalEvaluation context =
         usedLocally =
             Dict.get [] rootScope.used |> Maybe.withDefault Set.empty
 
-        importedTypeErrors : List (Error {})
-        importedTypeErrors =
+        addImportedTypeErrors : List (Error {}) -> List (Error {})
+        addImportedTypeErrors acc =
             List.Extra.dictToListMap
                 (\name { under, rangeToRemove, openRange } ->
                     if Set.member name usedLocally && not (Dict.member name context.localTypes) then
@@ -1366,7 +1366,7 @@ finalEvaluation context =
                             [ Fix.removeRange rangeToRemove ]
                 )
                 context.unusedImportedCustomTypes
-                []
+                acc
 
         moduleThatExposeEverythingErrors : List ( Maybe (Error {}), Maybe ( ModuleName, ModuleName ) )
         moduleThatExposeEverythingErrors =
@@ -1469,10 +1469,10 @@ finalEvaluation context =
     List.concat
         [ makeReportHelp newRootScope
             |> Tuple.first
-        , importedTypeErrors
         , moduleErrors
         , List.filterMap Tuple.first moduleThatExposeEverythingErrors
         ]
+        |> addImportedTypeErrors
         |> addCustomTypeErrors
 
 
