@@ -1454,17 +1454,17 @@ finalEvaluation context =
                                 |> Just
                     )
 
-        customTypeErrors : List (Error {})
-        customTypeErrors =
+        addCustomTypeErrors : List (Error {}) -> List (Error {})
+        addCustomTypeErrors acc =
             if context.exposesEverything then
-                []
+                acc
 
             else
                 List.Extra.dictToListFilterAndMap
                     (\name -> not <| Set.member name usedLocally)
                     errorForLocalType
                     context.localTypes
-                    []
+                    acc
     in
     List.concat
         [ makeReportHelp newRootScope
@@ -1472,8 +1472,8 @@ finalEvaluation context =
         , importedTypeErrors
         , moduleErrors
         , List.filterMap Tuple.first moduleThatExposeEverythingErrors
-        , customTypeErrors
         ]
+        |> addCustomTypeErrors
 
 
 errorForLocalType : String -> TypeData -> Error {}
