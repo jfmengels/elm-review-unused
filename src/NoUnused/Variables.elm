@@ -1409,48 +1409,49 @@ finalEvaluation context =
         moduleErrors : List (Error {})
         moduleErrors =
             context.declaredModules
-                |> List.filter
+                |> List.filterMap
                     (\variableInfo ->
-                        not
-                            (case variableInfo.alias of
+                        if
+                            case variableInfo.alias of
                                 Just alias ->
                                     Set.member ( variableInfo.moduleName, [ alias ] ) usedModules
 
                                 Nothing ->
                                     Set.member ( variableInfo.moduleName, variableInfo.moduleName ) usedModules
-                            )
-                    )
-                |> List.map
-                    (\variableInfo ->
-                        let
-                            name : String
-                            name =
-                                case variableInfo.alias of
-                                    Just alias ->
-                                        alias
+                        then
+                            Nothing
 
-                                    Nothing ->
-                                        getModuleName variableInfo.moduleName
+                        else
+                            let
+                                name : String
+                                name =
+                                    case variableInfo.alias of
+                                        Just alias ->
+                                            alias
 
-                            fix : List Fix
-                            fix =
-                                case variableInfo.variableType of
-                                    ImportedModule ->
-                                        [ Fix.removeRange variableInfo.rangeToRemove ]
+                                        Nothing ->
+                                            getModuleName variableInfo.moduleName
 
-                                    ModuleAlias { originalNameOfTheImport, exposesSomething } ->
-                                        if not exposesSomething || not (Set.member originalNameOfTheImport moduleNamesInUse) then
+                                fix : List Fix
+                                fix =
+                                    case variableInfo.variableType of
+                                        ImportedModule ->
                                             [ Fix.removeRange variableInfo.rangeToRemove ]
 
-                                        else
-                                            []
-                        in
-                        Rule.errorWithFix
-                            { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used"
-                            , details = details
-                            }
-                            variableInfo.under
-                            fix
+                                        ModuleAlias { originalNameOfTheImport, exposesSomething } ->
+                                            if not exposesSomething || not (Set.member originalNameOfTheImport moduleNamesInUse) then
+                                                [ Fix.removeRange variableInfo.rangeToRemove ]
+
+                                            else
+                                                []
+                            in
+                            Rule.errorWithFix
+                                { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used"
+                                , details = details
+                                }
+                                variableInfo.under
+                                fix
+                                |> Just
                     )
 
         customTypeErrors : List (Error {})
