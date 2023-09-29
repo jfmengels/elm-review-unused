@@ -1061,7 +1061,7 @@ collectExposedElementsHelp docsReferences declarations declaredNames canRemoveEx
                             Node.range nextNode
 
                         Nothing ->
-                            Range.emptyRange
+                            Range.empty
 
                 newAcc : Dict String ExposedElement
                 newAcc =

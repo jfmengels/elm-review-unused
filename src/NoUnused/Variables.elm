@@ -16,7 +16,7 @@ import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Syntax.Type
 import Elm.Syntax.TypeAlias exposing (TypeAlias)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
@@ -535,7 +535,7 @@ collectExplicitlyExposedElements exposingNodeRange list =
                 |> List.map Node.range
                 |> List.drop 1
             )
-                ++ [ { start = { row = 0, column = 0 }, end = { row = 0, column = 0 } } ]
+                ++ [ Range.empty ]
     in
     list
         |> List.map3 (\prev next current -> ( prev, current, next )) listWithPreviousRange listWithNextRange
