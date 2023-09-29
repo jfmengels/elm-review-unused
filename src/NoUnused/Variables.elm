@@ -1411,14 +1411,17 @@ finalEvaluation context =
             context.declaredModules
                 |> List.filterMap
                     (\variableInfo ->
-                        if
-                            case variableInfo.alias of
-                                Just alias ->
-                                    Set.member ( variableInfo.moduleName, [ alias ] ) usedModules
+                        let
+                            moduleReference : ( ModuleName, ModuleName )
+                            moduleReference =
+                                case variableInfo.alias of
+                                    Just alias ->
+                                        ( variableInfo.moduleName, [ alias ] )
 
-                                Nothing ->
-                                    Set.member ( variableInfo.moduleName, variableInfo.moduleName ) usedModules
-                        then
+                                    Nothing ->
+                                        ( variableInfo.moduleName, variableInfo.moduleName )
+                        in
+                        if Set.member moduleReference usedModules then
                             Nothing
 
                         else
