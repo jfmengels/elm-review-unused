@@ -2273,7 +2273,7 @@ type alias ExposedType = { a : A }
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
-    , test "should not report type alias used in a type alias field's arguments " <|
+    , test "should not report type alias used in a type alias field's arguments" <|
         \() ->
             """module SomeModule exposing (ExposedType)
 type alias A = { a : B }
@@ -2281,7 +2281,7 @@ type alias ExposedType = { a : Maybe A }
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
-    , test "should not report custom type used in a type alias field's arguments " <|
+    , test "should not report custom type used in a type alias field's arguments" <|
         \() ->
             """module SomeModule exposing (ExposedType)
 type A = B | C
