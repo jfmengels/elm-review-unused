@@ -1,4 +1,4 @@
-module List.Extra exposing (dictToListMap, find, indexedFilterMap, insertAllJusts)
+module List.Extra exposing (dictToListFilterAndMap, dictToListMap, find, indexedFilterMap, insertAllJusts)
 
 {-| Some utilities.
 -}
@@ -47,8 +47,22 @@ indexedFilterMap predicate index list acc =
 
 
 dictToListMap : (k -> v -> a) -> Dict k v -> List a -> List a
-dictToListMap fn dict baseAcc =
-    Dict.foldr (\k v acc -> fn k v :: acc) baseAcc dict
+dictToListMap mapper dict baseAcc =
+    Dict.foldr (\k v acc -> mapper k v :: acc) baseAcc dict
+
+
+dictToListFilterAndMap : (k -> Bool) -> (k -> v -> a) -> Dict k v -> List a -> List a
+dictToListFilterAndMap predicate mapper dict baseAcc =
+    Dict.foldr
+        (\k v acc ->
+            if predicate k then
+                mapper k v :: acc
+
+            else
+                acc
+        )
+        baseAcc
+        dict
 
 
 insertAllJusts : List ( a, Maybe comparable ) -> Set comparable -> Set comparable

@@ -1460,10 +1460,11 @@ finalEvaluation context =
                 []
 
             else
-                context.localTypes
-                    |> Dict.toList
-                    |> List.filter (\( name, _ ) -> not <| Set.member name usedLocally)
-                    |> List.map errorForLocalType
+                List.Extra.dictToListFilterAndMap
+                    (\name -> not <| Set.member name usedLocally)
+                    errorForLocalType
+                    context.localTypes
+                    []
     in
     List.concat
         [ makeReportHelp newRootScope
@@ -1475,8 +1476,8 @@ finalEvaluation context =
         ]
 
 
-errorForLocalType : ( String, TypeData ) -> Error {}
-errorForLocalType ( name, type_ ) =
+errorForLocalType : String -> TypeData -> Error {}
+errorForLocalType name type_ =
     let
         kind : String
         kind =
