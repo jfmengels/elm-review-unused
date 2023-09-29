@@ -1,9 +1,10 @@
-module List.Extra exposing (dictToListMap, find, indexedFilterMap)
+module List.Extra exposing (dictToListMap, find, indexedFilterMap, insertAllJusts)
 
 {-| Some utilities.
 -}
 
 import Dict exposing (Dict)
+import Set exposing (Set)
 
 
 {-| Find the first element that satisfies a predicate and return
@@ -48,3 +49,10 @@ indexedFilterMap predicate index list acc =
 dictToListMap : (k -> v -> a) -> Dict k v -> List a -> List a
 dictToListMap fn dict baseAcc =
     Dict.foldr (\k v acc -> fn k v :: acc) baseAcc dict
+
+
+insertAllJusts : List ( a, Maybe comparable ) -> Set comparable -> Set comparable
+insertAllJusts list set =
+    Set.union
+        (Set.fromList (List.filterMap Tuple.second list))
+        set

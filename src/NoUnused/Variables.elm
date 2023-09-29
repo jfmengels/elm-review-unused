@@ -1404,9 +1404,7 @@ finalEvaluation context =
 
         usedModules : Set ( ModuleName, ModuleName )
         usedModules =
-            Set.union
-                (Set.fromList (List.filterMap Tuple.second moduleThatExposeEverythingErrors))
-                context.usedModules
+            List.Extra.insertAllJusts moduleThatExposeEverythingErrors context.usedModules
 
         moduleErrors : List (Error {})
         moduleErrors =
