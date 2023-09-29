@@ -1,7 +1,9 @@
-module List.Extra exposing (find, indexedFilterMap)
+module List.Extra exposing (dictToListMap, find, indexedFilterMap)
 
 {-| Some utilities.
 -}
+
+import Dict exposing (Dict)
 
 
 {-| Find the first element that satisfies a predicate and return
@@ -41,3 +43,8 @@ indexedFilterMap predicate index list acc =
                     Nothing ->
                         acc
                 )
+
+
+dictToListMap : (k -> v -> a) -> Dict k v -> List a -> List a
+dictToListMap fn dict baseAcc =
+    Dict.foldr (\k v acc -> fn k v :: acc) baseAcc dict

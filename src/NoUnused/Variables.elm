@@ -20,6 +20,7 @@ import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Syntax.Type
 import Elm.Syntax.TypeAlias exposing (TypeAlias)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import List.Extra
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import Review.Fix as Fix exposing (Fix)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
@@ -1345,27 +1346,27 @@ finalEvaluation context =
 
         importedTypeErrors : List (Error {})
         importedTypeErrors =
-            context.unusedImportedCustomTypes
-                |> Dict.toList
-                |> List.map
-                    (\( name, { under, rangeToRemove, openRange } ) ->
-                        if Set.member name usedLocally && not (Dict.member name context.localTypes) then
-                            Rule.errorWithFix
-                                { message = "Imported constructors for `" ++ name ++ "` are not used"
-                                , details = details
-                                }
-                                under
-                                -- If the constructors are not used but the type itself is, then only remove the `(..)`
-                                [ Fix.removeRange openRange ]
+            List.Extra.dictToListMap
+                (\name { under, rangeToRemove, openRange } ->
+                    if Set.member name usedLocally && not (Dict.member name context.localTypes) then
+                        Rule.errorWithFix
+                            { message = "Imported constructors for `" ++ name ++ "` are not used"
+                            , details = details
+                            }
+                            under
+                            -- If the constructors are not used but the type itself is, then only remove the `(..)`
+                            [ Fix.removeRange openRange ]
 
-                        else
-                            Rule.errorWithFix
-                                { message = "Imported type `" ++ name ++ "` is not used"
-                                , details = details
-                                }
-                                under
-                                [ Fix.removeRange rangeToRemove ]
-                    )
+                    else
+                        Rule.errorWithFix
+                            { message = "Imported type `" ++ name ++ "` is not used"
+                            , details = details
+                            }
+                            under
+                            [ Fix.removeRange rangeToRemove ]
+                )
+                context.unusedImportedCustomTypes
+                []
 
         moduleThatExposeEverythingErrors : List ( Maybe (Error {}), Maybe ( ModuleName, ModuleName ) )
         moduleThatExposeEverythingErrors =
