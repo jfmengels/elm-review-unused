@@ -1406,56 +1406,55 @@ finalEvaluation context =
         usedModules =
             List.Extra.insertAllJusts moduleThatExposeEverythingErrors context.usedModules
 
-        moduleErrors : List (Error {})
-        moduleErrors =
-            context.declaredModules
-                |> List.filterMap
-                    (\variableInfo ->
-                        let
-                            moduleReference : ( ModuleName, ModuleName )
-                            moduleReference =
-                                case variableInfo.alias of
-                                    Just alias ->
-                                        ( variableInfo.moduleName, [ alias ] )
+        addModuleErrors : List (Error {}) -> List (Error {})
+        addModuleErrors acc =
+            List.Extra.listFilterThenMapInto
+                (\variableInfo ->
+                    let
+                        moduleReference : ( ModuleName, ModuleName )
+                        moduleReference =
+                            case variableInfo.alias of
+                                Just alias ->
+                                    ( variableInfo.moduleName, [ alias ] )
 
-                                    Nothing ->
-                                        ( variableInfo.moduleName, variableInfo.moduleName )
-                        in
-                        if Set.member moduleReference usedModules then
-                            Nothing
+                                Nothing ->
+                                    ( variableInfo.moduleName, variableInfo.moduleName )
+                    in
+                    not (Set.member moduleReference usedModules)
+                )
+                (\variableInfo ->
+                    let
+                        name : String
+                        name =
+                            case variableInfo.alias of
+                                Just alias ->
+                                    alias
 
-                        else
-                            let
-                                name : String
-                                name =
-                                    case variableInfo.alias of
-                                        Just alias ->
-                                            alias
+                                Nothing ->
+                                    getModuleName variableInfo.moduleName
 
-                                        Nothing ->
-                                            getModuleName variableInfo.moduleName
+                        fix : List Fix
+                        fix =
+                            case variableInfo.variableType of
+                                ImportedModule ->
+                                    [ Fix.removeRange variableInfo.rangeToRemove ]
 
-                                fix : List Fix
-                                fix =
-                                    case variableInfo.variableType of
-                                        ImportedModule ->
-                                            [ Fix.removeRange variableInfo.rangeToRemove ]
+                                ModuleAlias { originalNameOfTheImport, exposesSomething } ->
+                                    if not exposesSomething || not (Set.member originalNameOfTheImport moduleNamesInUse) then
+                                        [ Fix.removeRange variableInfo.rangeToRemove ]
 
-                                        ModuleAlias { originalNameOfTheImport, exposesSomething } ->
-                                            if not exposesSomething || not (Set.member originalNameOfTheImport moduleNamesInUse) then
-                                                [ Fix.removeRange variableInfo.rangeToRemove ]
-
-                                            else
-                                                []
-                            in
-                            Rule.errorWithFix
-                                { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used"
-                                , details = details
-                                }
-                                variableInfo.under
-                                fix
-                                |> Just
-                    )
+                                    else
+                                        []
+                    in
+                    Rule.errorWithFix
+                        { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used"
+                        , details = details
+                        }
+                        variableInfo.under
+                        fix
+                )
+                context.declaredModules
+                acc
 
         addCustomTypeErrors : List (Error {}) -> List (Error {})
         addCustomTypeErrors acc =
@@ -1472,11 +1471,11 @@ finalEvaluation context =
     List.concat
         [ makeReportHelp newRootScope
             |> Tuple.first
-        , moduleErrors
         , List.filterMap Tuple.first moduleThatExposeEverythingErrors
         ]
         |> addImportedTypeErrors
         |> addCustomTypeErrors
+        |> addModuleErrors
 
 
 errorForLocalType : String -> TypeData -> Error {}

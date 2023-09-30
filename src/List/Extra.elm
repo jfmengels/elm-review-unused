@@ -1,4 +1,4 @@
-module List.Extra exposing (dictToListFilterAndMap, dictToListMap, find, indexedFilterMap, insertAllJusts)
+module List.Extra exposing (dictToListFilterAndMap, dictToListMap, find, indexedFilterMap, insertAllJusts, listFilterThenMapInto)
 
 {-| Some utilities.
 -}
@@ -44,6 +44,22 @@ indexedFilterMap predicate index list acc =
                     Nothing ->
                         acc
                 )
+
+
+{-| Note: Doesn't preserve order of the list.
+-}
+listFilterThenMapInto : (a -> Bool) -> (a -> b) -> List a -> List b -> List b
+listFilterThenMapInto predicate mapper list acc =
+    case list of
+        [] ->
+            acc
+
+        x :: xs ->
+            if predicate x then
+                mapper x :: acc
+
+            else
+                listFilterThenMapInto predicate mapper xs acc
 
 
 dictToListMap : (k -> v -> a) -> Dict k v -> List a -> List a
