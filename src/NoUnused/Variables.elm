@@ -1468,11 +1468,8 @@ finalEvaluation context =
                     context.localTypes
                     acc
     in
-    List.concat
-        [ makeReportHelp newRootScope
-            |> Tuple.first
-        , List.filterMap Tuple.first moduleThatExposeEverythingErrors
-        ]
+    List.filterMap Tuple.first moduleThatExposeEverythingErrors
+        |> List.append (makeReportHelp newRootScope |> Tuple.first)
         |> addImportedTypeErrors
         |> addCustomTypeErrors
         |> addModuleErrors
