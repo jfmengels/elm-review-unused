@@ -1441,6 +1441,44 @@ c = 1"""
             ]
                 |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
+    , test "should report unused import even if a local declaration shadows it" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Html exposing (button, div)
+button = 1
+a = button + div"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported variable `button` is not used"
+                        , details = details
+                        , under = "button"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Html exposing (div)
+button = 1
+a = button + div"""
+                    ]
+    , test "should report unused import even if a local declaration shadows it but is declaration after other uses" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Html exposing (button, div)
+a = button + div
+button = 1"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported variable `button` is not used"
+                        , details = details
+                        , under = "button"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 29 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Html exposing (div)
+a = button + div
+button = 1"""
+                    ]
     , test "should report unused import even if a used let..in variable is named the same way" <|
         \() ->
             """module SomeModule exposing (a)
