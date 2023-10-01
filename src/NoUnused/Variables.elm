@@ -336,13 +336,14 @@ dependenciesVisitor dependencies projectContext =
             dependencies
                 |> Dict.values
                 |> List.concatMap Dependency.modules
-                |> List.map
-                    (\module_ ->
-                        ( String.split "." module_.name
-                        , unionsToDict module_.unions
-                        )
+                |> List.foldl
+                    (\module_ acc ->
+                        Dict.insert
+                            (String.split "." module_.name)
+                            (unionsToDict module_.unions)
+                            acc
                     )
-                |> Dict.fromList
+                    Dict.empty
     in
     ( [], { projectContext | customTypes = customTypes } )
 
