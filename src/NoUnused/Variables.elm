@@ -370,12 +370,10 @@ moduleDefinitionVisitor (Node _ moduleNode) context =
             { context | exposesEverything = True }
 
         Exposing.Explicit list ->
-            let
-                names : List String
-                names =
-                    List.map getExposingName list
-            in
-            markAllAsUsed names context
+            List.foldl
+                (\element ctx -> markAsUsed (getExposingName element) ctx)
+                context
+                list
 
 
 getExposingName : Node Exposing.TopLevelExpose -> String
