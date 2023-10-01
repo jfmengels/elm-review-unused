@@ -7,6 +7,7 @@ module NoUnused.Variables exposing (rule)
 -}
 
 import Dict exposing (Dict)
+import Elm.Docs
 import Elm.Project
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Exposing as Exposing
@@ -338,14 +339,19 @@ dependenciesVisitor dependencies projectContext =
                 |> List.map
                     (\module_ ->
                         ( String.split "." module_.name
-                        , module_.unions
-                            |> List.map (\{ name, tags } -> ( name, List.map Tuple.first tags ))
-                            |> Dict.fromList
+                        , unionsToDict module_.unions
                         )
                     )
                 |> Dict.fromList
     in
     ( [], { projectContext | customTypes = customTypes } )
+
+
+unionsToDict : List Elm.Docs.Union -> Dict String (List String)
+unionsToDict unions =
+    unions
+        |> List.map (\{ name, tags } -> ( name, List.map Tuple.first tags ))
+        |> Dict.fromList
 
 
 
