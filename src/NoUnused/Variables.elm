@@ -521,93 +521,92 @@ registerExposedElements customTypesFromModule importedElement context =
 
 collectExplicitlyExposedElements : Range -> List (Node Exposing.TopLevelExpose) -> List ExposedElement
 collectExplicitlyExposedElements exposingNodeRange list =
-    let
-        listWithPreviousRange : List (Maybe Range)
-        listWithPreviousRange =
-            Nothing
-                :: (list
-                        |> List.map (Node.range >> Just)
-                        |> List.take (List.length list - 1)
-                   )
+    collectExplicitlyExposedElementsHelp exposingNodeRange list 0 Nothing []
 
-        listWithNextRange : List Range
-        listWithNextRange =
-            (list
-                |> List.map Node.range
-                |> List.drop 1
-            )
-                ++ [ Range.empty ]
-    in
-    list
-        |> List.map3 (\prev next current -> ( prev, current, next )) listWithPreviousRange listWithNextRange
-        |> List.indexedMap
-            (\index ( maybePreviousRange, Node range value, nextRange ) ->
-                let
-                    rangeToRemove : Range
-                    rangeToRemove =
-                        if List.length list == 1 then
-                            exposingNodeRange
 
-                        else if index == 0 then
-                            { range | end = nextRange.start }
+collectExplicitlyExposedElementsHelp : Range -> List (Node Exposing.TopLevelExpose) -> Int -> Maybe Range -> List ExposedElement -> List ExposedElement
+collectExplicitlyExposedElementsHelp exposingNodeRange list index maybePreviousRange acc =
+    case list of
+        [] ->
+            acc
 
-                        else
-                            case maybePreviousRange of
+        (Node range value) :: rest ->
+            let
+                rangeToRemove : Range -> Range
+                rangeToRemove r =
+                    case maybePreviousRange of
+                        Nothing ->
+                            case List.head rest of
+                                Just (Node nextRange _) ->
+                                    { r | end = nextRange.start }
+
                                 Nothing ->
-                                    range
+                                    exposingNodeRange
 
-                                Just previousRange ->
-                                    { range | start = previousRange.end }
-                in
-                case value of
-                    Exposing.FunctionExpose name ->
-                        TypeOrValue
-                            name
-                            { typeName = "Imported variable"
-                            , under = untilEndOfVariable name range
-                            , rangeToRemove = Just rangeToRemove
-                            , warning = ""
-                            }
-                            |> Just
+                        Just previousRange ->
+                            { r | start = previousRange.end }
 
-                    Exposing.InfixExpose name ->
-                        TypeOrValue
-                            name
-                            { typeName = "Imported operator"
-                            , under = untilEndOfVariable name range
-                            , rangeToRemove = Just rangeToRemove
-                            , warning = ""
-                            }
-                            |> Just
+                newAcc : List ExposedElement
+                newAcc =
+                    case topLevelExposeToExposedElement rangeToRemove (Node range value) of
+                        Just v ->
+                            v :: acc
 
-                    Exposing.TypeOrAliasExpose name ->
-                        TypeOrValue
-                            name
-                            { typeName = "Imported type"
-                            , under = untilEndOfVariable name range
-                            , rangeToRemove = Just rangeToRemove
-                            , warning = ""
-                            }
-                            |> Just
+                        Nothing ->
+                            acc
+            in
+            collectExplicitlyExposedElementsHelp exposingNodeRange rest (index + 1) (Just range) newAcc
 
-                    Exposing.TypeExpose { name, open } ->
-                        case open of
-                            Just openRange ->
-                                CustomType
-                                    name
-                                    { typeName = "Imported type"
-                                    , under = range
-                                    , rangeToRemove = rangeToRemove
-                                    , openRange = openRange
-                                    }
-                                    |> Just
 
-                            Nothing ->
-                                -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
-                                -- `Exposing.TypeOrAliasExpose`, not a `Exposing.TypeExpose`.
-                                Nothing
-            )
-        |> List.filterMap identity
+topLevelExposeToExposedElement : (Range -> Range) -> Node Exposing.TopLevelExpose -> Maybe ExposedElement
+topLevelExposeToExposedElement rangeToRemove (Node range value) =
+    case value of
+        Exposing.FunctionExpose name ->
+            TypeOrValue
+                name
+                { typeName = "Imported variable"
+                , under = untilEndOfVariable name range
+                , rangeToRemove = Just (rangeToRemove range)
+                , warning = ""
+                }
+                |> Just
+
+        Exposing.InfixExpose name ->
+            TypeOrValue
+                name
+                { typeName = "Imported operator"
+                , under = untilEndOfVariable name range
+                , rangeToRemove = Just (rangeToRemove range)
+                , warning = ""
+                }
+                |> Just
+
+        Exposing.TypeOrAliasExpose name ->
+            TypeOrValue
+                name
+                { typeName = "Imported type"
+                , under = untilEndOfVariable name range
+                , rangeToRemove = Just (rangeToRemove range)
+                , warning = ""
+                }
+                |> Just
+
+        Exposing.TypeExpose { name, open } ->
+            case open of
+                Just openRange ->
+                    CustomType
+                        name
+                        { typeName = "Imported type"
+                        , under = range
+                        , rangeToRemove = rangeToRemove range
+                        , openRange = openRange
+                        }
+                        |> Just
+
+                Nothing ->
+                    -- Can't happen with `elm-syntax`. If open is Nothing, then this we'll have a
+                    -- `Exposing.TypeOrAliasExpose`, not a `Exposing.TypeExpose`.
+                    Nothing
 
 
 registerModuleNameOrAlias : Node Import -> ModuleContext -> ModuleContext
