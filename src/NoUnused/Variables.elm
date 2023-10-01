@@ -353,9 +353,10 @@ dependenciesVisitor dependencies projectContext =
 
 unionsToDict : List Elm.Docs.Union -> Dict String (List String)
 unionsToDict unions =
-    unions
-        |> List.map (\{ name, tags } -> ( name, List.map Tuple.first tags ))
-        |> Dict.fromList
+    List.foldl
+        (\{ name, tags } acc -> Dict.insert name (List.map Tuple.first tags) acc)
+        Dict.empty
+        unions
 
 
 
