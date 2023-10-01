@@ -16,7 +16,7 @@ import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range as Range exposing (Range)
+import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Type
 import Elm.Syntax.TypeAlias exposing (TypeAlias)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
@@ -464,10 +464,11 @@ importVisitor ((Node importRange import_) as node) context =
                                         |> Dict.get (Node.value import_.moduleName)
                                         |> Maybe.withDefault Dict.empty
                             in
-                            List.foldl
+                            collectExplicitlyExposedElements
                                 (handleExposedElements (NonemptyList.head contextWithAlias.scopes).declared customTypesFromModule)
+                                exposingRange
+                                list
                                 ( [], contextWithAlias )
-                                (collectExplicitlyExposedElements exposingRange list)
     in
     ( exposingErrors ++ errors, newContext )
 
@@ -519,13 +520,13 @@ registerExposedElements customTypesFromModule importedElement context =
             registerVariable variableInfo name context
 
 
-collectExplicitlyExposedElements : Range -> List (Node Exposing.TopLevelExpose) -> List ExposedElement
-collectExplicitlyExposedElements exposingNodeRange list =
-    collectExplicitlyExposedElementsHelp exposingNodeRange list 0 Nothing []
+collectExplicitlyExposedElements : (ExposedElement -> a -> a) -> Range -> List (Node Exposing.TopLevelExpose) -> a -> a
+collectExplicitlyExposedElements fold exposingNodeRange list acc =
+    collectExplicitlyExposedElementsHelp fold exposingNodeRange list Nothing acc
 
 
-collectExplicitlyExposedElementsHelp : Range -> List (Node Exposing.TopLevelExpose) -> Int -> Maybe Range -> List ExposedElement -> List ExposedElement
-collectExplicitlyExposedElementsHelp exposingNodeRange list index maybePreviousRange acc =
+collectExplicitlyExposedElementsHelp : (ExposedElement -> a -> a) -> Range -> List (Node Exposing.TopLevelExpose) -> Maybe Range -> a -> a
+collectExplicitlyExposedElementsHelp fold exposingNodeRange list maybePreviousRange acc =
     case list of
         [] ->
             acc
@@ -546,16 +547,16 @@ collectExplicitlyExposedElementsHelp exposingNodeRange list index maybePreviousR
                         Just previousRange ->
                             { r | start = previousRange.end }
 
-                newAcc : List ExposedElement
+                newAcc : a
                 newAcc =
                     case topLevelExposeToExposedElement rangeToRemove (Node range value) of
                         Just v ->
-                            v :: acc
+                            fold v acc
 
                         Nothing ->
                             acc
             in
-            collectExplicitlyExposedElementsHelp exposingNodeRange rest (index + 1) (Just range) newAcc
+            collectExplicitlyExposedElementsHelp fold exposingNodeRange rest (Just range) newAcc
 
 
 topLevelExposeToExposedElement : (Range -> Range) -> Node Exposing.TopLevelExpose -> Maybe ExposedElement
