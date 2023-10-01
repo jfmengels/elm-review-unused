@@ -333,21 +333,20 @@ dependenciesVisitor dependencies projectContext =
     let
         customTypes : Dict ModuleName (Dict String (List String))
         customTypes =
-            dependencies
-                |> Dict.values
-                |> List.foldl
-                    (\dep acc ->
-                        List.foldl
-                            (\module_ subAcc ->
-                                Dict.insert
-                                    (String.split "." module_.name)
-                                    (unionsToDict module_.unions)
-                                    subAcc
-                            )
-                            acc
-                            (Dependency.modules dep)
-                    )
-                    Dict.empty
+            Dict.foldl
+                (\_ dep acc ->
+                    List.foldl
+                        (\module_ subAcc ->
+                            Dict.insert
+                                (String.split "." module_.name)
+                                (unionsToDict module_.unions)
+                                subAcc
+                        )
+                        acc
+                        (Dependency.modules dep)
+                )
+                Dict.empty
+                dependencies
     in
     ( [], { projectContext | customTypes = customTypes } )
 
