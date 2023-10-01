@@ -1243,6 +1243,49 @@ a = 1
                         ]
                       )
                     ]
+    , test "should report open type import when the constructors are not exposed and therefore not used" <|
+        \() ->
+            [ """module A exposing (a)
+import B exposing (C(..))
+a = 1
+"""
+            , """module B exposing (C)
+type C = C_Value
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Imported type `C` is not used"
+                            , details = details
+                            , under = "C(..)"
+                            }
+                            |> Review.Test.whenFixed """module A exposing (a)
+import B
+a = 1
+"""
+                        ]
+                      )
+                    ]
+    , test "should report open type import when the constructors are not exposed and therefore not used (for core type)" <|
+        \() ->
+            """module A exposing (a)
+import Array exposing (Array(..))
+a = 1
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported type `Array` is not used"
+                        , details = details
+                        , under = "Array(..)"
+                        }
+                        |> Review.Test.whenFixed """module A exposing (a)
+import Array
+a = 1
+"""
+                    ]
     , test "should report open type import when none of the exposed constructors are used, because they have been shadowed" <|
         \() ->
             [ """module A exposing (a)
