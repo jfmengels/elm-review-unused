@@ -504,6 +504,7 @@ type alias ModuleContext =
     , importedModules : Set ModuleNameStr
     , containsMainFunction : Bool
     , projectType : ProjectType
+    , isExposingAll : Bool
     }
 
 
@@ -523,14 +524,33 @@ fromProjectToModule =
     Rule.initContextCreator
         (\lookupTable ast moduleDocumentation projectContext ->
             let
-                exposed : Dict String ExposedElement
-                exposed =
-                    case Module.exposingList (Node.value ast.moduleDefinition) of
+                exposingList : Exposing
+                exposingList =
+                    Module.exposingList (Node.value ast.moduleDefinition)
+
+                isExposingAll : Bool
+                isExposingAll =
+                    case exposingList of
                         Exposing.All _ ->
-                            Dict.empty
+                            True
+
+                        Exposing.Explicit _ ->
+                            False
+
+                nodes : List (Node TopLevelExpose)
+                nodes =
+                    case exposingList of
+                        Exposing.All _ ->
+                            List.filterMap
+                                (Node.value >> declarationToTopLevelExpose)
+                                ast.declarations
 
                         Exposing.Explicit explicitlyExposed ->
-                            collectExposedElements moduleDocumentation explicitlyExposed ast.declarations
+                            explicitlyExposed
+
+                exposed : Dict String ExposedElement
+                exposed =
+                    collectExposedElements moduleDocumentation nodes ast.declarations
             in
             { lookupTable = lookupTable
             , exposed = exposed
@@ -540,11 +560,62 @@ fromProjectToModule =
             , importedModules = Set.empty
             , containsMainFunction = False
             , projectType = projectContext.projectType
+            , isExposingAll = isExposingAll
             }
         )
         |> Rule.withModuleNameLookupTable
         |> Rule.withFullAst
         |> Rule.withModuleDocumentation
+
+
+declarationToTopLevelExpose : Declaration -> Maybe (Node TopLevelExpose)
+declarationToTopLevelExpose declaration =
+    case declaration of
+        Declaration.FunctionDeclaration function ->
+            function.declaration
+                |> Node.value
+                |> .name
+                |> Node.map Exposing.FunctionExpose
+                |> Just
+
+        Declaration.AliasDeclaration typeAlias ->
+            typeAlias.name
+                |> Node.map Exposing.TypeOrAliasExpose
+                |> Just
+
+        Declaration.CustomTypeDeclaration type_ ->
+            type_.name
+                |> Node.map (\name -> Exposing.TypeExpose { name = name, open = Nothing })
+                |> Just
+
+        Declaration.PortDeclaration signature ->
+            signature.name
+                |> Node.map Exposing.FunctionExpose
+                |> Just
+
+        Declaration.InfixDeclaration infix ->
+            infix.operator
+                |> Node.map Exposing.InfixExpose
+                |> Just
+
+        Declaration.Destructuring _ _ ->
+            Nothing
+
+
+topLevelExposeName : TopLevelExpose -> String
+topLevelExposeName topLevelExpose =
+    case topLevelExpose of
+        Exposing.InfixExpose name ->
+            name
+
+        Exposing.FunctionExpose name ->
+            name
+
+        Exposing.TypeOrAliasExpose name ->
+            name
+
+        Exposing.TypeExpose { name } ->
+            name
 
 
 fromModuleToProject : Config -> Rule.ContextCreator ModuleContext ProjectContext
@@ -1197,22 +1268,8 @@ isExceptionByAnnotation config name node =
 
 
 getDeclarationName : Node Declaration -> Maybe String
-getDeclarationName node =
-    case Node.value node of
-        Declaration.FunctionDeclaration { declaration } ->
-            Just (declaration |> Node.value |> .name |> Node.value)
-
-        Declaration.AliasDeclaration { name } ->
-            Just (Node.value name)
-
-        Declaration.CustomTypeDeclaration { name } ->
-            Just (Node.value name)
-
-        Declaration.PortDeclaration { name } ->
-            Just (Node.value name)
-
-        _ ->
-            Nothing
+getDeclarationName =
+    Node.value >> declarationName
 
 
 getDeclarationDocumentation : Node Declaration -> Maybe String
@@ -1306,29 +1363,8 @@ findConstructorsForExposedCustomType typeName declarations =
 
 
 declarationName : Declaration -> Maybe String
-declarationName declaration =
-    case declaration of
-        Declaration.FunctionDeclaration function ->
-            function.declaration
-                |> Node.value
-                |> .name
-                |> Node.value
-                |> Just
-
-        Declaration.CustomTypeDeclaration type_ ->
-            Just <| Node.value type_.name
-
-        Declaration.AliasDeclaration alias_ ->
-            Just <| Node.value alias_.name
-
-        Declaration.PortDeclaration port_ ->
-            Just <| Node.value port_.name
-
-        Declaration.InfixDeclaration { operator } ->
-            Just <| Node.value operator
-
-        Declaration.Destructuring _ _ ->
-            Nothing
+declarationName =
+    declarationToTopLevelExpose >> Maybe.map (Node.value >> topLevelExposeName)
 
 
 testFunctionName : ModuleContext -> Node Declaration -> Maybe String
@@ -1502,7 +1538,10 @@ registerLocalValue : Range -> String -> ModuleContext -> ModuleContext
 registerLocalValue range name moduleContext =
     case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
         Just [] ->
-            if Dict.member name moduleContext.exposed then
+            if moduleContext.isExposingAll then
+                { moduleContext | exposed = Dict.remove name moduleContext.exposed }
+
+            else if Dict.member name moduleContext.exposed then
                 { moduleContext | ignoredElementsNotToReport = Set.insert name moduleContext.ignoredElementsNotToReport }
 
             else
