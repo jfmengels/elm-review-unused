@@ -537,20 +537,18 @@ fromProjectToModule =
                         Exposing.Explicit _ ->
                             False
 
-                nodes : List (Node TopLevelExpose)
-                nodes =
-                    case exposingList of
-                        Exposing.All _ ->
-                            List.filterMap
-                                (Node.value >> declarationToTopLevelExpose)
-                                ast.declarations
-
-                        Exposing.Explicit explicitlyExposed ->
-                            explicitlyExposed
+                docsReferences : List ( Int, String )
+                docsReferences =
+                    collectDocsReferences moduleDocumentation
 
                 exposed : Dict String ExposedElement
                 exposed =
-                    collectExposedElements moduleDocumentation nodes ast.declarations
+                    case exposingList of
+                        Exposing.All _ ->
+                            collectExposedElementsForAll docsReferences ast.declarations
+
+                        Exposing.Explicit explicitlyExposed ->
+                            collectExposedElements docsReferences explicitlyExposed ast.declarations
             in
             { lookupTable = lookupTable
             , exposed = exposed
@@ -1093,13 +1091,9 @@ collectDocsReferences maybeModuleDocumentation =
             []
 
 
-collectExposedElements : Maybe (Node String) -> List (Node Exposing.TopLevelExpose) -> List (Node Declaration) -> Dict String ExposedElement
-collectExposedElements moduleDocumentation exposingNodes declarations =
+collectExposedElements : List ( Int, String ) -> List (Node Exposing.TopLevelExpose) -> List (Node Declaration) -> Dict String ExposedElement
+collectExposedElements docsReferences exposingNodes declarations =
     let
-        docsReferences : List ( Int, String )
-        docsReferences =
-            collectDocsReferences moduleDocumentation
-
         declaredNames : Set String
         declaredNames =
             List.foldl
@@ -1184,6 +1178,82 @@ collectExposedElementsHelp docsReferences declarations declaredNames canRemoveEx
                 (Just range)
                 rest
                 (index + 1)
+                newAcc
+
+
+collectExposedElementsForAll : List ( Int, String ) -> List (Node Declaration) -> Dict String ExposedElement
+collectExposedElementsForAll docsReferences declarations =
+    collectExposedElementsForAllHelp docsReferences (List.length declarations /= 1) Nothing 0 declarations Dict.empty
+
+
+collectExposedElementsForAllHelp : List ( Int, String ) -> Bool -> Maybe Range -> Int -> List (Node Declaration) -> Dict String ExposedElement -> Dict String ExposedElement
+collectExposedElementsForAllHelp docsReferences canRemoveExposed maybePreviousRange index declarations acc =
+    case declarations of
+        [] ->
+            acc
+
+        (Node range value) :: rest ->
+            let
+                nextRange : Range
+                nextRange =
+                    case List.head rest of
+                        Just nextNode ->
+                            Node.range nextNode
+
+                        Nothing ->
+                            Range.emptyRange
+
+                newAcc : Dict String ExposedElement
+                newAcc =
+                    case value of
+                        Declaration.FunctionDeclaration { declaration } ->
+                            let
+                                (Node nameRange name) =
+                                    declaration |> Node.value |> .name
+                            in
+                            Dict.insert name
+                                { range = nameRange
+                                , rangesToRemove = getRangesToRemove docsReferences canRemoveExposed name index maybePreviousRange range nextRange
+                                , elementType = Function
+                                }
+                                acc
+
+                        Declaration.PortDeclaration { name } ->
+                            Dict.insert (Node.value name)
+                                { range = Node.range name
+                                , rangesToRemove = getRangesToRemove docsReferences canRemoveExposed (Node.value name) index maybePreviousRange range nextRange
+                                , elementType = Function
+                                }
+                                acc
+
+                        Declaration.AliasDeclaration { name } ->
+                            Dict.insert (Node.value name)
+                                { range = Node.range name
+                                , rangesToRemove = getRangesToRemove docsReferences canRemoveExposed (Node.value name) index maybePreviousRange range nextRange
+                                , elementType = TypeOrTypeAlias
+                                }
+                                acc
+
+                        Declaration.CustomTypeDeclaration { name, constructors } ->
+                            Dict.insert (Node.value name)
+                                { range = Node.range name
+                                , rangesToRemove = []
+                                , elementType = ExposedType (List.map (\c -> c |> Node.value |> .name |> Node.value) constructors)
+                                }
+                                acc
+
+                        Declaration.InfixDeclaration _ ->
+                            acc
+
+                        Declaration.Destructuring _ _ ->
+                            acc
+            in
+            collectExposedElementsForAllHelp
+                docsReferences
+                canRemoveExposed
+                (Just range)
+                (index + 1)
+                rest
                 newAcc
 
 

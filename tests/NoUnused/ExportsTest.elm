@@ -1555,6 +1555,34 @@ exposingAllTests =
                 [ """
 module Main exposing (main)
 import Reported
+main = Reported.used
+"""
+                , """
+module Reported exposing (..)
+unused = ()
+used = 1
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "unused"
+                                }
+                                |> Review.Test.whenFixed """
+module Reported exposing (..)
+used = 1
+"""
+                            ]
+                          )
+                        ]
+        , test "reports an unused function (no fix because single declaration)" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import Reported
 main = ()
 """
                 , """
@@ -1570,6 +1598,35 @@ unused = ()
                                 , details = unusedExposedElementDetails
                                 , under = "unused"
                                 }
+                            ]
+                          )
+                        ]
+        , test "reports an unused function (followed by a type declaration)" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import Reported
+main : Reported.Type
+main = Reported.Constructor
+"""
+                , """
+module Reported exposing (..)
+unused = ()
+type Type = Constructor
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "unused"
+                                }
+                                |> Review.Test.whenFixed """
+module Reported exposing (..)
+type Type = Constructor
+"""
                             ]
                           )
                         ]
