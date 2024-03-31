@@ -456,6 +456,7 @@ type alias ProjectContext =
             ModuleNameStr
             { moduleKey : Rule.ModuleKey
             , exposed : Dict String ExposedElement
+            , isExposingAll : Bool
             , moduleNameLocation : Range
             , isProductionFile : Bool
             , isProductionFileNotToReport : Bool
@@ -642,6 +643,7 @@ fromModuleToProject config =
                     moduleNameStr
                     { moduleKey = moduleKey
                     , exposed = moduleContext.exposed
+                    , isExposingAll = moduleContext.isExposingAll
                     , moduleNameLocation = moduleNameRange
                     , isProductionFile = isProductionFile
                     , isProductionFileNotToReport = any config.exceptionModules { moduleName = moduleName, filePath = filePath }
@@ -835,13 +837,14 @@ errorsForModule :
         { a
             | moduleKey : Rule.ModuleKey
             , exposed : Dict String ExposedElement
+            , isExposingAll : Bool
             , isProductionFile : Bool
             , isProductionFileNotToReport : Bool
             , ignoredElementsNotToReport : Set String
         }
     -> List (Error scope)
     -> List (Error scope)
-errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isProductionFile, isProductionFileNotToReport, ignoredElementsNotToReport } acc =
+errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isExposingAll, isProductionFile, isProductionFileNotToReport, ignoredElementsNotToReport } acc =
     Dict.foldl
         (\name element subAcc ->
             if isUsedOrException projectContext used moduleName name then
@@ -869,6 +872,15 @@ errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules
                         }
                         element.range
                         :: subAcc
+
+            else if isExposingAll then
+                Rule.errorForModuleWithFix moduleKey
+                    { message = what element.elementType ++ " `" ++ name ++ "` is never used in the project."
+                    , details = [ "This exposed element is never used, neither inside its module nor outside. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
+                    }
+                    element.range
+                    (List.map Fix.removeRange element.rangesToRemove)
+                    :: subAcc
 
             else
                 Rule.errorForModuleWithFix moduleKey

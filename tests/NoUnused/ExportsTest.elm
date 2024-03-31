@@ -12,6 +12,12 @@ unusedExposedElementDetails =
     ]
 
 
+unusedExposedElementWhenExposingAllDetails : List String
+unusedExposedElementWhenExposingAllDetails =
+    [ "This exposed element is never used, neither inside its module nor outside. You may want to remove it to keep your project clean, and maybe detect some unused code in your project."
+    ]
+
+
 unusedModuleDetails : List String
 unusedModuleDetails =
     [ "This module is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project."
@@ -1567,8 +1573,8 @@ used = 1
                     |> Review.Test.expectErrorsForModules
                         [ ( "Reported"
                           , [ Review.Test.error
-                                { message = "Exposed function or value `unused` is never used outside this module."
-                                , details = unusedExposedElementDetails
+                                { message = "Exposed function or value `unused` is never used in the project."
+                                , details = unusedExposedElementWhenExposingAllDetails
                                 , under = "unused"
                                 }
                                 |> Review.Test.whenFixed """
@@ -1594,8 +1600,8 @@ unused = ()
                     |> Review.Test.expectErrorsForModules
                         [ ( "Reported"
                           , [ Review.Test.error
-                                { message = "Exposed function or value `unused` is never used outside this module."
-                                , details = unusedExposedElementDetails
+                                { message = "Exposed function or value `unused` is never used in the project."
+                                , details = unusedExposedElementWhenExposingAllDetails
                                 , under = "unused"
                                 }
                             ]
@@ -1619,8 +1625,8 @@ type Type = Constructor
                     |> Review.Test.expectErrorsForModules
                         [ ( "Reported"
                           , [ Review.Test.error
-                                { message = "Exposed function or value `unused` is never used outside this module."
-                                , details = unusedExposedElementDetails
+                                { message = "Exposed function or value `unused` is never used in the project."
+                                , details = unusedExposedElementWhenExposingAllDetails
                                 , under = "unused"
                                 }
                                 |> Review.Test.whenFixed """
@@ -1646,8 +1652,8 @@ type alias Unused = ()
                     |> Review.Test.expectErrorsForModules
                         [ ( "Reported"
                           , [ Review.Test.error
-                                { message = "Exposed type or type alias `Unused` is never used outside this module."
-                                , details = unusedExposedElementDetails
+                                { message = "Exposed type or type alias `Unused` is never used in the project."
+                                , details = unusedExposedElementWhenExposingAllDetails
                                 , under = "Unused"
                                 }
                             ]
@@ -1669,8 +1675,8 @@ type UnusedT = UnusedC
                     |> Review.Test.expectErrorsForModules
                         [ ( "Reported"
                           , [ Review.Test.error
-                                { message = "Exposed type `UnusedT` is never used outside this module."
-                                , details = unusedExposedElementDetails
+                                { message = "Exposed type `UnusedT` is never used in the project."
+                                , details = unusedExposedElementWhenExposingAllDetails
                                 , under = "UnusedT"
                                 }
                             ]
@@ -1692,8 +1698,8 @@ port unused : ()
                     |> Review.Test.expectErrorsForModules
                         [ ( "Reported"
                           , [ Review.Test.error
-                                { message = "Exposed function or value `unused` is never used outside this module."
-                                , details = unusedExposedElementDetails
+                                { message = "Exposed function or value `unused` is never used in the project."
+                                , details = unusedExposedElementWhenExposingAllDetails
                                 , under = "unused"
                                 }
                             ]
