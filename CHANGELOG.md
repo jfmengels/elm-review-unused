@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.2.1] - 2024-04-01
+
 - [`NoUnused.Exports`] now reports (and removes using `--fix`) elements even if the module is exposing everything (`module X exposing (..)`) if the element is unused both locally and across the project. Thanks [@tfausak](https://github.com/tfausak).
 
 ## [1.2.0] - 2023-07-28
@@ -69,7 +71,8 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
-[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.1
 [1.2.0]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.0
 [1.1.30]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.30
 [1.1.29]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.29
