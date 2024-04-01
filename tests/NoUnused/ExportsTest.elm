@@ -1703,7 +1703,7 @@ port unused : ()
                             ]
                           )
                         ]
-        , test "does not report a function that's used internally" <|
+        , test "should not report a function that's used internally" <|
             \() ->
                 [ """
 module Main exposing (main)
@@ -1718,7 +1718,7 @@ external = internal
                 ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
-        , test "does not report a type alias that's used internally" <|
+        , test "should not report a type alias that's used internally" <|
             \() ->
                 [ """
 module Main exposing (main)
@@ -1734,7 +1734,7 @@ type alias External = Internal
                 ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
-        , test "does not report a custom type that's used internally" <|
+        , test "should not report a custom type that's used internally" <|
             \() ->
                 [ """
 module Main exposing (main)
@@ -1750,7 +1750,7 @@ external = InternalC
                 ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
-        , test "does not report a port that's used internally" <|
+        , test "should not report a port that's used internally" <|
             \() ->
                 [ """
 module Main exposing (main)
@@ -1765,7 +1765,7 @@ external = internal
                 ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
-        , test "does not report a function that's used externally" <|
+        , test "should not report a function that's used externally" <|
             \() ->
                 [ """
 module Main exposing (main)
@@ -1779,7 +1779,7 @@ used = ()
                 ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
-        , test "does not report a type alias that's used externally" <|
+        , test "should not report a type alias that's used externally" <|
             \() ->
                 [ """
 module Main exposing (main)
@@ -1794,7 +1794,7 @@ type alias Used = ()
                 ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
-        , test "does not report a custom type that's used externally" <|
+        , test "should not report a custom type that's used externally" <|
             \() ->
                 [ """
 module Main exposing (main)
@@ -1809,7 +1809,7 @@ type UsedT = UsedC
                 ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
-        , test "does not report a port that's used externally" <|
+        , test "should not report a port that's used externally" <|
             \() ->
                 [ """
 module Main exposing (main)
