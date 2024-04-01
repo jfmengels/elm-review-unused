@@ -14,6 +14,18 @@ It won't automatically remove unused modules though.
 If the project is a package and the module that declared the element is exposed,
 then nothing will be reported.
 
+The behavior of the rule also depends on whether the analyzed module is exposing elements explicitly (`module X exposing (A, b)`)
+or exposing everything (`module X exposing (..)`).
+
+When exposing elements explicitly, the rule will report and remove elements from the
+exposing clause (`exposing (used, unused)` to `exposing (used)`) when they're never used in other Elm files of the project.
+
+When exposing all, the rule will report and remove the declaration of elements
+if they're used neither in the file they're declared in nor in any other files,
+making it act somewhat like [`NoUnused.Variables`](./NoUnused-Variables),
+complementing it because [`NoUnused.Variables`](./NoUnused-Variables) doesn't report
+top-level declarations when the module is exposing everything.
+
 @docs rule
 
 
