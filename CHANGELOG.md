@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- [`NoUnused.Exports`] now reports (and removes using `--fix`) elements even if the module is exposing everything (`module X exposing (..)`) if the element is unused both locally and across the project. Thanks [@tfausak](https://github.com/tfausak).
+
 ## [1.2.0] - 2023-07-28
 
 Add configuration setting for [`NoUnused.Exports`] for reporting exports that is only used in non-production code. This includes multiple new functions and types in that module centered around `reportUnusedProductionExports`. 
