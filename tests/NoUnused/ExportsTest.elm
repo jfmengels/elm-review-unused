@@ -1014,12 +1014,10 @@ unusedModuleTests =
                 [ """
 module NotReported exposing (..)
 import OtherModule
-main = text ""
+main = OtherModule.a
 """
                 , """
 module OtherModule exposing (..)
-import Test
-a : Test.Test
 a = 1
 """
                 ]
