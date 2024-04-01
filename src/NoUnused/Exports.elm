@@ -518,6 +518,7 @@ type alias ModuleContext =
     , containsMainFunction : Bool
     , projectType : ProjectType
     , isExposingAll : Bool
+    , constructorNameToTypeName : Dict String String
     }
 
 
@@ -569,6 +570,7 @@ fromProjectToModule =
             , elementsNotToReport = Set.empty
             , ignoredElementsNotToReport = Set.empty
             , importedModules = Set.empty
+            , constructorNameToTypeName = createConstructorNameToTypeNameDict exposingList ast.declarations
             , containsMainFunction = False
             , projectType = projectContext.projectType
             , isExposingAll = isExposingAll
@@ -577,6 +579,36 @@ fromProjectToModule =
         |> Rule.withModuleNameLookupTable
         |> Rule.withFullAst
         |> Rule.withModuleDocumentation
+
+
+createConstructorNameToTypeNameDict : Exposing -> List (Node Declaration) -> Dict String String
+createConstructorNameToTypeNameDict exposingList declarations =
+    case exposingList of
+        Exposing.All _ ->
+            List.foldl
+                (\node acc ->
+                    case Node.value node of
+                        Declaration.CustomTypeDeclaration customType ->
+                            let
+                                typeName : String
+                                typeName =
+                                    Node.value customType.name
+                            in
+                            List.foldl
+                                (\(Node _ { name }) subAcc ->
+                                    Dict.insert (Node.value name) typeName subAcc
+                                )
+                                acc
+                                customType.constructors
+
+                        _ ->
+                            acc
+                )
+                Dict.empty
+                declarations
+
+        Exposing.Explicit _ ->
+            Dict.empty
 
 
 declarationToTopLevelExpose : Declaration -> Maybe (Node TopLevelExpose)
@@ -1632,14 +1664,19 @@ registerLocalValue : Range -> String -> ModuleContext -> ModuleContext
 registerLocalValue range name moduleContext =
     case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
         Just [] ->
-            if moduleContext.isExposingAll then
-                { moduleContext | exposed = Dict.remove name moduleContext.exposed }
+            case Dict.get name moduleContext.constructorNameToTypeName of
+                Just typeName ->
+                    { moduleContext | exposed = Dict.remove typeName moduleContext.exposed }
 
-            else if Dict.member name moduleContext.exposed then
-                { moduleContext | ignoredElementsNotToReport = Set.insert name moduleContext.ignoredElementsNotToReport }
+                Nothing ->
+                    if moduleContext.isExposingAll then
+                        { moduleContext | exposed = Dict.remove name moduleContext.exposed }
 
-            else
-                moduleContext
+                    else if Dict.member name moduleContext.exposed then
+                        { moduleContext | ignoredElementsNotToReport = Set.insert name moduleContext.ignoredElementsNotToReport }
+
+                    else
+                        moduleContext
 
         Just moduleName ->
             registerAsUsed ( String.join "." moduleName, name ) moduleContext

@@ -1750,7 +1750,36 @@ external = InternalC
                 ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
-        , test "should not report a port that's used internally" <|
+        , test "should not report a custom type whose constructor is used" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import NotReported
+main = NotReported.Constructor
+"""
+                , """
+module NotReported exposing (..)
+type Type = Constructor
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        , test "should not report a custom type whose constructor is used internally" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import NotReported
+main = NotReported.external
+"""
+                , """
+module NotReported exposing (..)
+external = Constructor
+type Type = Constructor
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
+        , test "does not report a port that's used internally" <|
             \() ->
                 [ """
 module Main exposing (main)
