@@ -1634,6 +1634,35 @@ type Type = Constructor
                             ]
                           )
                         ]
+        , test "reports an unused recursive function" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import Reported
+main = Reported.used
+"""
+                , """
+module Reported exposing (..)
+fib n = fib (n - 1) + fib (n - 2)
+used = ()
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed function or value `fib` is never used in the project."
+                                , details = unusedExposedElementWhenExposingAllDetails
+                                , under = "fib"
+                                }
+                                |> Review.Test.atExactly { start = { row = 3, column = 1 }, end = { row = 3, column = 4 } }
+                                |> Review.Test.whenFixed """
+module Reported exposing (..)
+used = ()
+"""
+                            ]
+                          )
+                        ]
         , test "reports an unused type alias" <|
             \() ->
                 [ """

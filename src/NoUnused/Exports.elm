@@ -516,6 +516,7 @@ type alias ModuleContext =
     , ignoredElementsNotToReport : Set String
     , importedModules : Set ModuleNameStr
     , containsMainFunction : Bool
+    , inTheDeclarationOf : String
     , projectType : ProjectType
     , isExposingAll : Bool
     , constructorNameToTypeName : Dict String String
@@ -572,6 +573,7 @@ fromProjectToModule =
             , importedModules = Set.empty
             , constructorNameToTypeName = createConstructorNameToTypeNameDict exposingList ast.declarations
             , containsMainFunction = False
+            , inTheDeclarationOf = ""
             , projectType = projectContext.projectType
             , isExposingAll = isExposingAll
             }
@@ -1341,11 +1343,21 @@ declarationVisitor config node moduleContext =
         used : Set ( ModuleNameStr, String )
         used =
             List.foldl Set.insert moduleContext.used allUsedTypes
+
+        inTheDeclarationOf : String
+        inTheDeclarationOf =
+            case Node.value node of
+                Declaration.FunctionDeclaration { declaration } ->
+                    Node.value (Node.value declaration).name
+
+                _ ->
+                    moduleContext.inTheDeclarationOf
     in
     { moduleContext
         | elementsNotToReport = elementsNotToReport
         , ignoredElementsNotToReport = ignoredElementsNotToReport
         , used = used
+        , inTheDeclarationOf = inTheDeclarationOf
         , containsMainFunction =
             moduleContext.containsMainFunction
                 || doesModuleContainMainFunction moduleContext.projectType node
@@ -1669,7 +1681,10 @@ registerLocalValue range name moduleContext =
                     { moduleContext | exposed = Dict.remove typeName moduleContext.exposed }
 
                 Nothing ->
-                    if moduleContext.isExposingAll then
+                    if name == moduleContext.inTheDeclarationOf then
+                        moduleContext
+
+                    else if moduleContext.isExposingAll then
                         { moduleContext | exposed = Dict.remove name moduleContext.exposed }
 
                     else if Dict.member name moduleContext.exposed then
