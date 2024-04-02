@@ -1881,4 +1881,37 @@ port used : ()
                 ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
+        , test "should not remove a type alias used in a local let binding" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import Tertiary
+
+main = Tertiary.func 1 2
+"""
+                , """
+module Tertiary exposing (..)
+
+type alias Tertiary = {}
+
+func : Int -> Int -> Int
+func a b =
+    let
+        perhapsTertiary : Int -> Maybe Tertiary
+        perhapsTertiary a =
+            if a > 5 then
+                Just {}
+            else
+                Nothing
+    in
+    case perhapsTertiary 4 of
+        Just _ ->
+            a + b
+
+        Nothing ->
+            a - 4
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
         ]
