@@ -1671,7 +1671,12 @@ expressionVisitor node moduleContext =
                         (List.map Tuple.first cases)
                         []
             in
-            { moduleContext | used = List.foldl Set.insert moduleContext.used usedConstructors }
+            List.foldl
+                (\( moduleName, name ) ctx ->
+                    registerLocalValueWithRealModuleName moduleName name ctx
+                )
+                moduleContext
+                usedConstructors
 
         _ ->
             moduleContext
