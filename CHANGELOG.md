@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.2.2] - 2024-04-02
+
 Fixed issues in [`NoUnused.Exports`] where type aliases and custom types would incorrectly be reported. Thanks Eric from the Elm Slack for reporting!
 
 ## [1.2.1] - 2024-04-01
@@ -73,7 +75,8 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
-[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.2
 [1.2.1]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.1
 [1.2.0]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.0
 [1.1.30]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.1.30
