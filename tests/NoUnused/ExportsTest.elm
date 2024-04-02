@@ -1881,12 +1881,11 @@ port used : ()
                 ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
-        , test "should not remove a type alias used in a local let binding" <|
+        , test "should not remove a type alias used in a local let binding type annotation" <|
             \() ->
                 [ """
 module Main exposing (main)
 import Tertiary
-
 main = Tertiary.func 1 2
 """
                 , """
@@ -1914,12 +1913,32 @@ func a b =
                 ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
+        , test "should not remove a type used in a local let destructuring" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import Tertiary
+main = Tertiary.func 1
+"""
+                , """
+module Tertiary exposing (..)
+
+type Wrapper = WrapperConstructor Int
+
+func foo =
+    let
+        (WrapperConstructor int) = foo
+    in
+    int
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
         , test "should not custom type that is being pattern matched on locally" <|
             \() ->
                 [ """
 module Main exposing (main)
 import Tertiary
-
 main = Tertiary.func foo
 """
                 , """
