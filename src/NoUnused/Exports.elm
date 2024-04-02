@@ -1655,7 +1655,12 @@ expressionVisitor node moduleContext =
                         []
                         declarations
             in
-            { moduleContext | used = List.foldl Set.insert moduleContext.used used }
+            List.foldl
+                (\( moduleName, name ) ctx ->
+                    registerLocalValueWithRealModuleName moduleName name ctx
+                )
+                moduleContext
+                used
 
         Expression.CaseExpression { cases } ->
             let
@@ -1676,16 +1681,16 @@ registerLocalValue : Range -> String -> ModuleContext -> ModuleContext
 registerLocalValue range name moduleContext =
     case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
         Just moduleName ->
-            registerLocalValueWithRealModuleName moduleName name moduleContext
+            registerLocalValueWithRealModuleName (String.join "." moduleName) name moduleContext
 
         Nothing ->
             moduleContext
 
 
-registerLocalValueWithRealModuleName : ModuleName -> String -> ModuleContext -> ModuleContext
+registerLocalValueWithRealModuleName : String -> String -> ModuleContext -> ModuleContext
 registerLocalValueWithRealModuleName realModuleName name moduleContext =
     case realModuleName of
-        [] ->
+        "" ->
             case Dict.get name moduleContext.constructorNameToTypeName of
                 Just typeName ->
                     { moduleContext | exposed = Dict.remove typeName moduleContext.exposed }
@@ -1704,7 +1709,7 @@ registerLocalValueWithRealModuleName realModuleName name moduleContext =
                         moduleContext
 
         moduleName ->
-            registerAsUsed ( String.join "." moduleName, name ) moduleContext
+            registerAsUsed ( moduleName, name ) moduleContext
 
 
 findUsedConstructors : ModuleNameLookupTable -> List (Node Pattern) -> List ( ModuleNameStr, String ) -> List ( ModuleNameStr, String )
