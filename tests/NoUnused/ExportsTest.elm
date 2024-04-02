@@ -1914,4 +1914,24 @@ func a b =
                 ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
+        , test "should not custom type that is being pattern matched on locally" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import Tertiary
+
+main = Tertiary.func foo
+"""
+                , """
+module Tertiary exposing (..)
+
+type alias Used = X
+
+func foo =
+    case foo of
+        X -> 1
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectNoErrors
         ]
