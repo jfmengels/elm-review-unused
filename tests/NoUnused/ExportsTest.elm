@@ -1944,7 +1944,7 @@ main = Tertiary.func foo
                 , """
 module Tertiary exposing (..)
 
-type alias Used = X
+type Used = X
 
 func foo =
     case foo of
