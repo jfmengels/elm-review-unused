@@ -1655,7 +1655,12 @@ expressionVisitor node moduleContext =
                         []
                         declarations
             in
-            { moduleContext | used = List.foldl Set.insert moduleContext.used used }
+            List.foldl
+                (\( moduleName, name ) ctx ->
+                    registerLocalValueWithRealModuleName moduleName name ctx
+                )
+                moduleContext
+                used
 
         Expression.CaseExpression { cases } ->
             let
@@ -1666,7 +1671,12 @@ expressionVisitor node moduleContext =
                         (List.map Tuple.first cases)
                         []
             in
-            { moduleContext | used = List.foldl Set.insert moduleContext.used usedConstructors }
+            List.foldl
+                (\( moduleName, name ) ctx ->
+                    registerLocalValueWithRealModuleName moduleName name ctx
+                )
+                moduleContext
+                usedConstructors
 
         _ ->
             moduleContext
@@ -1675,7 +1685,17 @@ expressionVisitor node moduleContext =
 registerLocalValue : Range -> String -> ModuleContext -> ModuleContext
 registerLocalValue range name moduleContext =
     case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
-        Just [] ->
+        Just moduleName ->
+            registerLocalValueWithRealModuleName (String.join "." moduleName) name moduleContext
+
+        Nothing ->
+            moduleContext
+
+
+registerLocalValueWithRealModuleName : String -> String -> ModuleContext -> ModuleContext
+registerLocalValueWithRealModuleName realModuleName name moduleContext =
+    case realModuleName of
+        "" ->
             case Dict.get name moduleContext.constructorNameToTypeName of
                 Just typeName ->
                     { moduleContext | exposed = Dict.remove typeName moduleContext.exposed }
@@ -1693,11 +1713,8 @@ registerLocalValue range name moduleContext =
                     else
                         moduleContext
 
-        Just moduleName ->
-            registerAsUsed ( String.join "." moduleName, name ) moduleContext
-
-        Nothing ->
-            moduleContext
+        moduleName ->
+            registerAsUsed ( moduleName, name ) moduleContext
 
 
 findUsedConstructors : ModuleNameLookupTable -> List (Node Pattern) -> List ( ModuleNameStr, String ) -> List ( ModuleNameStr, String )

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+Fixed issues in [`NoUnused.Exports`] where type aliases and custom types would incorrectly be reported. Thanks Eric from the Elm Slack for reporting!
+
 ## [1.2.1] - 2024-04-01
 
 - [`NoUnused.Exports`] now reports (and removes using `--fix`) elements even if the module is exposing everything (`module X exposing (..)`) if the element is unused both locally and across the project. Thanks [@tfausak](https://github.com/tfausak).
