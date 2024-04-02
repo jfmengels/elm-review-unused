@@ -1675,7 +1675,17 @@ expressionVisitor node moduleContext =
 registerLocalValue : Range -> String -> ModuleContext -> ModuleContext
 registerLocalValue range name moduleContext =
     case ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable range of
-        Just [] ->
+        Just moduleName ->
+            registerLocalValueWithRealModuleName moduleName name moduleContext
+
+        Nothing ->
+            moduleContext
+
+
+registerLocalValueWithRealModuleName : ModuleName -> String -> ModuleContext -> ModuleContext
+registerLocalValueWithRealModuleName realModuleName name moduleContext =
+    case realModuleName of
+        [] ->
             case Dict.get name moduleContext.constructorNameToTypeName of
                 Just typeName ->
                     { moduleContext | exposed = Dict.remove typeName moduleContext.exposed }
@@ -1693,11 +1703,8 @@ registerLocalValue range name moduleContext =
                     else
                         moduleContext
 
-        Just moduleName ->
+        moduleName ->
             registerAsUsed ( String.join "." moduleName, name ) moduleContext
-
-        Nothing ->
-            moduleContext
 
 
 findUsedConstructors : ModuleNameLookupTable -> List (Node Pattern) -> List ( ModuleNameStr, String ) -> List ( ModuleNameStr, String )
