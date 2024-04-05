@@ -42,7 +42,7 @@ If the project is a package and the module that declared the type is exposed and
 the type's constructors are exposed, then the constructors will not be reported.
 
 This does not prevent you from using phantom types.
-I highly suggest chaning your phantom types to the following shape: `type TypeName = ConstructorName Never`.
+I highly suggest changing your phantom types to the following shape: `type TypeName = ConstructorName Never`.
 This shape makes it obvious to tooling and readers that the type can't be created, so if it is used, it must be as a phantom type.
 
 **Deprecated configuration for phantom types**
