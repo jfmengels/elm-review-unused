@@ -756,8 +756,7 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
 
                 namesToIgnore : Set String
                 namesToIgnore =
-                    List.concatMap getDeclaredParametersFromPattern functionDeclaration.arguments
-                        |> Set.fromList
+                    getDeclaredNamesFromPattern functionDeclaration.arguments Set.empty
 
                 newContext : ModuleContext
                 newContext =
@@ -893,7 +892,7 @@ caseBranchEnterVisitor ( pattern, _ ) context =
             NonemptyList.cons
                 { declared = Dict.empty
                 , used = Dict.empty
-                , namesToIgnore = Set.fromList (getDeclaredParametersFromPattern pattern)
+                , namesToIgnore = getDeclaredNamesFromPattern [ pattern ] Set.empty
                 }
                 context.scopes
     }
@@ -936,44 +935,39 @@ removeParensFromExpression node =
             node
 
 
-getDeclaredParametersFromPattern : Node Pattern -> List String
-getDeclaredParametersFromPattern node =
-    getDeclaredParametersFromPatternHelp [ node ] []
-
-
-getDeclaredParametersFromPatternHelp : List (Node Pattern) -> List String -> List String
-getDeclaredParametersFromPatternHelp nodes acc =
+getDeclaredNamesFromPattern : List (Node Pattern) -> Set String -> Set String
+getDeclaredNamesFromPattern nodes acc =
     case nodes of
         (Node _ node) :: restOfNodes ->
             case node of
                 Pattern.ParenthesizedPattern pattern ->
-                    getDeclaredParametersFromPatternHelp (pattern :: restOfNodes) acc
+                    getDeclaredNamesFromPattern (pattern :: restOfNodes) acc
 
                 Pattern.VarPattern name ->
-                    getDeclaredParametersFromPatternHelp restOfNodes (name :: acc)
+                    getDeclaredNamesFromPattern restOfNodes (Set.insert name acc)
 
                 Pattern.AsPattern pattern (Node _ asName) ->
-                    getDeclaredParametersFromPatternHelp (pattern :: restOfNodes) (asName :: acc)
+                    getDeclaredNamesFromPattern (pattern :: restOfNodes) (Set.insert asName acc)
 
                 Pattern.RecordPattern fields ->
-                    getDeclaredParametersFromPatternHelp
+                    getDeclaredNamesFromPattern
                         restOfNodes
-                        (List.map Node.value fields ++ acc)
+                        (List.foldl (\field subAcc -> Set.insert (Node.value field) subAcc) acc fields)
 
                 Pattern.TuplePattern patterns ->
-                    getDeclaredParametersFromPatternHelp (patterns ++ restOfNodes) acc
+                    getDeclaredNamesFromPattern (patterns ++ restOfNodes) acc
 
                 Pattern.NamedPattern _ patterns ->
-                    getDeclaredParametersFromPatternHelp (patterns ++ restOfNodes) acc
+                    getDeclaredNamesFromPattern (patterns ++ restOfNodes) acc
 
                 Pattern.UnConsPattern left right ->
-                    getDeclaredParametersFromPatternHelp (left :: right :: restOfNodes) acc
+                    getDeclaredNamesFromPattern (left :: right :: restOfNodes) acc
 
                 Pattern.ListPattern patterns ->
-                    getDeclaredParametersFromPatternHelp (patterns ++ restOfNodes) acc
+                    getDeclaredNamesFromPattern (patterns ++ restOfNodes) acc
 
                 _ ->
-                    getDeclaredParametersFromPatternHelp restOfNodes acc
+                    getDeclaredNamesFromPattern restOfNodes acc
 
         [] ->
             acc
@@ -1535,9 +1529,7 @@ scopeWithPatternsToIgnore : List (Node Pattern) -> Scope
 scopeWithPatternsToIgnore patterns =
     { declared = Dict.empty
     , used = Dict.empty
-    , namesToIgnore =
-        List.concatMap getDeclaredParametersFromPattern patterns
-            |> Set.fromList
+    , namesToIgnore = getDeclaredNamesFromPattern patterns Set.empty
     }
 
 
