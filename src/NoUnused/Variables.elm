@@ -714,9 +714,24 @@ expressionEnterVisitor (Node range value) context =
                 (List.map (\( patternNode, _ ) -> patternNode) cases)
                 context
 
-        Expression.LetExpression _ ->
+        Expression.LetExpression letBlock ->
+            let
+                namesToIgnore : Set String
+                namesToIgnore =
+                    List.foldl
+                        (\declaration acc ->
+                            case Node.value declaration of
+                                Expression.LetFunction _ ->
+                                    acc
+
+                                Expression.LetDestructuring pattern _ ->
+                                    getDeclaredNamesFromPattern [ pattern ] acc
+                        )
+                        Set.empty
+                        letBlock.declarations
+            in
             { context
-                | scopes = NonemptyList.cons { declared = Dict.empty, used = Dict.empty, namesToIgnore = Set.empty } context.scopes
+                | scopes = NonemptyList.cons { declared = Dict.empty, used = Dict.empty, namesToIgnore = namesToIgnore } context.scopes
             }
 
         _ ->

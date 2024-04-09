@@ -632,6 +632,18 @@ a = let ( Foo, (Bar _), _ ) = x
 type Foo = Foo
 a = 2"""
                     ]
+    , test "should not report unused let elements (tuple)" <|
+        \() ->
+            -- This use-case is handled by NoUnused.Patterns
+            """module SomeModule exposing (bar)
+bar : Int
+bar =
+    let
+        (a, unused) = (1, 3)
+    in
+    a"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     ]
 
 
@@ -754,6 +766,80 @@ import Foo exposing (a)"""
                         |> Review.Test.whenFixed """module SomeModule exposing (b)
 import Foo"""
                     ]
+    , test "should report unused imported functions shadowed in a let block tuple" <|
+        \() ->
+            """module SomeModule exposing (bar)
+import Foo exposing (a)
+
+bar : Int
+bar =
+    let
+        (a, c) = (1, 3)
+    in
+    a + c"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported variable `a` is not used"
+                        , details = details
+                        , under = "a"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 22 }, end = { row = 2, column = 23 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (bar)
+import Foo
+
+bar : Int
+bar =
+    let
+        (a, c) = (1, 3)
+    in
+    a + c"""
+                    ]
+    , test "should report unused imported functions shadowed in a let block record" <|
+        \() ->
+            """module SomeModule exposing (bar)
+import Foo exposing (a)
+
+bar : Int
+bar =
+    let
+        {a, c} = something
+    in
+    a + c"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported variable `a` is not used"
+                        , details = details
+                        , under = "a"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 22 }, end = { row = 2, column = 23 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (bar)
+import Foo
+
+bar : Int
+bar =
+    let
+        {a, c} = something
+    in
+    a + c"""
+                    ]
+    , test "should not report unused imported functions shadowed in a let block tuple but used elsewhere" <|
+        \() ->
+            """module SomeModule exposing (b, bar)
+import Foo exposing (a)
+
+bar : Int
+bar =
+    let
+        (a, c) = (1, 3)
+    in
+    a + c
+
+b = a
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     , test "should report unused imported functions (multiple imports)" <|
         \() ->
             """module SomeModule exposing (d)
