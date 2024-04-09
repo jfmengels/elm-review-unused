@@ -803,6 +803,41 @@ letDeclarationEnterVisitor (Node range { declarations, expression }) declaration
                     , context
                     )
 
+                Node _ (Pattern.TuplePattern tuples) ->
+                    ( if introducesVariable [ pattern ] then
+                        []
+
+                      else
+                        [ Rule.errorWithFix
+                            { message = "Pattern doesn't introduce any variables"
+                            , details =
+                                [ "This value has been computed but isn't assigned to any variable, which makes the value unusable. You should remove it at the location I pointed at." ]
+                            }
+                            (Node.range pattern)
+                            [ Fix.removeRange (letDeclarationToRemoveRange letBlockContext (Node.range declaration)) ]
+                        ]
+                    , tuples
+                        |> List.foldl
+                            (\patt acc ->
+                                case patt |> Node.value of
+                                    Pattern.VarPattern varName ->
+                                        acc
+                                            |> markValuesFromPatternsAsUsed [ patt ]
+                                            |> registerVariable
+                                                { typeName = "`let in` Tuple value"
+                                                , under = Node.range patt
+                                                , rangeToRemove = Just (letDeclarationToRemoveRange letBlockContext (Node.range declaration))
+                                                , warning = ""
+                                                }
+                                                varName
+
+                                    _ ->
+                                        acc
+                                            |> markValuesFromPatternsAsUsed [ patt ]
+                            )
+                            context
+                    )
+
                 _ ->
                     ( if introducesVariable [ pattern ] then
                         []

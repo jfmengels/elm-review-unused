@@ -754,6 +754,35 @@ import Foo exposing (a)"""
                         |> Review.Test.whenFixed """module SomeModule exposing (b)
 import Foo"""
                     ]
+    , test "should report unused imported functions shadowed in a let block tuple" <|
+        \() ->
+            """module SomeModule exposing (b, bar)
+import Foo exposing (a)
+
+bar : Int
+bar =
+    let
+        (a, c) = (1, 3)
+    in
+    a + c"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Imported variable `a` is not used"
+                        , details = details
+                        , under = "a"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 22 }, end = { row = 2, column = 23 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (b, bar)
+import Foo
+
+bar : Int
+bar =
+    let
+        (a, c) = (1, 3)
+    in
+    a + c"""
+                    ]
     , test "should report unused imported functions (multiple imports)" <|
         \() ->
             """module SomeModule exposing (d)
