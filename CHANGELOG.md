@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [1.2.3] - 2024-04-10
+
+`NoUnused.Variables` now finds unused imported functions when they have been shadowed by let destructuring variables. Thanks [@matzko](https://github.com/matzko).
+
 ## [1.2.2] - 2024-04-02
 
 Fixed issues in [`NoUnused.Exports`] where type aliases and custom types would incorrectly be reported. Thanks Eric from the Elm Slack for reporting!
@@ -75,7 +79,8 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
-[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.3...HEAD
+[1.2.3]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.3
 [1.2.2]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.2
 [1.2.1]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.1
 [1.2.0]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.0
