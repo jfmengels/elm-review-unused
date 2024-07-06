@@ -670,13 +670,13 @@ in c"""
             """module SomeModule exposing (a)
 b = 1
 a = let
-  c = b
-  d = let
-        e = 1
-      in
-        b + c + e
-in
-  d"""
+        c = b
+        d = let
+                e = 1
+            in
+            b + c + e
+    in
+    d"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     ]
