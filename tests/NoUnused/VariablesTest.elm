@@ -156,6 +156,7 @@ b = 2"""
     , test "should report unused top-level variables with documentation attached" <|
         \() ->
             """module SomeModule exposing (b)
+{-| Module documentation -}
 {-| Documentation
 -}
 unusedVar = 1
@@ -168,13 +169,15 @@ b = 2"""
                         , under = "unusedVar"
                         }
                         |> Review.Test.whenFixed """module SomeModule exposing (b)
+{-| Module documentation -}
 b = 2"""
                     ]
     , test "should report unused top-level variables with documentation attached even if they are annotated" <|
         \() ->
             """module SomeModule exposing (b)
-{-| Documentation
+{-| Module documentation
 -}
+{-| Function documentation -}
 unusedVar : Int
 unusedVar = 1
 b = 2"""
@@ -185,8 +188,10 @@ b = 2"""
                         , details = details
                         , under = "unusedVar"
                         }
-                        |> Review.Test.atExactly { start = { row = 5, column = 1 }, end = { row = 5, column = 10 } }
+                        |> Review.Test.atExactly { start = { row = 6, column = 1 }, end = { row = 6, column = 10 } }
                         |> Review.Test.whenFixed """module SomeModule exposing (b)
+{-| Module documentation
+-}
 b = 2"""
                     ]
     , test "should not report unused top-level variables if everything is exposed (functions)" <|
@@ -2183,7 +2188,8 @@ a = 1"""
     , test "should report unused custom type declarations with documentation" <|
         \() ->
             """module SomeModule exposing (a)
-{-| Documentation -}
+{-| Module documentation -}
+{-| Function documentation -}
 type UnusedType = B | C
 a = 1"""
                 |> Review.Test.run rule
@@ -2194,6 +2200,7 @@ a = 1"""
                         , under = "UnusedType"
                         }
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
+{-| Module documentation -}
 a = 1"""
                     ]
     , test "should report unused custom type declaration even when it references itself" <|
@@ -2256,7 +2263,8 @@ a = 1"""
     , test "should report unused type aliases declarations with documentation" <|
         \() ->
             """module SomeModule exposing (a)
-{-| Documentation -}
+{-| Module documentation -}
+{-| Function documentation -}
 type alias UnusedType = { a : B }
 a = 1"""
                 |> Review.Test.run rule
@@ -2267,6 +2275,7 @@ a = 1"""
                         , under = "UnusedType"
                         }
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
+{-| Module documentation -}
 a = 1"""
                     ]
     , test "should not report type alias used in a signature" <|

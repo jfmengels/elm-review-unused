@@ -1361,8 +1361,9 @@ tests : Test
 tests = Test.describe "thing" B.helper
 """, """
 module B exposing (helper)
+import Basics
 {-| @ignore-helper -}
-helper = 1
+helper = Basics.min
 """ ]
                     |> Review.Test.runOnModules
                         (defaults
