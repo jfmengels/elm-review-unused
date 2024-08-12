@@ -568,29 +568,30 @@ findErrorsAndVariablesNotPartOfScope scope declared ( errors_, remainingUsed_ ) 
 
 errorsForValue : Declared -> Rule.Error {}
 errorsForValue { name, kind, range, source, fix } =
-    Rule.errorWithFix
-        (errorMessage kind name)
-        range
-        (applyFix source fix)
-
-
-errorMessage : Kind -> String -> { message : String, details : List String }
-errorMessage kind name =
     case kind of
         Parameter ->
-            { message = "Parameter `" ++ name ++ "` is not used"
-            , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
-            }
+            Rule.errorWithFix
+                { message = "Parameter `" ++ name ++ "` is not used"
+                , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+                }
+                range
+                (applyFix source fix)
 
         Alias ->
-            { message = "Pattern alias `" ++ name ++ "` is not used"
-            , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
-            }
+            Rule.errorWithFix
+                { message = "Pattern alias `" ++ name ++ "` is not used"
+                , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+                }
+                range
+                fix
 
         TupleWithoutVariables ->
-            { message = "Tuple pattern is not needed"
-            , details = [ "You should remove this pattern." ]
-            }
+            Rule.errorWithFix
+                { message = "Tuple pattern is not needed"
+                , details = [ "You should remove this pattern." ]
+                }
+                range
+                (applyFix source fix)
 
 
 recursiveParameterError : String -> Declared -> Rule.Error {}

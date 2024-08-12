@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+`NoUnused.Parameters` provides automatic fixes for removing unnecessary aliases (`foo ({x} as unused)`).
+
 ## [1.2.4] - 2025-02-11
 
 Now requires `jfmengels/elm-review` v2.15.0.

@@ -504,6 +504,10 @@ foo ({ bish, bash } as bosh) =
                         , details = details
                         , under = "bosh"
                         }
+                        |> Review.Test.whenFixed """module A exposing (..)
+foo ({ bish, bash }) =
+    ( bish, bash )
+"""
                     ]
     , test "should report unused patterns in an as pattern" <|
         \() ->
@@ -537,6 +541,10 @@ foo ({ bish, bash } as bosh) =
                         , details = details
                         , under = "bosh"
                         }
+                        |> Review.Test.whenFixed """module A exposing (..)
+foo ({ bish, bash }) =
+    bish
+"""
                     ]
     , test "should not report aliases to wildcards" <|
         -- Already handled by `NoUnused.Patterns`
@@ -560,6 +568,10 @@ foo (Named ( _, ( Just bash ) as bish )) =
                         , details = details
                         , under = "bish"
                         }
+                        |> Review.Test.whenFixed """module A exposing (..)
+foo (Named ( _, ( Just bash ) )) =
+    bash
+"""
                     ]
     , test "should not report aliased pattern if it contains a named pattern" <|
         \() ->
