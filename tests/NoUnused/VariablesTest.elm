@@ -659,7 +659,9 @@ topLevelVariablesUsedInLetInTests =
             """module SomeModule exposing (a)
 b = 1
 a = let c = 1
-in b + c"""
+    in
+    b + c
+"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     , test "should not report top-level variables used inside let declarations" <|
@@ -667,7 +669,9 @@ in b + c"""
             """module SomeModule exposing (a)
 b = 1
 a = let c = b
-in c"""
+    in
+    c
+"""
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
     , test "should not report top-level variables used in nested lets" <|
