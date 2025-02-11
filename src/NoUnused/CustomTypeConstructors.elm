@@ -263,12 +263,6 @@ fromModuleToProject =
     Rule.initContextCreator
         (\moduleKey moduleName moduleContext ->
             let
-                localUsed : Set ConstructorName
-                localUsed =
-                    moduleContext.usedFunctionsOrValues
-                        |> Dict.get ""
-                        |> Maybe.withDefault Set.empty
-
                 localPhantomTypes : List ( CustomTypeName, Int )
                 localPhantomTypes =
                     moduleContext.phantomVariables
@@ -305,10 +299,7 @@ fromModuleToProject =
                             , customTypes = moduleContext.declaredTypesWithConstructors
                             }
                         )
-            , usedConstructors =
-                moduleContext.usedFunctionsOrValues
-                    |> Dict.remove ""
-                    |> Dict.insert moduleNameAsString localUsed
+            , usedConstructors = moduleContext.usedFunctionsOrValues
             , phantomVariables = Dict.singleton moduleName localPhantomTypes
             , wasUsedInLocationThatNeedsItself =
                 Set.map
