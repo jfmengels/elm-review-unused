@@ -667,7 +667,7 @@ expressionVisitor node moduleContext =
                 let
                     referencedConstructors : Set ( ModuleNameAsString, ConstructorName )
                     referencedConstructors =
-                        findConstructors moduleContext.lookupTable moduleContext.currentModuleName [ left, right ]
+                        findConstructors moduleContext.lookupTable [ left, right ]
 
                     replacement : String
                     replacement =
@@ -708,7 +708,7 @@ expressionVisitor node moduleContext =
                 let
                     referencedConstructors : Set ( ModuleNameAsString, ConstructorName )
                     referencedConstructors =
-                        findConstructors moduleContext.lookupTable moduleContext.currentModuleName arguments
+                        findConstructors moduleContext.lookupTable arguments
 
                     replacementBoolean : String
                     replacementBoolean =
@@ -903,18 +903,17 @@ staticRanges nodes acc =
                     staticRanges restOfNodes acc
 
 
-findConstructors : ModuleNameLookupTable -> ModuleNameAsString -> List (Node Expression) -> Set ( ModuleNameAsString, ConstructorName )
-findConstructors lookupTable moduleName nodes =
-    findConstructorsHelp lookupTable moduleName nodes Set.empty
+findConstructors : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleNameAsString, ConstructorName )
+findConstructors lookupTable nodes =
+    findConstructorsHelp lookupTable nodes Set.empty
 
 
 findConstructorsHelp :
     ModuleNameLookupTable
-    -> ModuleNameAsString
     -> List (Node Expression)
     -> Set ( ModuleNameAsString, ConstructorName )
     -> Set ( ModuleNameAsString, ConstructorName )
-findConstructorsHelp lookupTable moduleName nodes acc =
+findConstructorsHelp lookupTable nodes acc =
     case nodes of
         [] ->
             acc
@@ -925,39 +924,37 @@ findConstructorsHelp lookupTable moduleName nodes acc =
                     if String.Extra.isCapitalized name then
                         findConstructorsHelp
                             lookupTable
-                            moduleName
                             restOfNodes
-                            (addElementToUniqueList lookupTable moduleName node name acc)
+                            (addElementToUniqueList lookupTable node name acc)
 
                     else
-                        findConstructorsHelp lookupTable moduleName restOfNodes acc
+                        findConstructorsHelp lookupTable restOfNodes acc
 
                 Expression.Application ((Node _ (Expression.FunctionOrValue _ name)) :: restOfArgs) ->
                     if String.Extra.isCapitalized name then
                         findConstructorsHelp
                             lookupTable
-                            moduleName
                             (restOfArgs ++ restOfNodes)
-                            (addElementToUniqueList lookupTable moduleName node name acc)
+                            (addElementToUniqueList lookupTable node name acc)
 
                     else
-                        findConstructorsHelp lookupTable moduleName restOfNodes acc
+                        findConstructorsHelp lookupTable restOfNodes acc
 
                 Expression.OperatorApplication operator _ left right ->
                     if List.member operator [ "+", "-" ] then
-                        findConstructorsHelp lookupTable moduleName (left :: right :: restOfNodes) acc
+                        findConstructorsHelp lookupTable (left :: right :: restOfNodes) acc
 
                     else
-                        findConstructorsHelp lookupTable moduleName restOfNodes acc
+                        findConstructorsHelp lookupTable restOfNodes acc
 
                 Expression.ListExpr subNodes ->
-                    findConstructorsHelp lookupTable moduleName (subNodes ++ restOfNodes) acc
+                    findConstructorsHelp lookupTable (subNodes ++ restOfNodes) acc
 
                 Expression.TupledExpression subNodes ->
-                    findConstructorsHelp lookupTable moduleName (subNodes ++ restOfNodes) acc
+                    findConstructorsHelp lookupTable (subNodes ++ restOfNodes) acc
 
                 Expression.ParenthesizedExpression expr ->
-                    findConstructorsHelp lookupTable moduleName (expr :: restOfNodes) acc
+                    findConstructorsHelp lookupTable (expr :: restOfNodes) acc
 
                 Expression.RecordExpr fields ->
                     let
@@ -965,7 +962,7 @@ findConstructorsHelp lookupTable moduleName nodes acc =
                         expressions =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    findConstructorsHelp lookupTable moduleName (expressions ++ restOfNodes) acc
+                    findConstructorsHelp lookupTable (expressions ++ restOfNodes) acc
 
                 Expression.RecordUpdateExpression _ fields ->
                     let
@@ -973,23 +970,22 @@ findConstructorsHelp lookupTable moduleName nodes acc =
                         expressions =
                             List.map (\(Node _ ( _, value )) -> value) fields
                     in
-                    findConstructorsHelp lookupTable moduleName (expressions ++ restOfNodes) acc
+                    findConstructorsHelp lookupTable (expressions ++ restOfNodes) acc
 
                 Expression.RecordAccess expr _ ->
-                    findConstructorsHelp lookupTable moduleName (expr :: restOfNodes) acc
+                    findConstructorsHelp lookupTable (expr :: restOfNodes) acc
 
                 _ ->
-                    findConstructorsHelp lookupTable moduleName restOfNodes acc
+                    findConstructorsHelp lookupTable restOfNodes acc
 
 
 addElementToUniqueList :
     ModuleNameLookupTable
-    -> ModuleNameAsString
     -> Node Expression
     -> ConstructorName
     -> Set ( ModuleNameAsString, ConstructorName )
     -> Set ( ModuleNameAsString, ConstructorName )
-addElementToUniqueList lookupTable currentModuleName node name acc =
+addElementToUniqueList lookupTable node name acc =
     case ModuleNameLookupTable.fullModuleNameFor lookupTable node of
         Just realModuleName ->
             Set.insert ( String.join "." realModuleName, name ) acc
