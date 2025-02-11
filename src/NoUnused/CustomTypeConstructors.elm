@@ -1158,8 +1158,10 @@ errorForModule moduleKey params constructorInformation =
         fixes =
             case constructorInformation.rangeToRemove of
                 Just rangeToRemove ->
-                    [ Rule.editModule moduleKey (Fix.removeRange rangeToRemove :: params.fixesForRemovingConstructor)
-                    ]
+                    List.foldl
+                        (\file acc -> file :: acc)
+                        [ Rule.editModule moduleKey (Fix.removeRange rangeToRemove :: params.fixesForRemovingConstructor) ]
+                        []
 
                 Nothing ->
                     []
