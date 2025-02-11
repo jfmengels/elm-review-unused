@@ -665,8 +665,9 @@ expressionVisitor node moduleContext =
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
                 let
-                    { fromThisModule, fromOtherModules } =
-                        findConstructors moduleContext.lookupTable moduleContext.currentModuleName [ left, right ] Set.empty
+                    referencedConstructors : Set ( ModuleNameAsString, ConstructorName )
+                    referencedConstructors =
+                        findConstructors moduleContext.lookupTable moduleContext.currentModuleName [ left, right ]
 
                     replacement : String
                     replacement =
@@ -692,7 +693,7 @@ expressionVisitor node moduleContext =
                                     dict
                             )
                             moduleContext.fixesForRemovingConstructor
-                            (Set.union fromThisModule fromOtherModules)
+                            referencedConstructors
                 in
                 { moduleContext
                     | ignoredComparisonRanges = staticRanges [ node ] moduleContext.ignoredComparisonRanges
@@ -705,8 +706,9 @@ expressionVisitor node moduleContext =
         Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: arguments) ->
             if operator == "==" || operator == "/=" then
                 let
-                    { fromThisModule, fromOtherModules } =
-                        findConstructors moduleContext.lookupTable moduleContext.currentModuleName arguments Set.empty
+                    referencedConstructors : Set ( ModuleNameAsString, ConstructorName )
+                    referencedConstructors =
+                        findConstructors moduleContext.lookupTable moduleContext.currentModuleName arguments
 
                     replacementBoolean : String
                     replacementBoolean =
@@ -740,7 +742,7 @@ expressionVisitor node moduleContext =
                                     dict
                             )
                             moduleContext.fixesForRemovingConstructor
-                            (Set.union fromThisModule fromOtherModules)
+                            referencedConstructors
                 in
                 { moduleContext
                     | ignoredComparisonRanges = staticRanges [ node ] moduleContext.ignoredComparisonRanges
@@ -901,17 +903,17 @@ staticRanges nodes acc =
                     staticRanges restOfNodes acc
 
 
-findConstructors : ModuleNameLookupTable -> ModuleNameAsString -> List (Node Expression) -> Set ( ModuleNameAsString, ConstructorName ) -> { fromThisModule : Set ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
-findConstructors lookupTable moduleName nodes fromOtherModulesBase =
-    findConstructorsHelp lookupTable moduleName nodes { fromThisModule = Set.empty, fromOtherModules = fromOtherModulesBase }
+findConstructors : ModuleNameLookupTable -> ModuleNameAsString -> List (Node Expression) -> Set ( ModuleNameAsString, ConstructorName )
+findConstructors lookupTable moduleName nodes =
+    findConstructorsHelp lookupTable moduleName nodes Set.empty
 
 
 findConstructorsHelp :
     ModuleNameLookupTable
     -> ModuleNameAsString
     -> List (Node Expression)
-    -> { fromThisModule : Set ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
-    -> { fromThisModule : Set ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
+    -> Set ( ModuleNameAsString, ConstructorName )
+    -> Set ( ModuleNameAsString, ConstructorName )
 findConstructorsHelp lookupTable moduleName nodes acc =
     case nodes of
         [] ->
@@ -985,25 +987,12 @@ addElementToUniqueList :
     -> ModuleNameAsString
     -> Node Expression
     -> ConstructorName
-    -> { fromThisModule : Set ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
-    -> { fromThisModule : Set ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
+    -> Set ( ModuleNameAsString, ConstructorName )
+    -> Set ( ModuleNameAsString, ConstructorName )
 addElementToUniqueList lookupTable currentModuleName node name acc =
-    case ModuleNameLookupTable.moduleNameFor lookupTable node of
+    case ModuleNameLookupTable.fullModuleNameFor lookupTable node of
         Just realModuleName ->
-            let
-                moduleName : ModuleNameAsString
-                moduleName =
-                    String.join "." realModuleName
-            in
-            if moduleName == "" then
-                { fromThisModule = Set.insert ( currentModuleName, name ) acc.fromThisModule
-                , fromOtherModules = acc.fromOtherModules
-                }
-
-            else
-                { fromThisModule = acc.fromThisModule
-                , fromOtherModules = Set.insert ( moduleName, name ) acc.fromOtherModules
-                }
+            Set.insert ( String.join "." realModuleName, name ) acc
 
         Nothing ->
             acc
