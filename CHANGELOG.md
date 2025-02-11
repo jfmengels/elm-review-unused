@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.2.4] - 2025-02-11
+
+Now requires `jfmengels/elm-review` v2.15.0.
+`NoUnused.CustomTypeConstructors` provides automatic fixes even if the unused constructor is referenced in other files.
+
+`NoUnused.Exports` now provides an automatic fix to remove unused modules when using `elm-review --fix --allow-remove-files`.
+
 ## [1.2.3] - 2024-04-10
 
 `NoUnused.Variables` now finds unused imported functions when they have been shadowed by let destructuring variables. Thanks [@matzko](https://github.com/matzko).
@@ -79,7 +86,8 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
-[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.3...HEAD
+[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.4...HEAD
+[1.2.4]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.4
 [1.2.3]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.3
 [1.2.2]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.2
 [1.2.1]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.1
