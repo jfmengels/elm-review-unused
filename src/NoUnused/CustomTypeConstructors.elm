@@ -1109,7 +1109,7 @@ errorsForConstructors projectContext usedConstructors moduleName moduleKey const
                     { wasUsedInLocationThatNeedsItself = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInLocationThatNeedsItself
                     , wasUsedInComparisons = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInComparisons
                     , isUsedInOtherModules = Set.member ( moduleName, constructorInformation.name ) projectContext.wasUsedInOtherModules
-                    , fixesForRemovingConstructor = Dict.get ( moduleName, constructorInformation.name ) projectContext.fixesForRemovingConstructor |> Maybe.withDefault []
+                    , fixesForRemovingConstructor = Dict.singleton moduleName (Dict.get ( moduleName, constructorInformation.name ) projectContext.fixesForRemovingConstructor |> Maybe.withDefault [])
                     , moduleKeys = projectContext.moduleKeys
                     }
                     constructorInformation
@@ -1147,7 +1147,7 @@ errorForModule :
         { wasUsedInLocationThatNeedsItself : Bool
         , wasUsedInComparisons : Bool
         , isUsedInOtherModules : Bool
-        , fixesForRemovingConstructor : List Fix
+        , fixesForRemovingConstructor : Dict ModuleNameAsString (List Fix)
         , moduleKeys : Dict ModuleNameAsString Rule.ModuleKey
         }
     -> ConstructorInformation
@@ -1158,8 +1158,8 @@ errorForModule moduleKey params constructorInformation =
         fixes =
             case constructorInformation.rangeToRemove of
                 Just rangeToRemove ->
-                    List.foldl
-                        (\( moduleName, fileFixes ) acc ->
+                    Dict.foldl
+                        (\moduleName fileFixes acc ->
                             case Dict.get moduleName params.moduleKeys of
                                 Just fileModuleKey ->
                                     Rule.editModule fileModuleKey fileFixes :: acc
@@ -1167,8 +1167,8 @@ errorForModule moduleKey params constructorInformation =
                                 Nothing ->
                                     acc
                         )
-                        [ Rule.editModule moduleKey (Fix.removeRange rangeToRemove :: params.fixesForRemovingConstructor) ]
-                        []
+                        [ Rule.editModule moduleKey [ Fix.removeRange rangeToRemove ] ]
+                        params.fixesForRemovingConstructor
 
                 Nothing ->
                     []
