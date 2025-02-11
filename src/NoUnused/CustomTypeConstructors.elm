@@ -695,7 +695,7 @@ expressionVisitor node moduleContext =
 
                     fixes : Dict ConstructorName (Dict ModuleNameAsString (List Fix))
                     fixes =
-                        List.foldl
+                        Set.foldl
                             (\( moduleName, constructor ) dict ->
                                 Dict.update
                                     constructor
@@ -744,7 +744,7 @@ expressionVisitor node moduleContext =
 
                     fixes : Dict ConstructorName (Dict ModuleNameAsString (List Fix))
                     fixes =
-                        List.foldl
+                        Set.foldl
                             (\( _, constructor ) dict ->
                                 Dict.update
                                     constructor
@@ -921,16 +921,16 @@ staticRanges nodes acc =
                     staticRanges restOfNodes acc
 
 
-findConstructors : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleNameAsString, ConstructorName ) -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
+findConstructors : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleNameAsString, ConstructorName ) -> { fromThisModule : Set ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
 findConstructors lookupTable nodes fromOtherModulesBase =
-    findConstructorsHelp lookupTable nodes { fromThisModule = [], fromOtherModules = fromOtherModulesBase }
+    findConstructorsHelp lookupTable nodes { fromThisModule = Set.empty, fromOtherModules = fromOtherModulesBase }
 
 
 findConstructorsHelp :
     ModuleNameLookupTable
     -> List (Node Expression)
-    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
-    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
+    -> { fromThisModule : Set ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
+    -> { fromThisModule : Set ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
 findConstructorsHelp lookupTable nodes acc =
     case nodes of
         [] ->
@@ -1001,8 +1001,8 @@ addElementToUniqueList :
     ModuleNameLookupTable
     -> Node Expression
     -> ConstructorName
-    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
-    -> { fromThisModule : List ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
+    -> { fromThisModule : Set ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
+    -> { fromThisModule : Set ( ModuleNameAsString, ConstructorName ), fromOtherModules : Set ( ModuleNameAsString, ConstructorName ) }
 addElementToUniqueList lookupTable node name acc =
     case ModuleNameLookupTable.moduleNameFor lookupTable node of
         Just realModuleName ->
@@ -1016,13 +1016,9 @@ addElementToUniqueList lookupTable node name acc =
                     ( moduleName, name )
             in
             if moduleName == "" then
-                if List.member key acc.fromThisModule then
-                    acc
-
-                else
-                    { fromThisModule = key :: acc.fromThisModule
-                    , fromOtherModules = acc.fromOtherModules
-                    }
+                { fromThisModule = Set.insert key acc.fromThisModule
+                , fromOtherModules = acc.fromOtherModules
+                }
 
             else
                 { fromThisModule = acc.fromThisModule
