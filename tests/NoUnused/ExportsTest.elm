@@ -1046,6 +1046,7 @@ a = 1
                                 , details = unusedModuleDetails
                                 , under = "Reported"
                                 }
+                                |> Review.Test.shouldFixFilesWithFileRemoval [ ( "Reported", Review.Test.removed ) ]
                             ]
                           )
                         , ( "Other.Reported"
@@ -1054,6 +1055,7 @@ a = 1
                                 , details = unusedModuleDetails
                                 , under = "Other.Reported"
                                 }
+                                |> Review.Test.shouldFixFilesWithFileRemoval [ ( "Other.Reported", Review.Test.removed ) ]
                             ]
                           )
                         ]
@@ -1071,6 +1073,7 @@ a = 1
                             , details = unusedModuleDetails
                             , under = "Reported"
                             }
+                            |> Review.Test.shouldFixFilesWithFileRemoval [ ( "Reported", Review.Test.removed ) ]
                         ]
         , test "should not report an application module if it exposes a main function" <|
             \() ->
@@ -1143,6 +1146,7 @@ a = 1
                             , details = unusedModuleDetails
                             , under = "NotExposed"
                             }
+                            |> Review.Test.shouldFixFilesWithFileRemoval [ ( "NotExposed", Review.Test.removed ) ]
                         ]
         , test "should report non-exposed and non-used package modules that expose a `main` function" <|
             \() ->
@@ -1157,6 +1161,7 @@ main = text ""
                             , details = unusedModuleDetails
                             , under = "Reported"
                             }
+                            |> Review.Test.shouldFixFilesWithFileRemoval [ ( "Reported", Review.Test.removed ) ]
                         ]
         , test "should report non-exposed and non-used package modules that define a `main` function" <|
             \() ->
@@ -1172,6 +1177,7 @@ a = 1
                             , details = unusedModuleDetails
                             , under = "Reported"
                             }
+                            |> Review.Test.shouldFixFilesWithFileRemoval [ ( "Reported", Review.Test.removed ) ]
                         ]
         , test "should report modules that contain a top-level `app` function in packages" <|
             \() ->
@@ -1186,6 +1192,7 @@ app = text ""
                             , details = unusedModuleDetails
                             , under = "Reported"
                             }
+                            |> Review.Test.shouldFixFilesWithFileRemoval [ ( "Reported", Review.Test.removed ) ]
                         ]
         , test "should report modules that contain a top-level `app` function in Elm applications" <|
             \() ->
@@ -1200,6 +1207,7 @@ app = text ""
                             , details = unusedModuleDetails
                             , under = "Reported"
                             }
+                            |> Review.Test.shouldFixFilesWithFileRemoval [ ( "Reported", Review.Test.removed ) ]
                         ]
         , test "should not report modules that contain a top-level `app` function in Lamdera applications" <|
             \() ->
