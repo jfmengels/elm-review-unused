@@ -665,12 +665,12 @@ expressionVisitor node moduleContext =
                     fixes : Dict ( ModuleNameAsString, ConstructorName ) (Dict ModuleNameAsString (List Fix))
                     fixes =
                         Set.foldl
-                            (\(( moduleName, _ ) as key) dict ->
+                            (\key dict ->
                                 Dict.update
                                     key
                                     (\existingValues ->
                                         updateToAdd
-                                            moduleName
+                                            moduleContext.currentModuleName
                                             (Fix.replaceRangeBy (Node.range node) replacement)
                                             (Maybe.withDefault Dict.empty existingValues)
                                             |> Just
@@ -714,12 +714,12 @@ expressionVisitor node moduleContext =
                     fixes : Dict ( ModuleNameAsString, ConstructorName ) (Dict ModuleNameAsString (List Fix))
                     fixes =
                         Set.foldl
-                            (\(( moduleName, _ ) as key) dict ->
+                            (\key dict ->
                                 Dict.update
                                     key
                                     (\existingValues ->
                                         updateToAdd
-                                            moduleName
+                                            moduleContext.currentModuleName
                                             (Fix.replaceRangeBy (Node.range node) replacement)
                                             (Maybe.withDefault Dict.empty existingValues)
                                             |> Just
@@ -770,7 +770,7 @@ caseBranchEnterVisitor caseExpression ( casePattern, body ) moduleContext =
         fixes : Dict ( ModuleNameAsString, ConstructorName ) (Dict ModuleNameAsString (List Fix))
         fixes =
             Set.foldl
-                (\(( moduleName, _ ) as key) acc ->
+                (\key acc ->
                     let
                         fix : Fix
                         fix =
@@ -783,7 +783,7 @@ caseBranchEnterVisitor caseExpression ( casePattern, body ) moduleContext =
                         key
                         (\existingValues ->
                             updateToAdd
-                                moduleName
+                                moduleContext.currentModuleName
                                 fix
                                 (Maybe.withDefault Dict.empty existingValues)
                                 |> Just
