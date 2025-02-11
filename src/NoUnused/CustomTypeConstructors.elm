@@ -184,6 +184,7 @@ type alias ConstructorInformation =
 
 type alias ProjectContext =
     { exposedModules : Set ModuleNameAsString
+    , moduleKeys : Dict ModuleNameAsString Rule.ModuleKey
     , declaredConstructors : Dict ModuleNameAsString ExposedConstructors
     , usedConstructors : Dict ModuleNameAsString (Set ConstructorName)
     , phantomVariables : Dict ModuleName (List ( CustomTypeName, Int ))
@@ -214,6 +215,7 @@ type alias ModuleContext =
 initialProjectContext : List { moduleName : String, typeName : String, index : Int } -> ProjectContext
 initialProjectContext phantomTypes =
     { exposedModules = Set.empty
+    , moduleKeys = Dict.empty
     , declaredConstructors = Dict.empty
     , usedConstructors = Dict.empty
     , phantomVariables =
@@ -275,6 +277,7 @@ fromModuleToProject =
                     String.join "." moduleName
             in
             { exposedModules = Set.empty
+            , moduleKeys = Dict.singleton moduleNameAsString moduleKey
             , declaredConstructors =
                 if moduleContext.isExposed then
                     if moduleContext.exposesEverything then
@@ -351,6 +354,7 @@ fromModuleToProject =
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
     { exposedModules = previousContext.exposedModules
+    , moduleKeys = Dict.union newContext.moduleKeys previousContext.moduleKeys
     , declaredConstructors = Dict.union newContext.declaredConstructors previousContext.declaredConstructors
     , usedConstructors =
         Dict.foldl
