@@ -79,6 +79,7 @@ rule =
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withLetDeclarationEnterVisitor letDeclarationEnterVisitor
         |> Rule.withLetDeclarationExitVisitor letDeclarationExitVisitor
+        |> Rule.withFinalModuleEvaluation finalEvaluation
         |> Rule.providesFixesForModuleRule
         |> Rule.fromModuleRuleSchema
 
@@ -492,6 +493,14 @@ ignoreLocations fnArgs numberOfIgnoredArguments nodes index acc =
                             acc
             in
             ignoreLocations fnArgs numberOfIgnoredArguments rest (index + 1) newAcc
+
+
+finalEvaluation : Context -> List (Rule.Error {})
+finalEvaluation context =
+    context.scopes
+        |> List.head
+        |> Maybe.map .errors
+        |> Maybe.withDefault []
 
 
 markValueAsUsed : Range -> String -> Context -> Context
