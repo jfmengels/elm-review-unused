@@ -574,7 +574,7 @@ findErrorsAndVariablesNotPartOfScope scope declared ( errors_, remainingUsed_ ) 
 
         else
             -- If variable was used ONLY as a recursive argument
-            ( recursiveParameterError scope.functionName declared :: errors_, Set.remove declared.name remainingUsed_ )
+            ( recursiveParameterError scope.functionName declared :: errors_, remainingUsed_ )
 
     else if Set.member declared.name remainingUsed_ then
         ( errors_, Set.remove declared.name remainingUsed_ )
