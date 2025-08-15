@@ -99,6 +99,7 @@ type alias Scope =
     , declared : List Declared
     , used : Set String
     , usedRecursively : Set String
+    , errors : List (Rule.Error {})
     }
 
 
@@ -138,6 +139,7 @@ initialContext =
             , declared = []
             , used = Set.empty
             , usedRecursively = Set.empty
+            , errors = []
             }
     , knownFunctions = Dict.empty
     , locationsToIgnoreForUsed = Dict.empty
@@ -172,6 +174,7 @@ declarationEnterVisitor node context =
                         , declared = List.concat declared
                         , used = Set.empty
                         , usedRecursively = Set.empty
+                        , errors = []
                         }
                         context.scopes
               , knownFunctions = Dict.singleton functionName (getArgNames declared)
@@ -356,6 +359,7 @@ expressionEnterVisitorHelp node context =
                         , declared = List.concatMap (getParametersFromPatterns Lambda) args
                         , used = Set.empty
                         , usedRecursively = Set.empty
+                        , errors = []
                         }
                         context.scopes
             }
@@ -417,6 +421,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
                         , declared = List.concat declared
                         , used = Set.empty
                         , usedRecursively = Set.empty
+                        , errors = []
                         }
                 in
                 ( []
