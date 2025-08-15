@@ -100,7 +100,7 @@ type alias Scope =
     , declared : List Declared
     , used : Set String
     , usedRecursively : Set String
-    , errors : List (Rule.Error {})
+    , toReport : List (Rule.Error {})
     }
 
 
@@ -140,7 +140,7 @@ initialContext =
             , declared = []
             , used = Set.empty
             , usedRecursively = Set.empty
-            , errors = []
+            , toReport = []
             }
     , knownFunctions = Dict.empty
     , locationsToIgnoreForUsed = Dict.empty
@@ -175,7 +175,7 @@ declarationEnterVisitor node context =
                         , declared = List.concat declared
                         , used = Set.empty
                         , usedRecursively = Set.empty
-                        , errors = []
+                        , toReport = []
                         }
                         context.scopes
               , knownFunctions = Dict.singleton functionName (getArgNames declared)
@@ -360,7 +360,7 @@ expressionEnterVisitorHelp node context =
                         , declared = List.concatMap (getParametersFromPatterns Lambda) args
                         , used = Set.empty
                         , usedRecursively = Set.empty
-                        , errors = []
+                        , toReport = []
                         }
                         context.scopes
             }
@@ -422,7 +422,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
                         , declared = List.concat declared
                         , used = Set.empty
                         , usedRecursively = Set.empty
-                        , errors = []
+                        , toReport = []
                         }
                 in
                 ( []
@@ -497,7 +497,7 @@ ignoreLocations fnArgs numberOfIgnoredArguments nodes index acc =
 
 finalEvaluation : Context -> List (Rule.Error {})
 finalEvaluation context =
-    (NonemptyList.head context.scopes).errors
+    (NonemptyList.head context.scopes).toReport
 
 
 markValueAsUsed : Range -> String -> Context -> Context
@@ -538,7 +538,7 @@ markAllAsUsed names errors scopes =
         (\scope ->
             { scope
                 | used = Set.union names scope.used
-                , errors = errors ++ scope.errors
+                , toReport = errors ++ scope.toReport
             }
         )
         scopes
@@ -556,7 +556,7 @@ report context =
                 ( [], headScope.used )
                 headScope.declared
     in
-    ( headScope.errors
+    ( headScope.toReport
     , { context
         | scopes = markAllAsUsed remainingUsed errors scopes
         , knownFunctions = Dict.remove headScope.functionName context.knownFunctions
