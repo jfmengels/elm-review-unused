@@ -12,6 +12,7 @@ import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Range)
+import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import Review.Fix as Fix exposing (Fix)
 import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
@@ -87,7 +88,7 @@ rule =
 
 
 type alias Context =
-    { scopes : List Scope
+    { scopes : Nonempty Scope
     , knownFunctions : Dict String FunctionArgs
     , locationsToIgnoreForUsed : LocationsToIgnore
     }
@@ -131,7 +132,13 @@ type Source
 
 initialContext : Context
 initialContext =
-    { scopes = []
+    { scopes =
+        NonemptyList.fromElement
+            { functionName = "root"
+            , declared = []
+            , used = Set.empty
+            , usedRecursively = Set.empty
+            }
     , knownFunctions = Dict.empty
     , locationsToIgnoreForUsed = Dict.empty
     }
@@ -160,12 +167,13 @@ declarationEnterVisitor node context =
             in
             ( []
             , { scopes =
-                    [ { functionName = functionName
-                      , declared = List.concat declared
-                      , used = Set.empty
-                      , usedRecursively = Set.empty
-                      }
-                    ]
+                    NonemptyList.cons
+                        { functionName = functionName
+                        , declared = List.concat declared
+                        , used = Set.empty
+                        , usedRecursively = Set.empty
+                        }
+                        context.scopes
               , knownFunctions = Dict.singleton functionName (getArgNames declared)
               , locationsToIgnoreForUsed = Dict.empty
               }
@@ -343,12 +351,13 @@ expressionEnterVisitorHelp node context =
         Expression.LambdaExpression { args } ->
             { context
                 | scopes =
-                    { functionName = "dummy lambda"
-                    , declared = List.concatMap (getParametersFromPatterns Lambda) args
-                    , used = Set.empty
-                    , usedRecursively = Set.empty
-                    }
-                        :: context.scopes
+                    NonemptyList.cons
+                        { functionName = "dummy lambda"
+                        , declared = List.concatMap (getParametersFromPatterns Lambda) args
+                        , used = Set.empty
+                        , usedRecursively = Set.empty
+                        }
+                        context.scopes
             }
 
         Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
@@ -412,7 +421,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
                 in
                 ( []
                 , { context
-                    | scopes = newScope :: context.scopes
+                    | scopes = NonemptyList.cons newScope context.scopes
                     , knownFunctions = Dict.insert functionName (getArgNames declared) context.knownFunctions
                   }
                 )
@@ -482,21 +491,18 @@ ignoreLocations fnArgs numberOfIgnoredArguments nodes index acc =
 
 markValueAsUsed : Range -> String -> Context -> Context
 markValueAsUsed range name context =
-    case context.scopes of
-        [] ->
-            context
-
-        headScope :: restOfScopes ->
-            let
-                newHeadScope : Scope
-                newHeadScope =
+    { context
+        | scopes =
+            NonemptyList.mapHead
+                (\scope ->
                     if shouldBeIgnored range name context then
-                        { headScope | usedRecursively = Set.insert name headScope.usedRecursively }
+                        { scope | usedRecursively = Set.insert name scope.usedRecursively }
 
                     else
-                        { headScope | used = Set.insert name headScope.used }
-            in
-            { context | scopes = newHeadScope :: restOfScopes }
+                        { scope | used = Set.insert name scope.used }
+                )
+                context.scopes
+    }
 
 
 shouldBeIgnored : Range -> String -> Context -> Bool
@@ -515,36 +521,33 @@ isRangeIncluded inner outer =
         && (Range.compareLocations inner.end outer.end /= GT)
 
 
-markAllAsUsed : Set String -> List Scope -> List Scope
+markAllAsUsed : Set String -> Nonempty Scope -> Nonempty Scope
 markAllAsUsed names scopes =
-    case scopes of
-        [] ->
-            scopes
-
-        headScope :: restOfScopes ->
-            { headScope | used = Set.union names headScope.used } :: restOfScopes
+    NonemptyList.mapHead
+        (\scope ->
+            { scope | used = Set.union names scope.used }
+        )
+        scopes
 
 
 report : Context -> ( List (Rule.Error {}), Context )
 report context =
-    case context.scopes of
-        headScope :: restOfScopes ->
-            let
-                ( errors, remainingUsed ) =
-                    List.foldl
-                        (findErrorsAndVariablesNotPartOfScope headScope)
-                        ( [], headScope.used )
-                        headScope.declared
-            in
-            ( errors
-            , { context
-                | scopes = markAllAsUsed remainingUsed restOfScopes
-                , knownFunctions = Dict.remove headScope.functionName context.knownFunctions
-              }
-            )
+    let
+        ( headScope, scopes ) =
+            NonemptyList.headAndPop context.scopes
 
-        [] ->
-            ( [], context )
+        ( errors, remainingUsed ) =
+            List.foldl
+                (findErrorsAndVariablesNotPartOfScope headScope)
+                ( [], headScope.used )
+                headScope.declared
+    in
+    ( errors
+    , { context
+        | scopes = markAllAsUsed remainingUsed scopes
+        , knownFunctions = Dict.remove headScope.functionName context.knownFunctions
+      }
+    )
 
 
 findErrorsAndVariablesNotPartOfScope : Scope -> Declared -> ( List (Rule.Error {}), Set String ) -> ( List (Rule.Error {}), Set String )
