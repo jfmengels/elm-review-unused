@@ -497,10 +497,7 @@ ignoreLocations fnArgs numberOfIgnoredArguments nodes index acc =
 
 finalEvaluation : Context -> List (Rule.Error {})
 finalEvaluation context =
-    context.scopes
-        |> List.head
-        |> Maybe.map .errors
-        |> Maybe.withDefault []
+    (NonemptyList.head context.scopes).errors
 
 
 markValueAsUsed : Range -> String -> Context -> Context
@@ -535,11 +532,14 @@ isRangeIncluded inner outer =
         && (Range.compareLocations inner.end outer.end /= GT)
 
 
-markAllAsUsed : Set String -> Nonempty Scope -> Nonempty Scope
-markAllAsUsed names scopes =
+markAllAsUsed : Set String -> List (Rule.Error {}) -> Nonempty Scope -> Nonempty Scope
+markAllAsUsed names errors scopes =
     NonemptyList.mapHead
         (\scope ->
-            { scope | used = Set.union names scope.used }
+            { scope
+                | used = Set.union names scope.used
+                , errors = errors ++ scope.errors
+            }
         )
         scopes
 
@@ -556,9 +556,9 @@ report context =
                 ( [], headScope.used )
                 headScope.declared
     in
-    ( errors
+    ( headScope.errors
     , { context
-        | scopes = markAllAsUsed remainingUsed scopes
+        | scopes = markAllAsUsed remainingUsed errors scopes
         , knownFunctions = Dict.remove headScope.functionName context.knownFunctions
       }
     )
