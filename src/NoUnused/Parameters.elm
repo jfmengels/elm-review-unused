@@ -16,7 +16,7 @@ import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Syntax.Signature exposing (Signature)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import NoUnused.Parameters.ParameterPath as ParameterPath exposing (Nesting(..), Path)
-import Review.Fix as Fix exposing (Fix)
+import Review.Fix as Fix exposing (Edit, Fix)
 import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
 
@@ -597,40 +597,58 @@ report context =
         ( headScope, scopes ) =
             NonemptyList.headAndPop context.scopes
 
-        ( toReport, remainingUsed ) =
+        { reportLater, reportNow, remainingUsed } =
             List.foldl
                 (findErrorsAndVariablesNotPartOfScope headScope)
-                ( Dict.empty, headScope.used )
+                { reportLater = Dict.empty, reportNow = [], remainingUsed = headScope.used }
                 headScope.declared
     in
-    ( headScope.toReport
+    ( (headScope.toReport
         |> Dict.values
         |> List.concatMap Dict.values
         |> List.concat
+      )
+        ++ reportNow
     , { context
-        | scopes = markAllAsUsed remainingUsed headScope.functionName toReport scopes
+        | scopes = markAllAsUsed remainingUsed headScope.functionName reportLater scopes
         , recursiveFunctions = Dict.remove headScope.functionName context.recursiveFunctions
       }
     )
 
 
-findErrorsAndVariablesNotPartOfScope : Scope -> Declared -> ( Dict Int (List (Rule.Error {})), Set String ) -> ( Dict Int (List (Rule.Error {})), Set String )
-findErrorsAndVariablesNotPartOfScope scope declared ( errors_, remainingUsed ) =
+findErrorsAndVariablesNotPartOfScope :
+    Scope
+    -> Declared
+    -> { reportLater : Dict Int (List (Rule.Error {})), reportNow : List (Rule.Error {}), remainingUsed : Set String }
+    -> { reportLater : Dict Int (List (Rule.Error {})), reportNow : List (Rule.Error {}), remainingUsed : Set String }
+findErrorsAndVariablesNotPartOfScope scope declared { reportLater, reportNow, remainingUsed } =
     if Set.member declared.name scope.usedRecursively then
         -- If variable was used as a recursive argument
         if Set.member declared.name remainingUsed then
             -- If variable was used somewhere else as well
-            ( errors_, Set.remove declared.name remainingUsed )
+            { reportLater = reportLater
+            , reportNow = reportNow
+            , remainingUsed = Set.remove declared.name remainingUsed
+            }
 
         else
             -- If variable was used ONLY as a recursive argument
-            ( insertInDictList declared.position (recursiveParameterError scope.functionName declared) errors_, remainingUsed )
+            { reportLater = insertInDictList declared.position (recursiveParameterError scope.functionName declared) reportLater
+            , reportNow = reportNow
+            , remainingUsed = remainingUsed
+            }
 
     else if Set.member declared.name remainingUsed then
-        ( errors_, Set.remove declared.name remainingUsed )
+        { reportLater = reportLater
+        , reportNow = reportNow
+        , remainingUsed = Set.remove declared.name remainingUsed
+        }
 
     else
-        ( insertInDictList declared.position (errorsForValue declared) errors_, remainingUsed )
+        { reportLater = insertInDictList declared.position (errorsForValue declared) reportLater
+        , reportNow = reportNow
+        , remainingUsed = remainingUsed
+        }
 
 
 insertInDictList : comparable -> value -> Dict comparable (List value) -> Dict comparable (List value)
