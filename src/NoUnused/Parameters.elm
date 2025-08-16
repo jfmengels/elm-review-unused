@@ -649,6 +649,7 @@ findDeclared source arguments signature =
     findDeclaredHelp
         source
         0
+        (ParameterPath.init 0)
         arguments
         (case signature of
             Nothing ->
@@ -672,8 +673,8 @@ type TypeSignature
     | Present { removeFullArgRange : Range, typeAnnotation : Node TypeAnnotation }
 
 
-findDeclaredHelp : Source -> Int -> List (Node Pattern) -> FunctionSignature -> List (List Declared) -> List (List Declared)
-findDeclaredHelp source index arguments functionSignature acc =
+findDeclaredHelp : Source -> Int -> Path -> List (Node Pattern) -> FunctionSignature -> List (List Declared) -> List (List Declared)
+findDeclaredHelp source index path arguments functionSignature acc =
     case arguments of
         [] ->
             List.reverse acc
@@ -704,9 +705,10 @@ findDeclaredHelp source index arguments functionSignature acc =
             findDeclaredHelp
                 source
                 (index + 1)
+                (ParameterPath.nextArgument path)
                 remainingArguments
                 remainingFunctionSignature
-                (getParametersFromPatterns (ParameterPath.init index) source arg :: acc)
+                (getParametersFromPatterns path source arg :: acc)
 
 
 errorsForValue : Declared -> Rule.Error {}

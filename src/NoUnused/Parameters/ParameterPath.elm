@@ -7,6 +7,7 @@ module NoUnused.Parameters.ParameterPath exposing
     , inRecord
     , inTuple
     , init
+    , nextArgument
     )
 
 import Array exposing (Array)
@@ -28,6 +29,13 @@ type Nesting
 init : Int -> Path
 init index =
     { index = index
+    , nesting = Array.empty
+    }
+
+
+nextArgument : Path -> Path
+nextArgument path =
+    { index = path.index + 1
     , nesting = Array.empty
     }
 
