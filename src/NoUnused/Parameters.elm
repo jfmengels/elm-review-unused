@@ -265,7 +265,7 @@ getParametersFromPatterns path source node =
             let
                 pathInArgument_ : Path
                 pathInArgument_ =
-                    ParameterPath.push RecordField path
+                    ParameterPath.inRecord path
             in
             case fields of
                 [ field ] ->
@@ -309,7 +309,7 @@ getParametersFromPatterns path source node =
                 parametersFromPatterns : List Declared
                 parametersFromPatterns =
                     patterns
-                        |> List.indexedMap (\tupleIndex pattern -> getParametersFromPatterns (ParameterPath.push (TupleField tupleIndex) path) source pattern)
+                        |> List.indexedMap (\tupleIndex pattern -> getParametersFromPatterns (ParameterPath.inTuple tupleIndex path) source pattern)
                         |> List.concat
             in
             if List.isEmpty parametersFromPatterns && List.all isPatternWildCard patterns then
@@ -329,7 +329,7 @@ getParametersFromPatterns path source node =
 
         Pattern.NamedPattern _ patterns ->
             patterns
-                |> List.indexedMap (\patternIndex pattern -> getParametersFromPatterns (ParameterPath.push (NamedPattern patternIndex) path) source pattern)
+                |> List.indexedMap (\patternIndex pattern -> getParametersFromPatterns (ParameterPath.inNamedPattern patternIndex path) source pattern)
                 |> List.concat
 
         _ ->
@@ -341,7 +341,7 @@ getParametersFromAsPattern path source pattern asName =
     let
         parametersFromPatterns : List Declared
         parametersFromPatterns =
-            getParametersFromPatterns (ParameterPath.push AliasPattern path) source pattern
+            getParametersFromPatterns (ParameterPath.inAlias path) source pattern
 
         asParameter : Declared
         asParameter =

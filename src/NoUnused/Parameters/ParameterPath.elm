@@ -1,9 +1,12 @@
 module NoUnused.Parameters.ParameterPath exposing
-    ( Nesting(..)
+    ( Nesting
     , Path
     , canBeFixed
+    , inAlias
+    , inNamedPattern
+    , inRecord
+    , inTuple
     , init
-    , push
     )
 
 import Array exposing (Array)
@@ -29,10 +32,31 @@ init index =
     }
 
 
-push : Nesting -> Path -> Path
-push pathInArgument path =
+inRecord : Path -> Path
+inRecord path =
     { index = path.index
-    , nesting = Array.push pathInArgument path.nesting
+    , nesting = Array.push RecordField path.nesting
+    }
+
+
+inTuple : Int -> Path -> Path
+inTuple index path =
+    { index = path.index
+    , nesting = Array.push (TupleField index) path.nesting
+    }
+
+
+inNamedPattern : Int -> Path -> Path
+inNamedPattern index path =
+    { index = path.index
+    , nesting = Array.push (NamedPattern index) path.nesting
+    }
+
+
+inAlias : Path -> Path
+inAlias path =
+    { index = path.index
+    , nesting = Array.push AliasPattern path.nesting
     }
 
 
