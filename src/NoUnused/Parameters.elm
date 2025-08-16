@@ -14,6 +14,7 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Range)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
+import NoUnused.Parameters.ParameterPath exposing (PathInArgument(..))
 import Review.Fix as Fix exposing (Fix)
 import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
@@ -123,13 +124,6 @@ type alias Declared =
     , removeFix : Maybe (List Fix)
     , toIgnoredFix : List Fix
     }
-
-
-type PathInArgument
-    = RecordField
-    | TupleField Int
-    | NamedPattern Int
-    | AliasPattern
 
 
 type alias LocationsToIgnore =
