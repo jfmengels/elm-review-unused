@@ -14,7 +14,7 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Range)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
-import NoUnused.Parameters.ParameterPath exposing (PathInArgument(..))
+import NoUnused.Parameters.ParameterPath as ParameterPath exposing (Nesting(..), Path)
 import Review.Fix as Fix exposing (Fix)
 import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
@@ -120,7 +120,7 @@ type alias Declared =
     , kind : Kind
     , source : Source
     , position : Int
-    , pathInArgument : Array PathInArgument
+    , pathInArgument : Array Nesting
     , removeFix : Maybe (List Fix)
     , toIgnoredFix : List Fix
     }
@@ -175,7 +175,7 @@ declarationEnterVisitor node context =
 
                 declared : List (List Declared)
                 declared =
-                    List.indexedMap (\index arg -> getParametersFromPatterns index Array.empty NamedFunction arg) declaration.arguments
+                    List.indexedMap (\index arg -> getParametersFromPatterns (ParameterPath.init index) NamedFunction arg) declaration.arguments
 
                 functionName : FunctionName
                 functionName =
@@ -235,37 +235,37 @@ getArgNamesHelp declared index acc =
             getArgNamesHelp restOfDeclared (index + 1) newAcc
 
 
-getParametersFromPatterns : Int -> Array PathInArgument -> Source -> Node Pattern -> List Declared
-getParametersFromPatterns index pathInArgument source node =
+getParametersFromPatterns : ParameterPath.Path -> Source -> Node Pattern -> List Declared
+getParametersFromPatterns path source node =
     case Node.value node of
         Pattern.ParenthesizedPattern pattern ->
-            getParametersFromPatterns index pathInArgument source pattern
+            getParametersFromPatterns path source pattern
 
         Pattern.VarPattern name ->
             [ { name = name
               , range = Node.range node
               , kind = Parameter
               , removeFix =
-                    if Array.isEmpty pathInArgument then
-                        Just [ Fix.removeRange (Node.range node) ]
+                    if ParameterPath.isNested path then
+                        Nothing
 
                     else
-                        Nothing
+                        Just [ Fix.removeRange (Node.range node) ]
               , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
-              , position = index
-              , pathInArgument = pathInArgument
+              , position = path.index
+              , pathInArgument = path.nesting
               , source = source
               }
             ]
 
         Pattern.AsPattern pattern asName ->
-            getParametersFromAsPattern index pathInArgument source pattern asName
+            getParametersFromAsPattern path source pattern asName
 
         Pattern.RecordPattern fields ->
             let
-                pathInArgument_ : Array PathInArgument
+                pathInArgument_ : Path
                 pathInArgument_ =
-                    Array.push RecordField pathInArgument
+                    ParameterPath.push RecordField path
             in
             case fields of
                 [ field ] ->
@@ -274,8 +274,8 @@ getParametersFromPatterns index pathInArgument source node =
                       , kind = Parameter
                       , removeFix = Nothing
                       , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
-                      , position = index
-                      , pathInArgument = pathInArgument_
+                      , position = path.index
+                      , pathInArgument = pathInArgument_.nesting
                       , source = source
                       }
                     ]
@@ -297,8 +297,8 @@ getParametersFromPatterns index pathInArgument source node =
                                     (Node.range node)
                                     (fieldNames |> List.filter (\f -> f /= Node.value field) |> formatRecord)
                                 ]
-                            , position = index
-                            , pathInArgument = pathInArgument_
+                            , position = path.index
+                            , pathInArgument = pathInArgument_.nesting
                             , source = source
                             }
                         )
@@ -309,7 +309,7 @@ getParametersFromPatterns index pathInArgument source node =
                 parametersFromPatterns : List Declared
                 parametersFromPatterns =
                     patterns
-                        |> List.indexedMap (\tupleIndex pattern -> getParametersFromPatterns index (Array.push (TupleField tupleIndex) pathInArgument) source pattern)
+                        |> List.indexedMap (\tupleIndex pattern -> getParametersFromPatterns (ParameterPath.push (TupleField tupleIndex) path) source pattern)
                         |> List.concat
             in
             if List.isEmpty parametersFromPatterns && List.all isPatternWildCard patterns then
@@ -318,8 +318,8 @@ getParametersFromPatterns index pathInArgument source node =
                   , kind = TupleWithoutVariables
                   , removeFix = Nothing
                   , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
-                  , position = index
-                  , pathInArgument = pathInArgument
+                  , position = path.index
+                  , pathInArgument = path.nesting
                   , source = source
                   }
                 ]
@@ -329,19 +329,19 @@ getParametersFromPatterns index pathInArgument source node =
 
         Pattern.NamedPattern _ patterns ->
             patterns
-                |> List.indexedMap (\patternIndex pattern -> getParametersFromPatterns index (Array.push (NamedPattern patternIndex) pathInArgument) source pattern)
+                |> List.indexedMap (\patternIndex pattern -> getParametersFromPatterns (ParameterPath.push (NamedPattern patternIndex) path) source pattern)
                 |> List.concat
 
         _ ->
             []
 
 
-getParametersFromAsPattern : Int -> Array PathInArgument -> Source -> Node Pattern -> Node String -> List Declared
-getParametersFromAsPattern index pathInArgument source pattern asName =
+getParametersFromAsPattern : Path -> Source -> Node Pattern -> Node String -> List Declared
+getParametersFromAsPattern path source pattern asName =
     let
         parametersFromPatterns : List Declared
         parametersFromPatterns =
-            getParametersFromPatterns index (Array.push AliasPattern pathInArgument) source pattern
+            getParametersFromPatterns (ParameterPath.push AliasPattern path) source pattern
 
         asParameter : Declared
         asParameter =
@@ -350,8 +350,8 @@ getParametersFromAsPattern index pathInArgument source pattern asName =
             , kind = Alias
             , removeFix = Nothing
             , toIgnoredFix = [ Fix.removeRange { start = (Node.range pattern).end, end = (Node.range asName).end } ]
-            , position = index
-            , pathInArgument = pathInArgument
+            , position = path.index
+            , pathInArgument = path.nesting
             , source = source
             }
     in
@@ -399,7 +399,7 @@ expressionEnterVisitorHelp node context =
                 | scopes =
                     NonemptyList.cons
                         { functionName = "dummy lambda"
-                        , declared = List.indexedMap (\index arg -> getParametersFromPatterns index Array.empty Lambda arg) args |> List.concat
+                        , declared = List.indexedMap (\index arg -> getParametersFromPatterns (ParameterPath.init index) Lambda arg) args |> List.concat
                         , used = Set.empty
                         , usedRecursively = Set.empty
                         , toReport = Dict.empty
@@ -456,7 +456,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
 
                     declared : List (List Declared)
                     declared =
-                        List.indexedMap (\index arg -> getParametersFromPatterns index Array.empty NamedFunction arg) declaration.arguments
+                        List.indexedMap (\index arg -> getParametersFromPatterns (ParameterPath.init index) NamedFunction arg) declaration.arguments
 
                     newScope : Scope
                     newScope =
