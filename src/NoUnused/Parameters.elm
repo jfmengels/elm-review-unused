@@ -6,6 +6,7 @@ module NoUnused.Parameters exposing (rule)
 
 -}
 
+import Array exposing (Array)
 import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
@@ -118,8 +119,16 @@ type alias Declared =
     , kind : Kind
     , source : Source
     , position : Int
+    , pathInArgument : Array PathInArgument
     , toIgnoredFix : List Fix
     }
+
+
+type PathInArgument
+    = RecordField
+    | TupleField Int
+    | NamedPattern Int
+    | AliasPattern
 
 
 type alias LocationsToIgnore =
@@ -171,7 +180,7 @@ declarationEnterVisitor node context =
 
                 declared : List (List Declared)
                 declared =
-                    List.indexedMap (\index arg -> getParametersFromPatterns index NamedFunction arg) arguments
+                    List.indexedMap (\index arg -> getParametersFromPatterns index Array.empty NamedFunction arg) arguments
 
                 functionName : FunctionName
                 functionName =
@@ -231,11 +240,11 @@ getArgNamesHelp declared index acc =
             getArgNamesHelp restOfDeclared (index + 1) newAcc
 
 
-getParametersFromPatterns : Int -> Source -> Node Pattern -> List Declared
-getParametersFromPatterns index source node =
+getParametersFromPatterns : Int -> Array PathInArgument -> Source -> Node Pattern -> List Declared
+getParametersFromPatterns index pathInArgument source node =
     case Node.value node of
         Pattern.ParenthesizedPattern pattern ->
-            getParametersFromPatterns index source pattern
+            getParametersFromPatterns index pathInArgument source pattern
 
         Pattern.VarPattern name ->
             [ { name = name
@@ -243,14 +252,20 @@ getParametersFromPatterns index source node =
               , kind = Parameter
               , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
               , position = index
+              , pathInArgument = pathInArgument
               , source = source
               }
             ]
 
         Pattern.AsPattern pattern asName ->
-            getParametersFromAsPattern index source pattern asName
+            getParametersFromAsPattern index pathInArgument source pattern asName
 
         Pattern.RecordPattern fields ->
+            let
+                pathInArgument_ : Array PathInArgument
+                pathInArgument_ =
+                    Array.push RecordField pathInArgument
+            in
             case fields of
                 [ field ] ->
                     [ { name = Node.value field
@@ -258,6 +273,7 @@ getParametersFromPatterns index source node =
                       , kind = Parameter
                       , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
                       , position = index
+                      , pathInArgument = pathInArgument_
                       , source = source
                       }
                     ]
@@ -279,6 +295,7 @@ getParametersFromPatterns index source node =
                                     (fieldNames |> List.filter (\f -> f /= Node.value field) |> formatRecord)
                                 ]
                             , position = index
+                            , pathInArgument = pathInArgument_
                             , source = source
                             }
                         )
@@ -288,7 +305,9 @@ getParametersFromPatterns index source node =
             let
                 parametersFromPatterns : List Declared
                 parametersFromPatterns =
-                    List.concatMap (getParametersFromPatterns index source) patterns
+                    patterns
+                        |> List.indexedMap (\tupleIndex pattern -> getParametersFromPatterns index (Array.push (TupleField tupleIndex) pathInArgument) source pattern)
+                        |> List.concat
             in
             if List.isEmpty parametersFromPatterns && List.all isPatternWildCard patterns then
                 [ { name = ""
@@ -296,6 +315,7 @@ getParametersFromPatterns index source node =
                   , kind = TupleWithoutVariables
                   , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
                   , position = index
+                  , pathInArgument = pathInArgument
                   , source = source
                   }
                 ]
@@ -304,18 +324,20 @@ getParametersFromPatterns index source node =
                 parametersFromPatterns
 
         Pattern.NamedPattern _ patterns ->
-            List.concatMap (getParametersFromPatterns index source) patterns
+            patterns
+                |> List.indexedMap (\patternIndex pattern -> getParametersFromPatterns index (Array.push (NamedPattern patternIndex) pathInArgument) source pattern)
+                |> List.concat
 
         _ ->
             []
 
 
-getParametersFromAsPattern : Int -> Source -> Node Pattern -> Node String -> List Declared
-getParametersFromAsPattern index source pattern asName =
+getParametersFromAsPattern : Int -> Array PathInArgument -> Source -> Node Pattern -> Node String -> List Declared
+getParametersFromAsPattern index pathInArgument source pattern asName =
     let
         parametersFromPatterns : List Declared
         parametersFromPatterns =
-            getParametersFromPatterns index source pattern
+            getParametersFromPatterns index (Array.push AliasPattern pathInArgument) source pattern
 
         asParameter : Declared
         asParameter =
@@ -324,6 +346,7 @@ getParametersFromAsPattern index source pattern asName =
             , kind = Alias
             , toIgnoredFix = [ Fix.removeRange { start = (Node.range pattern).end, end = (Node.range asName).end } ]
             , position = index
+            , pathInArgument = pathInArgument
             , source = source
             }
     in
@@ -371,7 +394,7 @@ expressionEnterVisitorHelp node context =
                 | scopes =
                     NonemptyList.cons
                         { functionName = "dummy lambda"
-                        , declared = List.indexedMap (\index arg -> getParametersFromPatterns index Lambda arg) args |> List.concat
+                        , declared = List.indexedMap (\index arg -> getParametersFromPatterns index Array.empty Lambda arg) args |> List.concat
                         , used = Set.empty
                         , usedRecursively = Set.empty
                         , toReport = Dict.empty
@@ -428,7 +451,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
 
                     declared : List (List Declared)
                     declared =
-                        List.indexedMap (\index arg -> getParametersFromPatterns index NamedFunction arg) declaration.arguments
+                        List.indexedMap (\index arg -> getParametersFromPatterns index Array.empty NamedFunction arg) declaration.arguments
 
                     newScope : Scope
                     newScope =
