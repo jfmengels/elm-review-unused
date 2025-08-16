@@ -120,6 +120,7 @@ type alias Declared =
     , source : Source
     , position : Int
     , pathInArgument : Array PathInArgument
+    , removeFix : Maybe (List Fix)
     , toIgnoredFix : List Fix
     }
 
@@ -250,6 +251,12 @@ getParametersFromPatterns index pathInArgument source node =
             [ { name = name
               , range = Node.range node
               , kind = Parameter
+              , removeFix =
+                    if Array.isEmpty pathInArgument then
+                        Just [ Fix.removeRange (Node.range node) ]
+
+                    else
+                        Nothing
               , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
               , position = index
               , pathInArgument = pathInArgument
@@ -271,6 +278,7 @@ getParametersFromPatterns index pathInArgument source node =
                     [ { name = Node.value field
                       , range = Node.range field
                       , kind = Parameter
+                      , removeFix = Nothing
                       , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
                       , position = index
                       , pathInArgument = pathInArgument_
@@ -289,6 +297,7 @@ getParametersFromPatterns index pathInArgument source node =
                             { name = Node.value field
                             , range = Node.range field
                             , kind = Parameter
+                            , removeFix = Nothing
                             , toIgnoredFix =
                                 [ Fix.replaceRangeBy
                                     (Node.range node)
@@ -313,6 +322,7 @@ getParametersFromPatterns index pathInArgument source node =
                 [ { name = ""
                   , range = Node.range node
                   , kind = TupleWithoutVariables
+                  , removeFix = Nothing
                   , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
                   , position = index
                   , pathInArgument = pathInArgument
@@ -344,6 +354,7 @@ getParametersFromAsPattern index pathInArgument source pattern asName =
             { name = Node.value asName
             , range = Node.range asName
             , kind = Alias
+            , removeFix = Nothing
             , toIgnoredFix = [ Fix.removeRange { start = (Node.range pattern).end, end = (Node.range asName).end } ]
             , position = index
             , pathInArgument = pathInArgument
