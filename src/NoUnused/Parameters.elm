@@ -17,7 +17,7 @@ import Elm.Syntax.Signature exposing (Signature)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import NoUnused.Parameters.ParameterPath as ParameterPath exposing (Nesting(..), Path)
 import Review.Fix as Fix exposing (Edit, Fix)
-import Review.ModuleNameLookupTable exposing (ModuleNameLookupTable)
+import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
 
@@ -423,14 +423,14 @@ expressionEnterVisitor node context =
               }
             )
 
-        Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
-            registerFunctionCall fnName arguments context
+        Expression.Application ((Node fnRange (Expression.FunctionOrValue [] fnName)) :: arguments) ->
+            registerFunctionCall fnName fnRange arguments context
 
-        Expression.OperatorApplication "|>" _ lastArgument (Node _ (Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments))) ->
-            registerFunctionCall fnName (arguments ++ [ lastArgument ]) context
+        Expression.OperatorApplication "|>" _ lastArgument (Node _ (Expression.Application ((Node fnRange (Expression.FunctionOrValue [] fnName)) :: arguments))) ->
+            registerFunctionCall fnName fnRange (arguments ++ [ lastArgument ]) context
 
-        Expression.OperatorApplication "<|" _ (Node _ (Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments))) lastArgument ->
-            registerFunctionCall fnName (arguments ++ [ lastArgument ]) context
+        Expression.OperatorApplication "<|" _ (Node _ (Expression.Application ((Node fnRange (Expression.FunctionOrValue [] fnName)) :: arguments))) lastArgument ->
+            registerFunctionCall fnName fnRange (arguments ++ [ lastArgument ]) context
 
         _ ->
             ( [], context )
@@ -512,18 +512,27 @@ letDeclarationExitVisitor _ letDeclaration context =
             ( [], context )
 
 
-registerFunctionCall : String -> List (Node a) -> Context -> ( List (Rule.Error {}), Context )
-registerFunctionCall fnName arguments context =
-    case Dict.get fnName context.recursiveFunctions of
-        Just fnArgs ->
-            let
-                locationsToIgnore : LocationsToIgnore
-                locationsToIgnore =
-                    ignoreLocationsForRecursiveArguments fnArgs arguments 0 context.locationsToIgnoreForRecursiveArguments
-            in
-            ( []
-            , { context | locationsToIgnoreForRecursiveArguments = locationsToIgnore }
-            )
+registerFunctionCall : String -> Range -> List (Node a) -> Context -> ( List (Rule.Error {}), Context )
+registerFunctionCall fnName fnRange arguments context =
+    case ModuleNameLookupTable.moduleNameAt context.lookupTable fnRange of
+        Just [] ->
+            case Dict.get fnName context.recursiveFunctions of
+                Just fnArgs ->
+                    let
+                        locationsToIgnore : LocationsToIgnore
+                        locationsToIgnore =
+                            ignoreLocationsForRecursiveArguments fnArgs arguments 0 context.locationsToIgnoreForRecursiveArguments
+                    in
+                    ( []
+                    , { context | locationsToIgnoreForRecursiveArguments = locationsToIgnore }
+                    )
+
+                Nothing ->
+                    ( [], context )
+
+        Just moduleName ->
+            -- TODO Handle function calls from other modules
+            ( [], context )
 
         Nothing ->
             ( [], context )
