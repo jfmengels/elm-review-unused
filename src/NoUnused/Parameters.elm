@@ -109,7 +109,7 @@ type alias FunctionName =
 
 
 type alias ToReport =
-    List (Rule.Error {})
+    Dict FunctionName (List (Rule.Error {}))
 
 
 type alias Declared =
@@ -148,7 +148,7 @@ initialContext =
             , declared = []
             , used = Set.empty
             , usedRecursively = Set.empty
-            , toReport = []
+            , toReport = Dict.empty
             }
     , knownFunctions = Dict.empty
     , locationsToIgnoreForUsed = Dict.empty
@@ -183,7 +183,7 @@ declarationEnterVisitor node context =
                         , declared = List.concat declared
                         , used = Set.empty
                         , usedRecursively = Set.empty
-                        , toReport = []
+                        , toReport = Dict.empty
                         }
                         context.scopes
               , knownFunctions = Dict.singleton functionName (getArgNames declared)
@@ -368,7 +368,7 @@ expressionEnterVisitorHelp node context =
                         , declared = List.concatMap (getParametersFromPatterns Lambda) args
                         , used = Set.empty
                         , usedRecursively = Set.empty
-                        , toReport = []
+                        , toReport = Dict.empty
                         }
                         context.scopes
             }
@@ -430,7 +430,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
                         , declared = List.concat declared
                         , used = Set.empty
                         , usedRecursively = Set.empty
-                        , toReport = []
+                        , toReport = Dict.empty
                         }
                 in
                 ( []
@@ -506,6 +506,8 @@ ignoreLocations fnArgs numberOfIgnoredArguments nodes index acc =
 finalEvaluation : Context -> List (Rule.Error {})
 finalEvaluation context =
     (NonemptyList.head context.scopes).toReport
+        |> Dict.values
+        |> List.concat
 
 
 markValueAsUsed : Range -> String -> Context -> Context
@@ -540,13 +542,18 @@ isRangeIncluded inner outer =
         && (Range.compareLocations inner.end outer.end /= GT)
 
 
-markAllAsUsed : Set String -> List (Rule.Error {}) -> Nonempty Scope -> Nonempty Scope
-markAllAsUsed names errors scopes =
+markAllAsUsed : Set String -> FunctionName -> List (Rule.Error {}) -> Nonempty Scope -> Nonempty Scope
+markAllAsUsed names functionName toReport scopes =
     NonemptyList.mapHead
         (\scope ->
             { scope
                 | used = Set.union names scope.used
-                , toReport = errors ++ scope.toReport
+                , toReport =
+                    if List.isEmpty toReport then
+                        scope.toReport
+
+                    else
+                        Dict.insert functionName toReport scope.toReport
             }
         )
         scopes
@@ -558,15 +565,17 @@ report context =
         ( headScope, scopes ) =
             NonemptyList.headAndPop context.scopes
 
-        ( errors, remainingUsed ) =
+        ( toReport, remainingUsed ) =
             List.foldl
                 (findErrorsAndVariablesNotPartOfScope headScope)
                 ( [], headScope.used )
                 headScope.declared
     in
     ( headScope.toReport
+        |> Dict.values
+        |> List.concat
     , { context
-        | scopes = markAllAsUsed remainingUsed errors scopes
+        | scopes = markAllAsUsed remainingUsed headScope.functionName toReport scopes
         , knownFunctions = Dict.remove headScope.functionName context.knownFunctions
       }
     )
