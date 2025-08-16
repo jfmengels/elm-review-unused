@@ -96,12 +96,16 @@ type alias Context =
 
 
 type alias Scope =
-    { functionName : String
+    { functionName : FunctionName
     , declared : List Declared
     , used : Set String
     , usedRecursively : Set String
     , toReport : ToReport
     }
+
+
+type alias FunctionName =
+    String
 
 
 type alias ToReport =
@@ -168,7 +172,7 @@ declarationEnterVisitor node context =
                 declared =
                     List.map (getParametersFromPatterns NamedFunction) arguments
 
-                functionName : String
+                functionName : FunctionName
                 functionName =
                     Node.value declaration |> .name |> Node.value
             in
@@ -412,7 +416,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
 
             else
                 let
-                    functionName : String
+                    functionName : FunctionName
                     functionName =
                         Node.value declaration.name
 
@@ -615,7 +619,7 @@ errorsForValue { name, kind, range, source, fix } =
                 (applyFix source fix)
 
 
-recursiveParameterError : String -> Declared -> Rule.Error {}
+recursiveParameterError : FunctionName -> Declared -> Rule.Error {}
 recursiveParameterError functionName { name, range } =
     Rule.error
         { message = "Parameter `" ++ name ++ "` is only used in recursion"
