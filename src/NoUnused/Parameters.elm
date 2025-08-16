@@ -173,19 +173,19 @@ initialContext =
 declarationEnterVisitor : Node Declaration -> Context -> ( List nothing, Context )
 declarationEnterVisitor node context =
     case Node.value node of
-        Declaration.FunctionDeclaration { declaration } ->
+        Declaration.FunctionDeclaration f ->
             let
-                arguments : List (Node Pattern)
-                arguments =
-                    (Node.value declaration).arguments
+                declaration : Expression.FunctionImplementation
+                declaration =
+                    Node.value f.declaration
 
                 declared : List (List Declared)
                 declared =
-                    List.indexedMap (\index arg -> getParametersFromPatterns index Array.empty NamedFunction arg) arguments
+                    List.indexedMap (\index arg -> getParametersFromPatterns index Array.empty NamedFunction arg) declaration.arguments
 
                 functionName : FunctionName
                 functionName =
-                    Node.value declaration |> .name |> Node.value
+                    Node.value declaration.name
             in
             ( []
             , { scopes =
