@@ -14,6 +14,7 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Syntax.Signature exposing (Signature)
+import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import NoUnused.Parameters.ParameterPath as ParameterPath exposing (Nesting(..), Path)
 import Review.Fix as Fix exposing (Fix)
@@ -645,21 +646,66 @@ insertInDictList key value dict =
 
 findDeclared : Source -> List (Node Pattern) -> Maybe (Node Signature) -> List (List Declared)
 findDeclared source arguments signature =
-    findDeclaredHelp source 0 arguments (Maybe.map (Node.value >> .typeAnnotation) signature) []
+    findDeclaredHelp
+        source
+        0
+        arguments
+        (case signature of
+            Nothing ->
+                NoFunctionSignature
+
+            Just (Node _ signature_) ->
+                FunctionSignature signature_.typeAnnotation
+        )
+        []
 
 
-findDeclaredHelp : Source -> Int -> List (Node Pattern) -> Maybe (Node TypeAnnotation) -> List (List Declared) -> List (List Declared)
-findDeclaredHelp source index arguments typeAnnotation acc =
+type FunctionSignature
+    = NoFunctionSignature
+    | NoMoreFunctionArguments
+    | FunctionSignature (Node TypeAnnotation)
+
+
+type TypeSignature
+    = Absent
+    | NoCorrespondingArg
+    | Present { removeFullArgRange : Range, typeAnnotation : Node TypeAnnotation }
+
+
+findDeclaredHelp : Source -> Int -> List (Node Pattern) -> FunctionSignature -> List (List Declared) -> List (List Declared)
+findDeclaredHelp source index arguments functionSignature acc =
     case arguments of
         [] ->
             List.reverse acc
 
-        arg :: rest ->
+        arg :: remainingArguments ->
+            let
+                ( typeInSignature, remainingFunctionSignature ) =
+                    case functionSignature of
+                        NoFunctionSignature ->
+                            ( Absent, NoFunctionSignature )
+
+                        NoMoreFunctionArguments ->
+                            ( NoCorrespondingArg, NoMoreFunctionArguments )
+
+                        FunctionSignature typeAnnotation ->
+                            case Node.value typeAnnotation of
+                                TypeAnnotation.FunctionTypeAnnotation typeAnnotation_ ((Node rangeOfNext _) as restOfTypeAnnotation_) ->
+                                    ( Present
+                                        { removeFullArgRange = { start = (Node.range typeAnnotation_).start, end = rangeOfNext.start }
+                                        , typeAnnotation = typeAnnotation_
+                                        }
+                                    , FunctionSignature restOfTypeAnnotation_
+                                    )
+
+                                _ ->
+                                    ( NoCorrespondingArg, NoMoreFunctionArguments )
+            in
             findDeclaredHelp
                 source
                 (index + 1)
-                rest
-                typeAnnotation
+                remainingArguments
+                remainingFunctionSignature
                 (getParametersFromPatterns (ParameterPath.init index) source arg :: acc)
 
 
