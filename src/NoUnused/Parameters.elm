@@ -14,7 +14,6 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Syntax.Signature exposing (Signature)
-import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import NoUnused.Parameters.ParameterPath as ParameterPath exposing (Nesting(..), Path)
 import Review.Fix as Fix exposing (Fix)
@@ -649,65 +648,23 @@ findDeclared source arguments signature =
     findDeclaredHelp
         source
         0
-        (ParameterPath.init 0)
+        (ParameterPath.fromSignature signature)
         arguments
-        (case signature of
-            Nothing ->
-                NoFunctionSignature
-
-            Just (Node _ signature_) ->
-                FunctionSignature signature_.typeAnnotation
-        )
         []
 
 
-type FunctionSignature
-    = NoFunctionSignature
-    | NoMoreFunctionArguments
-    | FunctionSignature (Node TypeAnnotation)
-
-
-type TypeSignature
-    = Absent
-    | NoCorrespondingArg
-    | Present { removeFullArgRange : Range, typeAnnotation : Node TypeAnnotation }
-
-
-findDeclaredHelp : Source -> Int -> Path -> List (Node Pattern) -> FunctionSignature -> List (List Declared) -> List (List Declared)
-findDeclaredHelp source index path arguments functionSignature acc =
+findDeclaredHelp : Source -> Int -> Path -> List (Node Pattern) -> List (List Declared) -> List (List Declared)
+findDeclaredHelp source index path arguments acc =
     case arguments of
         [] ->
             List.reverse acc
 
         arg :: remainingArguments ->
-            let
-                ( typeInSignature, remainingFunctionSignature ) =
-                    case functionSignature of
-                        NoFunctionSignature ->
-                            ( Absent, NoFunctionSignature )
-
-                        NoMoreFunctionArguments ->
-                            ( NoCorrespondingArg, NoMoreFunctionArguments )
-
-                        FunctionSignature typeAnnotation ->
-                            case Node.value typeAnnotation of
-                                TypeAnnotation.FunctionTypeAnnotation typeAnnotation_ ((Node rangeOfNext _) as restOfTypeAnnotation_) ->
-                                    ( Present
-                                        { removeFullArgRange = { start = (Node.range typeAnnotation_).start, end = rangeOfNext.start }
-                                        , typeAnnotation = typeAnnotation_
-                                        }
-                                    , FunctionSignature restOfTypeAnnotation_
-                                    )
-
-                                _ ->
-                                    ( NoCorrespondingArg, NoMoreFunctionArguments )
-            in
             findDeclaredHelp
                 source
                 (index + 1)
                 (ParameterPath.nextArgument path)
                 remainingArguments
-                remainingFunctionSignature
                 (getParametersFromPatterns path source arg :: acc)
 
 
