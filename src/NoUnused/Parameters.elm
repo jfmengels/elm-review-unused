@@ -412,15 +412,13 @@ expressionEnterVisitor node context =
             )
 
         Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
-            registerFunctionCall fnName 0 arguments context
+            registerFunctionCall fnName arguments context
 
         Expression.OperatorApplication "|>" _ lastArgument (Node _ (Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments))) ->
-            -- Ignoring "arguments" because they will be visited when the Application node will be visited anyway.
-            registerFunctionCall fnName (List.length arguments) [ lastArgument ] context
+            registerFunctionCall fnName (arguments ++ [ lastArgument ]) context
 
         Expression.OperatorApplication "<|" _ (Node _ (Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments))) lastArgument ->
-            -- Ignoring "arguments" because they will be visited when the Application node will be visited anyway.
-            registerFunctionCall fnName (List.length arguments) [ lastArgument ] context
+            registerFunctionCall fnName (arguments ++ [ lastArgument ]) context
 
         _ ->
             ( [], context )
@@ -501,14 +499,14 @@ letDeclarationExitVisitor _ letDeclaration context =
             ( [], context )
 
 
-registerFunctionCall : String -> Int -> List (Node a) -> Context -> ( List (Rule.Error {}), Context )
-registerFunctionCall fnName numberOfIgnoredArguments arguments context =
+registerFunctionCall : String -> List (Node a) -> Context -> ( List (Rule.Error {}), Context )
+registerFunctionCall fnName arguments context =
     case Dict.get fnName context.recursiveFunctions of
         Just fnArgs ->
             let
                 locationsToIgnore : LocationsToIgnore
                 locationsToIgnore =
-                    ignoreLocations fnArgs numberOfIgnoredArguments arguments 0 context.locationsToIgnoreForUsed
+                    ignoreLocations fnArgs arguments 0 context.locationsToIgnoreForUsed
             in
             ( [], { context | locationsToIgnoreForUsed = locationsToIgnore } )
 
@@ -516,8 +514,8 @@ registerFunctionCall fnName numberOfIgnoredArguments arguments context =
             ( [], context )
 
 
-ignoreLocations : FunctionArgs -> Int -> List (Node a) -> Int -> LocationsToIgnore -> LocationsToIgnore
-ignoreLocations fnArgs numberOfIgnoredArguments nodes index acc =
+ignoreLocations : FunctionArgs -> List (Node a) -> Int -> LocationsToIgnore -> LocationsToIgnore
+ignoreLocations fnArgs nodes index acc =
     case nodes of
         [] ->
             acc
@@ -526,14 +524,14 @@ ignoreLocations fnArgs numberOfIgnoredArguments nodes index acc =
             let
                 newAcc : LocationsToIgnore
                 newAcc =
-                    case Dict.get (numberOfIgnoredArguments + index) fnArgs of
+                    case Dict.get index fnArgs of
                         Just argName ->
                             insertInDictList argName range acc
 
                         Nothing ->
                             acc
             in
-            ignoreLocations fnArgs numberOfIgnoredArguments rest (index + 1) newAcc
+            ignoreLocations fnArgs rest (index + 1) newAcc
 
 
 finalEvaluation : Context -> List (Rule.Error {})
