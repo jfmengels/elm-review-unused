@@ -13,6 +13,7 @@ import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Range)
+import Elm.Syntax.Signature exposing (Signature)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import NoUnused.Parameters.ParameterPath as ParameterPath exposing (Nesting(..), Path)
 import Review.Fix as Fix exposing (Fix)
@@ -175,7 +176,7 @@ declarationEnterVisitor node context =
 
                 declared : List (List Declared)
                 declared =
-                    findDeclared NamedFunction declaration.arguments
+                    findDeclared NamedFunction declaration.arguments f.signature
 
                 functionName : FunctionName
                 functionName =
@@ -399,7 +400,7 @@ expressionEnterVisitorHelp node context =
                 | scopes =
                     NonemptyList.cons
                         { functionName = "dummy lambda"
-                        , declared = findDeclared Lambda args |> List.concat
+                        , declared = findDeclared Lambda args Nothing |> List.concat
                         , used = Set.empty
                         , usedRecursively = Set.empty
                         , toReport = Dict.empty
@@ -456,7 +457,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
 
                     declared : List (List Declared)
                     declared =
-                        findDeclared NamedFunction declaration.arguments
+                        findDeclared NamedFunction declaration.arguments function.signature
 
                     newScope : Scope
                     newScope =
@@ -642,8 +643,8 @@ insertInDictList key value dict =
             Dict.insert key (value :: previous) dict
 
 
-findDeclared : Source -> List (Node Pattern) -> List (List Declared)
-findDeclared source arguments =
+findDeclared : Source -> List (Node Pattern) -> Maybe (Node Signature) -> List (List Declared)
+findDeclared source arguments signature =
     List.indexedMap (\index arg -> getParametersFromPatterns (ParameterPath.init index) source arg) arguments
 
 
