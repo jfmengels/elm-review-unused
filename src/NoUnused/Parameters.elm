@@ -96,7 +96,7 @@ type alias Context =
     { lookupTable : ModuleNameLookupTable
     , scopes : Nonempty Scope
     , recursiveFunctions : Dict String FunctionArgs
-    , locationsToIgnoreForUsed : LocationsToIgnore
+    , locationsToIgnoreForRecursiveArguments : LocationsToIgnore
     }
 
 
@@ -170,7 +170,7 @@ initialContext =
                     , locationsToIgnoreForFunctionCalls = []
                     }
             , recursiveFunctions = Dict.empty
-            , locationsToIgnoreForUsed = Dict.empty
+            , locationsToIgnoreForRecursiveArguments = Dict.empty
             }
         )
         |> Rule.withModuleNameLookupTable
@@ -210,7 +210,7 @@ declarationEnterVisitor node context =
                         }
                         context.scopes
               , recursiveFunctions = Dict.singleton functionName (getArgNames declared)
-              , locationsToIgnoreForUsed = Dict.empty
+              , locationsToIgnoreForRecursiveArguments = Dict.empty
               }
             )
 
@@ -519,18 +519,18 @@ registerFunctionCall fnName arguments context =
             let
                 locationsToIgnore : LocationsToIgnore
                 locationsToIgnore =
-                    ignoreLocations fnArgs arguments 0 context.locationsToIgnoreForUsed
+                    ignoreLocationsForRecursiveArguments fnArgs arguments 0 context.locationsToIgnoreForRecursiveArguments
             in
             ( []
-            , { context | locationsToIgnoreForUsed = locationsToIgnore }
+            , { context | locationsToIgnoreForRecursiveArguments = locationsToIgnore }
             )
 
         Nothing ->
             ( [], context )
 
 
-ignoreLocations : FunctionArgs -> List (Node a) -> Int -> LocationsToIgnore -> LocationsToIgnore
-ignoreLocations fnArgs nodes index acc =
+ignoreLocationsForRecursiveArguments : FunctionArgs -> List (Node a) -> Int -> LocationsToIgnore -> LocationsToIgnore
+ignoreLocationsForRecursiveArguments fnArgs nodes index acc =
     case nodes of
         [] ->
             acc
@@ -546,7 +546,7 @@ ignoreLocations fnArgs nodes index acc =
                         Nothing ->
                             acc
             in
-            ignoreLocations fnArgs rest (index + 1) newAcc
+            ignoreLocationsForRecursiveArguments fnArgs rest (index + 1) newAcc
 
 
 finalEvaluation : Context -> List (Rule.Error {})
@@ -579,7 +579,7 @@ markValueAsUsed range name context =
 
 shouldBeIgnored : Range -> String -> Context -> Bool
 shouldBeIgnored range name context =
-    case Dict.get name context.locationsToIgnoreForUsed of
+    case Dict.get name context.locationsToIgnoreForRecursiveArguments of
         Just ranges ->
             List.any (isRangeIncluded range) ranges
 
