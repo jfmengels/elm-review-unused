@@ -3,7 +3,7 @@ module NoUnused.NonemptyList exposing
     , fromElement
     , head
     , cons, pop, headAndPop
-    , mapHead
+    , mapHead, findAndMap
     )
 
 {-| Copied contents of mgold/elm-nonempty-list, and trimmed down unused functions.
@@ -36,7 +36,7 @@ available.
 
 # Map
 
-@docs mapHead
+@docs mapHead, findAndMap
 
 
 # Original copyright notice
@@ -87,6 +87,13 @@ type Nonempty a
 fromElement : a -> Nonempty a
 fromElement x =
     Nonempty x []
+
+
+{-| Create a singleton list with the given element.
+-}
+fromList : a -> List a -> Nonempty a
+fromList x xs =
+    Nonempty x xs
 
 
 {-| Return the head of the list.
@@ -140,3 +147,28 @@ headAndPop ((Nonempty x xs) as untouched) =
 mapHead : (a -> a) -> Nonempty a -> Nonempty a
 mapHead fn (Nonempty x xs) =
     Nonempty (fn x) xs
+
+
+type Step a
+    = Continue
+    | Stop a
+
+
+findAndMap : (a -> Maybe ( b, a )) -> Nonempty a -> Maybe ( b, Nonempty a )
+findAndMap fn (Nonempty x xs) =
+    findAndMapHelp fn (x :: xs) []
+
+
+findAndMapHelp : (a -> Maybe ( b, a )) -> List a -> List a -> Maybe ( b, Nonempty a )
+findAndMapHelp fn list acc =
+    case list of
+        [] ->
+            Nothing
+
+        x :: xs ->
+            case fn x of
+                Nothing ->
+                    findAndMapHelp fn xs (x :: acc)
+
+                Just ( b, a ) ->
+                    Just ( b, List.foldl cons (fromList a xs) acc )

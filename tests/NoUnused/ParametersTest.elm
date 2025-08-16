@@ -151,7 +151,6 @@ foo =
                         , details = details
                         , under = "oneValue"
                         }
-                        -- TODO Should remove argument in function call
                         |> Review.Test.whenFixed
                             """module A exposing (..)
 foo =
@@ -161,7 +160,7 @@ foo =
         two twoValue =
             2
     in
-    one two 3
+    one  3
 """
                     , Review.Test.error
                         { message = "Parameter `twoValue` is not used"

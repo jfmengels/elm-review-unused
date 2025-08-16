@@ -520,7 +520,7 @@ letDeclarationExitVisitor _ letDeclaration context =
             ( [], context )
 
 
-registerFunctionCall : String -> Range -> List Range -> Context -> ( List (Rule.Error {}), Context )
+registerFunctionCall : FunctionName -> Range -> List Range -> Context -> ( List (Rule.Error {}), Context )
 registerFunctionCall fnName fnRange arguments context =
     case ModuleNameLookupTable.moduleNameAt context.lookupTable fnRange of
         Just [] ->
@@ -531,12 +531,12 @@ registerFunctionCall fnName fnRange arguments context =
                         locationsToIgnore =
                             ignoreLocationsForRecursiveArguments fnArgs arguments 0 context.locationsToIgnoreForRecursiveArguments
                     in
-                    ( []
-                    , { context | locationsToIgnoreForRecursiveArguments = locationsToIgnore }
-                    )
+                    { context | locationsToIgnoreForRecursiveArguments = locationsToIgnore }
+                        |> markFunctionCall fnName (Array.fromList arguments)
 
                 Nothing ->
-                    ( [], context )
+                    context
+                        |> markFunctionCall fnName (Array.fromList arguments)
 
         Just moduleName ->
             -- TODO Handle function calls from other modules
@@ -544,6 +544,69 @@ registerFunctionCall fnName fnRange arguments context =
 
         Nothing ->
             ( [], context )
+
+
+markFunctionCall : FunctionName -> Array Range -> Context -> ( List (Rule.Error {}), Context )
+markFunctionCall fnName arguments context =
+    case NonemptyList.findAndMap (registerFunctionArgInFunctionCall fnName arguments) context.scopes of
+        Just ( errors, scopes ) ->
+            ( errors, { context | scopes = scopes } )
+
+        Nothing ->
+            ( [], context )
+
+
+registerFunctionArgInFunctionCall : FunctionName -> Array Range -> Scope -> Maybe ( List (Rule.Error {}), Scope )
+registerFunctionArgInFunctionCall fnName arguments scope =
+    case Dict.get fnName scope.toReport of
+        Just fnArguments ->
+            let
+                -- TODO Handle cases where an argument to remove will be inside an argument to remove
+                --   ex: foo 1 (foo 2 x)  - where the second argument is to be removed
+                -- Currently, this would yield a fix failure.
+                ( argsWithoutMatchingArgumentErrors, newFnArguments ) =
+                    Dict.foldl
+                        (\index args ( errors, acc ) ->
+                            case Array.get index arguments of
+                                Just range ->
+                                    let
+                                        newArgs : List ArgumentToReport
+                                        newArgs =
+                                            List.map
+                                                (\arg ->
+                                                    -- TODO Adapt this if we want to support non-nested fields
+                                                    { toError = arg.toError
+                                                    , edits = Fix.removeRange range :: arg.edits
+                                                    }
+                                                )
+                                                args
+                                    in
+                                    ( errors
+                                    , Dict.insert index newArgs acc
+                                    )
+
+                                Nothing ->
+                                    ( List.foldl (\arg errorAcc -> arg.toError [] :: errorAcc) errors args
+                                    , acc
+                                    )
+                        )
+                        ( [], Dict.empty )
+                        fnArguments
+            in
+            Just
+                ( argsWithoutMatchingArgumentErrors
+                , { scope
+                    | toReport =
+                        if Dict.isEmpty newFnArguments then
+                            Dict.remove fnName scope.toReport
+
+                        else
+                            Dict.insert fnName newFnArguments scope.toReport
+                  }
+                )
+
+        Nothing ->
+            Nothing
 
 
 ignoreLocationsForRecursiveArguments : FunctionArgs -> List Range -> Int -> LocationsToIgnore -> LocationsToIgnore
