@@ -387,13 +387,8 @@ formatRecord fields =
 -- EXPRESSION ENTER VISITOR
 
 
-expressionEnterVisitor : Node Expression -> Context -> ( List nothing, Context )
+expressionEnterVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
 expressionEnterVisitor node context =
-    ( [], expressionEnterVisitorHelp node context )
-
-
-expressionEnterVisitorHelp : Node Expression -> Context -> Context
-expressionEnterVisitorHelp node context =
     case Node.value node of
         Expression.FunctionOrValue [] name ->
             markValueAsUsed (Node.range node) name context
@@ -402,7 +397,8 @@ expressionEnterVisitorHelp node context =
             markValueAsUsed (Node.range name) (Node.value name) context
 
         Expression.LambdaExpression { args } ->
-            { context
+            ( []
+            , { context
                 | scopes =
                     NonemptyList.cons
                         { functionName = "dummy lambda"
@@ -412,7 +408,8 @@ expressionEnterVisitorHelp node context =
                         , toReport = Dict.empty
                         }
                         context.scopes
-            }
+              }
+            )
 
         Expression.Application ((Node _ (Expression.FunctionOrValue [] fnName)) :: arguments) ->
             registerFunctionCall fnName 0 arguments context
@@ -426,7 +423,7 @@ expressionEnterVisitorHelp node context =
             registerFunctionCall fnName (List.length arguments) [ lastArgument ] context
 
         _ ->
-            context
+            ( [], context )
 
 
 
@@ -504,7 +501,7 @@ letDeclarationExitVisitor _ letDeclaration context =
             ( [], context )
 
 
-registerFunctionCall : String -> Int -> List (Node a) -> Context -> Context
+registerFunctionCall : String -> Int -> List (Node a) -> Context -> ( List (Rule.Error {}), Context )
 registerFunctionCall fnName numberOfIgnoredArguments arguments context =
     case Dict.get fnName context.recursiveFunctions of
         Just fnArgs ->
@@ -513,10 +510,10 @@ registerFunctionCall fnName numberOfIgnoredArguments arguments context =
                 locationsToIgnore =
                     ignoreLocations fnArgs numberOfIgnoredArguments arguments 0 context.locationsToIgnoreForUsed
             in
-            { context | locationsToIgnoreForUsed = locationsToIgnore }
+            ( [], { context | locationsToIgnoreForUsed = locationsToIgnore } )
 
         Nothing ->
-            context
+            ( [], context )
 
 
 ignoreLocations : FunctionArgs -> Int -> List (Node a) -> Int -> LocationsToIgnore -> LocationsToIgnore
@@ -548,9 +545,10 @@ finalEvaluation context =
         |> List.map (\{ toError, edits } -> toError edits)
 
 
-markValueAsUsed : Range -> String -> Context -> Context
+markValueAsUsed : Range -> String -> Context -> ( List (Rule.Error {}), Context )
 markValueAsUsed range name context =
-    { context
+    ( []
+    , { context
         | scopes =
             NonemptyList.mapHead
                 (\scope ->
@@ -562,7 +560,8 @@ markValueAsUsed range name context =
                         { scope | used = Set.insert name scope.used }
                 )
                 context.scopes
-    }
+      }
+    )
 
 
 shouldBeIgnored : Range -> String -> Context -> Bool
