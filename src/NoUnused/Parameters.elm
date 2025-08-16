@@ -657,7 +657,13 @@ errorsForValue { name, kind, range, source, toIgnoredFix } =
                 , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
                 }
                 range
-                (applyFix source toIgnoredFix)
+                (case source of
+                    NamedFunction ->
+                        []
+
+                    Lambda ->
+                        toIgnoredFix
+                )
 
         Alias ->
             Rule.errorWithFix
@@ -673,7 +679,13 @@ errorsForValue { name, kind, range, source, toIgnoredFix } =
                 , details = [ "You should remove this pattern." ]
                 }
                 range
-                (applyFix source toIgnoredFix)
+                (case source of
+                    NamedFunction ->
+                        []
+
+                    Lambda ->
+                        toIgnoredFix
+                )
 
 
 recursiveParameterError : FunctionName -> Declared -> Rule.Error {}
@@ -686,13 +698,3 @@ recursiveParameterError functionName { name, range } =
             ]
         }
         range
-
-
-applyFix : Source -> List Fix -> List Fix
-applyFix source fix =
-    case source of
-        NamedFunction ->
-            []
-
-        Lambda ->
-            fix
