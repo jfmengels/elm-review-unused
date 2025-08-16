@@ -1,8 +1,8 @@
 module NoUnused.Parameters.ParameterPath exposing
     ( Nesting(..)
     , Path
+    , canBeFixed
     , init
-    , isNested
     , push
     )
 
@@ -36,6 +36,6 @@ push pathInArgument path =
     }
 
 
-isNested : Path -> Bool
-isNested path =
-    not (Array.isEmpty path.nesting)
+canBeFixed : Path -> Bool
+canBeFixed path =
+    Array.isEmpty path.nesting

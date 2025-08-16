@@ -246,11 +246,11 @@ getParametersFromPatterns path source node =
               , range = Node.range node
               , kind = Parameter
               , removeFix =
-                    if ParameterPath.isNested path then
-                        Nothing
+                    if ParameterPath.canBeFixed path then
+                        Just [ Fix.removeRange (Node.range node) ]
 
                     else
-                        Just [ Fix.removeRange (Node.range node) ]
+                        Nothing
               , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
               , position = path.index
               , pathInArgument = path.nesting
