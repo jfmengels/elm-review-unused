@@ -424,13 +424,21 @@ expressionEnterVisitor node context =
             )
 
         Expression.Application ((Node fnRange (Expression.FunctionOrValue [] fnName)) :: arguments) ->
-            registerFunctionCall fnName fnRange arguments context
+            registerFunctionCall fnName fnRange (List.map Node.range arguments) context
 
-        Expression.OperatorApplication "|>" _ lastArgument (Node _ (Expression.Application ((Node fnRange (Expression.FunctionOrValue [] fnName)) :: arguments))) ->
-            registerFunctionCall fnName fnRange (arguments ++ [ lastArgument ]) context
+        Expression.OperatorApplication "|>" _ (Node { start } _) (Node applicationRange (Expression.Application ((Node fnRange (Expression.FunctionOrValue [] fnName)) :: arguments))) ->
+            registerFunctionCall
+                fnName
+                fnRange
+                (List.map Node.range arguments ++ [ { start = start, end = applicationRange.start } ])
+                context
 
-        Expression.OperatorApplication "<|" _ (Node _ (Expression.Application ((Node fnRange (Expression.FunctionOrValue [] fnName)) :: arguments))) lastArgument ->
-            registerFunctionCall fnName fnRange (arguments ++ [ lastArgument ]) context
+        Expression.OperatorApplication "<|" _ (Node applicationRange (Expression.Application ((Node fnRange (Expression.FunctionOrValue [] fnName)) :: arguments))) (Node { end } _) ->
+            registerFunctionCall
+                fnName
+                fnRange
+                (List.map Node.range arguments ++ [ { start = applicationRange.end, end = end } ])
+                context
 
         _ ->
             ( [], context )
@@ -512,7 +520,7 @@ letDeclarationExitVisitor _ letDeclaration context =
             ( [], context )
 
 
-registerFunctionCall : String -> Range -> List (Node a) -> Context -> ( List (Rule.Error {}), Context )
+registerFunctionCall : String -> Range -> List Range -> Context -> ( List (Rule.Error {}), Context )
 registerFunctionCall fnName fnRange arguments context =
     case ModuleNameLookupTable.moduleNameAt context.lookupTable fnRange of
         Just [] ->
@@ -538,13 +546,13 @@ registerFunctionCall fnName fnRange arguments context =
             ( [], context )
 
 
-ignoreLocationsForRecursiveArguments : FunctionArgs -> List (Node a) -> Int -> LocationsToIgnore -> LocationsToIgnore
+ignoreLocationsForRecursiveArguments : FunctionArgs -> List Range -> Int -> LocationsToIgnore -> LocationsToIgnore
 ignoreLocationsForRecursiveArguments fnArgs nodes index acc =
     case nodes of
         [] ->
             acc
 
-        (Node range _) :: rest ->
+        range :: rest ->
             let
                 newAcc : LocationsToIgnore
                 newAcc =
