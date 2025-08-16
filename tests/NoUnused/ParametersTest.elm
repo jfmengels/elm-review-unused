@@ -50,11 +50,25 @@ foo one two three =
                         , details = details
                         , under = "one"
                         }
+                        -- TODO Should remove argument in type annotation
+                        |> Review.Test.whenFixed
+                            """module A exposing (..)
+foo : Int -> String -> String -> String
+foo  two three =
+    three
+"""
                     , Review.Test.error
                         { message = "Parameter `two` is not used"
                         , details = details
                         , under = "two"
                         }
+                        -- TODO Should remove argument in type annotation
+                        |> Review.Test.whenFixed
+                            """module A exposing (..)
+foo : Int -> String -> String -> String
+foo one  three =
+    three
+"""
                     ]
     , test "should not consider values from other modules" <|
         \() ->
@@ -70,6 +84,11 @@ foo one =
                         , under = "one"
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 5 }, end = { row = 2, column = 8 } }
+                        |> Review.Test.whenFixed
+                            """module A exposing (..)
+foo  =
+    Bar.one
+"""
                     ]
     , test "should not report used parameters (value reference)" <|
         \() ->
@@ -134,11 +153,37 @@ foo =
                         , details = details
                         , under = "oneValue"
                         }
+                        -- TODO Should remove argument in function call
+                        |> Review.Test.whenFixed
+                            """module A exposing (..)
+foo =
+    let
+        one  =
+            1
+        two twoValue =
+            2
+    in
+    one two 3
+"""
                     , Review.Test.error
                         { message = "Parameter `twoValue` is not used"
                         , details = details
                         , under = "twoValue"
                         }
+                        -- TODO Should not be autofixed
+                        |> Review.Test.whenFixed
+                            """module A exposing (..)
+foo =
+    let
+        one oneValue =
+            1
+        two  =
+            2
+    in
+    one two 3
+"""
+
+                    -- TODO Add a test with type annotation
                     ]
     , test "should report unused even if others with the same name are used in siblings" <|
         \() ->
@@ -160,6 +205,18 @@ foo =
                         , under = "oneValue"
                         }
                         |> Review.Test.atExactly { start = { row = 6, column = 13 }, end = { row = 6, column = 21 } }
+                        -- TODO Should not be autofixed
+                        |> Review.Test.whenFixed
+                            """module A exposing (..)
+foo =
+    let
+        one oneValue =
+            oneValue
+        two  =
+            1
+    in
+    one two 3
+"""
                     ]
     , test "should not report unused let functions" <|
         \() ->

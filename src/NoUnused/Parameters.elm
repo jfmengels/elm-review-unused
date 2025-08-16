@@ -649,7 +649,7 @@ insertInDictList key value dict =
 
 
 errorsForValue : Declared -> Rule.Error {}
-errorsForValue { name, kind, range, source, toIgnoredFix } =
+errorsForValue { name, kind, range, source, removeFix, toIgnoredFix } =
     case kind of
         Parameter ->
             Rule.errorWithFix
@@ -659,7 +659,7 @@ errorsForValue { name, kind, range, source, toIgnoredFix } =
                 range
                 (case source of
                     NamedFunction ->
-                        []
+                        Maybe.withDefault [] removeFix
 
                     Lambda ->
                         toIgnoredFix
