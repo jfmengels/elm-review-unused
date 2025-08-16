@@ -90,7 +90,7 @@ rule =
 
 type alias Context =
     { scopes : Nonempty Scope
-    , knownFunctions : Dict String FunctionArgs
+    , recursiveFunctions : Dict String FunctionArgs
     , locationsToIgnoreForUsed : LocationsToIgnore
     }
 
@@ -151,7 +151,7 @@ initialContext =
             , usedRecursively = Set.empty
             , toReport = Dict.empty
             }
-    , knownFunctions = Dict.empty
+    , recursiveFunctions = Dict.empty
     , locationsToIgnoreForUsed = Dict.empty
     }
 
@@ -187,7 +187,7 @@ declarationEnterVisitor node context =
                         , toReport = Dict.empty
                         }
                         context.scopes
-              , knownFunctions = Dict.singleton functionName (getArgNames declared)
+              , recursiveFunctions = Dict.singleton functionName (getArgNames declared)
               , locationsToIgnoreForUsed = Dict.empty
               }
             )
@@ -442,7 +442,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
                 ( []
                 , { context
                     | scopes = NonemptyList.cons newScope context.scopes
-                    , knownFunctions = Dict.insert functionName (getArgNames declared) context.knownFunctions
+                    , recursiveFunctions = Dict.insert functionName (getArgNames declared) context.recursiveFunctions
                   }
                 )
 
@@ -471,7 +471,7 @@ letDeclarationExitVisitor _ letDeclaration context =
 
 registerFunctionCall : String -> Int -> List (Node a) -> Context -> Context
 registerFunctionCall fnName numberOfIgnoredArguments arguments context =
-    case Dict.get fnName context.knownFunctions of
+    case Dict.get fnName context.recursiveFunctions of
         Just fnArgs ->
             let
                 locationsToIgnore : LocationsToIgnore
@@ -580,7 +580,7 @@ report context =
         |> List.concat
     , { context
         | scopes = markAllAsUsed remainingUsed headScope.functionName toReport scopes
-        , knownFunctions = Dict.remove headScope.functionName context.knownFunctions
+        , recursiveFunctions = Dict.remove headScope.functionName context.recursiveFunctions
       }
     )
 
