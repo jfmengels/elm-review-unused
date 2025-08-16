@@ -175,7 +175,7 @@ declarationEnterVisitor node context =
 
                 declared : List (List Declared)
                 declared =
-                    List.indexedMap (\index arg -> getParametersFromPatterns (ParameterPath.init index) NamedFunction arg) declaration.arguments
+                    findDeclared NamedFunction declaration.arguments
 
                 functionName : FunctionName
                 functionName =
@@ -399,7 +399,7 @@ expressionEnterVisitorHelp node context =
                 | scopes =
                     NonemptyList.cons
                         { functionName = "dummy lambda"
-                        , declared = List.indexedMap (\index arg -> getParametersFromPatterns (ParameterPath.init index) Lambda arg) args |> List.concat
+                        , declared = findDeclared Lambda args |> List.concat
                         , used = Set.empty
                         , usedRecursively = Set.empty
                         , toReport = Dict.empty
@@ -456,7 +456,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
 
                     declared : List (List Declared)
                     declared =
-                        List.indexedMap (\index arg -> getParametersFromPatterns (ParameterPath.init index) NamedFunction arg) declaration.arguments
+                        findDeclared NamedFunction declaration.arguments
 
                     newScope : Scope
                     newScope =
@@ -640,6 +640,11 @@ insertInDictList key value dict =
 
         Just previous ->
             Dict.insert key (value :: previous) dict
+
+
+findDeclared : Source -> List (Node Pattern) -> List (List Declared)
+findDeclared source arguments =
+    List.indexedMap (\index arg -> getParametersFromPatterns (ParameterPath.init index) source arg) arguments
 
 
 errorsForValue : Declared -> Rule.Error {}
