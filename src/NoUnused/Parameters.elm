@@ -100,8 +100,12 @@ type alias Scope =
     , declared : List Declared
     , used : Set String
     , usedRecursively : Set String
-    , toReport : List (Rule.Error {})
+    , toReport : ToReport
     }
+
+
+type alias ToReport =
+    List (Rule.Error {})
 
 
 type alias Declared =
