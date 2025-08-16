@@ -645,7 +645,22 @@ insertInDictList key value dict =
 
 findDeclared : Source -> List (Node Pattern) -> Maybe (Node Signature) -> List (List Declared)
 findDeclared source arguments signature =
-    List.indexedMap (\index arg -> getParametersFromPatterns (ParameterPath.init index) source arg) arguments
+    findDeclaredHelp source 0 arguments (Maybe.map (Node.value >> .typeAnnotation) signature) []
+
+
+findDeclaredHelp : Source -> Int -> List (Node Pattern) -> Maybe (Node TypeAnnotation) -> List (List Declared) -> List (List Declared)
+findDeclaredHelp source index arguments typeAnnotation acc =
+    case arguments of
+        [] ->
+            List.reverse acc
+
+        arg :: rest ->
+            findDeclaredHelp
+                source
+                (index + 1)
+                rest
+                typeAnnotation
+                (getParametersFromPatterns (ParameterPath.init index) source arg :: acc)
 
 
 errorsForValue : Declared -> Rule.Error {}
