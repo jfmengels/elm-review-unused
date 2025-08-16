@@ -17,6 +17,7 @@ import Elm.Syntax.Signature exposing (Signature)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import NoUnused.Parameters.ParameterPath as ParameterPath exposing (Nesting(..), Path)
 import Review.Fix as Fix exposing (Edit, Fix)
+import Review.ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
 
@@ -75,7 +76,7 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Param
 -}
 rule : Rule
 rule =
-    Rule.newModuleRuleSchema "NoUnused.Parameters" initialContext
+    Rule.newModuleRuleSchemaUsingContextCreator "NoUnused.Parameters" initialContext
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withDeclarationExitVisitor declarationExitVisitor
         |> Rule.withExpressionEnterVisitor expressionEnterVisitor
@@ -92,7 +93,8 @@ rule =
 
 
 type alias Context =
-    { scopes : Nonempty Scope
+    { lookupTable : ModuleNameLookupTable
+    , scopes : Nonempty Scope
     , recursiveFunctions : Dict String FunctionArgs
     , locationsToIgnoreForUsed : LocationsToIgnore
     }
@@ -153,20 +155,25 @@ type Source
     | Lambda
 
 
-initialContext : Context
+initialContext : Rule.ContextCreator () Context
 initialContext =
-    { scopes =
-        NonemptyList.fromElement
-            { functionName = "root"
-            , declared = []
-            , used = Set.empty
-            , usedRecursively = Set.empty
-            , toReport = Dict.empty
-            , locationsToIgnoreForFunctionCalls = []
+    Rule.initContextCreator
+        (\lookupTable () ->
+            { lookupTable = lookupTable
+            , scopes =
+                NonemptyList.fromElement
+                    { functionName = "root"
+                    , declared = []
+                    , used = Set.empty
+                    , usedRecursively = Set.empty
+                    , toReport = Dict.empty
+                    , locationsToIgnoreForFunctionCalls = []
+                    }
+            , recursiveFunctions = Dict.empty
+            , locationsToIgnoreForUsed = Dict.empty
             }
-    , recursiveFunctions = Dict.empty
-    , locationsToIgnoreForUsed = Dict.empty
-    }
+        )
+        |> Rule.withModuleNameLookupTable
 
 
 
@@ -191,7 +198,8 @@ declarationEnterVisitor node context =
                     Node.value declaration.name
             in
             ( []
-            , { scopes =
+            , { lookupTable = context.lookupTable
+              , scopes =
                     NonemptyList.cons
                         { functionName = functionName
                         , declared = List.concat declared
