@@ -117,6 +117,7 @@ type alias Declared =
     , range : Range
     , kind : Kind
     , source : Source
+    , position : Int
     , fix : List Fix
     }
 
@@ -241,6 +242,7 @@ getParametersFromPatterns index source node =
               , range = Node.range node
               , kind = Parameter
               , fix = [ Fix.replaceRangeBy (Node.range node) "_" ]
+              , position = index
               , source = source
               }
             ]
@@ -255,6 +257,7 @@ getParametersFromPatterns index source node =
                       , range = Node.range field
                       , kind = Parameter
                       , fix = [ Fix.replaceRangeBy (Node.range node) "_" ]
+                      , position = index
                       , source = source
                       }
                     ]
@@ -275,6 +278,7 @@ getParametersFromPatterns index source node =
                                     (Node.range node)
                                     (fieldNames |> List.filter (\f -> f /= Node.value field) |> formatRecord)
                                 ]
+                            , position = index
                             , source = source
                             }
                         )
@@ -291,6 +295,7 @@ getParametersFromPatterns index source node =
                   , range = Node.range node
                   , kind = TupleWithoutVariables
                   , fix = [ Fix.replaceRangeBy (Node.range node) "_" ]
+                  , position = index
                   , source = source
                   }
                 ]
@@ -318,6 +323,7 @@ getParametersFromAsPattern index source pattern asName =
             , range = Node.range asName
             , kind = Alias
             , fix = [ Fix.removeRange { start = (Node.range pattern).end, end = (Node.range asName).end } ]
+            , position = index
             , source = source
             }
     in
