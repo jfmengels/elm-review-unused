@@ -112,7 +112,13 @@ type alias FunctionName =
 
 
 type alias ToReport =
-    Dict FunctionName (Dict Int (List (Rule.Error {})))
+    Dict FunctionName (Dict Int (List ArgumentToReport))
+
+
+type alias ArgumentToReport =
+    { edits : List Edit
+    , toError : List Edit -> Rule.Error {}
+    }
 
 
 type alias Declared =
@@ -539,6 +545,7 @@ finalEvaluation context =
         |> Dict.values
         |> List.concatMap Dict.values
         |> List.concat
+        |> List.map (\{ toError, edits } -> toError edits)
 
 
 markValueAsUsed : Range -> String -> Context -> Context
@@ -574,7 +581,7 @@ isRangeIncluded inner outer =
         && (Range.compareLocations inner.end outer.end /= GT)
 
 
-markAllAsUsed : Set String -> FunctionName -> Dict Int (List (Rule.Error {})) -> Nonempty Scope -> Nonempty Scope
+markAllAsUsed : Set String -> FunctionName -> Dict Int (List ArgumentToReport) -> Nonempty Scope -> Nonempty Scope
 markAllAsUsed names functionName toReport scopes =
     NonemptyList.mapHead
         (\scope ->
@@ -607,6 +614,7 @@ report context =
         |> Dict.values
         |> List.concatMap Dict.values
         |> List.concat
+        |> List.map (\{ toError, edits } -> toError edits)
       )
         ++ reportNow
     , { context
@@ -619,8 +627,8 @@ report context =
 findErrorsAndVariablesNotPartOfScope :
     Scope
     -> Declared
-    -> { reportLater : Dict Int (List (Rule.Error {})), reportNow : List (Rule.Error {}), remainingUsed : Set String }
-    -> { reportLater : Dict Int (List (Rule.Error {})), reportNow : List (Rule.Error {}), remainingUsed : Set String }
+    -> { reportLater : Dict Int (List ArgumentToReport), reportNow : List (Rule.Error {}), remainingUsed : Set String }
+    -> { reportLater : Dict Int (List ArgumentToReport), reportNow : List (Rule.Error {}), remainingUsed : Set String }
 findErrorsAndVariablesNotPartOfScope scope declared { reportLater, reportNow, remainingUsed } =
     if Set.member declared.name scope.usedRecursively then
         -- If variable was used as a recursive argument
@@ -645,10 +653,18 @@ findErrorsAndVariablesNotPartOfScope scope declared { reportLater, reportNow, re
         }
 
     else
-        { reportLater = insertInDictList declared.position (errorsForValue declared) reportLater
-        , reportNow = reportNow
-        , remainingUsed = remainingUsed
-        }
+        case errorsForValue declared of
+            ReportNow error ->
+                { reportLater = reportLater
+                , reportNow = error :: reportNow
+                , remainingUsed = remainingUsed
+                }
+
+            ReportLater error ->
+                { reportLater = insertInDictList declared.position error reportLater
+                , reportNow = reportNow
+                , remainingUsed = remainingUsed
+                }
 
 
 insertInDictList : comparable -> value -> Dict comparable (List value) -> Dict comparable (List value)
@@ -686,22 +702,35 @@ findDeclaredHelp source index path arguments acc =
                 (getParametersFromPatterns path source arg :: acc)
 
 
-errorsForValue : Declared -> Rule.Error {}
+type ReportTime
+    = ReportNow (Rule.Error {})
+    | ReportLater ArgumentToReport
+
+
+errorsForValue : Declared -> ReportTime
 errorsForValue { name, kind, range, source, removeFix, toIgnoredFix } =
     case kind of
         Parameter ->
-            Rule.errorWithFix
-                { message = "Parameter `" ++ name ++ "` is not used"
-                , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
-                }
-                range
-                (case source of
-                    NamedFunction ->
-                        Maybe.withDefault [] removeFix
+            let
+                toError : List Edit -> Rule.Error {}
+                toError =
+                    Rule.errorWithFix
+                        { message = "Parameter `" ++ name ++ "` is not used"
+                        , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+                        }
+                        range
+            in
+            case source of
+                NamedFunction ->
+                    case removeFix of
+                        Just fix ->
+                            ReportLater { toError = toError, edits = fix }
 
-                    Lambda ->
-                        toIgnoredFix
-                )
+                        Nothing ->
+                            ReportNow (toError [])
+
+                Lambda ->
+                    ReportNow (toError toIgnoredFix)
 
         Alias ->
             Rule.errorWithFix
@@ -710,6 +739,7 @@ errorsForValue { name, kind, range, source, removeFix, toIgnoredFix } =
                 }
                 range
                 toIgnoredFix
+                |> ReportNow
 
         TupleWithoutVariables ->
             Rule.errorWithFix
@@ -724,15 +754,21 @@ errorsForValue { name, kind, range, source, removeFix, toIgnoredFix } =
                     Lambda ->
                         toIgnoredFix
                 )
+                |> ReportNow
 
 
-recursiveParameterError : FunctionName -> Declared -> Rule.Error {}
+recursiveParameterError : FunctionName -> Declared -> ArgumentToReport
 recursiveParameterError functionName { name, range } =
-    Rule.error
-        { message = "Parameter `" ++ name ++ "` is only used in recursion"
-        , details =
-            [ "This parameter is only used to be passed as an argument to '" ++ functionName ++ "', but its value is never read or used."
-            , "You should either use this parameter somewhere, or remove it at the location I pointed at."
-            ]
-        }
-        range
+    { toError =
+        \edits ->
+            -- TODO Support autofixing recursive parameter removal
+            Rule.error
+                { message = "Parameter `" ++ name ++ "` is only used in recursion"
+                , details =
+                    [ "This parameter is only used to be passed as an argument to '" ++ functionName ++ "', but its value is never read or used."
+                    , "You should either use this parameter somewhere, or remove it at the location I pointed at."
+                    ]
+                }
+                range
+    , edits = []
+    }
