@@ -170,7 +170,7 @@ declarationEnterVisitor node context =
 
                 declared : List (List Declared)
                 declared =
-                    List.map (getParametersFromPatterns NamedFunction) arguments
+                    List.indexedMap (\index arg -> getParametersFromPatterns index NamedFunction arg) arguments
 
                 functionName : FunctionName
                 functionName =
@@ -230,11 +230,11 @@ getArgNamesHelp declared index acc =
             getArgNamesHelp restOfDeclared (index + 1) newAcc
 
 
-getParametersFromPatterns : Source -> Node Pattern -> List Declared
-getParametersFromPatterns source node =
+getParametersFromPatterns : Int -> Source -> Node Pattern -> List Declared
+getParametersFromPatterns index source node =
     case Node.value node of
         Pattern.ParenthesizedPattern pattern ->
-            getParametersFromPatterns source pattern
+            getParametersFromPatterns index source pattern
 
         Pattern.VarPattern name ->
             [ { name = name
@@ -246,7 +246,7 @@ getParametersFromPatterns source node =
             ]
 
         Pattern.AsPattern pattern asName ->
-            getParametersFromAsPattern source pattern asName
+            getParametersFromAsPattern index source pattern asName
 
         Pattern.RecordPattern fields ->
             case fields of
@@ -284,7 +284,7 @@ getParametersFromPatterns source node =
             let
                 parametersFromPatterns : List Declared
                 parametersFromPatterns =
-                    List.concatMap (getParametersFromPatterns source) patterns
+                    List.concatMap (getParametersFromPatterns index source) patterns
             in
             if List.isEmpty parametersFromPatterns && List.all isPatternWildCard patterns then
                 [ { name = ""
@@ -299,18 +299,18 @@ getParametersFromPatterns source node =
                 parametersFromPatterns
 
         Pattern.NamedPattern _ patterns ->
-            List.concatMap (getParametersFromPatterns source) patterns
+            List.concatMap (getParametersFromPatterns index source) patterns
 
         _ ->
             []
 
 
-getParametersFromAsPattern : Source -> Node Pattern -> Node String -> List Declared
-getParametersFromAsPattern source pattern asName =
+getParametersFromAsPattern : Int -> Source -> Node Pattern -> Node String -> List Declared
+getParametersFromAsPattern index source pattern asName =
     let
         parametersFromPatterns : List Declared
         parametersFromPatterns =
-            getParametersFromPatterns source pattern
+            getParametersFromPatterns index source pattern
 
         asParameter : Declared
         asParameter =
@@ -365,7 +365,7 @@ expressionEnterVisitorHelp node context =
                 | scopes =
                     NonemptyList.cons
                         { functionName = "dummy lambda"
-                        , declared = List.concatMap (getParametersFromPatterns Lambda) args
+                        , declared = List.indexedMap (\index arg -> getParametersFromPatterns index Lambda arg) args |> List.concat
                         , used = Set.empty
                         , usedRecursively = Set.empty
                         , toReport = Dict.empty
@@ -422,7 +422,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
 
                     declared : List (List Declared)
                     declared =
-                        List.map (getParametersFromPatterns NamedFunction) declaration.arguments
+                        List.indexedMap (\index arg -> getParametersFromPatterns index NamedFunction arg) declaration.arguments
 
                     newScope : Scope
                     newScope =
