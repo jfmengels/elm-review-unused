@@ -12,7 +12,7 @@ import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range as Range exposing (Range)
+import Elm.Syntax.Range as Range exposing (Location, Range)
 import Elm.Syntax.Signature exposing (Signature)
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import NoUnused.Parameters.ParameterPath as ParameterPath exposing (Nesting(..), Path)
@@ -104,6 +104,7 @@ type alias Scope =
     , used : Set String
     , usedRecursively : Set String
     , toReport : ToReport
+    , locationsToIgnoreForFunctionCalls : List Location
     }
 
 
@@ -161,6 +162,7 @@ initialContext =
             , used = Set.empty
             , usedRecursively = Set.empty
             , toReport = Dict.empty
+            , locationsToIgnoreForFunctionCalls = []
             }
     , recursiveFunctions = Dict.empty
     , locationsToIgnoreForUsed = Dict.empty
@@ -196,6 +198,7 @@ declarationEnterVisitor node context =
                         , used = Set.empty
                         , usedRecursively = Set.empty
                         , toReport = Dict.empty
+                        , locationsToIgnoreForFunctionCalls = []
                         }
                         context.scopes
               , recursiveFunctions = Dict.singleton functionName (getArgNames declared)
@@ -406,6 +409,7 @@ expressionEnterVisitor node context =
                         , used = Set.empty
                         , usedRecursively = Set.empty
                         , toReport = Dict.empty
+                        , locationsToIgnoreForFunctionCalls = []
                         }
                         context.scopes
               }
@@ -467,6 +471,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
                         , used = Set.empty
                         , usedRecursively = Set.empty
                         , toReport = Dict.empty
+                        , locationsToIgnoreForFunctionCalls = []
                         }
                 in
                 ( []
@@ -508,7 +513,9 @@ registerFunctionCall fnName arguments context =
                 locationsToIgnore =
                     ignoreLocations fnArgs arguments 0 context.locationsToIgnoreForUsed
             in
-            ( [], { context | locationsToIgnoreForUsed = locationsToIgnore } )
+            ( []
+            , { context | locationsToIgnoreForUsed = locationsToIgnore }
+            )
 
         Nothing ->
             ( [], context )
