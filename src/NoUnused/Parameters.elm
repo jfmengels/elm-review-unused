@@ -588,22 +588,22 @@ report context =
 
 
 findErrorsAndVariablesNotPartOfScope : Scope -> Declared -> ( List (Rule.Error {}), Set String ) -> ( List (Rule.Error {}), Set String )
-findErrorsAndVariablesNotPartOfScope scope declared ( errors_, remainingUsed_ ) =
+findErrorsAndVariablesNotPartOfScope scope declared ( errors_, remainingUsed ) =
     if Set.member declared.name scope.usedRecursively then
         -- If variable was used as a recursive argument
-        if Set.member declared.name remainingUsed_ then
+        if Set.member declared.name remainingUsed then
             -- If variable was used somewhere else as well
-            ( errors_, Set.remove declared.name remainingUsed_ )
+            ( errors_, Set.remove declared.name remainingUsed )
 
         else
             -- If variable was used ONLY as a recursive argument
-            ( recursiveParameterError scope.functionName declared :: errors_, remainingUsed_ )
+            ( recursiveParameterError scope.functionName declared :: errors_, remainingUsed )
 
-    else if Set.member declared.name remainingUsed_ then
-        ( errors_, Set.remove declared.name remainingUsed_ )
+    else if Set.member declared.name remainingUsed then
+        ( errors_, Set.remove declared.name remainingUsed )
 
     else
-        ( errorsForValue declared :: errors_, remainingUsed_ )
+        ( errorsForValue declared :: errors_, remainingUsed )
 
 
 errorsForValue : Declared -> Rule.Error {}
