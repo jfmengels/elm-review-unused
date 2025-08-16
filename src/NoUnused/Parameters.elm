@@ -109,7 +109,7 @@ type alias FunctionName =
 
 
 type alias ToReport =
-    Dict FunctionName (List (Rule.Error {}))
+    Dict FunctionName (Dict Int (List (Rule.Error {})))
 
 
 type alias Declared =
@@ -513,6 +513,7 @@ finalEvaluation : Context -> List (Rule.Error {})
 finalEvaluation context =
     (NonemptyList.head context.scopes).toReport
         |> Dict.values
+        |> List.concatMap Dict.values
         |> List.concat
 
 
@@ -548,14 +549,14 @@ isRangeIncluded inner outer =
         && (Range.compareLocations inner.end outer.end /= GT)
 
 
-markAllAsUsed : Set String -> FunctionName -> List (Rule.Error {}) -> Nonempty Scope -> Nonempty Scope
+markAllAsUsed : Set String -> FunctionName -> Dict Int (List (Rule.Error {})) -> Nonempty Scope -> Nonempty Scope
 markAllAsUsed names functionName toReport scopes =
     NonemptyList.mapHead
         (\scope ->
             { scope
                 | used = Set.union names scope.used
                 , toReport =
-                    if List.isEmpty toReport then
+                    if Dict.isEmpty toReport then
                         scope.toReport
 
                     else
@@ -574,11 +575,12 @@ report context =
         ( toReport, remainingUsed ) =
             List.foldl
                 (findErrorsAndVariablesNotPartOfScope headScope)
-                ( [], headScope.used )
+                ( Dict.empty, headScope.used )
                 headScope.declared
     in
     ( headScope.toReport
         |> Dict.values
+        |> List.concatMap Dict.values
         |> List.concat
     , { context
         | scopes = markAllAsUsed remainingUsed headScope.functionName toReport scopes
@@ -587,7 +589,7 @@ report context =
     )
 
 
-findErrorsAndVariablesNotPartOfScope : Scope -> Declared -> ( List (Rule.Error {}), Set String ) -> ( List (Rule.Error {}), Set String )
+findErrorsAndVariablesNotPartOfScope : Scope -> Declared -> ( Dict Int (List (Rule.Error {})), Set String ) -> ( Dict Int (List (Rule.Error {})), Set String )
 findErrorsAndVariablesNotPartOfScope scope declared ( errors_, remainingUsed ) =
     if Set.member declared.name scope.usedRecursively then
         -- If variable was used as a recursive argument
@@ -597,13 +599,23 @@ findErrorsAndVariablesNotPartOfScope scope declared ( errors_, remainingUsed ) =
 
         else
             -- If variable was used ONLY as a recursive argument
-            ( recursiveParameterError scope.functionName declared :: errors_, remainingUsed )
+            ( insertInDictList declared.position (recursiveParameterError scope.functionName declared) errors_, remainingUsed )
 
     else if Set.member declared.name remainingUsed then
         ( errors_, Set.remove declared.name remainingUsed )
 
     else
-        ( errorsForValue declared :: errors_, remainingUsed )
+        ( insertInDictList declared.position (errorsForValue declared) errors_, remainingUsed )
+
+
+insertInDictList : comparable -> value -> Dict comparable (List value) -> Dict comparable (List value)
+insertInDictList key value dict =
+    case Dict.get key dict of
+        Nothing ->
+            Dict.insert key [ value ] dict
+
+        Just previous ->
+            Dict.insert key (value :: previous) dict
 
 
 errorsForValue : Declared -> Rule.Error {}
