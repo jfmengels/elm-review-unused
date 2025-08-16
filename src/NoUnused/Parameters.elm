@@ -523,6 +523,7 @@ markValueAsUsed range name context =
         | scopes =
             NonemptyList.mapHead
                 (\scope ->
+                    -- TODO Avoid changing context if name is not a parameter
                     if shouldBeIgnored range name context then
                         { scope | usedRecursively = Set.insert name scope.usedRecursively }
 
