@@ -50,10 +50,9 @@ foo one two three =
                         , details = details
                         , under = "one"
                         }
-                        -- TODO Should remove argument in type annotation
                         |> Review.Test.whenFixed
                             """module A exposing (..)
-foo : Int -> String -> String -> String
+foo : String -> String -> String
 foo  two three =
     three
 """
@@ -62,10 +61,9 @@ foo  two three =
                         , details = details
                         , under = "two"
                         }
-                        -- TODO Should remove argument in type annotation
                         |> Review.Test.whenFixed
                             """module A exposing (..)
-foo : Int -> String -> String -> String
+foo : Int -> String -> String
 foo one  three =
     three
 """

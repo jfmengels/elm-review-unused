@@ -1,7 +1,7 @@
 module NoUnused.Parameters.ParameterPath exposing
     ( Nesting
     , Path
-    , canBeFixed
+    , fix
     , fromSignature
     , inAlias
     , inNamedPattern
@@ -15,6 +15,7 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.Signature exposing (Signature)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import Review.Fix as Fix exposing (Edit)
 
 
 type alias Path =
@@ -136,6 +137,18 @@ inAlias path =
     }
 
 
-canBeFixed : Path -> Bool
-canBeFixed path =
-    Array.isEmpty path.nesting
+fix : Path -> List Edit -> Maybe (List Edit)
+fix path edits =
+    case path.typeSignature of
+        Absent ->
+            Just edits
+
+        NoCorrespondingArg ->
+            Nothing
+
+        Present record ->
+            if Array.isEmpty path.nesting then
+                Just (Fix.removeRange record.removeFullArgRange :: edits)
+
+            else
+                Nothing

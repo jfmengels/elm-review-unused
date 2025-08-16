@@ -247,8 +247,8 @@ getParametersFromPatterns path source node =
               , range = Node.range node
               , kind = Parameter
               , removeFix =
-                    if ParameterPath.canBeFixed path then
-                        Just [ Fix.removeRange (Node.range node) ]
+                    if Array.isEmpty path.nesting then
+                        ParameterPath.fix path [ Fix.removeRange (Node.range node) ]
 
                     else
                         Nothing
