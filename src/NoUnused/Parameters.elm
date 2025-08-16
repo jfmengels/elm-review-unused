@@ -118,7 +118,7 @@ type alias Declared =
     , kind : Kind
     , source : Source
     , position : Int
-    , fix : List Fix
+    , toIgnoredFix : List Fix
     }
 
 
@@ -241,7 +241,7 @@ getParametersFromPatterns index source node =
             [ { name = name
               , range = Node.range node
               , kind = Parameter
-              , fix = [ Fix.replaceRangeBy (Node.range node) "_" ]
+              , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
               , position = index
               , source = source
               }
@@ -256,7 +256,7 @@ getParametersFromPatterns index source node =
                     [ { name = Node.value field
                       , range = Node.range field
                       , kind = Parameter
-                      , fix = [ Fix.replaceRangeBy (Node.range node) "_" ]
+                      , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
                       , position = index
                       , source = source
                       }
@@ -273,7 +273,7 @@ getParametersFromPatterns index source node =
                             { name = Node.value field
                             , range = Node.range field
                             , kind = Parameter
-                            , fix =
+                            , toIgnoredFix =
                                 [ Fix.replaceRangeBy
                                     (Node.range node)
                                     (fieldNames |> List.filter (\f -> f /= Node.value field) |> formatRecord)
@@ -294,7 +294,7 @@ getParametersFromPatterns index source node =
                 [ { name = ""
                   , range = Node.range node
                   , kind = TupleWithoutVariables
-                  , fix = [ Fix.replaceRangeBy (Node.range node) "_" ]
+                  , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
                   , position = index
                   , source = source
                   }
@@ -322,7 +322,7 @@ getParametersFromAsPattern index source pattern asName =
             { name = Node.value asName
             , range = Node.range asName
             , kind = Alias
-            , fix = [ Fix.removeRange { start = (Node.range pattern).end, end = (Node.range asName).end } ]
+            , toIgnoredFix = [ Fix.removeRange { start = (Node.range pattern).end, end = (Node.range asName).end } ]
             , position = index
             , source = source
             }
@@ -615,7 +615,7 @@ insertInDictList key value dict =
 
 
 errorsForValue : Declared -> Rule.Error {}
-errorsForValue { name, kind, range, source, fix } =
+errorsForValue { name, kind, range, source, toIgnoredFix } =
     case kind of
         Parameter ->
             Rule.errorWithFix
@@ -623,7 +623,7 @@ errorsForValue { name, kind, range, source, fix } =
                 , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
                 }
                 range
-                (applyFix source fix)
+                (applyFix source toIgnoredFix)
 
         Alias ->
             Rule.errorWithFix
@@ -631,7 +631,7 @@ errorsForValue { name, kind, range, source, fix } =
                 , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
                 }
                 range
-                fix
+                toIgnoredFix
 
         TupleWithoutVariables ->
             Rule.errorWithFix
@@ -639,7 +639,7 @@ errorsForValue { name, kind, range, source, fix } =
                 , details = [ "You should remove this pattern." ]
                 }
                 range
-                (applyFix source fix)
+                (applyFix source toIgnoredFix)
 
 
 recursiveParameterError : FunctionName -> Declared -> Rule.Error {}
