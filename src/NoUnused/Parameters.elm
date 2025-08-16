@@ -496,12 +496,7 @@ ignoreLocations fnArgs numberOfIgnoredArguments nodes index acc =
                 newAcc =
                     case Dict.get (numberOfIgnoredArguments + index) fnArgs of
                         Just argName ->
-                            case Dict.get argName acc of
-                                Just existingLocations ->
-                                    Dict.insert argName (range :: existingLocations) acc
-
-                                Nothing ->
-                                    Dict.insert argName [ range ] acc
+                            insertInDictList argName range acc
 
                         Nothing ->
                             acc
