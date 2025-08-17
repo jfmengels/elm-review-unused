@@ -83,6 +83,7 @@ rule =
     Rule.newProjectRuleSchema "NoUnused.Parameters" initialContext
         |> Rule.withDirectDependenciesProjectVisitor dependenciesVisitor
         |> Rule.withModuleVisitor moduleVisitor
+        |> Rule.withFinalProjectEvaluation finalEvaluation
         |> Rule.withModuleContextWithErrors
             { fromProjectToModule = fromProjectToModule
             , fromModuleToProject = fromModuleToProject
@@ -106,8 +107,8 @@ dependenciesVisitor dependencies projectContext =
                 )
                 Set.empty
                 dependencies
+      , toReport = projectContext.toReport
       , functionCallsWithArguments = projectContext.functionCallsWithArguments
-      , moduleKeys = projectContext.moduleKeys
       }
     )
 
@@ -130,16 +131,16 @@ moduleVisitor schema =
 
 type alias ProjectContext =
     { dependencyModules : Set ModuleName
+    , toReport : Dict ModuleName { key : ModuleKey, args : List ArgumentToReport }
     , functionCallsWithArguments : Dict ModuleName (Dict FunctionName (List (Array Range)))
-    , moduleKeys : Dict ModuleName ModuleKey
     }
 
 
 initialContext : ProjectContext
 initialContext =
     { dependencyModules = Set.empty
+    , toReport = Dict.empty
     , functionCallsWithArguments = Dict.empty
-    , moduleKeys = Dict.empty
     }
 
 
@@ -252,18 +253,42 @@ fromModuleToProject =
                             in
                             \name -> Set.member name exposed
 
-                ( errors, context ) =
-                    reportErrors (NonemptyList.head moduleContext.scopes) moduleContext []
+                { errors, toReport, functionCallsWithArguments } =
+                    List.foldl
+                        (\arg acc ->
+                            if isExposed arg.functionName then
+                                { errors = acc.errors
+                                , toReport = arg :: acc.toReport
+                                , functionCallsWithArguments =
+                                    case Dict.get arg.functionName moduleContext.functionCallsWithArguments of
+                                        Just functionCalls ->
+                                            Dict.insert arg.functionName functionCalls acc.functionCallsWithArguments
+
+                                        Nothing ->
+                                            acc.functionCallsWithArguments
+                                }
+
+                            else
+                                { errors = reportError moduleContext.functionCallsWithArguments arg :: acc.errors
+                                , toReport = acc.toReport
+                                , functionCallsWithArguments = acc.functionCallsWithArguments
+                                }
+                        )
+                        { errors = []
+                        , toReport = []
+                        , functionCallsWithArguments = moduleContext.functionCallsWithArguments
+                        }
+                        (NonemptyList.head moduleContext.scopes).toReport
             in
             ( errors
             , { dependencyModules = Set.empty
+              , toReport = Dict.singleton moduleName { key = moduleKey, args = toReport }
               , functionCallsWithArguments =
-                    if Dict.isEmpty context.functionCallsWithArguments then
+                    if Dict.isEmpty functionCallsWithArguments then
                         Dict.empty
 
                     else
-                        Dict.singleton moduleName context.functionCallsWithArguments
-              , moduleKeys = Dict.singleton moduleName moduleKey
+                        Dict.singleton moduleName functionCallsWithArguments
               }
             )
         )
@@ -275,9 +300,30 @@ fromModuleToProject =
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
     { dependencyModules = previousContext.dependencyModules
+    , toReport = Dict.union newContext.toReport previousContext.toReport
     , functionCallsWithArguments = Dict.union newContext.functionCallsWithArguments previousContext.functionCallsWithArguments
-    , moduleKeys = Dict.union newContext.moduleKeys previousContext.moduleKeys
     }
+
+
+finalEvaluation : ProjectContext -> List (Rule.Error scope)
+finalEvaluation projectContext =
+    Dict.foldl
+        (\moduleName { key, args } acc ->
+            List.map
+                (\arg ->
+                    Dict.get moduleName projectContext.functionCallsWithArguments
+                        |> Maybe.withDefault Dict.empty
+                        |> (\dict -> Dict.get arg.functionName dict)
+                        |> Maybe.withDefault []
+                        |> (\callArgumentList -> addArgumentToRemove arg.position callArgumentList arg.rangesToRemove)
+                        |> List.map Fix.removeRange
+                        |> Rule.errorForModuleWithFix key arg.details arg.range
+                )
+                args
+                ++ acc
+        )
+        []
+        projectContext.toReport
 
 
 
