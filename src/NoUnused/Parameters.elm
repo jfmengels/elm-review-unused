@@ -140,7 +140,8 @@ initialContext =
 
 
 type alias ModuleContext =
-    { lookupTable : ModuleNameLookupTable
+    { dependencyModules : Set ModuleName
+    , lookupTable : ModuleNameLookupTable
     , scopes : Nonempty Scope
     , recursiveFunctions : Dict String FunctionArgs
     , locationsToIgnoreForRecursiveArguments : LocationsToIgnore
@@ -208,8 +209,9 @@ type Source
 fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
 fromProjectToModule =
     Rule.initContextCreator
-        (\lookupTable _ ->
-            { lookupTable = lookupTable
+        (\lookupTable projectContent ->
+            { dependencyModules = projectContent.dependencyModules
+            , lookupTable = lookupTable
             , scopes =
                 NonemptyList.fromElement
                     { functionName = "root"
@@ -296,7 +298,8 @@ declarationEnterVisitor node context =
                     Node.value declaration.name
             in
             ( []
-            , { lookupTable = context.lookupTable
+            , { dependencyModules = context.dependencyModules
+              , lookupTable = context.lookupTable
               , scopes =
                     NonemptyList.cons
                         { functionName = functionName
