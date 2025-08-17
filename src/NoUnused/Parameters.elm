@@ -525,7 +525,7 @@ letDeclarationExitVisitor _ letDeclaration context =
 
 registerFunctionCall : FunctionName -> Range -> List Range -> Context -> Context
 registerFunctionCall fnName fnRange arguments context =
-    if isVariableOrFunctionName fnName then
+    if isVariableOrFunctionName fnName && not (List.member fnRange.start context.locationsToIgnoreFunctionCalls) then
         case ModuleNameLookupTable.moduleNameAt context.lookupTable fnRange of
             Just [] ->
                 case Dict.get fnName context.recursiveFunctions of
@@ -610,6 +610,12 @@ markValueAsUsed range name context =
                             { scope | used = Set.insert name scope.used }
                     )
                     context.scopes
+            , functionCallsWithArguments =
+                if List.member range.start context.locationsToIgnoreFunctionCalls then
+                    context.functionCallsWithArguments
+
+                else
+                    Dict.insert name [ Array.empty ] context.functionCallsWithArguments
         }
 
     else

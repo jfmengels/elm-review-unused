@@ -110,6 +110,15 @@ foo one =
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should not report used parameters (used in let declaration)" <|
+        \() ->
+            """module A exposing (..)
+fn a b =
+    let x = a b
+    in x
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     ]
 
 
@@ -173,18 +182,6 @@ foo =
                         , details = details
                         , under = "twoValue"
                         }
-                        -- TODO Should not be autofixed
-                        |> Review.Test.whenFixed
-                            """module A exposing (..)
-foo =
-    let
-        one oneValue =
-            1
-        two  =
-            2
-    in
-    one two 3
-"""
 
                     -- TODO Add a test with type annotation
                     ]
@@ -208,18 +205,6 @@ foo =
                         , under = "oneValue"
                         }
                         |> Review.Test.atExactly { start = { row = 6, column = 13 }, end = { row = 6, column = 21 } }
-                        -- TODO Should not be autofixed
-                        |> Review.Test.whenFixed
-                            """module A exposing (..)
-foo =
-    let
-        one oneValue =
-            oneValue
-        two  =
-            1
-    in
-    one two 3
-"""
                     ]
     , test "should not report unused let functions" <|
         \() ->
