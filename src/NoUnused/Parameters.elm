@@ -83,7 +83,7 @@ rule =
         |> Rule.fromModuleRuleSchema
 
 
-moduleVisitor : Rule.ModuleRuleSchema schemaState Context -> Rule.ModuleRuleSchema { schemaState | hasAtLeastOneVisitor : () } Context
+moduleVisitor : Rule.ModuleRuleSchema schemaState ModuleContext -> Rule.ModuleRuleSchema { schemaState | hasAtLeastOneVisitor : () } ModuleContext
 moduleVisitor schema =
     schema
         |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
@@ -101,7 +101,7 @@ moduleVisitor schema =
 --- CONTEXT
 
 
-type alias Context =
+type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
     , scopes : Nonempty Scope
     , recursiveFunctions : Dict String FunctionArgs
@@ -167,7 +167,7 @@ type Source
     | Lambda
 
 
-initialContext : Rule.ContextCreator () Context
+initialContext : Rule.ContextCreator () ModuleContext
 initialContext =
     Rule.initContextCreator
         (\lookupTable () ->
@@ -196,7 +196,7 @@ initialContext =
 -- MODULE DEFINITION VISITOR
 
 
-moduleDefinitionVisitor : Node Module.Module -> Context -> ( List nothing, Context )
+moduleDefinitionVisitor : Node Module.Module -> ModuleContext -> ( List nothing, ModuleContext )
 moduleDefinitionVisitor node context =
     case Module.exposingList (Node.value node) of
         Exposing.All _ ->
@@ -225,7 +225,7 @@ collectExposedElements exposed =
 -- DECLARATION VISITOR
 
 
-declarationEnterVisitor : Node Declaration -> Context -> ( List nothing, Context )
+declarationEnterVisitor : Node Declaration -> ModuleContext -> ( List nothing, ModuleContext )
 declarationEnterVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration f ->
@@ -267,7 +267,7 @@ declarationEnterVisitor node context =
             ( [], context )
 
 
-declarationExitVisitor : Node Declaration -> Context -> ( List (Rule.Error {}), Context )
+declarationExitVisitor : Node Declaration -> ModuleContext -> ( List (Rule.Error {}), ModuleContext )
 declarationExitVisitor node context =
     case Node.value node of
         Declaration.FunctionDeclaration _ ->
@@ -447,7 +447,7 @@ formatRecord fields =
 -- EXPRESSION ENTER VISITOR
 
 
-expressionEnterVisitor : Node Expression -> Context -> Context
+expressionEnterVisitor : Node Expression -> ModuleContext -> ModuleContext
 expressionEnterVisitor node context =
     case Node.value node of
         Expression.FunctionOrValue [] name ->
@@ -495,7 +495,7 @@ expressionEnterVisitor node context =
 -- EXPRESSION EXIT VISITOR
 
 
-expressionExitVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
+expressionExitVisitor : Node Expression -> ModuleContext -> ( List (Rule.Error {}), ModuleContext )
 expressionExitVisitor (Node _ node) context =
     case node of
         Expression.LambdaExpression _ ->
@@ -505,7 +505,7 @@ expressionExitVisitor (Node _ node) context =
             ( [], context )
 
 
-letDeclarationEnterVisitor : a -> Node Expression.LetDeclaration -> Context -> ( List nothing, Context )
+letDeclarationEnterVisitor : a -> Node Expression.LetDeclaration -> ModuleContext -> ( List nothing, ModuleContext )
 letDeclarationEnterVisitor _ letDeclaration context =
     case Node.value letDeclaration of
         Expression.LetFunction function ->
@@ -548,7 +548,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
             ( [], context )
 
 
-letDeclarationExitVisitor : a -> Node Expression.LetDeclaration -> Context -> ( List (Rule.Error {}), Context )
+letDeclarationExitVisitor : a -> Node Expression.LetDeclaration -> ModuleContext -> ( List (Rule.Error {}), ModuleContext )
 letDeclarationExitVisitor _ letDeclaration context =
     case Node.value letDeclaration of
         Expression.LetFunction function ->
@@ -567,7 +567,7 @@ letDeclarationExitVisitor _ letDeclaration context =
             ( [], context )
 
 
-registerFunctionCall : FunctionName -> Range -> List Range -> Context -> Context
+registerFunctionCall : FunctionName -> Range -> List Range -> ModuleContext -> ModuleContext
 registerFunctionCall fnName fnRange arguments context =
     if isVariableOrFunctionName fnName && not (List.member fnRange.start context.locationsToIgnoreFunctionCalls) then
         case ModuleNameLookupTable.moduleNameAt context.lookupTable fnRange of
@@ -600,7 +600,7 @@ registerFunctionCall fnName fnRange arguments context =
         context
 
 
-markFunctionCall : FunctionName -> Array Range -> Context -> Context
+markFunctionCall : FunctionName -> Array Range -> ModuleContext -> ModuleContext
 markFunctionCall fnName arguments context =
     { context
         | functionCallsWithArguments =
@@ -633,13 +633,13 @@ ignoreLocationsForRecursiveArguments fnArgs nodes index acc =
             ignoreLocationsForRecursiveArguments fnArgs rest (index + 1) newAcc
 
 
-finalEvaluation : Context -> List (Rule.Error {})
+finalEvaluation : ModuleContext -> List (Rule.Error {})
 finalEvaluation context =
     reportErrors (NonemptyList.head context.scopes) context []
         |> Tuple.first
 
 
-markValueAsUsed : Range -> String -> Context -> Context
+markValueAsUsed : Range -> String -> ModuleContext -> ModuleContext
 markValueAsUsed range name context =
     if isVariableOrFunctionName name then
         { context
@@ -676,7 +676,7 @@ isVariableOrFunctionName name =
             False
 
 
-shouldBeIgnored : Range -> String -> Context -> Bool
+shouldBeIgnored : Range -> String -> ModuleContext -> Bool
 shouldBeIgnored range name context =
     case Dict.get name context.locationsToIgnoreForRecursiveArguments of
         Just ranges ->
@@ -704,7 +704,7 @@ markAllAsUsed names toReport scopes =
         scopes
 
 
-report : Context -> ( List (Rule.Error {}), Context )
+report : ModuleContext -> ( List (Rule.Error {}), ModuleContext )
 report context =
     let
         ( headScope, scopes ) =
@@ -727,7 +727,7 @@ report context =
     )
 
 
-reportErrors : Scope -> Context -> List (Rule.Error {}) -> ( List (Rule.Error {}), Context )
+reportErrors : Scope -> ModuleContext -> List (Rule.Error {}) -> ( List (Rule.Error {}), ModuleContext )
 reportErrors scope context initialErrors =
     let
         ( errors, newFunctionCallsWithArguments ) =
