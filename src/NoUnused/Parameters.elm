@@ -535,10 +535,12 @@ registerFunctionCall fnName fnRange arguments context =
                             ignoreLocationsForRecursiveArguments fnArgs arguments 0 context.locationsToIgnoreForRecursiveArguments
                     in
                     { context | locationsToIgnoreForRecursiveArguments = locationsToIgnore }
+                        |> markFunctionCall2 fnName (Array.fromList arguments)
                         |> markFunctionCall fnName (Array.fromList arguments)
 
                 Nothing ->
                     context
+                        |> markFunctionCall2 fnName (Array.fromList arguments)
                         |> markFunctionCall fnName (Array.fromList arguments)
 
         Just moduleName ->
@@ -557,6 +559,19 @@ markFunctionCall fnName arguments context =
 
         Nothing ->
             ( [], context )
+
+
+markFunctionCall2 : FunctionName -> Array Range -> Context -> Context
+markFunctionCall2 fnName arguments context =
+    { context
+        | functionCallsWithArguments =
+            case Dict.get fnName context.functionCallsWithArguments of
+                Just previous ->
+                    Dict.insert fnName (arguments :: previous) context.functionCallsWithArguments
+
+                Nothing ->
+                    Dict.insert fnName [ arguments ] context.functionCallsWithArguments
+    }
 
 
 registerFunctionArgInFunctionCall : FunctionName -> Array Range -> Scope -> Maybe ( List (Rule.Error {}), Scope )
