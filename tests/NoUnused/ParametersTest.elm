@@ -39,9 +39,11 @@ functionArgumentTests =
     [ test "should report unused arguments" <|
         \() ->
             """module A exposing (..)
+a = foo 1 2 3
 foo : Int -> String -> String -> String
 foo one two three =
     three
+b = foo 1 2 3
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
@@ -52,9 +54,11 @@ foo one two three =
                         }
                         |> Review.Test.whenFixed
                             """module A exposing (..)
+a = foo  2 3
 foo : String -> String -> String
 foo  two three =
     three
+b = foo  2 3
 """
                     , Review.Test.error
                         { message = "Parameter `two` is not used"
@@ -63,9 +67,11 @@ foo  two three =
                         }
                         |> Review.Test.whenFixed
                             """module A exposing (..)
+a = foo 1  3
 foo : Int -> String -> String
 foo one  three =
     three
+b = foo 1  3
 """
                     ]
     , test "should not consider values from other modules" <|

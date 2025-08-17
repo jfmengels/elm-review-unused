@@ -736,7 +736,32 @@ reportErrors context scope =
         |> Dict.values
         |> List.concatMap Dict.values
         |> List.concat
-        |> List.map (\{ toError, rangesToRemove } -> toError (List.map Fix.removeRange rangesToRemove))
+        |> List.map (reportError context.functionCallsWithArguments)
+
+
+reportError : Dict FunctionName (List (Array Range)) -> ArgumentToReport -> Rule.Error {}
+reportError functionCallsWithArguments { functionName, position, toError, rangesToRemove } =
+    Dict.get functionName functionCallsWithArguments
+        |> Maybe.withDefault []
+        |> (\callArgumentList -> addArgumentToRemove position callArgumentList rangesToRemove)
+        |> List.map Fix.removeRange
+        |> toError
+
+
+addArgumentToRemove : Int -> List (Array a) -> List a -> List a
+addArgumentToRemove position callArgumentList acc =
+    case callArgumentList of
+        [] ->
+            acc
+
+        argumentArray :: rest ->
+            case Array.get position argumentArray of
+                Just range ->
+                    addArgumentToRemove position rest (range :: acc)
+
+                Nothing ->
+                    -- If an argument at that location could not be found, then we can't autofix the issue.
+                    []
 
 
 findErrorsAndVariablesNotPartOfScope :
