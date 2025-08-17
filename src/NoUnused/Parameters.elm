@@ -581,7 +581,8 @@ ignoreLocationsForRecursiveArguments fnArgs nodes index acc =
 
 finalEvaluation : Context -> List (Rule.Error {})
 finalEvaluation context =
-    reportErrors context (NonemptyList.head context.scopes)
+    reportErrors (NonemptyList.head context.scopes) context []
+        |> Tuple.first
 
 
 markValueAsUsed : Range -> String -> Context -> Context
@@ -640,18 +641,32 @@ report context =
                 (findErrorsAndVariablesNotPartOfScope headScope)
                 { reportLater = [], reportNow = [], remainingUsed = headScope.used }
                 headScope.declared
+
+        ( errors, newContext ) =
+            reportErrors headScope context reportNow
     in
-    ( reportErrors context headScope ++ reportNow
-    , { context
+    ( errors
+    , { newContext
         | scopes = markAllAsUsed remainingUsed reportLater scopes
         , recursiveFunctions = Dict.remove headScope.functionName context.recursiveFunctions
       }
     )
 
 
-reportErrors : Context -> Scope -> List (Rule.Error {})
-reportErrors context scope =
-    List.map (reportError context.functionCallsWithArguments) scope.toReport
+reportErrors : Scope -> Context -> List (Rule.Error {}) -> ( List (Rule.Error {}), Context )
+reportErrors scope context initialErrors =
+    let
+        ( errors, newFunctionCallsWithArguments ) =
+            List.foldl
+                (\arg ( errorAcc, functionCallsWithArguments ) ->
+                    ( reportError context.functionCallsWithArguments arg :: errorAcc
+                    , Dict.remove arg.functionName functionCallsWithArguments
+                    )
+                )
+                ( initialErrors, context.functionCallsWithArguments )
+                scope.toReport
+    in
+    ( errors, { context | functionCallsWithArguments = newFunctionCallsWithArguments } )
 
 
 reportError : Dict FunctionName (List (Array Range)) -> ArgumentToReport -> Rule.Error {}

@@ -233,6 +233,50 @@ foo =
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should fix only calls related to the function, and not those for a similarly named function in another scope" <|
+        \() ->
+            """module A exposing (..)
+foo =
+    let fn x = 1
+    in (fn x)
+
+bar =
+    let fn x = 1
+    in (fn x)
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Parameter `x` is not used"
+                        , details = details
+                        , under = "x"
+                        }
+                        |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 13 } }
+                        |> Review.Test.whenFixed """module A exposing (..)
+foo =
+    let fn  = 1
+    in (fn )
+
+bar =
+    let fn x = 1
+    in (fn x)
+"""
+                    , Review.Test.error
+                        { message = "Parameter `x` is not used"
+                        , details = details
+                        , under = "x"
+                        }
+                        |> Review.Test.atExactly { start = { row = 7, column = 12 }, end = { row = 7, column = 13 } }
+                        |> Review.Test.whenFixed """module A exposing (..)
+foo =
+    let fn x = 1
+    in (fn x)
+
+bar =
+    let fn  = 1
+    in (fn )
+"""
+                    ]
     ]
 
 
