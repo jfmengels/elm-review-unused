@@ -78,9 +78,14 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Param
 -}
 rule : Rule
 rule =
-    Rule.newModuleRuleSchemaUsingContextCreator "NoUnused.Parameters" initialContext
-        |> moduleVisitor
-        |> Rule.fromModuleRuleSchema
+    Rule.newProjectRuleSchema "NoUnused.Parameters" initialContext
+        |> Rule.withModuleVisitor moduleVisitor
+        |> Rule.withModuleContextUsingContextCreator
+            { fromProjectToModule = fromProjectToModule
+            , fromModuleToProject = fromModuleToProject
+            , foldProjectContexts = foldProjectContexts
+            }
+        |> Rule.fromProjectRuleSchema
 
 
 moduleVisitor : Rule.ModuleRuleSchema schemaState ModuleContext -> Rule.ModuleRuleSchema { schemaState | hasAtLeastOneVisitor : () } ModuleContext
@@ -99,6 +104,15 @@ moduleVisitor schema =
 
 
 --- CONTEXT
+
+
+type alias ProjectContext =
+    {}
+
+
+initialContext : ProjectContext
+initialContext =
+    {}
 
 
 type alias ModuleContext =
@@ -167,10 +181,10 @@ type Source
     | Lambda
 
 
-initialContext : Rule.ContextCreator () ModuleContext
-initialContext =
+fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
+fromProjectToModule =
     Rule.initContextCreator
-        (\lookupTable () ->
+        (\lookupTable _ ->
             { lookupTable = lookupTable
             , scopes =
                 NonemptyList.fromElement
@@ -190,6 +204,19 @@ initialContext =
             }
         )
         |> Rule.withModuleNameLookupTable
+
+
+fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
+fromModuleToProject =
+    Rule.initContextCreator
+        (\moduleContext ->
+            {}
+        )
+
+
+foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
+foldProjectContexts newContext previousContext =
+    {}
 
 
 
