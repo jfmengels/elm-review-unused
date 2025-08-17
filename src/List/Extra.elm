@@ -1,4 +1,11 @@
-module List.Extra exposing (dictToListFilterAndMap, dictToListMap, find, indexedFilterMap, insertAllJusts, listFilterThenMapInto)
+module List.Extra exposing
+    ( dictToListFilterAndMap
+    , dictToListMap
+    , find
+    , indexedFilterMap
+    , insertAllJusts
+    , listFilterThenMapInto
+    )
 
 {-| Some utilities.
 -}

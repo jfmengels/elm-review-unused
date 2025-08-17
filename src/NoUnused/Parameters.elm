@@ -12,6 +12,7 @@ import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Exposing as Exposing exposing (Exposing)
 import Elm.Syntax.Expression as Expression exposing (Expression)
 import Elm.Syntax.Module as Module
+import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Location, Range)
@@ -20,6 +21,7 @@ import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import NoUnused.Parameters.ParameterPath as ParameterPath exposing (Nesting(..), Path)
 import Review.Fix as Fix exposing (Edit, Fix)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
+import Review.Project.Dependency as Dependency exposing (Dependency)
 import Review.Rule as Rule exposing (Rule)
 import Set exposing (Set)
 
@@ -79,6 +81,7 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Param
 rule : Rule
 rule =
     Rule.newProjectRuleSchema "NoUnused.Parameters" initialContext
+        |> Rule.withDirectDependenciesProjectVisitor dependenciesVisitor
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
             { fromProjectToModule = fromProjectToModule
@@ -86,6 +89,25 @@ rule =
             , foldProjectContexts = foldProjectContexts
             }
         |> Rule.fromProjectRuleSchema
+
+
+dependenciesVisitor : Dict String Dependency -> ProjectContext -> ( List nothing, ProjectContext )
+dependenciesVisitor dependencies _ =
+    ( []
+    , { dependencyModules =
+            Dict.foldr
+                (\_ dependency set ->
+                    List.foldl
+                        (\{ name } subSet ->
+                            Set.insert (String.split "." name) subSet
+                        )
+                        set
+                        (Dependency.modules dependency)
+                )
+                Set.empty
+                dependencies
+      }
+    )
 
 
 moduleVisitor : Rule.ModuleRuleSchema schemaState ModuleContext -> Rule.ModuleRuleSchema { schemaState | hasAtLeastOneVisitor : () } ModuleContext
@@ -107,12 +129,14 @@ moduleVisitor schema =
 
 
 type alias ProjectContext =
-    {}
+    { dependencyModules : Set ModuleName
+    }
 
 
 initialContext : ProjectContext
 initialContext =
-    {}
+    { dependencyModules = Set.empty
+    }
 
 
 type alias ModuleContext =
@@ -210,13 +234,15 @@ fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
 fromModuleToProject =
     Rule.initContextCreator
         (\moduleContext ->
-            {}
+            { dependencyModules = Set.empty
+            }
         )
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
-    {}
+    { dependencyModules = previousContext.dependencyModules
+    }
 
 
 
