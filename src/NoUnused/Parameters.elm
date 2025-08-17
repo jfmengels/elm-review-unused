@@ -79,7 +79,7 @@ rule =
     Rule.newModuleRuleSchemaUsingContextCreator "NoUnused.Parameters" initialContext
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withDeclarationExitVisitor declarationExitVisitor
-        |> Rule.withExpressionEnterVisitor expressionEnterVisitor
+        |> Rule.withExpressionEnterVisitor (\node context -> ( [], expressionEnterVisitor node context ))
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withLetDeclarationEnterVisitor letDeclarationEnterVisitor
         |> Rule.withLetDeclarationExitVisitor letDeclarationExitVisitor
@@ -404,7 +404,7 @@ formatRecord fields =
 -- EXPRESSION ENTER VISITOR
 
 
-expressionEnterVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
+expressionEnterVisitor : Node Expression -> Context -> Context
 expressionEnterVisitor node context =
     case Node.value node of
         Expression.FunctionOrValue [] name ->
@@ -414,8 +414,7 @@ expressionEnterVisitor node context =
             markValueAsUsed (Node.range name) (Node.value name) context
 
         Expression.LambdaExpression { args } ->
-            ( []
-            , { context
+            { context
                 | scopes =
                     NonemptyList.cons
                         { functionName = "dummy lambda"
@@ -426,8 +425,7 @@ expressionEnterVisitor node context =
                         , locationsToIgnoreForFunctionCalls = []
                         }
                         context.scopes
-              }
-            )
+            }
 
         Expression.Application ((Node fnRange (Expression.FunctionOrValue [] fnName)) :: arguments) ->
             registerFunctionCall fnName fnRange (List.map Node.range arguments) context
@@ -447,7 +445,7 @@ expressionEnterVisitor node context =
                 context
 
         _ ->
-            ( [], context )
+            context
 
 
 
@@ -526,7 +524,7 @@ letDeclarationExitVisitor _ letDeclaration context =
             ( [], context )
 
 
-registerFunctionCall : FunctionName -> Range -> List Range -> Context -> ( List (Rule.Error {}), Context )
+registerFunctionCall : FunctionName -> Range -> List Range -> Context -> Context
 registerFunctionCall fnName fnRange arguments context =
     case ModuleNameLookupTable.moduleNameAt context.lookupTable fnRange of
         Just [] ->
@@ -538,34 +536,22 @@ registerFunctionCall fnName fnRange arguments context =
                             ignoreLocationsForRecursiveArguments fnArgs arguments 0 context.locationsToIgnoreForRecursiveArguments
                     in
                     { context | locationsToIgnoreForRecursiveArguments = locationsToIgnore }
-                        |> markFunctionCall2 fnName (Array.fromList arguments)
                         |> markFunctionCall fnName (Array.fromList arguments)
 
                 Nothing ->
                     context
-                        |> markFunctionCall2 fnName (Array.fromList arguments)
                         |> markFunctionCall fnName (Array.fromList arguments)
 
         Just moduleName ->
             -- TODO Handle function calls from other modules
-            ( [], context )
+            context
 
         Nothing ->
-            ( [], context )
+            context
 
 
-markFunctionCall : FunctionName -> Array Range -> Context -> ( List (Rule.Error {}), Context )
+markFunctionCall : FunctionName -> Array Range -> Context -> Context
 markFunctionCall fnName arguments context =
-    case NonemptyList.findAndMap (registerFunctionArgInFunctionCall fnName arguments) context.scopes of
-        Just ( errors, scopes ) ->
-            ( errors, { context | scopes = scopes } )
-
-        Nothing ->
-            ( [], context )
-
-
-markFunctionCall2 : FunctionName -> Array Range -> Context -> Context
-markFunctionCall2 fnName arguments context =
     { context
         | functionCallsWithArguments =
             case Dict.get fnName context.functionCallsWithArguments of
@@ -575,62 +561,6 @@ markFunctionCall2 fnName arguments context =
                 Nothing ->
                     Dict.insert fnName [ arguments ] context.functionCallsWithArguments
     }
-
-
-registerFunctionArgInFunctionCall : FunctionName -> Array Range -> Scope -> Maybe ( List (Rule.Error {}), Scope )
-registerFunctionArgInFunctionCall fnName arguments scope =
-    case Dict.get fnName scope.toReport of
-        Just fnArguments ->
-            let
-                -- TODO Handle cases where an argument to remove will be inside an argument to remove
-                --   ex: foo 1 (foo 2 x)  - where the second argument is to be removed
-                -- Currently, this would yield a fix failure.
-                ( argsWithoutMatchingArgumentErrors, newFnArguments ) =
-                    Dict.foldl
-                        (\index args ( errors, acc ) ->
-                            case Array.get index arguments of
-                                Just range ->
-                                    let
-                                        newArgs : List ArgumentToReport
-                                        newArgs =
-                                            List.map
-                                                (\arg ->
-                                                    -- TODO Adapt this if we want to support non-nested fields
-                                                    { functionName = arg.functionName
-                                                    , position = arg.position
-                                                    , nesting = arg.nesting
-                                                    , toError = arg.toError
-                                                    , rangesToRemove = range :: arg.rangesToRemove
-                                                    }
-                                                )
-                                                args
-                                    in
-                                    ( errors
-                                    , Dict.insert index newArgs acc
-                                    )
-
-                                Nothing ->
-                                    ( List.foldl (\arg errorAcc -> arg.toError [] :: errorAcc) errors args
-                                    , acc
-                                    )
-                        )
-                        ( [], Dict.empty )
-                        fnArguments
-            in
-            Just
-                ( argsWithoutMatchingArgumentErrors
-                , { scope
-                    | toReport =
-                        if Dict.isEmpty newFnArguments then
-                            Dict.remove fnName scope.toReport
-
-                        else
-                            Dict.insert fnName newFnArguments scope.toReport
-                  }
-                )
-
-        Nothing ->
-            Nothing
 
 
 ignoreLocationsForRecursiveArguments : FunctionArgs -> List Range -> Int -> LocationsToIgnore -> LocationsToIgnore
@@ -658,10 +588,9 @@ finalEvaluation context =
     reportErrors context (NonemptyList.head context.scopes)
 
 
-markValueAsUsed : Range -> String -> Context -> ( List (Rule.Error {}), Context )
+markValueAsUsed : Range -> String -> Context -> Context
 markValueAsUsed range name context =
-    ( []
-    , { context
+    { context
         | scopes =
             NonemptyList.mapHead
                 (\scope ->
@@ -673,8 +602,7 @@ markValueAsUsed range name context =
                         { scope | used = Set.insert name scope.used }
                 )
                 context.scopes
-      }
-    )
+    }
 
 
 shouldBeIgnored : Range -> String -> Context -> Bool
