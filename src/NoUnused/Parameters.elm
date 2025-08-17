@@ -151,6 +151,7 @@ type alias ModuleContext =
     , recursiveFunctions : Dict String FunctionArgs
     , locationsToIgnoreForRecursiveArguments : LocationsToIgnore
     , functionCallsWithArguments : Dict FunctionName (List (Array Range))
+    , functionCallsWithArgumentsForOtherModules : Dict ModuleName (Dict FunctionName (List (Array Range)))
     , locationsToIgnoreFunctionCalls : List Location
     }
 
@@ -228,6 +229,7 @@ fromProjectToModule =
             , recursiveFunctions = Dict.empty
             , locationsToIgnoreForRecursiveArguments = Dict.empty
             , functionCallsWithArguments = Dict.empty
+            , functionCallsWithArgumentsForOtherModules = Dict.empty
             , locationsToIgnoreFunctionCalls = []
             }
         )
@@ -382,6 +384,7 @@ declarationEnterVisitor node context =
               , recursiveFunctions = Dict.singleton functionName (getArgNames declared)
               , locationsToIgnoreForRecursiveArguments = Dict.empty
               , functionCallsWithArguments = context.functionCallsWithArguments
+              , functionCallsWithArgumentsForOtherModules = context.functionCallsWithArgumentsForOtherModules
               , locationsToIgnoreFunctionCalls = []
               }
             )
@@ -717,8 +720,22 @@ registerFunctionCall fnName fnRange arguments context =
                     { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
 
                 else
-                    -- TODO Handle function calls from other modules
-                    { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
+                    -- TODO Do the same in markValueAsUsed
+                    let
+                        functionCallsWithArgumentsForOtherModules : Dict ModuleName (Dict FunctionName (List (Array Range)))
+                        functionCallsWithArgumentsForOtherModules =
+                            Dict.update moduleName
+                                (Maybe.withDefault Dict.empty
+                                    >> Dict.update fnName
+                                        (Maybe.withDefault [] >> (::) (Array.fromList arguments) >> Just)
+                                    >> Just
+                                )
+                                context.functionCallsWithArgumentsForOtherModules
+                    in
+                    { context
+                        | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls
+                        , functionCallsWithArgumentsForOtherModules = functionCallsWithArgumentsForOtherModules
+                    }
 
             Nothing ->
                 context
