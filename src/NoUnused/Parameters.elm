@@ -646,8 +646,12 @@ registerFunctionCall fnName fnRange arguments context =
                             |> markFunctionCall fnName (Array.fromList arguments)
 
             Just moduleName ->
-                -- TODO Handle function calls from other modules
-                { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
+                if Set.member moduleName context.dependencyModules then
+                    { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
+
+                else
+                    -- TODO Handle function calls from other modules
+                    { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
 
             Nothing ->
                 context
