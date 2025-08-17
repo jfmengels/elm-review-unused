@@ -649,11 +649,7 @@ ignoreLocationsForRecursiveArguments fnArgs nodes index acc =
 
 finalEvaluation : Context -> List (Rule.Error {})
 finalEvaluation context =
-    (NonemptyList.head context.scopes).toReport
-        |> Dict.values
-        |> List.concatMap Dict.values
-        |> List.concat
-        |> List.map (\{ toError, rangesToRemove } -> toError (List.map Fix.removeRange rangesToRemove))
+    reportErrors context (NonemptyList.head context.scopes)
 
 
 markValueAsUsed : Range -> String -> Context -> ( List (Rule.Error {}), Context )
@@ -720,18 +716,21 @@ report context =
                 { reportLater = Dict.empty, reportNow = [], remainingUsed = headScope.used }
                 headScope.declared
     in
-    ( (headScope.toReport
-        |> Dict.values
-        |> List.concatMap Dict.values
-        |> List.concat
-        |> List.map (\{ toError, rangesToRemove } -> toError (List.map Fix.removeRange rangesToRemove))
-      )
-        ++ reportNow
+    ( reportErrors context headScope ++ reportNow
     , { context
         | scopes = markAllAsUsed remainingUsed headScope.functionName reportLater scopes
         , recursiveFunctions = Dict.remove headScope.functionName context.recursiveFunctions
       }
     )
+
+
+reportErrors : Context -> Scope -> List (Rule.Error {})
+reportErrors context scope =
+    scope.toReport
+        |> Dict.values
+        |> List.concatMap Dict.values
+        |> List.concat
+        |> List.map (\{ toError, rangesToRemove } -> toError (List.map Fix.removeRange rangesToRemove))
 
 
 findErrorsAndVariablesNotPartOfScope :
