@@ -106,17 +106,13 @@ type alias Scope =
     , declared : List Declared
     , used : Set String
     , usedRecursively : Set String
-    , toReport : ToReport
+    , toReport : List ArgumentToReport
     , locationsToIgnoreForFunctionCalls : List Location
     }
 
 
 type alias FunctionName =
     String
-
-
-type alias ToReport =
-    Dict FunctionName (Dict Int (List ArgumentToReport))
 
 
 type alias ArgumentToReport =
@@ -170,7 +166,7 @@ initialContext =
                     , declared = []
                     , used = Set.empty
                     , usedRecursively = Set.empty
-                    , toReport = Dict.empty
+                    , toReport = []
                     , locationsToIgnoreForFunctionCalls = []
                     }
             , recursiveFunctions = Dict.empty
@@ -210,7 +206,7 @@ declarationEnterVisitor node context =
                         , declared = List.concat declared
                         , used = Set.empty
                         , usedRecursively = Set.empty
-                        , toReport = Dict.empty
+                        , toReport = []
                         , locationsToIgnoreForFunctionCalls = []
                         }
                         context.scopes
@@ -421,7 +417,7 @@ expressionEnterVisitor node context =
                         , declared = findDeclared Lambda args Nothing |> List.concat
                         , used = Set.empty
                         , usedRecursively = Set.empty
-                        , toReport = Dict.empty
+                        , toReport = []
                         , locationsToIgnoreForFunctionCalls = []
                         }
                         context.scopes
@@ -490,7 +486,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
                         , declared = List.concat declared
                         , used = Set.empty
                         , usedRecursively = Set.empty
-                        , toReport = Dict.empty
+                        , toReport = []
                         , locationsToIgnoreForFunctionCalls = []
                         }
                 in
@@ -621,18 +617,13 @@ isRangeIncluded inner outer =
         && (Range.compareLocations inner.end outer.end /= GT)
 
 
-markAllAsUsed : Set String -> FunctionName -> Dict Int (List ArgumentToReport) -> Nonempty Scope -> Nonempty Scope
-markAllAsUsed names functionName toReport scopes =
+markAllAsUsed : Set String -> List ArgumentToReport -> Nonempty Scope -> Nonempty Scope
+markAllAsUsed names toReport scopes =
     NonemptyList.mapHead
         (\scope ->
             { scope
                 | used = Set.union names scope.used
-                , toReport =
-                    if Dict.isEmpty toReport then
-                        scope.toReport
-
-                    else
-                        Dict.insert functionName toReport scope.toReport
+                , toReport = toReport ++ scope.toReport
             }
         )
         scopes
@@ -647,12 +638,12 @@ report context =
         { reportLater, reportNow, remainingUsed } =
             List.foldl
                 (findErrorsAndVariablesNotPartOfScope headScope)
-                { reportLater = Dict.empty, reportNow = [], remainingUsed = headScope.used }
+                { reportLater = [], reportNow = [], remainingUsed = headScope.used }
                 headScope.declared
     in
     ( reportErrors context headScope ++ reportNow
     , { context
-        | scopes = markAllAsUsed remainingUsed headScope.functionName reportLater scopes
+        | scopes = markAllAsUsed remainingUsed reportLater scopes
         , recursiveFunctions = Dict.remove headScope.functionName context.recursiveFunctions
       }
     )
@@ -660,11 +651,7 @@ report context =
 
 reportErrors : Context -> Scope -> List (Rule.Error {})
 reportErrors context scope =
-    scope.toReport
-        |> Dict.values
-        |> List.concatMap Dict.values
-        |> List.concat
-        |> List.map (reportError context.functionCallsWithArguments)
+    List.map (reportError context.functionCallsWithArguments) scope.toReport
 
 
 reportError : Dict FunctionName (List (Array Range)) -> ArgumentToReport -> Rule.Error {}
@@ -695,8 +682,8 @@ addArgumentToRemove position callArgumentList acc =
 findErrorsAndVariablesNotPartOfScope :
     Scope
     -> Declared
-    -> { reportLater : Dict Int (List ArgumentToReport), reportNow : List (Rule.Error {}), remainingUsed : Set String }
-    -> { reportLater : Dict Int (List ArgumentToReport), reportNow : List (Rule.Error {}), remainingUsed : Set String }
+    -> { reportLater : List ArgumentToReport, reportNow : List (Rule.Error {}), remainingUsed : Set String }
+    -> { reportLater : List ArgumentToReport, reportNow : List (Rule.Error {}), remainingUsed : Set String }
 findErrorsAndVariablesNotPartOfScope scope declared { reportLater, reportNow, remainingUsed } =
     if Set.member declared.name scope.usedRecursively then
         -- If variable was used as a recursive argument
@@ -709,7 +696,7 @@ findErrorsAndVariablesNotPartOfScope scope declared { reportLater, reportNow, re
 
         else
             -- If variable was used ONLY as a recursive argument
-            { reportLater = insertInDictList declared.position (recursiveParameterError scope.functionName declared) reportLater
+            { reportLater = recursiveParameterError scope.functionName declared :: reportLater
             , reportNow = reportNow
             , remainingUsed = remainingUsed
             }
@@ -729,7 +716,7 @@ findErrorsAndVariablesNotPartOfScope scope declared { reportLater, reportNow, re
                 }
 
             ReportLater error ->
-                { reportLater = insertInDictList declared.position error reportLater
+                { reportLater = error :: reportLater
                 , reportNow = reportNow
                 , remainingUsed = remainingUsed
                 }
