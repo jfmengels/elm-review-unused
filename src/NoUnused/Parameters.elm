@@ -522,28 +522,32 @@ letDeclarationExitVisitor _ letDeclaration context =
 
 registerFunctionCall : FunctionName -> Range -> List Range -> Context -> Context
 registerFunctionCall fnName fnRange arguments context =
-    case ModuleNameLookupTable.moduleNameAt context.lookupTable fnRange of
-        Just [] ->
-            case Dict.get fnName context.recursiveFunctions of
-                Just fnArgs ->
-                    let
-                        locationsToIgnore : LocationsToIgnore
-                        locationsToIgnore =
-                            ignoreLocationsForRecursiveArguments fnArgs arguments 0 context.locationsToIgnoreForRecursiveArguments
-                    in
-                    { context | locationsToIgnoreForRecursiveArguments = locationsToIgnore }
-                        |> markFunctionCall fnName (Array.fromList arguments)
+    if isVariableOrFunctionName fnName then
+        case ModuleNameLookupTable.moduleNameAt context.lookupTable fnRange of
+            Just [] ->
+                case Dict.get fnName context.recursiveFunctions of
+                    Just fnArgs ->
+                        let
+                            locationsToIgnore : LocationsToIgnore
+                            locationsToIgnore =
+                                ignoreLocationsForRecursiveArguments fnArgs arguments 0 context.locationsToIgnoreForRecursiveArguments
+                        in
+                        { context | locationsToIgnoreForRecursiveArguments = locationsToIgnore }
+                            |> markFunctionCall fnName (Array.fromList arguments)
 
-                Nothing ->
-                    context
-                        |> markFunctionCall fnName (Array.fromList arguments)
+                    Nothing ->
+                        context
+                            |> markFunctionCall fnName (Array.fromList arguments)
 
-        Just moduleName ->
-            -- TODO Handle function calls from other modules
-            context
+            Just moduleName ->
+                -- TODO Handle function calls from other modules
+                context
 
-        Nothing ->
-            context
+            Nothing ->
+                context
+
+    else
+        context
 
 
 markFunctionCall : FunctionName -> Array Range -> Context -> Context
@@ -587,19 +591,33 @@ finalEvaluation context =
 
 markValueAsUsed : Range -> String -> Context -> Context
 markValueAsUsed range name context =
-    { context
-        | scopes =
-            NonemptyList.mapHead
-                (\scope ->
-                    -- TODO Avoid changing context if name is not a parameter
-                    if shouldBeIgnored range name context then
-                        { scope | usedRecursively = Set.insert name scope.usedRecursively }
+    if isVariableOrFunctionName name then
+        { context
+            | scopes =
+                NonemptyList.mapHead
+                    (\scope ->
+                        -- TODO Avoid changing context if name is not a parameter
+                        if shouldBeIgnored range name context then
+                            { scope | usedRecursively = Set.insert name scope.usedRecursively }
 
-                    else
-                        { scope | used = Set.insert name scope.used }
-                )
-                context.scopes
-    }
+                        else
+                            { scope | used = Set.insert name scope.used }
+                    )
+                    context.scopes
+        }
+
+    else
+        context
+
+
+isVariableOrFunctionName : String -> Bool
+isVariableOrFunctionName name =
+    case name |> String.slice 0 1 |> String.toList |> List.head of
+        Just firstChar ->
+            Char.isLower firstChar
+
+        Nothing ->
+            False
 
 
 shouldBeIgnored : Range -> String -> Context -> Bool
