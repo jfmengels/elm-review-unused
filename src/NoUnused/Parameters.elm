@@ -98,6 +98,7 @@ type alias Context =
     , recursiveFunctions : Dict String FunctionArgs
     , locationsToIgnoreForRecursiveArguments : LocationsToIgnore
     , functionCallsWithArguments : Dict FunctionName (List (Array Range))
+    , locationsToIgnoreFunctionCalls : List Location
     }
 
 
@@ -172,6 +173,7 @@ initialContext =
             , recursiveFunctions = Dict.empty
             , locationsToIgnoreForRecursiveArguments = Dict.empty
             , functionCallsWithArguments = Dict.empty
+            , locationsToIgnoreFunctionCalls = []
             }
         )
         |> Rule.withModuleNameLookupTable
@@ -213,6 +215,7 @@ declarationEnterVisitor node context =
               , recursiveFunctions = Dict.singleton functionName (getArgNames declared)
               , locationsToIgnoreForRecursiveArguments = Dict.empty
               , functionCallsWithArguments = context.functionCallsWithArguments
+              , locationsToIgnoreFunctionCalls = []
               }
             )
 
@@ -532,16 +535,19 @@ registerFunctionCall fnName fnRange arguments context =
                             locationsToIgnore =
                                 ignoreLocationsForRecursiveArguments fnArgs arguments 0 context.locationsToIgnoreForRecursiveArguments
                         in
-                        { context | locationsToIgnoreForRecursiveArguments = locationsToIgnore }
+                        { context
+                            | locationsToIgnoreForRecursiveArguments = locationsToIgnore
+                            , locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls
+                        }
                             |> markFunctionCall fnName (Array.fromList arguments)
 
                     Nothing ->
-                        context
+                        { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
                             |> markFunctionCall fnName (Array.fromList arguments)
 
             Just moduleName ->
                 -- TODO Handle function calls from other modules
-                context
+                { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
 
             Nothing ->
                 context
