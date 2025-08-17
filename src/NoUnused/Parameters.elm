@@ -83,7 +83,7 @@ rule =
     Rule.newProjectRuleSchema "NoUnused.Parameters" initialContext
         |> Rule.withDirectDependenciesProjectVisitor dependenciesVisitor
         |> Rule.withModuleVisitor moduleVisitor
-        |> Rule.withModuleContextUsingContextCreator
+        |> Rule.withModuleContextWithErrors
             { fromProjectToModule = fromProjectToModule
             , fromModuleToProject = fromModuleToProject
             , foldProjectContexts = foldProjectContexts
@@ -120,7 +120,6 @@ moduleVisitor schema =
         |> Rule.withExpressionExitVisitor expressionExitVisitor
         |> Rule.withLetDeclarationEnterVisitor letDeclarationEnterVisitor
         |> Rule.withLetDeclarationExitVisitor letDeclarationExitVisitor
-        |> Rule.withFinalModuleEvaluation finalEvaluation
         |> Rule.providesFixesForModuleRule
 
 
@@ -232,12 +231,18 @@ fromProjectToModule =
         |> Rule.withModuleNameLookupTable
 
 
-fromModuleToProject : Rule.ContextCreator ModuleContext ProjectContext
+fromModuleToProject : Rule.ContextCreator ModuleContext ( List (Rule.Error {}), ProjectContext )
 fromModuleToProject =
     Rule.initContextCreator
         (\moduleContext ->
-            { dependencyModules = Set.empty
-            }
+            let
+                ( errors, context ) =
+                    reportErrors (NonemptyList.head moduleContext.scopes) moduleContext []
+            in
+            ( errors
+            , { dependencyModules = Set.empty
+              }
+            )
         )
 
 
@@ -691,12 +696,6 @@ ignoreLocationsForRecursiveArguments fnArgs nodes index acc =
                             acc
             in
             ignoreLocationsForRecursiveArguments fnArgs rest (index + 1) newAcc
-
-
-finalEvaluation : ModuleContext -> List (Rule.Error {})
-finalEvaluation context =
-    reportErrors (NonemptyList.head context.scopes) context []
-        |> Tuple.first
 
 
 markValueAsUsed : Range -> String -> ModuleContext -> ModuleContext
