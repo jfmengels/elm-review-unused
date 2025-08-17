@@ -97,6 +97,7 @@ type alias Context =
     , scopes : Nonempty Scope
     , recursiveFunctions : Dict String FunctionArgs
     , locationsToIgnoreForRecursiveArguments : LocationsToIgnore
+    , functionCallsWithArguments : Dict FunctionName (List (Array Range))
     }
 
 
@@ -171,6 +172,7 @@ initialContext =
                     }
             , recursiveFunctions = Dict.empty
             , locationsToIgnoreForRecursiveArguments = Dict.empty
+            , functionCallsWithArguments = Dict.empty
             }
         )
         |> Rule.withModuleNameLookupTable
@@ -211,6 +213,7 @@ declarationEnterVisitor node context =
                         context.scopes
               , recursiveFunctions = Dict.singleton functionName (getArgNames declared)
               , locationsToIgnoreForRecursiveArguments = Dict.empty
+              , functionCallsWithArguments = context.functionCallsWithArguments
               }
             )
 
