@@ -114,7 +114,6 @@ dependenciesVisitor dependencies projectContext =
 moduleVisitor : Rule.ModuleRuleSchema schemaState ModuleContext -> Rule.ModuleRuleSchema { schemaState | hasAtLeastOneVisitor : () } ModuleContext
 moduleVisitor schema =
     schema
-        |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withDeclarationExitVisitor declarationExitVisitor
         |> Rule.withExpressionEnterVisitor (\node context -> ( [], expressionEnterVisitor node context ))
@@ -149,8 +148,6 @@ type alias ModuleContext =
     , locationsToIgnoreForRecursiveArguments : LocationsToIgnore
     , functionCallsWithArguments : Dict FunctionName (List (Array Range))
     , locationsToIgnoreFunctionCalls : List Location
-    , exposed : Set String
-    , isExposingAll : Bool
     }
 
 
@@ -227,8 +224,6 @@ fromProjectToModule =
             , locationsToIgnoreForRecursiveArguments = Dict.empty
             , functionCallsWithArguments = Dict.empty
             , locationsToIgnoreFunctionCalls = []
-            , exposed = Set.empty
-            , isExposingAll = False
             }
         )
         |> Rule.withModuleNameLookupTable
@@ -237,8 +232,22 @@ fromProjectToModule =
 fromModuleToProject : Rule.ContextCreator ModuleContext ( List (Rule.Error {}), ProjectContext )
 fromModuleToProject =
     Rule.initContextCreator
-        (\moduleName moduleContext ->
+        (\moduleName ast moduleContext ->
             let
+                isExposed : String -> Bool
+                isExposed =
+                    case Module.exposingList (Node.value ast.moduleDefinition) of
+                        Exposing.All _ ->
+                            always True
+
+                        Exposing.Explicit explicitlyExposed ->
+                            let
+                                exposed : Set String
+                                exposed =
+                                    collectExposedElements explicitlyExposed
+                            in
+                            \name -> Set.member name exposed
+
                 ( errors, context ) =
                     reportErrors (NonemptyList.head moduleContext.scopes) moduleContext []
             in
@@ -254,6 +263,7 @@ fromModuleToProject =
             )
         )
         |> Rule.withModuleName
+        |> Rule.withFullAst
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
@@ -264,17 +274,7 @@ foldProjectContexts newContext previousContext =
 
 
 
--- MODULE DEFINITION VISITOR
-
-
-moduleDefinitionVisitor : Node Module.Module -> ModuleContext -> ( List nothing, ModuleContext )
-moduleDefinitionVisitor node context =
-    case Module.exposingList (Node.value node) of
-        Exposing.All _ ->
-            ( [], { context | isExposingAll = True } )
-
-        Exposing.Explicit explicitlyExposed ->
-            ( [], { context | exposed = collectExposedElements explicitlyExposed } )
+-- MODULE DEFINITION
 
 
 collectExposedElements : List (Node Exposing.TopLevelExpose) -> Set String
@@ -330,8 +330,6 @@ declarationEnterVisitor node context =
               , locationsToIgnoreForRecursiveArguments = Dict.empty
               , functionCallsWithArguments = context.functionCallsWithArguments
               , locationsToIgnoreFunctionCalls = []
-              , exposed = context.exposed
-              , isExposingAll = context.isExposingAll
               }
             )
 
