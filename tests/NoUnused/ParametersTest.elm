@@ -826,7 +826,7 @@ bar x unused =
     if cond then
         x
     else
-        bar (x - 1) (List.map fn unused |> List.head)
+        bar (x - 1) { unused = unused }
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
@@ -869,7 +869,7 @@ bar x {unused} =
     if cond then
         x
     else
-        bar (x - 1) (List.map fn unused |> List.head)
+        bar (x - 1) { unused = unused }
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
