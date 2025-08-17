@@ -119,7 +119,7 @@ type alias ToReport =
 
 
 type alias ArgumentToReport =
-    { edits : List Edit
+    { rangesToRemove : List Range
     , toError : List Edit -> Rule.Error {}
     }
 
@@ -131,7 +131,7 @@ type alias Declared =
     , source : Source
     , position : Int
     , pathInArgument : Array Nesting
-    , removeFix : Maybe (List Fix)
+    , rangesToRemove : Maybe (List Range)
     , toIgnoredFix : List Fix
     }
 
@@ -263,9 +263,9 @@ getParametersFromPatterns path source node =
             [ { name = name
               , range = Node.range node
               , kind = Parameter
-              , removeFix =
+              , rangesToRemove =
                     if Array.isEmpty path.nesting then
-                        ParameterPath.fix path [ Fix.removeRange (Node.range node) ]
+                        ParameterPath.fix path [ Node.range node ]
 
                     else
                         Nothing
@@ -290,7 +290,7 @@ getParametersFromPatterns path source node =
                     [ { name = Node.value field
                       , range = Node.range field
                       , kind = Parameter
-                      , removeFix = Nothing
+                      , rangesToRemove = Nothing
                       , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
                       , position = path.index
                       , pathInArgument = pathInArgument_.nesting
@@ -309,7 +309,7 @@ getParametersFromPatterns path source node =
                             { name = Node.value field
                             , range = Node.range field
                             , kind = Parameter
-                            , removeFix = Nothing
+                            , rangesToRemove = Nothing
                             , toIgnoredFix =
                                 [ Fix.replaceRangeBy
                                     (Node.range node)
@@ -334,7 +334,7 @@ getParametersFromPatterns path source node =
                 [ { name = ""
                   , range = Node.range node
                   , kind = TupleWithoutVariables
-                  , removeFix = Nothing
+                  , rangesToRemove = Nothing
                   , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
                   , position = path.index
                   , pathInArgument = path.nesting
@@ -366,7 +366,7 @@ getParametersFromAsPattern path source pattern asName =
             { name = Node.value asName
             , range = Node.range asName
             , kind = Alias
-            , removeFix = Nothing
+            , rangesToRemove = Nothing
             , toIgnoredFix = [ Fix.removeRange { start = (Node.range pattern).end, end = (Node.range asName).end } ]
             , position = path.index
             , pathInArgument = path.nesting
@@ -576,7 +576,7 @@ registerFunctionArgInFunctionCall fnName arguments scope =
                                                 (\arg ->
                                                     -- TODO Adapt this if we want to support non-nested fields
                                                     { toError = arg.toError
-                                                    , edits = Fix.removeRange range :: arg.edits
+                                                    , rangesToRemove = range :: arg.rangesToRemove
                                                     }
                                                 )
                                                 args
@@ -635,7 +635,7 @@ finalEvaluation context =
         |> Dict.values
         |> List.concatMap Dict.values
         |> List.concat
-        |> List.map (\{ toError, edits } -> toError edits)
+        |> List.map (\{ toError, rangesToRemove } -> toError (List.map Fix.removeRange rangesToRemove))
 
 
 markValueAsUsed : Range -> String -> Context -> ( List (Rule.Error {}), Context )
@@ -706,7 +706,7 @@ report context =
         |> Dict.values
         |> List.concatMap Dict.values
         |> List.concat
-        |> List.map (\{ toError, edits } -> toError edits)
+        |> List.map (\{ toError, rangesToRemove } -> toError (List.map Fix.removeRange rangesToRemove))
       )
         ++ reportNow
     , { context
@@ -800,7 +800,7 @@ type ReportTime
 
 
 errorsForValue : Declared -> ReportTime
-errorsForValue { name, kind, range, source, removeFix, toIgnoredFix } =
+errorsForValue { name, kind, range, source, rangesToRemove, toIgnoredFix } =
     case kind of
         Parameter ->
             let
@@ -814,9 +814,9 @@ errorsForValue { name, kind, range, source, removeFix, toIgnoredFix } =
             in
             case source of
                 NamedFunction ->
-                    case removeFix of
-                        Just fix ->
-                            ReportLater { toError = toError, edits = fix }
+                    case rangesToRemove of
+                        Just rangesToRemove_ ->
+                            ReportLater { toError = toError, rangesToRemove = rangesToRemove_ }
 
                         Nothing ->
                             ReportNow (toError [])
@@ -862,5 +862,5 @@ recursiveParameterError functionName { name, range } =
                     ]
                 }
                 range
-    , edits = []
+    , rangesToRemove = []
     }

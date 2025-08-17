@@ -137,7 +137,7 @@ inAlias path =
     }
 
 
-fix : Path -> List Edit -> Maybe (List Edit)
+fix : Path -> List Range -> Maybe (List Range)
 fix path edits =
     case path.typeSignature of
         Absent ->
@@ -148,7 +148,7 @@ fix path edits =
 
         Present record ->
             if Array.isEmpty path.nesting then
-                Just (Fix.removeRange record.removeFullArgRange :: edits)
+                Just (record.removeFullArgRange :: edits)
 
             else
                 Nothing
