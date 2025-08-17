@@ -22,7 +22,7 @@ import NoUnused.Parameters.ParameterPath as ParameterPath exposing (Nesting(..),
 import Review.Fix as Fix exposing (Edit, Fix)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Project.Dependency as Dependency exposing (Dependency)
-import Review.Rule as Rule exposing (Rule)
+import Review.Rule as Rule exposing (ModuleKey, Rule)
 import Set exposing (Set)
 
 
@@ -107,6 +107,7 @@ dependenciesVisitor dependencies projectContext =
                 Set.empty
                 dependencies
       , functionCallsWithArguments = projectContext.functionCallsWithArguments
+      , moduleKeys = projectContext.moduleKeys
       }
     )
 
@@ -130,6 +131,7 @@ moduleVisitor schema =
 type alias ProjectContext =
     { dependencyModules : Set ModuleName
     , functionCallsWithArguments : Dict ModuleName (Dict FunctionName (List (Array Range)))
+    , moduleKeys : Dict ModuleName ModuleKey
     }
 
 
@@ -137,6 +139,7 @@ initialContext : ProjectContext
 initialContext =
     { dependencyModules = Set.empty
     , functionCallsWithArguments = Dict.empty
+    , moduleKeys = Dict.empty
     }
 
 
@@ -232,7 +235,7 @@ fromProjectToModule =
 fromModuleToProject : Rule.ContextCreator ModuleContext ( List (Rule.Error {}), ProjectContext )
 fromModuleToProject =
     Rule.initContextCreator
-        (\moduleName ast moduleContext ->
+        (\moduleName moduleKey ast moduleContext ->
             let
                 isExposed : String -> Bool
                 isExposed =
@@ -259,10 +262,12 @@ fromModuleToProject =
 
                     else
                         Dict.singleton moduleName context.functionCallsWithArguments
+              , moduleKeys = Dict.singleton moduleName moduleKey
               }
             )
         )
         |> Rule.withModuleName
+        |> Rule.withModuleKey
         |> Rule.withFullAst
 
 
@@ -270,6 +275,7 @@ foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
     { dependencyModules = previousContext.dependencyModules
     , functionCallsWithArguments = Dict.union newContext.functionCallsWithArguments previousContext.functionCallsWithArguments
+    , moduleKeys = Dict.union newContext.moduleKeys previousContext.moduleKeys
     }
 
 
