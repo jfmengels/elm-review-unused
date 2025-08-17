@@ -9,7 +9,9 @@ module NoUnused.Parameters exposing (rule)
 import Array exposing (Array)
 import Dict exposing (Dict)
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
+import Elm.Syntax.Exposing as Exposing exposing (Exposing)
 import Elm.Syntax.Expression as Expression exposing (Expression)
+import Elm.Syntax.Module as Module
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Location, Range)
@@ -77,6 +79,7 @@ elm-review --template jfmengels/elm-review-unused/example --rules NoUnused.Param
 rule : Rule
 rule =
     Rule.newModuleRuleSchemaUsingContextCreator "NoUnused.Parameters" initialContext
+        |> Rule.withModuleDefinitionVisitor moduleDefinitionVisitor
         |> Rule.withDeclarationEnterVisitor declarationEnterVisitor
         |> Rule.withDeclarationExitVisitor declarationExitVisitor
         |> Rule.withExpressionEnterVisitor (\node context -> ( [], expressionEnterVisitor node context ))
@@ -99,6 +102,8 @@ type alias Context =
     , locationsToIgnoreForRecursiveArguments : LocationsToIgnore
     , functionCallsWithArguments : Dict FunctionName (List (Array Range))
     , locationsToIgnoreFunctionCalls : List Location
+    , exposed : Set String
+    , isExposingAll : Bool
     }
 
 
@@ -174,9 +179,40 @@ initialContext =
             , locationsToIgnoreForRecursiveArguments = Dict.empty
             , functionCallsWithArguments = Dict.empty
             , locationsToIgnoreFunctionCalls = []
+            , exposed = Set.empty
+            , isExposingAll = False
             }
         )
         |> Rule.withModuleNameLookupTable
+
+
+
+-- MODULE DEFINITION VISITOR
+
+
+moduleDefinitionVisitor : Node Module.Module -> Context -> ( List nothing, Context )
+moduleDefinitionVisitor node context =
+    case Module.exposingList (Node.value node) of
+        Exposing.All _ ->
+            ( [], { context | isExposingAll = True } )
+
+        Exposing.Explicit explicitlyExposed ->
+            ( [], { context | exposed = collectExposedElements explicitlyExposed } )
+
+
+collectExposedElements : List (Node Exposing.TopLevelExpose) -> Set String
+collectExposedElements exposed =
+    List.foldl
+        (\exp set ->
+            case Node.value exp of
+                Exposing.FunctionExpose name ->
+                    Set.insert name set
+
+                _ ->
+                    set
+        )
+        Set.empty
+        exposed
 
 
 
@@ -216,6 +252,8 @@ declarationEnterVisitor node context =
               , locationsToIgnoreForRecursiveArguments = Dict.empty
               , functionCallsWithArguments = context.functionCallsWithArguments
               , locationsToIgnoreFunctionCalls = []
+              , exposed = context.exposed
+              , isExposingAll = context.isExposingAll
               }
             )
 
