@@ -173,7 +173,8 @@ type alias ArgumentToReport =
     , position : Int
     , nesting : Array Nesting
     , rangesToRemove : List Range
-    , toError : List Edit -> Rule.Error {}
+    , details : { message : String, details : List String }
+    , range : Range
     }
 
 
@@ -818,12 +819,12 @@ reportErrors scope context initialErrors =
 
 
 reportError : Dict FunctionName (List (Array Range)) -> ArgumentToReport -> Rule.Error {}
-reportError functionCallsWithArguments { functionName, position, toError, rangesToRemove } =
+reportError functionCallsWithArguments { functionName, position, details, range, rangesToRemove } =
     Dict.get functionName functionCallsWithArguments
         |> Maybe.withDefault []
         |> (\callArgumentList -> addArgumentToRemove position callArgumentList rangesToRemove)
         |> List.map Fix.removeRange
-        |> toError
+        |> Rule.errorWithFix details range
 
 
 addArgumentToRemove : Int -> List (Array a) -> List a -> List a
@@ -930,13 +931,11 @@ errorsForValue functionName { name, kind, range, source, position, pathInArgumen
     case kind of
         Parameter ->
             let
-                toError : List Edit -> Rule.Error {}
-                toError =
-                    Rule.errorWithFix
-                        { message = "Parameter `" ++ name ++ "` is not used"
-                        , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
-                        }
-                        range
+                details : { message : String, details : List String }
+                details =
+                    { message = "Parameter `" ++ name ++ "` is not used"
+                    , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+                    }
             in
             case source of
                 NamedFunction ->
@@ -946,15 +945,16 @@ errorsForValue functionName { name, kind, range, source, position, pathInArgumen
                                 { functionName = functionName
                                 , position = position
                                 , nesting = pathInArgument
-                                , toError = toError
+                                , details = details
+                                , range = range
                                 , rangesToRemove = rangesToRemove_
                                 }
 
                         Nothing ->
-                            ReportNow (toError [])
+                            ReportNow (Rule.errorWithFix details range [])
 
                 Lambda ->
-                    ReportNow (toError toIgnoredFix)
+                    ReportNow (Rule.errorWithFix details range toIgnoredFix)
 
         Alias ->
             Rule.errorWithFix
