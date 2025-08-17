@@ -1702,7 +1702,7 @@ markModuleAsUsed (( realModuleName, aliasName ) as realAndAliasModuleNames) cont
                         if module_.name == aliasName || Just (String.join "." aliasName) == module_.alias then
                             { module_ | wasUsedWithModuleName = True }
 
-                        else if aliasName == [] then
+                        else if List.isEmpty aliasName then
                             { module_ | wasUsedImplicitly = True }
 
                         else
