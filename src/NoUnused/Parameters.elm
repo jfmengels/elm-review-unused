@@ -287,10 +287,10 @@ fromModuleToProject =
               , toReport = Dict.singleton moduleName { key = moduleKey, args = toReport }
               , functionCallsWithArguments =
                     if Dict.isEmpty functionCallsWithArguments then
-                        Dict.empty
+                        moduleContext.functionCallsWithArgumentsForOtherModules
 
                     else
-                        Dict.singleton moduleName functionCallsWithArguments
+                        Dict.insert moduleName functionCallsWithArguments moduleContext.functionCallsWithArgumentsForOtherModules
               }
             )
         )
