@@ -182,8 +182,35 @@ foo =
                         , details = details
                         , under = "twoValue"
                         }
-
-                    -- TODO Add a test with type annotation
+                    ]
+    , test "should report unused arguments (with a type annotation)" <|
+        \() ->
+            """module A exposing (..)
+foo =
+    let
+        one : a -> Int
+        one unused =
+            1
+    in
+    (one two)
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Parameter `unused` is not used"
+                        , details = details
+                        , under = "unused"
+                        }
+                        |> Review.Test.whenFixed
+                            """module A exposing (..)
+foo =
+    let
+        one : Int
+        one  =
+            1
+    in
+    (one )
+"""
                     ]
     , test "should report unused even if others with the same name are used in siblings" <|
         \() ->
