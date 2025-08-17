@@ -120,7 +120,10 @@ type alias ToReport =
 
 
 type alias ArgumentToReport =
-    { rangesToRemove : List Range
+    { functionName : FunctionName
+    , position : Int
+    , nesting : Array Nesting
+    , rangesToRemove : List Range
     , toError : List Edit -> Rule.Error {}
     }
 
@@ -593,7 +596,10 @@ registerFunctionArgInFunctionCall fnName arguments scope =
                                             List.map
                                                 (\arg ->
                                                     -- TODO Adapt this if we want to support non-nested fields
-                                                    { toError = arg.toError
+                                                    { functionName = arg.functionName
+                                                    , position = arg.position
+                                                    , nesting = arg.nesting
+                                                    , toError = arg.toError
                                                     , rangesToRemove = range :: arg.rangesToRemove
                                                     }
                                                 )
@@ -762,7 +768,7 @@ findErrorsAndVariablesNotPartOfScope scope declared { reportLater, reportNow, re
         }
 
     else
-        case errorsForValue declared of
+        case errorsForValue scope.functionName declared of
             ReportNow error ->
                 { reportLater = reportLater
                 , reportNow = error :: reportNow
@@ -816,8 +822,8 @@ type ReportTime
     | ReportLater ArgumentToReport
 
 
-errorsForValue : Declared -> ReportTime
-errorsForValue { name, kind, range, source, rangesToRemove, toIgnoredFix } =
+errorsForValue : FunctionName -> Declared -> ReportTime
+errorsForValue functionName { name, kind, range, source, position, pathInArgument, rangesToRemove, toIgnoredFix } =
     case kind of
         Parameter ->
             let
@@ -833,7 +839,13 @@ errorsForValue { name, kind, range, source, rangesToRemove, toIgnoredFix } =
                 NamedFunction ->
                     case rangesToRemove of
                         Just rangesToRemove_ ->
-                            ReportLater { toError = toError, rangesToRemove = rangesToRemove_ }
+                            ReportLater
+                                { functionName = functionName
+                                , position = position
+                                , nesting = pathInArgument
+                                , toError = toError
+                                , rangesToRemove = rangesToRemove_
+                                }
 
                         Nothing ->
                             ReportNow (toError [])
@@ -867,8 +879,11 @@ errorsForValue { name, kind, range, source, rangesToRemove, toIgnoredFix } =
 
 
 recursiveParameterError : FunctionName -> Declared -> ArgumentToReport
-recursiveParameterError functionName { name, range } =
-    { toError =
+recursiveParameterError functionName { name, position, pathInArgument, range } =
+    { functionName = functionName
+    , position = position
+    , nesting = pathInArgument
+    , toError =
         \edits ->
             -- TODO Support autofixing recursive parameter removal
             Rule.error
