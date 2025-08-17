@@ -38,7 +38,7 @@ functionArgumentTests : List Test
 functionArgumentTests =
     [ test "should report unused arguments" <|
         \() ->
-            """module A exposing (..)
+            """module A exposing (a, b)
 a = foo 1 2 3
 foo : Int -> String -> String -> String
 foo one two three =
@@ -53,7 +53,7 @@ b = foo 1 2 3
                         , under = "one"
                         }
                         |> Review.Test.whenFixed
-                            """module A exposing (..)
+                            """module A exposing (a, b)
 a = foo  2 3
 foo : String -> String -> String
 foo  two three =
@@ -66,13 +66,48 @@ b = foo  2 3
                         , under = "two"
                         }
                         |> Review.Test.whenFixed
-                            """module A exposing (..)
+                            """module A exposing (a, b)
 a = foo 1  3
 foo : Int -> String -> String
 foo one  three =
     three
 b = foo 1  3
 """
+                    ]
+    , test "should report unused arguments and fix in call sites in other modules" <|
+        \() ->
+            [ """module A exposing (foo, a)
+a = foo 1 2
+foo : Int -> String -> String
+foo one two =
+    two
+"""
+            , """module B exposing (a)
+import A
+b = A.foo 1 2
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expect
+                    [ Review.Test.moduleErrors "A"
+                        [ Review.Test.error
+                            { message = "Parameter `one` is not used"
+                            , details = details
+                            , under = "one"
+                            }
+                            |> Review.Test.shouldFixFiles
+                                [ ( "A", """module A exposing (foo, a)
+a = foo  2
+foo : String -> String
+foo  two =
+    two
+""" )
+                                , ( "B", """module B exposing (a)
+import A
+b = A.foo  2
+""" )
+                                ]
+                        ]
                     ]
     , test "should not consider values from other modules" <|
         \() ->

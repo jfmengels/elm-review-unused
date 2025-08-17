@@ -22,7 +22,7 @@ import NoUnused.Parameters.ParameterPath as ParameterPath exposing (Nesting(..),
 import Review.Fix as Fix exposing (Edit, Fix)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Project.Dependency as Dependency exposing (Dependency)
-import Review.Rule as Rule exposing (ModuleKey, Rule)
+import Review.Rule as Rule exposing (FixV2, ModuleKey, Rule)
 import Set exposing (Set)
 
 
@@ -132,7 +132,7 @@ moduleVisitor schema =
 type alias ProjectContext =
     { dependencyModules : Set ModuleName
     , toReport : Dict ModuleName { key : ModuleKey, args : List ArgumentToReport }
-    , functionCallsWithArguments : Dict ModuleName (Dict FunctionName (List (Array Range)))
+    , functionCallsWithArguments : Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List (Array Range) })
     }
 
 
@@ -151,7 +151,7 @@ type alias ModuleContext =
     , recursiveFunctions : Dict String FunctionArgs
     , locationsToIgnoreForRecursiveArguments : LocationsToIgnore
     , functionCallsWithArguments : Dict FunctionName (List (Array Range))
-    , functionCallsWithArgumentsForOtherModules : Dict ModuleName (Dict FunctionName (List (Array Range)))
+    , functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List (Array Range))
     , locationsToIgnoreFunctionCalls : List Location
     }
 
@@ -259,12 +259,22 @@ fromModuleToProject =
                     List.foldl
                         (\arg acc ->
                             if isExposed arg.functionName then
+                                let
+                                    key : ( ModuleName, FunctionName )
+                                    key =
+                                        ( moduleName, arg.functionName )
+                                in
                                 { errors = acc.errors
                                 , toReport = arg :: acc.toReport
                                 , functionCallsWithArguments =
                                     case Dict.get arg.functionName moduleContext.functionCallsWithArguments of
                                         Just functionCalls ->
-                                            Dict.insert arg.functionName functionCalls acc.functionCallsWithArguments
+                                            case Dict.get key acc.functionCallsWithArguments of
+                                                Just previous ->
+                                                    Dict.insert key ({ key = moduleKey, argRanges = functionCalls } :: previous) acc.functionCallsWithArguments
+
+                                                Nothing ->
+                                                    Dict.insert key [ { key = moduleKey, argRanges = functionCalls } ] acc.functionCallsWithArguments
 
                                         Nothing ->
                                             acc.functionCallsWithArguments
@@ -278,19 +288,14 @@ fromModuleToProject =
                         )
                         { errors = []
                         , toReport = []
-                        , functionCallsWithArguments = moduleContext.functionCallsWithArguments
+                        , functionCallsWithArguments = Dict.map (\_ argRanges -> [ { key = moduleKey, argRanges = argRanges } ]) moduleContext.functionCallsWithArgumentsForOtherModules
                         }
                         (NonemptyList.head moduleContext.scopes).toReport
             in
             ( errors
             , { dependencyModules = Set.empty
               , toReport = Dict.singleton moduleName { key = moduleKey, args = toReport }
-              , functionCallsWithArguments =
-                    if Dict.isEmpty functionCallsWithArguments then
-                        moduleContext.functionCallsWithArgumentsForOtherModules
-
-                    else
-                        Dict.insert moduleName functionCallsWithArguments moduleContext.functionCallsWithArgumentsForOtherModules
+              , functionCallsWithArguments = functionCallsWithArguments
               }
             )
         )
@@ -303,8 +308,26 @@ foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
     { dependencyModules = previousContext.dependencyModules
     , toReport = Dict.union newContext.toReport previousContext.toReport
-    , functionCallsWithArguments = Dict.union newContext.functionCallsWithArguments previousContext.functionCallsWithArguments
+    , functionCallsWithArguments = mergeFunctionCallsWithArguments previousContext.functionCallsWithArguments newContext.functionCallsWithArguments
     }
+
+
+mergeFunctionCallsWithArguments :
+    Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List (Array Range) })
+    -> Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List (Array Range) })
+    -> Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List (Array Range) })
+mergeFunctionCallsWithArguments new previous =
+    Dict.foldl
+        (\key newDict acc ->
+            case Dict.get key acc of
+                Just previousList ->
+                    Dict.insert key (newDict ++ previousList) acc
+
+                Nothing ->
+                    Dict.insert key newDict acc
+        )
+        previous
+        new
 
 
 finalEvaluation : ProjectContext -> List (Rule.Error scope)
@@ -313,19 +336,36 @@ finalEvaluation projectContext =
         (\moduleName { key, args } acc ->
             List.map
                 (\arg ->
-                    Dict.get moduleName projectContext.functionCallsWithArguments
-                        |> Maybe.withDefault Dict.empty
-                        |> (\dict -> Dict.get arg.functionName dict)
-                        |> Maybe.withDefault []
-                        |> (\callArgumentList -> addArgumentToRemove arg.position callArgumentList arg.rangesToRemove)
-                        |> List.map Fix.removeRange
-                        |> Rule.errorForModuleWithFix key arg.details arg.range
+                    Rule.errorForModule key arg.details arg.range
+                        |> Rule.withFixesV2
+                            (Dict.get ( moduleName, arg.functionName ) projectContext.functionCallsWithArguments
+                                |> Maybe.withDefault []
+                                |> (\argRangesPerFile -> applyFixesAcrossModules arg argRangesPerFile [ Rule.editModule key (List.map Fix.removeRange arg.rangesToRemove) ])
+                            )
                 )
                 args
                 ++ acc
         )
         []
         projectContext.toReport
+
+
+applyFixesAcrossModules : ArgumentToReport -> List { key : ModuleKey, argRanges : List (Array Range) } -> List FixV2 -> List FixV2
+applyFixesAcrossModules arg argRangesPerFile fixesSoFar =
+    case argRangesPerFile of
+        [] ->
+            fixesSoFar
+
+        { key, argRanges } :: rest ->
+            case addArgumentToRemoveMaybe arg.position argRanges [] of
+                Nothing ->
+                    []
+
+                Just rangesToRemove ->
+                    applyFixesAcrossModules
+                        arg
+                        rest
+                        (Rule.editModule key (List.map Fix.removeRange rangesToRemove) :: fixesSoFar)
 
 
 
@@ -596,17 +636,17 @@ expressionEnterVisitor node context =
                         context.scopes
             }
 
-        Expression.Application ((Node fnRange (Expression.FunctionOrValue [] fnName)) :: arguments) ->
+        Expression.Application ((Node fnRange (Expression.FunctionOrValue _ fnName)) :: arguments) ->
             registerFunctionCall fnName fnRange (List.map Node.range arguments) context
 
-        Expression.OperatorApplication "|>" _ (Node { start } _) (Node applicationRange (Expression.Application ((Node fnRange (Expression.FunctionOrValue [] fnName)) :: arguments))) ->
+        Expression.OperatorApplication "|>" _ (Node { start } _) (Node applicationRange (Expression.Application ((Node fnRange (Expression.FunctionOrValue _ fnName)) :: arguments))) ->
             registerFunctionCall
                 fnName
                 fnRange
                 (List.map Node.range arguments ++ [ { start = start, end = applicationRange.start } ])
                 context
 
-        Expression.OperatorApplication "<|" _ (Node applicationRange (Expression.Application ((Node fnRange (Expression.FunctionOrValue [] fnName)) :: arguments))) (Node { end } _) ->
+        Expression.OperatorApplication "<|" _ (Node applicationRange (Expression.Application ((Node fnRange (Expression.FunctionOrValue _ fnName)) :: arguments))) (Node { end } _) ->
             registerFunctionCall
                 fnName
                 fnRange
@@ -722,15 +762,18 @@ registerFunctionCall fnName fnRange arguments context =
                 else
                     -- TODO Do the same in markValueAsUsed
                     let
-                        functionCallsWithArgumentsForOtherModules : Dict ModuleName (Dict FunctionName (List (Array Range)))
+                        key : ( ModuleName, FunctionName )
+                        key =
+                            ( moduleName, fnName )
+
+                        functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List (Array Range))
                         functionCallsWithArgumentsForOtherModules =
-                            Dict.update moduleName
-                                (Maybe.withDefault Dict.empty
-                                    >> Dict.update fnName
-                                        (Maybe.withDefault [] >> (::) (Array.fromList arguments) >> Just)
-                                    >> Just
-                                )
-                                context.functionCallsWithArgumentsForOtherModules
+                            case Dict.get key context.functionCallsWithArgumentsForOtherModules of
+                                Just previous ->
+                                    Dict.insert key (Array.fromList arguments :: previous) context.functionCallsWithArgumentsForOtherModules
+
+                                Nothing ->
+                                    Dict.insert key [ Array.fromList arguments ] context.functionCallsWithArgumentsForOtherModules
                     in
                     { context
                         | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls
@@ -904,6 +947,22 @@ addArgumentToRemove position callArgumentList acc =
                 Nothing ->
                     -- If an argument at that location could not be found, then we can't autofix the issue.
                     []
+
+
+addArgumentToRemoveMaybe : Int -> List (Array a) -> List a -> Maybe (List a)
+addArgumentToRemoveMaybe position callArgumentList acc =
+    case callArgumentList of
+        [] ->
+            Just acc
+
+        argumentArray :: rest ->
+            case Array.get position argumentArray of
+                Just range ->
+                    addArgumentToRemoveMaybe position rest (range :: acc)
+
+                Nothing ->
+                    -- If an argument at that location could not be found, then we can't autofix the issue.
+                    Nothing
 
 
 findErrorsAndVariablesNotPartOfScope :
