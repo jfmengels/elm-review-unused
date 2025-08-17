@@ -92,7 +92,7 @@ rule =
 
 
 dependenciesVisitor : Dict String Dependency -> ProjectContext -> ( List nothing, ProjectContext )
-dependenciesVisitor dependencies _ =
+dependenciesVisitor dependencies projectContext =
     ( []
     , { dependencyModules =
             Dict.foldr
@@ -106,6 +106,7 @@ dependenciesVisitor dependencies _ =
                 )
                 Set.empty
                 dependencies
+      , functionCallsWithArguments = projectContext.functionCallsWithArguments
       }
     )
 
@@ -129,12 +130,14 @@ moduleVisitor schema =
 
 type alias ProjectContext =
     { dependencyModules : Set ModuleName
+    , functionCallsWithArguments : Dict ModuleName (Dict FunctionName (List (Array Range)))
     }
 
 
 initialContext : ProjectContext
 initialContext =
     { dependencyModules = Set.empty
+    , functionCallsWithArguments = Dict.empty
     }
 
 
@@ -234,21 +237,29 @@ fromProjectToModule =
 fromModuleToProject : Rule.ContextCreator ModuleContext ( List (Rule.Error {}), ProjectContext )
 fromModuleToProject =
     Rule.initContextCreator
-        (\moduleContext ->
+        (\moduleName moduleContext ->
             let
                 ( errors, context ) =
                     reportErrors (NonemptyList.head moduleContext.scopes) moduleContext []
             in
             ( errors
             , { dependencyModules = Set.empty
+              , functionCallsWithArguments =
+                    if Dict.isEmpty context.functionCallsWithArguments then
+                        Dict.empty
+
+                    else
+                        Dict.singleton moduleName context.functionCallsWithArguments
               }
             )
         )
+        |> Rule.withModuleName
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
     { dependencyModules = previousContext.dependencyModules
+    , functionCallsWithArguments = Dict.union newContext.functionCallsWithArguments previousContext.functionCallsWithArguments
     }
 
 
