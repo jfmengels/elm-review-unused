@@ -152,8 +152,8 @@ letFunctionTests =
             """module A exposing (..)
 foo =
     let
-        one oneValue =
-            1
+        one oneValue a =
+            a
         two twoValue =
             2
     in
@@ -170,8 +170,8 @@ foo =
                             """module A exposing (..)
 foo =
     let
-        one  =
-            1
+        one  a =
+            a
         two twoValue =
             2
     in
