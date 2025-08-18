@@ -177,7 +177,12 @@ type alias ArgumentToReport =
     , rangesToRemove : List Range
     , details : { message : String, details : List String }
     , range : Range
+    , backupWhenFixImpossible : BackupWhenFixImpossible
     }
+
+
+type BackupWhenFixImpossible
+    = FixWith (() -> List Edit)
 
 
 type alias Declared =
@@ -336,12 +341,24 @@ finalEvaluation projectContext =
         (\moduleName { key, args } acc ->
             List.map
                 (\arg ->
+                    let
+                        fixes : List FixV2
+                        fixes =
+                            case
+                                Dict.get ( moduleName, arg.functionName ) projectContext.functionCallsWithArguments
+                                    |> Maybe.withDefault []
+                                    |> (\argRangesPerFile -> applyFixesAcrossModules arg argRangesPerFile [ Rule.editModule key (List.map Fix.removeRange arg.rangesToRemove) ])
+                            of
+                                Just edits ->
+                                    edits
+
+                                Nothing ->
+                                    case arg.backupWhenFixImpossible of
+                                        FixWith backupEdits ->
+                                            [ Rule.editModule key (backupEdits ()) ]
+                    in
                     Rule.errorForModule key arg.details arg.range
-                        |> Rule.withFixesV2
-                            (Dict.get ( moduleName, arg.functionName ) projectContext.functionCallsWithArguments
-                                |> Maybe.withDefault []
-                                |> (\argRangesPerFile -> applyFixesAcrossModules arg argRangesPerFile [ Rule.editModule key (List.map Fix.removeRange arg.rangesToRemove) ])
-                            )
+                        |> Rule.withFixesV2 fixes
                 )
                 args
                 ++ acc
@@ -350,16 +367,16 @@ finalEvaluation projectContext =
         projectContext.toReport
 
 
-applyFixesAcrossModules : ArgumentToReport -> List { key : ModuleKey, argRanges : List (Array Range) } -> List FixV2 -> List FixV2
+applyFixesAcrossModules : ArgumentToReport -> List { key : ModuleKey, argRanges : List (Array Range) } -> List FixV2 -> Maybe (List FixV2)
 applyFixesAcrossModules arg argRangesPerFile fixesSoFar =
     case argRangesPerFile of
         [] ->
-            fixesSoFar
+            Just fixesSoFar
 
         { key, argRanges } :: rest ->
             case addArgumentToRemoveMaybe arg.position argRanges [] of
                 Nothing ->
-                    []
+                    Nothing
 
                 Just rangesToRemove ->
                     applyFixesAcrossModules
@@ -1070,6 +1087,7 @@ errorsForValue functionName { name, kind, range, source, position, pathInArgumen
                                 , details = details
                                 , range = range
                                 , rangesToRemove = rangesToRemove_
+                                , backupWhenFixImpossible = FixWith (always [])
                                 }
 
                         Nothing ->
