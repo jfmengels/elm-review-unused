@@ -999,10 +999,8 @@ findErrorsAndVariablesNotPartOfScope scope declared ({ reportLater, reportNow, r
 
         else
             -- If variable was used ONLY as a recursive argument
-            { reportLater = reportLater
-            , reportNow = recursiveParameterError scope.functionName declared :: reportNow
-            , remainingUsed = remainingUsed
-            }
+            recursiveParameterError scope.functionName declared
+                |> accumulate acc
 
     else if Set.member declared.name remainingUsed then
         { reportLater = reportLater
@@ -1134,14 +1132,22 @@ reportParameter details backupFix functionName arg =
             ReportNow (Rule.errorWithFix details arg.range arg.toIgnoredFix)
 
 
-recursiveParameterError : FunctionName -> Declared -> Rule.Error {}
+recursiveParameterError : String -> Declared -> ReportTime
 recursiveParameterError functionName arg =
-    -- TODO Support autofixing recursive parameter removal
-    Rule.error
-        { message = "Parameter `" ++ arg.name ++ "` is only used in recursion"
-        , details =
-            [ "This parameter is only used to be passed as an argument to '" ++ functionName ++ "', but its value is never read or used."
-            , "You should either use this parameter somewhere, or remove it at the location I pointed at."
-            ]
-        }
-        arg.range
+    let
+        details : { message : String, details : List String }
+        details =
+            { message = "Parameter `" ++ arg.name ++ "` is only used in recursion"
+            , details =
+                [ "This parameter is only used to be passed as an argument to '" ++ functionName ++ "', but its value is never read or used."
+                , "You should either use this parameter somewhere, or remove it at the location I pointed at."
+                ]
+            }
+    in
+    case arg.kind of
+        Parameter ->
+            reportParameter details (always []) functionName arg
+
+        _ ->
+            Rule.error details arg.range
+                |> ReportNow

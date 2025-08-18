@@ -944,12 +944,13 @@ recursiveParameterTests : List Test
 recursiveParameterTests =
     [ test "should report parameters that are only used to be passed to the function itself" <|
         \() ->
-            """module A exposing (..)
+            """module A exposing (a)
 foo x unused =
     if cond then
         x
     else
         foo (x - 1) unused
+a = foo 1 2
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
@@ -962,6 +963,14 @@ foo x unused =
                         , under = "unused"
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
+                        |> Review.Test.whenFixed """module A exposing (a)
+foo x  =
+    if cond then
+        x
+    else
+        foo (x - 1)
+a = foo 1
+"""
                     ]
     , test "should report parameters that are only used to be passed to the function itself (record update)" <|
         \() ->
@@ -983,6 +992,13 @@ bar x unused =
                         , under = "unused"
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
+                        |> Review.Test.whenFixed """module A exposing (..)
+bar x  =
+    if cond then
+        x
+    else
+        bar (x - 1)
+"""
                     ]
     , test "should report parameters that are only used to be passed to the function itself (complex expression in the same position)" <|
         \() ->
@@ -1004,6 +1020,13 @@ bar x unused =
                         , under = "unused"
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
+                        |> Review.Test.whenFixed """module A exposing (..)
+bar x  =
+    if cond then
+        x
+    else
+        bar (x - 1)
+"""
                     ]
     , test "should not report parameters that are also used elsewhere" <|
         \() ->
@@ -1068,6 +1091,13 @@ foo x unused =
                         , under = "unused"
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
+                        |> Review.Test.whenFixed """module A exposing (..)
+foo x  =
+    if cond then
+        x
+    else
+        foo (x - 1)
+"""
                     ]
     , test "should report unused recursive parameters when function is called through <|" <|
         \() ->
@@ -1089,5 +1119,12 @@ foo x unused =
                         , under = "unused"
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
+                        |> Review.Test.whenFixed """module A exposing (..)
+foo x  =
+    if cond then
+        x
+    else
+        foo (x - 1)
+"""
                     ]
     ]
