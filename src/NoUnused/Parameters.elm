@@ -1082,6 +1082,7 @@ errorsForValue functionName ({ name, kind, range, source, position, nesting, ran
                 { message = "Parameter `" ++ name ++ "` is not used"
                 , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
                 }
+                (always [])
                 functionName
                 arg
 
@@ -1110,8 +1111,8 @@ errorsForValue functionName ({ name, kind, range, source, position, nesting, ran
                 |> ReportNow
 
 
-reportParameter : { message : String, details : List String } -> FunctionName -> Declared -> ReportTime
-reportParameter details functionName arg =
+reportParameter : { message : String, details : List String } -> (() -> List Edit) -> FunctionName -> Declared -> ReportTime
+reportParameter details backupFix functionName arg =
     case arg.source of
         NamedFunction ->
             case arg.rangesToRemove of
@@ -1123,7 +1124,7 @@ reportParameter details functionName arg =
                         , details = details
                         , range = arg.range
                         , rangesToRemove = rangesToRemove_
-                        , backupWhenFixImpossible = FixWith (always [])
+                        , backupWhenFixImpossible = FixWith backupFix
                         }
 
                 Nothing ->
