@@ -227,7 +227,7 @@ foo =
         one unused =
             1
     in
-    (one two)
+    one two
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
@@ -244,7 +244,7 @@ foo =
         one  =
             1
     in
-    (one )
+    one
 """
                     ]
     , test "should report unused even if others with the same name are used in siblings" <|
@@ -285,11 +285,11 @@ foo =
             """module A exposing (..)
 foo =
     let fn x = 1
-    in (fn x)
+    in fn x
 
 bar =
     let fn x = 1
-    in (fn x)
+    in fn x
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectErrors
@@ -302,11 +302,11 @@ bar =
                         |> Review.Test.whenFixed """module A exposing (..)
 foo =
     let fn  = 1
-    in (fn )
+    in fn
 
 bar =
     let fn x = 1
-    in (fn x)
+    in fn x
 """
                     , Review.Test.error
                         { message = "Parameter `x` is not used"
@@ -317,11 +317,11 @@ bar =
                         |> Review.Test.whenFixed """module A exposing (..)
 foo =
     let fn x = 1
-    in (fn x)
+    in fn x
 
 bar =
     let fn  = 1
-    in (fn )
+    in fn
 """
                     ]
     ]
