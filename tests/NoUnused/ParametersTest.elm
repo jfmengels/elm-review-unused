@@ -151,6 +151,26 @@ fn a b =
 """
                 |> Review.Test.run rule
                 |> Review.Test.expectNoErrors
+    , test "should remove nested function calls" <|
+        \() ->
+            """module A exposing (a)
+fn unused b =
+    b
+a = fn (fn 1 2) 3
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Parameter `unused` is not used"
+                        , details = details
+                        , under = "unused"
+                        }
+                        |> Review.Test.whenFixed """module A exposing (a)
+fn  b =
+    b
+a = fn  3
+"""
+                    ]
     ]
 
 
