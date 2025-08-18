@@ -52,8 +52,7 @@ b = foo 1 2 3
                         , details = details
                         , under = "one"
                         }
-                        |> Review.Test.whenFixed
-                            """module A exposing (a, b)
+                        |> Review.Test.whenFixed """module A exposing (a, b)
 a = foo  2 3
 foo : String -> String -> String
 foo  two three =
@@ -65,8 +64,7 @@ b = foo  2 3
                         , details = details
                         , under = "two"
                         }
-                        |> Review.Test.whenFixed
-                            """module A exposing (a, b)
+                        |> Review.Test.whenFixed """module A exposing (a, b)
 a = foo 1  3
 foo : Int -> String -> String
 foo one  three =
@@ -123,8 +121,7 @@ foo one =
                         , under = "one"
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 5 }, end = { row = 2, column = 8 } }
-                        |> Review.Test.whenFixed
-                            """module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo  =
     Bar.one
 """
@@ -201,8 +198,7 @@ foo =
                         , details = details
                         , under = "oneValue"
                         }
-                        |> Review.Test.whenFixed
-                            """module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     let
         one  a =
@@ -236,8 +232,7 @@ foo =
                         , details = details
                         , under = "unused"
                         }
-                        |> Review.Test.whenFixed
-                            """module A exposing (..)
+                        |> Review.Test.whenFixed """module A exposing (..)
 foo =
     let
         one : Int
