@@ -875,6 +875,20 @@ foo ( _, _ ) =
                         , under = "( _, _ )"
                         }
                     ]
+    , test "should report but not fix unused nested tuple" <|
+        \() ->
+            """module A exposing (..)
+foo ( bar, ( _, _ ) ) =
+    bar
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Tuple pattern is not needed"
+                        , details = [ "You should remove this pattern." ]
+                        , under = "( _, _ )"
+                        }
+                    ]
     , test "should report ()" <|
         \() ->
             """module A exposing (..)
