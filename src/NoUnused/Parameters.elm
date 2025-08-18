@@ -1075,35 +1075,15 @@ type ReportTime
 
 
 errorsForValue : FunctionName -> Declared -> ReportTime
-errorsForValue functionName { name, kind, range, source, position, nesting, rangesToRemove, toIgnoredFix } =
+errorsForValue functionName ({ name, kind, range, source, position, nesting, rangesToRemove, toIgnoredFix } as arg) =
     case kind of
         Parameter ->
-            let
-                details : { message : String, details : List String }
-                details =
-                    { message = "Parameter `" ++ name ++ "` is not used"
-                    , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
-                    }
-            in
-            case source of
-                NamedFunction ->
-                    case rangesToRemove of
-                        Just rangesToRemove_ ->
-                            ReportLater
-                                { functionName = functionName
-                                , position = position
-                                , nesting = nesting
-                                , details = details
-                                , range = range
-                                , rangesToRemove = rangesToRemove_
-                                , backupWhenFixImpossible = FixWith (always [])
-                                }
-
-                        Nothing ->
-                            ReportNow (Rule.errorWithFix details range [])
-
-                Lambda ->
-                    ReportNow (Rule.errorWithFix details range toIgnoredFix)
+            reportParameter
+                { message = "Parameter `" ++ name ++ "` is not used"
+                , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+                }
+                functionName
+                arg
 
         Alias ->
             Rule.errorWithFix
@@ -1128,6 +1108,29 @@ errorsForValue functionName { name, kind, range, source, position, nesting, rang
                         toIgnoredFix
                 )
                 |> ReportNow
+
+
+reportParameter : { message : String, details : List String } -> FunctionName -> Declared -> ReportTime
+reportParameter details functionName arg =
+    case arg.source of
+        NamedFunction ->
+            case arg.rangesToRemove of
+                Just rangesToRemove_ ->
+                    ReportLater
+                        { functionName = functionName
+                        , position = arg.position
+                        , nesting = arg.nesting
+                        , details = details
+                        , range = arg.range
+                        , rangesToRemove = rangesToRemove_
+                        , backupWhenFixImpossible = FixWith (always [])
+                        }
+
+                Nothing ->
+                    ReportNow (Rule.errorWithFix details arg.range [])
+
+        Lambda ->
+            ReportNow (Rule.errorWithFix details arg.range arg.toIgnoredFix)
 
 
 recursiveParameterError : FunctionName -> Declared -> Rule.Error {}
