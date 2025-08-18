@@ -1135,13 +1135,13 @@ reportParameter details backupFix functionName arg =
 
 
 recursiveParameterError : FunctionName -> Declared -> Rule.Error {}
-recursiveParameterError functionName { name, position, nesting, range } =
+recursiveParameterError functionName arg =
     -- TODO Support autofixing recursive parameter removal
     Rule.error
-        { message = "Parameter `" ++ name ++ "` is only used in recursion"
+        { message = "Parameter `" ++ arg.name ++ "` is only used in recursion"
         , details =
             [ "This parameter is only used to be passed as an argument to '" ++ functionName ++ "', but its value is never read or used."
             , "You should either use this parameter somewhere, or remove it at the location I pointed at."
             ]
         }
-        range
+        arg.range
