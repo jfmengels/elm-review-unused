@@ -987,7 +987,7 @@ findErrorsAndVariablesNotPartOfScope :
     -> Declared
     -> { reportLater : List ArgumentToReport, reportNow : List (Rule.Error {}), remainingUsed : Set String }
     -> { reportLater : List ArgumentToReport, reportNow : List (Rule.Error {}), remainingUsed : Set String }
-findErrorsAndVariablesNotPartOfScope scope declared { reportLater, reportNow, remainingUsed } =
+findErrorsAndVariablesNotPartOfScope scope declared ({ reportLater, reportNow, remainingUsed } as acc) =
     if Set.member declared.name scope.usedRecursively then
         -- If variable was used as a recursive argument
         if Set.member declared.name remainingUsed then
@@ -1011,18 +1011,27 @@ findErrorsAndVariablesNotPartOfScope scope declared { reportLater, reportNow, re
         }
 
     else
-        case errorsForValue scope.functionName declared of
-            ReportNow error ->
-                { reportLater = reportLater
-                , reportNow = error :: reportNow
-                , remainingUsed = remainingUsed
-                }
+        errorsForValue scope.functionName declared
+            |> accumulate acc
 
-            ReportLater error ->
-                { reportLater = error :: reportLater
-                , reportNow = reportNow
-                , remainingUsed = remainingUsed
-                }
+
+accumulate :
+    { reportLater : List ArgumentToReport, reportNow : List (Rule.Error {}), remainingUsed : Set String }
+    -> ReportTime
+    -> { reportLater : List ArgumentToReport, reportNow : List (Rule.Error {}), remainingUsed : Set String }
+accumulate { reportLater, reportNow, remainingUsed } reportTime =
+    case reportTime of
+        ReportNow error ->
+            { reportLater = reportLater
+            , reportNow = error :: reportNow
+            , remainingUsed = remainingUsed
+            }
+
+        ReportLater error ->
+            { reportLater = error :: reportLater
+            , reportNow = reportNow
+            , remainingUsed = remainingUsed
+            }
 
 
 insertInDictList : comparable -> value -> Dict comparable (List value) -> Dict comparable (List value)
