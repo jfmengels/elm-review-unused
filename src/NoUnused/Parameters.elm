@@ -1278,3 +1278,13 @@ recursiveParameterError functionName arg =
         _ ->
             Rule.error details arg.range
                 |> ReportNow
+
+
+
+-- TODO Don't report `()` arguments if that makes a function non-lazy
+-- TODO Try to autofix named patterns
+-- TODO Try to autofix record fields
+-- TODO Don't collect for ignored files
+-- TODO Don't autofix in auto-generated files?
+-- TODO Documentation
+-- TODO CHANGELOG
