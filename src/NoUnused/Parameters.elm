@@ -191,7 +191,7 @@ type alias Declared =
     , kind : Kind
     , source : Source
     , position : Int
-    , pathInArgument : Array Nesting
+    , nesting : Array Nesting
     , rangesToRemove : Maybe (List Range)
     , toIgnoredFix : List Fix
     }
@@ -503,7 +503,7 @@ getParametersFromPatterns path source node =
                         Nothing
               , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
               , position = path.index
-              , pathInArgument = path.nesting
+              , nesting = path.nesting
               , source = source
               }
             ]
@@ -525,7 +525,7 @@ getParametersFromPatterns path source node =
                       , rangesToRemove = Nothing
                       , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
                       , position = path.index
-                      , pathInArgument = pathInArgument_.nesting
+                      , nesting = pathInArgument_.nesting
                       , source = source
                       }
                     ]
@@ -548,7 +548,7 @@ getParametersFromPatterns path source node =
                                     (fieldNames |> List.filter (\f -> f /= Node.value field) |> formatRecord)
                                 ]
                             , position = path.index
-                            , pathInArgument = pathInArgument_.nesting
+                            , nesting = pathInArgument_.nesting
                             , source = source
                             }
                         )
@@ -569,7 +569,7 @@ getParametersFromPatterns path source node =
                   , rangesToRemove = Nothing
                   , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
                   , position = path.index
-                  , pathInArgument = path.nesting
+                  , nesting = path.nesting
                   , source = source
                   }
                 ]
@@ -601,7 +601,7 @@ getParametersFromAsPattern path source pattern asName =
             , rangesToRemove = Nothing
             , toIgnoredFix = [ Fix.removeRange { start = (Node.range pattern).end, end = (Node.range asName).end } ]
             , position = path.index
-            , pathInArgument = path.nesting
+            , nesting = path.nesting
             , source = source
             }
     in
@@ -1066,7 +1066,7 @@ type ReportTime
 
 
 errorsForValue : FunctionName -> Declared -> ReportTime
-errorsForValue functionName { name, kind, range, source, position, pathInArgument, rangesToRemove, toIgnoredFix } =
+errorsForValue functionName { name, kind, range, source, position, nesting, rangesToRemove, toIgnoredFix } =
     case kind of
         Parameter ->
             let
@@ -1083,7 +1083,7 @@ errorsForValue functionName { name, kind, range, source, position, pathInArgumen
                             ReportLater
                                 { functionName = functionName
                                 , position = position
-                                , nesting = pathInArgument
+                                , nesting = nesting
                                 , details = details
                                 , range = range
                                 , rangesToRemove = rangesToRemove_
@@ -1122,7 +1122,7 @@ errorsForValue functionName { name, kind, range, source, position, pathInArgumen
 
 
 recursiveParameterError : FunctionName -> Declared -> Rule.Error {}
-recursiveParameterError functionName { name, position, pathInArgument, range } =
+recursiveParameterError functionName { name, position, nesting, range } =
     -- TODO Support autofixing recursive parameter removal
     Rule.error
         { message = "Parameter `" ++ name ++ "` is only used in recursion"
