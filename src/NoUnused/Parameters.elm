@@ -134,7 +134,13 @@ moduleVisitor schema =
 type alias ProjectContext =
     { dependencyModules : Set ModuleName
     , toReport : Dict ModuleName { key : ModuleKey, args : List ArgumentToReport }
-    , functionCallsWithArguments : Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List (Array Range) })
+    , functionCallsWithArguments : Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List CallSite })
+    }
+
+
+type alias CallSite =
+    { fnNameEnd : Location
+    , arguments : Array Range
     }
 
 
@@ -152,8 +158,8 @@ type alias ModuleContext =
     , scopes : Nonempty Scope
     , recursiveFunctions : Dict String FunctionArgs
     , locationsToIgnoreForRecursiveArguments : LocationsToIgnore
-    , functionCallsWithArguments : Dict FunctionName (List (Array Range))
-    , functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List (Array Range))
+    , functionCallsWithArguments : Dict FunctionName (List CallSite)
+    , functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List CallSite)
     , locationsToIgnoreFunctionCalls : List Location
     , functionsFromOtherModulesToFix : Set ( ModuleName, FunctionName )
     }
@@ -330,9 +336,9 @@ foldProjectContexts newContext previousContext =
 
 
 mergeFunctionCallsWithArguments :
-    Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List (Array Range) })
-    -> Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List (Array Range) })
-    -> Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List (Array Range) })
+    Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List CallSite })
+    -> Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List CallSite })
+    -> Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List CallSite })
 mergeFunctionCallsWithArguments new previous =
     Dict.foldl
         (\key newDict acc ->
@@ -383,7 +389,7 @@ finalEvaluation projectContext =
         projectContext.toReport
 
 
-applyFixesAcrossModules : ArgumentToReport -> List { key : ModuleKey, argRanges : List (Array Range) } -> List FixV2 -> Maybe (List FixV2)
+applyFixesAcrossModules : ArgumentToReport -> List { key : ModuleKey, argRanges : List CallSite } -> List FixV2 -> Maybe (List FixV2)
 applyFixesAcrossModules arg argRangesPerFile fixesSoFar =
     case argRangesPerFile of
         [] ->
@@ -831,11 +837,11 @@ registerFunctionCall fnName fnRange arguments context =
                             | locationsToIgnoreForRecursiveArguments = locationsToIgnore
                             , locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls
                         }
-                            |> markFunctionCall fnName (Array.fromList arguments)
+                            |> markFunctionCall fnName fnRange.end (Array.fromList arguments)
 
                     Nothing ->
                         { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
-                            |> markFunctionCall fnName (Array.fromList arguments)
+                            |> markFunctionCall fnName fnRange.end (Array.fromList arguments)
 
             Just moduleName ->
                 let
@@ -846,14 +852,14 @@ registerFunctionCall fnName fnRange arguments context =
                 if Set.member key context.functionsFromOtherModulesToFix then
                     -- TODO Do the same in markValueAsUsed
                     let
-                        functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List (Array Range))
+                        functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List CallSite)
                         functionCallsWithArgumentsForOtherModules =
                             case Dict.get key context.functionCallsWithArgumentsForOtherModules of
                                 Just previous ->
-                                    Dict.insert key (Array.fromList arguments :: previous) context.functionCallsWithArgumentsForOtherModules
+                                    Dict.insert key ({ fnNameEnd = fnRange.end, arguments = Array.fromList arguments } :: previous) context.functionCallsWithArgumentsForOtherModules
 
                                 Nothing ->
-                                    Dict.insert key [ Array.fromList arguments ] context.functionCallsWithArgumentsForOtherModules
+                                    Dict.insert key [ { fnNameEnd = fnRange.end, arguments = Array.fromList arguments } ] context.functionCallsWithArgumentsForOtherModules
                     in
                     { context
                         | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls
@@ -870,16 +876,16 @@ registerFunctionCall fnName fnRange arguments context =
         context
 
 
-markFunctionCall : FunctionName -> Array Range -> ModuleContext -> ModuleContext
-markFunctionCall fnName arguments context =
+markFunctionCall : FunctionName -> Location -> Array Range -> ModuleContext -> ModuleContext
+markFunctionCall fnName fnNameEnd arguments context =
     { context
         | functionCallsWithArguments =
             case Dict.get fnName context.functionCallsWithArguments of
                 Just previous ->
-                    Dict.insert fnName (arguments :: previous) context.functionCallsWithArguments
+                    Dict.insert fnName ({ fnNameEnd = fnNameEnd, arguments = arguments } :: previous) context.functionCallsWithArguments
 
                 Nothing ->
-                    Dict.insert fnName [ arguments ] context.functionCallsWithArguments
+                    Dict.insert fnName [ { fnNameEnd = fnNameEnd, arguments = arguments } ] context.functionCallsWithArguments
     }
 
 
@@ -923,7 +929,7 @@ markValueAsUsed range name context =
                     context.functionCallsWithArguments
 
                 else
-                    Dict.insert name [ Array.empty ] context.functionCallsWithArguments
+                    Dict.insert name [ { fnNameEnd = range.end, arguments = Array.empty } ] context.functionCallsWithArguments
         }
 
     else
@@ -1007,7 +1013,7 @@ reportErrors scope context initialErrors =
     ( errors, { context | functionCallsWithArguments = newFunctionCallsWithArguments } )
 
 
-reportError : Dict FunctionName (List (Array Range)) -> ArgumentToReport -> Maybe (Rule.Error {})
+reportError : Dict FunctionName (List CallSite) -> ArgumentToReport -> Maybe (Rule.Error {})
 reportError functionCallsWithArguments { functionName, position, details, range, rangesToRemove, backupWhenFixImpossible } =
     case
         Dict.get functionName functionCallsWithArguments
@@ -1029,16 +1035,23 @@ reportError functionCallsWithArguments { functionName, position, details, range,
                     Nothing
 
 
-addArgumentToRemove : Int -> List (Array a) -> List a -> Maybe (List a)
+addArgumentToRemove : Int -> List CallSite -> List Range -> Maybe (List Range)
 addArgumentToRemove position callArgumentList acc =
     case callArgumentList of
         [] ->
             Just acc
 
-        argumentArray :: rest ->
-            case Array.get position argumentArray of
+        callSite :: rest ->
+            case Array.get position callSite.arguments of
                 Just range ->
-                    addArgumentToRemove position rest (range :: acc)
+                    let
+                        previousEnd : Location
+                        previousEnd =
+                            Array.get (position - 1) callSite.arguments
+                                |> Maybe.map .end
+                                |> Maybe.withDefault callSite.fnNameEnd
+                    in
+                    addArgumentToRemove position rest ({ start = previousEnd, end = range.end } :: acc)
 
                 Nothing ->
                     -- If an argument at that location could not be found, then we can't autofix the issue.
