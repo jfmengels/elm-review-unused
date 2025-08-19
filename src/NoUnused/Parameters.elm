@@ -527,7 +527,7 @@ getParametersFromPatterns path previousEnd source node =
             ]
 
         Pattern.AllPattern ->
-            if Array.isEmpty path.nesting then
+            if Array.isEmpty path.nesting && source == NamedFunction then
                 case ParameterPath.fix path [ { start = previousEnd, end = (Node.range node).end } ] of
                     Just rangesToRemove ->
                         [ { name = "_"
