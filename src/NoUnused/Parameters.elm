@@ -1051,11 +1051,23 @@ addArgumentToRemove position callSites acc =
                                 |> Maybe.map .end
                                 |> Maybe.withDefault callSite.fnNameEnd
                     in
-                    addArgumentToRemove position rest ({ start = previousEnd, end = range.end } :: acc)
+                    addArgumentToRemove position rest (prettyRemovalRange range position callSite :: acc)
 
                 Nothing ->
                     -- If an argument at that location could not be found, then we can't autofix the issue.
                     Nothing
+
+
+prettyRemovalRange : Range -> Int -> CallSite -> Range
+prettyRemovalRange range position callSite =
+    let
+        previousEnd : Location
+        previousEnd =
+            Array.get (position - 1) callSite.arguments
+                |> Maybe.map .end
+                |> Maybe.withDefault callSite.fnNameEnd
+    in
+    { start = previousEnd, end = range.end }
 
 
 findErrorsAndVariablesNotPartOfScope :
