@@ -155,6 +155,7 @@ type alias ModuleContext =
     , functionCallsWithArguments : Dict FunctionName (List (Array Range))
     , functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List (Array Range))
     , locationsToIgnoreFunctionCalls : List Location
+    , functionsFromOtherModulesToFix : Set ( ModuleName, FunctionName )
     }
 
 
@@ -240,6 +241,13 @@ fromProjectToModule =
             , functionCallsWithArguments = Dict.empty
             , functionCallsWithArgumentsForOtherModules = Dict.empty
             , locationsToIgnoreFunctionCalls = []
+            , functionsFromOtherModulesToFix =
+                Dict.foldl
+                    (\moduleName { args } set ->
+                        List.foldl (\{ functionName } setAcc -> Set.insert ( moduleName, functionName ) setAcc) set args
+                    )
+                    Set.empty
+                    projectContent.toReport
             }
         )
         |> Rule.withModuleNameLookupTable
@@ -450,6 +458,7 @@ declarationEnterVisitor node context =
               , locationsToIgnoreForRecursiveArguments = Dict.empty
               , functionCallsWithArguments = context.functionCallsWithArguments
               , functionCallsWithArgumentsForOtherModules = context.functionCallsWithArgumentsForOtherModules
+              , functionsFromOtherModulesToFix = context.functionsFromOtherModulesToFix
               , locationsToIgnoreFunctionCalls = []
               }
             )
