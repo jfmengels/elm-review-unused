@@ -5,6 +5,7 @@ module List.Extra exposing
     , indexedFilterMap
     , insertAllJusts
     , listFilterThenMapInto
+    , maybeCons
     )
 
 {-| Some utilities.
@@ -12,6 +13,16 @@ module List.Extra exposing
 
 import Dict exposing (Dict)
 import Set exposing (Set)
+
+
+maybeCons : Maybe a -> List a -> List a
+maybeCons maybe list =
+    case maybe of
+        Just a ->
+            a :: list
+
+        Nothing ->
+            list
 
 
 {-| Find the first element that satisfies a predicate and return

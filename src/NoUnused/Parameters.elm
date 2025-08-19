@@ -17,6 +17,7 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Location, Range)
 import Elm.Syntax.Signature exposing (Signature)
+import List.Extra
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
 import NoUnused.Parameters.ParameterPath as ParameterPath exposing (Nesting(..), Path)
 import Review.Fix as Fix exposing (Edit, Fix)
@@ -183,6 +184,7 @@ type alias ArgumentToReport =
 
 type BackupWhenFixImpossible
     = FixWith (() -> List Edit)
+    | DontReportError
 
 
 type alias Declared =
@@ -194,6 +196,7 @@ type alias Declared =
     , nesting : Array Nesting
     , rangesToRemove : Maybe (List Range)
     , toIgnoredFix : List Fix
+    , backupWhenFixImpossible : BackupWhenFixImpossible
     }
 
 
@@ -286,7 +289,7 @@ fromModuleToProject =
                                 }
 
                             else
-                                { errors = reportError moduleContext.functionCallsWithArguments arg :: acc.errors
+                                { errors = List.Extra.maybeCons (reportError moduleContext.functionCallsWithArguments arg) acc.errors
                                 , toReport = acc.toReport
                                 , functionCallsWithArguments = acc.functionCallsWithArguments
                                 }
@@ -339,26 +342,30 @@ finalEvaluation : ProjectContext -> List (Rule.Error scope)
 finalEvaluation projectContext =
     Dict.foldl
         (\moduleName { key, args } acc ->
-            List.map
+            List.filterMap
                 (\arg ->
                     let
-                        fixes : List FixV2
-                        fixes =
-                            case
-                                Dict.get ( moduleName, arg.functionName ) projectContext.functionCallsWithArguments
-                                    |> Maybe.withDefault []
-                                    |> (\argRangesPerFile -> applyFixesAcrossModules arg argRangesPerFile [ Rule.editModule key (List.map Fix.removeRange arg.rangesToRemove) ])
-                            of
-                                Just edits ->
-                                    edits
-
-                                Nothing ->
-                                    case arg.backupWhenFixImpossible of
-                                        FixWith backupEdits ->
-                                            [ Rule.editModule key (backupEdits ()) ]
+                        toError : List FixV2 -> Maybe (Rule.Error scope)
+                        toError fixes =
+                            Rule.errorForModule key arg.details arg.range
+                                |> Rule.withFixesV2 fixes
+                                |> Just
                     in
-                    Rule.errorForModule key arg.details arg.range
-                        |> Rule.withFixesV2 fixes
+                    case
+                        Dict.get ( moduleName, arg.functionName ) projectContext.functionCallsWithArguments
+                            |> Maybe.withDefault []
+                            |> (\argRangesPerFile -> applyFixesAcrossModules arg argRangesPerFile [ Rule.editModule key (List.map Fix.removeRange arg.rangesToRemove) ])
+                    of
+                        Just edits ->
+                            toError edits
+
+                        Nothing ->
+                            case arg.backupWhenFixImpossible of
+                                FixWith backupEdits ->
+                                    toError [ Rule.editModule key (backupEdits ()) ]
+
+                                DontReportError ->
+                                    Nothing
                 )
                 args
                 ++ acc
@@ -374,7 +381,7 @@ applyFixesAcrossModules arg argRangesPerFile fixesSoFar =
             Just fixesSoFar
 
         { key, argRanges } :: rest ->
-            case addArgumentToRemoveMaybe arg.position argRanges [] of
+            case addArgumentToRemove arg.position argRanges [] of
                 Nothing ->
                     Nothing
 
@@ -505,8 +512,31 @@ getParametersFromPatterns path source node =
               , position = path.index
               , nesting = path.nesting
               , source = source
+              , backupWhenFixImpossible = FixWith (always [])
               }
             ]
+
+        Pattern.AllPattern ->
+            if Array.isEmpty path.nesting then
+                case ParameterPath.fix path [ Node.range node ] of
+                    Just rangesToRemove ->
+                        [ { name = "_"
+                          , range = Node.range node
+                          , kind = Parameter
+                          , rangesToRemove = Just rangesToRemove
+                          , toIgnoredFix = []
+                          , position = path.index
+                          , nesting = path.nesting
+                          , source = source
+                          , backupWhenFixImpossible = DontReportError
+                          }
+                        ]
+
+                    Nothing ->
+                        []
+
+            else
+                []
 
         Pattern.AsPattern pattern asName ->
             getParametersFromAsPattern path source pattern asName
@@ -527,6 +557,7 @@ getParametersFromPatterns path source node =
                       , position = path.index
                       , nesting = pathInArgument_.nesting
                       , source = source
+                      , backupWhenFixImpossible = FixWith (always [])
                       }
                     ]
 
@@ -550,6 +581,7 @@ getParametersFromPatterns path source node =
                             , position = path.index
                             , nesting = pathInArgument_.nesting
                             , source = source
+                            , backupWhenFixImpossible = FixWith (always [])
                             }
                         )
                         fields
@@ -571,6 +603,7 @@ getParametersFromPatterns path source node =
                   , position = path.index
                   , nesting = path.nesting
                   , source = source
+                  , backupWhenFixImpossible = FixWith (always [])
                   }
                 ]
 
@@ -603,6 +636,7 @@ getParametersFromAsPattern path source pattern asName =
             , position = path.index
             , nesting = path.nesting
             , source = source
+            , backupWhenFixImpossible = FixWith (always [])
             }
     in
     asParameter :: parametersFromPatterns
@@ -931,7 +965,7 @@ reportErrors scope context initialErrors =
         ( errors, newFunctionCallsWithArguments ) =
             List.foldl
                 (\arg ( errorAcc, functionCallsWithArguments ) ->
-                    ( reportError context.functionCallsWithArguments arg :: errorAcc
+                    ( List.Extra.maybeCons (reportError context.functionCallsWithArguments arg) errorAcc
                     , Dict.remove arg.functionName functionCallsWithArguments
                     )
                 )
@@ -941,33 +975,30 @@ reportErrors scope context initialErrors =
     ( errors, { context | functionCallsWithArguments = newFunctionCallsWithArguments } )
 
 
-reportError : Dict FunctionName (List (Array Range)) -> ArgumentToReport -> Rule.Error {}
-reportError functionCallsWithArguments { functionName, position, details, range, rangesToRemove } =
-    Dict.get functionName functionCallsWithArguments
-        |> Maybe.withDefault []
-        |> (\callArgumentList -> addArgumentToRemove position callArgumentList rangesToRemove)
-        |> List.map Fix.removeRange
-        |> Rule.errorWithFix details range
+reportError : Dict FunctionName (List (Array Range)) -> ArgumentToReport -> Maybe (Rule.Error {})
+reportError functionCallsWithArguments { functionName, position, details, range, rangesToRemove, backupWhenFixImpossible } =
+    case
+        Dict.get functionName functionCallsWithArguments
+            |> Maybe.andThen (\callArgumentList -> addArgumentToRemove position callArgumentList rangesToRemove)
+    of
+        Just edits ->
+            edits
+                |> List.map Fix.removeRange
+                |> Rule.errorWithFix details range
+                |> Just
+
+        Nothing ->
+            case backupWhenFixImpossible of
+                FixWith edits ->
+                    Rule.errorWithFix details range (edits ())
+                        |> Just
+
+                DontReportError ->
+                    Nothing
 
 
-addArgumentToRemove : Int -> List (Array a) -> List a -> List a
+addArgumentToRemove : Int -> List (Array a) -> List a -> Maybe (List a)
 addArgumentToRemove position callArgumentList acc =
-    case callArgumentList of
-        [] ->
-            acc
-
-        argumentArray :: rest ->
-            case Array.get position argumentArray of
-                Just range ->
-                    addArgumentToRemove position rest (range :: acc)
-
-                Nothing ->
-                    -- If an argument at that location could not be found, then we can't autofix the issue.
-                    []
-
-
-addArgumentToRemoveMaybe : Int -> List (Array a) -> List a -> Maybe (List a)
-addArgumentToRemoveMaybe position callArgumentList acc =
     case callArgumentList of
         [] ->
             Just acc
@@ -975,7 +1006,7 @@ addArgumentToRemoveMaybe position callArgumentList acc =
         argumentArray :: rest ->
             case Array.get position argumentArray of
                 Just range ->
-                    addArgumentToRemoveMaybe position rest (range :: acc)
+                    addArgumentToRemove position rest (range :: acc)
 
                 Nothing ->
                     -- If an argument at that location could not be found, then we can't autofix the issue.
@@ -1122,7 +1153,7 @@ reportParameter details backupFix functionName arg =
                         , details = details
                         , range = arg.range
                         , rangesToRemove = rangesToRemove_
-                        , backupWhenFixImpossible = FixWith backupFix
+                        , backupWhenFixImpossible = arg.backupWhenFixImpossible
                         }
 
                 Nothing ->

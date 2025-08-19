@@ -171,6 +171,32 @@ fn  b =
 a = fn  3
 """
                     ]
+    , test "should not report _ argument when it can't be fixed" <|
+        \() ->
+            """module A exposing (a)
+fn _ = 1
+a = List.map fn [1, 2, 3]
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should report and remove _ argument when it can be fixed" <|
+        \() ->
+            """module A exposing (a)
+fn _ = 1
+a = fn 2
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Parameter `_` is not used"
+                        , details = details
+                        , under = "_"
+                        }
+                        |> Review.Test.whenFixed """module A exposing (a)
+fn  = 1
+a = fn
+"""
+                    ]
     ]
 
 
