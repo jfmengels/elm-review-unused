@@ -84,12 +84,13 @@ rule =
     Rule.newProjectRuleSchema "NoUnused.Parameters" initialContext
         |> Rule.withDirectDependenciesProjectVisitor dependenciesVisitor
         |> Rule.withModuleVisitor moduleVisitor
-        |> Rule.withFinalProjectEvaluation finalEvaluation
         |> Rule.withModuleContextWithErrors
             { fromProjectToModule = fromProjectToModule
             , fromModuleToProject = fromModuleToProject
             , foldProjectContexts = foldProjectContexts
             }
+        |> Rule.withFinalProjectEvaluation finalEvaluation
+        |> Rule.withContextFromImportedModules
         |> Rule.fromProjectRuleSchema
 
 
