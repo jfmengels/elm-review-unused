@@ -817,16 +817,14 @@ registerFunctionCall fnName fnRange arguments context =
                             |> markFunctionCall fnName (Array.fromList arguments)
 
             Just moduleName ->
-                if Set.member moduleName context.dependencyModules then
-                    { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
-
-                else
+                let
+                    key : ( ModuleName, FunctionName )
+                    key =
+                        ( moduleName, fnName )
+                in
+                if Set.member key context.functionsFromOtherModulesToFix then
                     -- TODO Do the same in markValueAsUsed
                     let
-                        key : ( ModuleName, FunctionName )
-                        key =
-                            ( moduleName, fnName )
-
                         functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List (Array Range))
                         functionCallsWithArgumentsForOtherModules =
                             case Dict.get key context.functionCallsWithArgumentsForOtherModules of
@@ -840,6 +838,9 @@ registerFunctionCall fnName fnRange arguments context =
                         | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls
                         , functionCallsWithArgumentsForOtherModules = functionCallsWithArgumentsForOtherModules
                     }
+
+                else
+                    { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
 
             Nothing ->
                 context
