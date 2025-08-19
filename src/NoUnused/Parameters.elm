@@ -435,7 +435,7 @@ declarationEnterVisitor node context =
 
                 declared : List (List Declared)
                 declared =
-                    findDeclared NamedFunction declaration.arguments f.signature
+                    findDeclared NamedFunction (Node.range declaration.name).end declaration.arguments f.signature
 
                 functionName : FunctionName
                 functionName =
@@ -502,11 +502,11 @@ getArgNamesHelp declared index acc =
             getArgNamesHelp restOfDeclared (index + 1) newAcc
 
 
-getParametersFromPatterns : ParameterPath.Path -> Source -> Node Pattern -> List Declared
-getParametersFromPatterns path source node =
+getParametersFromPatterns : ParameterPath.Path -> Location -> Source -> Node Pattern -> List Declared
+getParametersFromPatterns path previousEnd source node =
     case Node.value node of
         Pattern.ParenthesizedPattern pattern ->
-            getParametersFromPatterns path source pattern
+            getParametersFromPatterns path previousEnd source pattern
 
         Pattern.VarPattern name ->
             [ { name = name
@@ -514,7 +514,7 @@ getParametersFromPatterns path source node =
               , kind = Parameter
               , rangesToRemove =
                     if Array.isEmpty path.nesting then
-                        ParameterPath.fix path [ Node.range node ]
+                        ParameterPath.fix path [ { start = previousEnd, end = (Node.range node).end } ]
 
                     else
                         Nothing
@@ -528,7 +528,7 @@ getParametersFromPatterns path source node =
 
         Pattern.AllPattern ->
             if Array.isEmpty path.nesting then
-                case ParameterPath.fix path [ Node.range node ] of
+                case ParameterPath.fix path [ { start = previousEnd, end = (Node.range node).end } ] of
                     Just rangesToRemove ->
                         [ { name = "_"
                           , range = Node.range node
@@ -549,7 +549,7 @@ getParametersFromPatterns path source node =
                 []
 
         Pattern.AsPattern pattern asName ->
-            getParametersFromAsPattern path source pattern asName
+            getParametersFromAsPattern path previousEnd source pattern asName
 
         Pattern.RecordPattern fields ->
             let
@@ -601,7 +601,15 @@ getParametersFromPatterns path source node =
                 parametersFromPatterns : List Declared
                 parametersFromPatterns =
                     patterns
-                        |> List.indexedMap (\tupleIndex pattern -> getParametersFromPatterns (ParameterPath.inTuple tupleIndex path) source pattern)
+                        |> List.indexedMap
+                            (\tupleIndex pattern ->
+                                getParametersFromPatterns
+                                    (ParameterPath.inTuple tupleIndex path)
+                                    -- TODO Use end from previous tuple element?
+                                    previousEnd
+                                    source
+                                    pattern
+                            )
                         |> List.concat
             in
             if List.isEmpty parametersFromPatterns && List.all isPatternWildCard patterns then
@@ -622,19 +630,27 @@ getParametersFromPatterns path source node =
 
         Pattern.NamedPattern _ patterns ->
             patterns
-                |> List.indexedMap (\patternIndex pattern -> getParametersFromPatterns (ParameterPath.inNamedPattern patternIndex path) source pattern)
+                |> List.indexedMap
+                    (\patternIndex pattern ->
+                        getParametersFromPatterns
+                            (ParameterPath.inNamedPattern patternIndex path)
+                            -- TODO Use something else?
+                            previousEnd
+                            source
+                            pattern
+                    )
                 |> List.concat
 
         _ ->
             []
 
 
-getParametersFromAsPattern : Path -> Source -> Node Pattern -> Node String -> List Declared
-getParametersFromAsPattern path source pattern asName =
+getParametersFromAsPattern : Path -> Location -> Source -> Node Pattern -> Node String -> List Declared
+getParametersFromAsPattern path previousEnd source pattern asName =
     let
         parametersFromPatterns : List Declared
         parametersFromPatterns =
-            getParametersFromPatterns (ParameterPath.inAlias path) source pattern
+            getParametersFromPatterns (ParameterPath.inAlias path) previousEnd source pattern
 
         asParameter : Declared
         asParameter =
@@ -684,11 +700,16 @@ expressionEnterVisitor node context =
             markValueAsUsed (Node.range name) (Node.value name) context
 
         Expression.LambdaExpression { args } ->
+            let
+                start : Location
+                start =
+                    (Node.range node).start
+            in
             { context
                 | scopes =
                     NonemptyList.cons
                         { functionName = "dummy lambda"
-                        , declared = findDeclared Lambda args Nothing |> List.concat
+                        , declared = findDeclared Lambda { row = start.row, column = start.column + 1 } args Nothing |> List.concat
                         , used = Set.empty
                         , usedRecursively = Set.empty
                         , toReport = []
@@ -752,7 +773,7 @@ letDeclarationEnterVisitor _ letDeclaration context =
 
                     declared : List (List Declared)
                     declared =
-                        findDeclared NamedFunction declaration.arguments function.signature
+                        findDeclared NamedFunction (Node.range declaration.name).end declaration.arguments function.signature
 
                     newScope : Scope
                     newScope =
@@ -1084,18 +1105,19 @@ insertInDictList key value dict =
             Dict.insert key (value :: previous) dict
 
 
-findDeclared : Source -> List (Node Pattern) -> Maybe (Node Signature) -> List (List Declared)
-findDeclared source arguments signature =
+findDeclared : Source -> Location -> List (Node Pattern) -> Maybe (Node Signature) -> List (List Declared)
+findDeclared source previousEnd arguments signature =
     findDeclaredHelp
         source
+        previousEnd
         0
         (ParameterPath.fromSignature signature)
         arguments
         []
 
 
-findDeclaredHelp : Source -> Int -> Path -> List (Node Pattern) -> List (List Declared) -> List (List Declared)
-findDeclaredHelp source index path arguments acc =
+findDeclaredHelp : Source -> Location -> Int -> Path -> List (Node Pattern) -> List (List Declared) -> List (List Declared)
+findDeclaredHelp source previousEnd index path arguments acc =
     case arguments of
         [] ->
             List.reverse acc
@@ -1103,10 +1125,11 @@ findDeclaredHelp source index path arguments acc =
         arg :: remainingArguments ->
             findDeclaredHelp
                 source
+                (Node.range arg).end
                 (index + 1)
                 (ParameterPath.nextArgument path)
                 remainingArguments
-                (getParametersFromPatterns path source arg :: acc)
+                (getParametersFromPatterns path previousEnd source arg :: acc)
 
 
 type ReportTime

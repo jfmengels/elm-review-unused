@@ -55,7 +55,7 @@ b = foo 1 2 3
                         |> Review.Test.whenFixed """module A exposing (a, b)
 a = foo  2 3
 foo : String -> String -> String
-foo  two three =
+foo two three =
     three
 b = foo  2 3
 """
@@ -67,7 +67,7 @@ b = foo  2 3
                         |> Review.Test.whenFixed """module A exposing (a, b)
 a = foo 1  3
 foo : Int -> String -> String
-foo one  three =
+foo one three =
     three
 b = foo 1  3
 """
@@ -97,7 +97,7 @@ b = A.foo 1 2
                                 [ ( "A", """module A exposing (foo, a)
 a = foo  2
 foo : String -> String
-foo  two =
+foo two =
     two
 """ )
                                 , ( "B", """module B exposing (a)
@@ -122,7 +122,7 @@ foo one =
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 5 }, end = { row = 2, column = 8 } }
                         |> Review.Test.whenFixed """module A exposing (..)
-foo  =
+foo =
     Bar.one
 """
                     ]
@@ -166,7 +166,7 @@ a = fn (fn 1 2) 3
                         , under = "unused"
                         }
                         |> Review.Test.whenFixed """module A exposing (a)
-fn  b =
+fn b =
     b
 a = fn  3
 """
@@ -193,7 +193,7 @@ a = fn 2
                         , under = "_"
                         }
                         |> Review.Test.whenFixed """module A exposing (a)
-fn  = 1
+fn = 1
 a = fn
 """
                     ]
@@ -247,7 +247,7 @@ foo =
                         |> Review.Test.whenFixed """module A exposing (..)
 foo =
     let
-        one  a =
+        one a =
             a
         two twoValue =
             2
@@ -282,7 +282,7 @@ foo =
 foo =
     let
         one : Int
-        one  =
+        one =
             1
     in
     one
@@ -342,7 +342,7 @@ bar =
                         |> Review.Test.atExactly { start = { row = 3, column = 12 }, end = { row = 3, column = 13 } }
                         |> Review.Test.whenFixed """module A exposing (..)
 foo =
-    let fn  = 1
+    let fn = 1
     in fn
 
 bar =
@@ -361,7 +361,7 @@ foo =
     in fn x
 
 bar =
-    let fn  = 1
+    let fn = 1
     in fn
 """
                     ]
@@ -1005,7 +1005,7 @@ a = foo 1 2
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
                         |> Review.Test.whenFixed """module A exposing (a)
-foo x  =
+foo x =
     if cond then
         x
     else
@@ -1034,7 +1034,7 @@ bar x unused =
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
                         |> Review.Test.whenFixed """module A exposing (..)
-bar x  =
+bar x =
     if cond then
         x
     else
@@ -1062,7 +1062,7 @@ bar x unused =
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
                         |> Review.Test.whenFixed """module A exposing (..)
-bar x  =
+bar x =
     if cond then
         x
     else
@@ -1133,7 +1133,7 @@ foo x unused =
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
                         |> Review.Test.whenFixed """module A exposing (..)
-foo x  =
+foo x =
     if cond then
         x
     else
@@ -1161,7 +1161,7 @@ foo x unused =
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
                         |> Review.Test.whenFixed """module A exposing (..)
-foo x  =
+foo x =
     if cond then
         x
     else
