@@ -134,7 +134,7 @@ moduleVisitor schema =
 type alias ProjectContext =
     { dependencyModules : Set ModuleName
     , toReport : Dict ModuleName { key : ModuleKey, args : List ArgumentToReport }
-    , functionCallsWithArguments : Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List CallSite })
+    , functionCallsWithArguments : Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, callSites : List CallSite })
     }
 
 
@@ -291,13 +291,13 @@ fromModuleToProject =
                                 , toReport = arg :: acc.toReport
                                 , functionCallsWithArguments =
                                     case Dict.get arg.functionName moduleContext.functionCallsWithArguments of
-                                        Just functionCalls ->
+                                        Just callSites ->
                                             case Dict.get key acc.functionCallsWithArguments of
                                                 Just previous ->
-                                                    Dict.insert key ({ key = moduleKey, argRanges = functionCalls } :: previous) acc.functionCallsWithArguments
+                                                    Dict.insert key ({ key = moduleKey, callSites = callSites } :: previous) acc.functionCallsWithArguments
 
                                                 Nothing ->
-                                                    Dict.insert key [ { key = moduleKey, argRanges = functionCalls } ] acc.functionCallsWithArguments
+                                                    Dict.insert key [ { key = moduleKey, callSites = callSites } ] acc.functionCallsWithArguments
 
                                         Nothing ->
                                             acc.functionCallsWithArguments
@@ -311,7 +311,7 @@ fromModuleToProject =
                         )
                         { errors = []
                         , toReport = []
-                        , functionCallsWithArguments = Dict.map (\_ argRanges -> [ { key = moduleKey, argRanges = argRanges } ]) moduleContext.functionCallsWithArgumentsForOtherModules
+                        , functionCallsWithArguments = Dict.map (\_ callSites -> [ { key = moduleKey, callSites = callSites } ]) moduleContext.functionCallsWithArgumentsForOtherModules
                         }
                         (NonemptyList.head moduleContext.scopes).toReport
             in
@@ -336,9 +336,9 @@ foldProjectContexts newContext previousContext =
 
 
 mergeFunctionCallsWithArguments :
-    Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List CallSite })
-    -> Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List CallSite })
-    -> Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, argRanges : List CallSite })
+    Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, callSites : List CallSite })
+    -> Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, callSites : List CallSite })
+    -> Dict ( ModuleName, FunctionName ) (List { key : ModuleKey, callSites : List CallSite })
 mergeFunctionCallsWithArguments new previous =
     Dict.foldl
         (\key newDict acc ->
@@ -369,7 +369,7 @@ finalEvaluation projectContext =
                     case
                         Dict.get ( moduleName, arg.functionName ) projectContext.functionCallsWithArguments
                             |> Maybe.withDefault []
-                            |> (\argRangesPerFile -> applyFixesAcrossModules arg argRangesPerFile [ Rule.editModule key (List.map Fix.removeRange arg.rangesToRemove) ])
+                            |> (\callSitesPerFile -> applyFixesAcrossModules arg callSitesPerFile [ Rule.editModule key (List.map Fix.removeRange arg.rangesToRemove) ])
                     of
                         Just edits ->
                             toError edits
@@ -389,14 +389,14 @@ finalEvaluation projectContext =
         projectContext.toReport
 
 
-applyFixesAcrossModules : ArgumentToReport -> List { key : ModuleKey, argRanges : List CallSite } -> List FixV2 -> Maybe (List FixV2)
-applyFixesAcrossModules arg argRangesPerFile fixesSoFar =
-    case argRangesPerFile of
+applyFixesAcrossModules : ArgumentToReport -> List { key : ModuleKey, callSites : List CallSite } -> List FixV2 -> Maybe (List FixV2)
+applyFixesAcrossModules arg callSitesPerFile fixesSoFar =
+    case callSitesPerFile of
         [] ->
             Just fixesSoFar
 
-        { key, argRanges } :: rest ->
-            case addArgumentToRemove arg.position argRanges [] of
+        { key, callSites } :: rest ->
+            case addArgumentToRemove arg.position callSites [] of
                 Nothing ->
                     Nothing
 
@@ -1036,8 +1036,8 @@ reportError functionCallsWithArguments { functionName, position, details, range,
 
 
 addArgumentToRemove : Int -> List CallSite -> List Range -> Maybe (List Range)
-addArgumentToRemove position callArgumentList acc =
-    case callArgumentList of
+addArgumentToRemove position callSites acc =
+    case callSites of
         [] ->
             Just acc
 
