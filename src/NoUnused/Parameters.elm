@@ -1067,7 +1067,21 @@ prettyRemovalRange range position callSite =
                 |> Maybe.map .end
                 |> Maybe.withDefault callSite.fnNameEnd
     in
-    { start = previousEnd, end = range.end }
+    -- If the call was made with |>, then the constructed range will be negative.
+    -- Therefore in that case, simply remove `range` which corresponds to `arg |> `
+    case compare previousEnd.row range.end.row of
+        LT ->
+            { start = previousEnd, end = range.end }
+
+        EQ ->
+            if previousEnd.column <= range.end.column then
+                { start = previousEnd, end = range.end }
+
+            else
+                range
+
+        GT ->
+            range
 
 
 findErrorsAndVariablesNotPartOfScope :
