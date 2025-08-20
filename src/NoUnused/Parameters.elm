@@ -1059,13 +1059,6 @@ addArgumentToRemove position callSites acc =
         callSite :: rest ->
             case Array.get position callSite.arguments of
                 Just range ->
-                    let
-                        previousEnd : Location
-                        previousEnd =
-                            Array.get (position - 1) callSite.arguments
-                                |> Maybe.map .end
-                                |> Maybe.withDefault callSite.fnNameEnd
-                    in
                     addArgumentToRemove position rest (prettyRemovalRange range position callSite :: acc)
 
                 Nothing ->
@@ -1215,7 +1208,6 @@ errorsForValue functionName ({ name, kind, range, source, position, nesting, ran
                 { message = "Parameter `" ++ name ++ "` is not used"
                 , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
                 }
-                (always [])
                 functionName
                 arg
 
@@ -1244,8 +1236,8 @@ errorsForValue functionName ({ name, kind, range, source, position, nesting, ran
                 |> ReportNow
 
 
-reportParameter : { message : String, details : List String } -> (() -> List Edit) -> FunctionName -> Declared -> ReportTime
-reportParameter details backupFix functionName arg =
+reportParameter : { message : String, details : List String } -> FunctionName -> Declared -> ReportTime
+reportParameter details functionName arg =
     case arg.source of
         NamedFunction ->
             case arg.rangesToRemove of
@@ -1281,7 +1273,7 @@ recursiveParameterError functionName arg =
     in
     case arg.kind of
         Parameter ->
-            reportParameter details (always []) functionName arg
+            reportParameter details functionName arg
 
         _ ->
             Rule.error details arg.range
