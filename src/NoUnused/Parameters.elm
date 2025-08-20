@@ -700,7 +700,9 @@ expressionEnterVisitor : Node Expression -> ModuleContext -> ModuleContext
 expressionEnterVisitor node context =
     case Node.value node of
         Expression.FunctionOrValue _ name ->
-            markValueAsUsed (Node.range node) name context
+            context
+                |> markValueAsUsed (Node.range node) name
+                |> registerFunctionCallReference name (Node.range node) []
 
         Expression.RecordUpdateExpression name _ ->
             markValueAsUsed (Node.range name) (Node.value name) context
@@ -725,17 +727,17 @@ expressionEnterVisitor node context =
             }
 
         Expression.Application ((Node fnRange (Expression.FunctionOrValue _ fnName)) :: arguments) ->
-            registerFunctionCall fnName fnRange (List.map Node.range arguments) context
+            registerFunctionCallReference fnName fnRange (List.map Node.range arguments) context
 
         Expression.OperatorApplication "|>" _ (Node { start } _) (Node applicationRange (Expression.Application ((Node fnRange (Expression.FunctionOrValue _ fnName)) :: arguments))) ->
-            registerFunctionCall
+            registerFunctionCallReference
                 fnName
                 fnRange
                 (List.map Node.range arguments ++ [ { start = start, end = applicationRange.start } ])
                 context
 
         Expression.OperatorApplication "<|" _ (Node applicationRange (Expression.Application ((Node fnRange (Expression.FunctionOrValue _ fnName)) :: arguments))) (Node { end } _) ->
-            registerFunctionCall
+            registerFunctionCallReference
                 fnName
                 fnRange
                 (List.map Node.range arguments ++ [ { start = applicationRange.end, end = end } ])
@@ -821,8 +823,8 @@ letDeclarationExitVisitor _ letDeclaration context =
             ( [], context )
 
 
-registerFunctionCall : FunctionName -> Range -> List Range -> ModuleContext -> ModuleContext
-registerFunctionCall fnName fnRange arguments context =
+registerFunctionCallReference : FunctionName -> Range -> List Range -> ModuleContext -> ModuleContext
+registerFunctionCallReference fnName fnRange arguments context =
     if isVariableOrFunctionName fnName && not (List.member fnRange.start context.locationsToIgnoreFunctionCalls) then
         case ModuleNameLookupTable.moduleNameAt context.lookupTable fnRange of
             Just [] ->
@@ -844,32 +846,38 @@ registerFunctionCall fnName fnRange arguments context =
                             |> markFunctionCall fnName fnRange.end (Array.fromList arguments)
 
             Just moduleName ->
-                let
-                    key : ( ModuleName, FunctionName )
-                    key =
-                        ( moduleName, fnName )
-                in
-                if Set.member key context.functionsFromOtherModulesToFix then
-                    let
-                        functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List CallSite)
-                        functionCallsWithArgumentsForOtherModules =
-                            case Dict.get key context.functionCallsWithArgumentsForOtherModules of
-                                Just previous ->
-                                    Dict.insert key ({ fnNameEnd = fnRange.end, arguments = Array.fromList arguments } :: previous) context.functionCallsWithArgumentsForOtherModules
-
-                                Nothing ->
-                                    Dict.insert key [ { fnNameEnd = fnRange.end, arguments = Array.fromList arguments } ] context.functionCallsWithArgumentsForOtherModules
-                    in
-                    { context
-                        | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls
-                        , functionCallsWithArgumentsForOtherModules = functionCallsWithArgumentsForOtherModules
-                    }
-
-                else
+                registerExternalFunctionReference moduleName
+                    fnName
+                    fnRange
+                    arguments
                     { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
 
             Nothing ->
                 context
+
+    else
+        context
+
+
+registerExternalFunctionReference : ModuleName -> FunctionName -> Range -> List Range -> ModuleContext -> ModuleContext
+registerExternalFunctionReference moduleName fnName fnRange arguments context =
+    let
+        key : ( ModuleName, FunctionName )
+        key =
+            ( moduleName, fnName )
+    in
+    if Set.member key context.functionsFromOtherModulesToFix then
+        let
+            functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List CallSite)
+            functionCallsWithArgumentsForOtherModules =
+                case Dict.get key context.functionCallsWithArgumentsForOtherModules of
+                    Just previous ->
+                        Dict.insert key ({ fnNameEnd = fnRange.end, arguments = Array.fromList arguments } :: previous) context.functionCallsWithArgumentsForOtherModules
+
+                    Nothing ->
+                        Dict.insert key [ { fnNameEnd = fnRange.end, arguments = Array.fromList arguments } ] context.functionCallsWithArgumentsForOtherModules
+        in
+        { context | functionCallsWithArgumentsForOtherModules = functionCallsWithArgumentsForOtherModules }
 
     else
         context
@@ -925,37 +933,9 @@ markValueAsUsed range name context =
                                     { scope | used = Set.insert name scope.used }
                             )
                             context.scopes
-                    , functionCallsWithArguments =
-                        if List.member range.start context.locationsToIgnoreFunctionCalls then
-                            context.functionCallsWithArguments
-
-                        else
-                            Dict.insert name [ { fnNameEnd = range.end, arguments = Array.empty } ] context.functionCallsWithArguments
                 }
 
-            Just moduleName ->
-                let
-                    key : ( ModuleName, FunctionName )
-                    key =
-                        ( moduleName, name )
-                in
-                if not (List.member range.start context.locationsToIgnoreFunctionCalls) && Set.member key context.functionsFromOtherModulesToFix then
-                    let
-                        functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List CallSite)
-                        functionCallsWithArgumentsForOtherModules =
-                            case Dict.get key context.functionCallsWithArgumentsForOtherModules of
-                                Just previous ->
-                                    Dict.insert key ({ fnNameEnd = range.end, arguments = Array.fromList [] } :: previous) context.functionCallsWithArgumentsForOtherModules
-
-                                Nothing ->
-                                    Dict.insert key [ { fnNameEnd = range.end, arguments = Array.fromList [] } ] context.functionCallsWithArgumentsForOtherModules
-                    in
-                    { context | functionCallsWithArgumentsForOtherModules = functionCallsWithArgumentsForOtherModules }
-
-                else
-                    context
-
-            Nothing ->
+            _ ->
                 context
 
     else
