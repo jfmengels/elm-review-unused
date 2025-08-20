@@ -699,7 +699,7 @@ formatRecord fields =
 expressionEnterVisitor : Node Expression -> ModuleContext -> ModuleContext
 expressionEnterVisitor node context =
     case Node.value node of
-        Expression.FunctionOrValue [] name ->
+        Expression.FunctionOrValue _ name ->
             markValueAsUsed (Node.range node) name context
 
         Expression.RecordUpdateExpression name _ ->
@@ -850,7 +850,6 @@ registerFunctionCall fnName fnRange arguments context =
                         ( moduleName, fnName )
                 in
                 if Set.member key context.functionsFromOtherModulesToFix then
-                    -- TODO Do the same in markValueAsUsed
                     let
                         functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List CallSite)
                         functionCallsWithArgumentsForOtherModules =
@@ -912,25 +911,52 @@ ignoreLocationsForRecursiveArguments fnArgs nodes index acc =
 markValueAsUsed : Range -> String -> ModuleContext -> ModuleContext
 markValueAsUsed range name context =
     if isVariableOrFunctionName name then
-        { context
-            | scopes =
-                NonemptyList.mapHead
-                    (\scope ->
-                        -- TODO Avoid changing context if name is not a parameter
-                        if shouldBeIgnored range name context then
-                            { scope | usedRecursively = Set.insert name scope.usedRecursively }
+        case ModuleNameLookupTable.moduleNameAt context.lookupTable range of
+            Just [] ->
+                { context
+                    | scopes =
+                        NonemptyList.mapHead
+                            (\scope ->
+                                -- TODO Avoid changing context if name is not a parameter
+                                if shouldBeIgnored range name context then
+                                    { scope | usedRecursively = Set.insert name scope.usedRecursively }
+
+                                else
+                                    { scope | used = Set.insert name scope.used }
+                            )
+                            context.scopes
+                    , functionCallsWithArguments =
+                        if List.member range.start context.locationsToIgnoreFunctionCalls then
+                            context.functionCallsWithArguments
 
                         else
-                            { scope | used = Set.insert name scope.used }
-                    )
-                    context.scopes
-            , functionCallsWithArguments =
-                if List.member range.start context.locationsToIgnoreFunctionCalls then
-                    context.functionCallsWithArguments
+                            Dict.insert name [ { fnNameEnd = range.end, arguments = Array.empty } ] context.functionCallsWithArguments
+                }
+
+            Just moduleName ->
+                let
+                    key : ( ModuleName, FunctionName )
+                    key =
+                        ( moduleName, name )
+                in
+                if not (List.member range.start context.locationsToIgnoreFunctionCalls) && Set.member key context.functionsFromOtherModulesToFix then
+                    let
+                        functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List CallSite)
+                        functionCallsWithArgumentsForOtherModules =
+                            case Dict.get key context.functionCallsWithArgumentsForOtherModules of
+                                Just previous ->
+                                    Dict.insert key ({ fnNameEnd = range.end, arguments = Array.fromList [] } :: previous) context.functionCallsWithArgumentsForOtherModules
+
+                                Nothing ->
+                                    Dict.insert key [ { fnNameEnd = range.end, arguments = Array.fromList [] } ] context.functionCallsWithArgumentsForOtherModules
+                    in
+                    { context | functionCallsWithArgumentsForOtherModules = functionCallsWithArgumentsForOtherModules }
 
                 else
-                    Dict.insert name [ { fnNameEnd = range.end, arguments = Array.empty } ] context.functionCallsWithArguments
-        }
+                    context
+
+            Nothing ->
+                context
 
     else
         context

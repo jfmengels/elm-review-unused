@@ -171,6 +171,41 @@ fn b =
 a = fn 3
 """
                     ]
+    , test "should report but not remove unused arguments when they are referenced without arguments (inside a single module)" <|
+        \() ->
+            """module A exposing (a)
+fn unused b =
+    b
+a = fn
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Parameter `unused` is not used"
+                        , details = details
+                        , under = "unused"
+                        }
+                    ]
+    , test "should report but not remove unused arguments when they are referenced without arguments (across modules)" <|
+        \() ->
+            [ """module A exposing (fn)
+fn unused b =
+    b
+""", """module B exposing (a)
+import A
+a = A.fn
+""" ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectErrorsForModules
+                    [ ( "A"
+                      , [ Review.Test.error
+                            { message = "Parameter `unused` is not used"
+                            , details = details
+                            , under = "unused"
+                            }
+                        ]
+                      )
+                    ]
     , test "should not report _ argument when it can't be fixed" <|
         \() ->
             """module A exposing (a)
