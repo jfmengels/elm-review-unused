@@ -839,11 +839,11 @@ registerFunctionCallReference fnName fnRange arguments context =
                             | locationsToIgnoreForRecursiveArguments = locationsToIgnore
                             , locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls
                         }
-                            |> markFunctionCall fnName fnRange.end (Array.fromList arguments)
+                            |> registerLocalFunctionReference fnName fnRange.end (Array.fromList arguments)
 
                     Nothing ->
                         { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
-                            |> markFunctionCall fnName fnRange.end (Array.fromList arguments)
+                            |> registerLocalFunctionReference fnName fnRange.end (Array.fromList arguments)
 
             Just moduleName ->
                 registerExternalFunctionReference moduleName
@@ -883,8 +883,8 @@ registerExternalFunctionReference moduleName fnName fnRange arguments context =
         context
 
 
-markFunctionCall : FunctionName -> Location -> Array Range -> ModuleContext -> ModuleContext
-markFunctionCall fnName fnNameEnd arguments context =
+registerLocalFunctionReference : FunctionName -> Location -> Array Range -> ModuleContext -> ModuleContext
+registerLocalFunctionReference fnName fnNameEnd arguments context =
     { context
         | functionCallsWithArguments =
             case Dict.get fnName context.functionCallsWithArguments of
