@@ -1217,4 +1217,12 @@ foo x =
         foo (x - 1)
 """
                     ]
+    , test "should not report recursive parameter when it's the only argument, as it leads to a compiler error" <|
+        \() ->
+            """module A exposing (crash)
+crash arg =
+    crash arg
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     ]

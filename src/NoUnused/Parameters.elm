@@ -203,6 +203,7 @@ type alias Declared =
     , position : Int
     , nesting : Array Nesting
     , rangesToRemove : Maybe (List Range)
+    , isOnlyArgument : Bool
     , toIgnoredFix : List Fix
     , backupWhenFixImpossible : BackupWhenFixImpossible
     }
@@ -508,11 +509,11 @@ getArgNamesHelp declared index acc =
             getArgNamesHelp restOfDeclared (index + 1) newAcc
 
 
-getParametersFromPatterns : ParameterPath.Path -> Location -> Source -> Node Pattern -> List Declared
-getParametersFromPatterns path previousEnd source node =
+getParametersFromPatterns : ParameterPath.Path -> Location -> Bool -> Source -> Node Pattern -> List Declared
+getParametersFromPatterns path previousEnd isOnlyArgument source node =
     case Node.value node of
         Pattern.ParenthesizedPattern pattern ->
-            getParametersFromPatterns path previousEnd source pattern
+            getParametersFromPatterns path previousEnd isOnlyArgument source pattern
 
         Pattern.VarPattern name ->
             [ { name = name
@@ -526,6 +527,7 @@ getParametersFromPatterns path previousEnd source node =
                         Nothing
               , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
               , position = path.index
+              , isOnlyArgument = isOnlyArgument
               , nesting = path.nesting
               , source = source
               , backupWhenFixImpossible = FixWith (always [])
@@ -542,6 +544,7 @@ getParametersFromPatterns path previousEnd source node =
                           , rangesToRemove = Just rangesToRemove
                           , toIgnoredFix = []
                           , position = path.index
+                          , isOnlyArgument = isOnlyArgument
                           , nesting = path.nesting
                           , source = source
                           , backupWhenFixImpossible = DontReportError
@@ -555,7 +558,7 @@ getParametersFromPatterns path previousEnd source node =
                 []
 
         Pattern.AsPattern pattern asName ->
-            getParametersFromAsPattern path previousEnd source pattern asName
+            getParametersFromAsPattern path previousEnd source isOnlyArgument pattern asName
 
         Pattern.RecordPattern fields ->
             let
@@ -571,6 +574,7 @@ getParametersFromPatterns path previousEnd source node =
                       , rangesToRemove = Nothing
                       , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
                       , position = path.index
+                      , isOnlyArgument = isOnlyArgument
                       , nesting = pathInArgument_.nesting
                       , source = source
                       , backupWhenFixImpossible = FixWith (always [])
@@ -595,6 +599,7 @@ getParametersFromPatterns path previousEnd source node =
                                     (fieldNames |> List.filter (\f -> f /= Node.value field) |> formatRecord)
                                 ]
                             , position = path.index
+                            , isOnlyArgument = isOnlyArgument
                             , nesting = pathInArgument_.nesting
                             , source = source
                             , backupWhenFixImpossible = FixWith (always [])
@@ -613,6 +618,7 @@ getParametersFromPatterns path previousEnd source node =
                                     (ParameterPath.inTuple tupleIndex path)
                                     -- TODO Use end from previous tuple element?
                                     previousEnd
+                                    isOnlyArgument
                                     source
                                     pattern
                             )
@@ -625,6 +631,7 @@ getParametersFromPatterns path previousEnd source node =
                   , rangesToRemove = Nothing
                   , toIgnoredFix = [ Fix.replaceRangeBy (Node.range node) "_" ]
                   , position = path.index
+                  , isOnlyArgument = isOnlyArgument
                   , nesting = path.nesting
                   , source = source
                   , backupWhenFixImpossible = FixWith (always [])
@@ -642,6 +649,7 @@ getParametersFromPatterns path previousEnd source node =
                             (ParameterPath.inNamedPattern patternIndex path)
                             -- TODO Use something else?
                             previousEnd
+                            isOnlyArgument
                             source
                             pattern
                     )
@@ -651,12 +659,12 @@ getParametersFromPatterns path previousEnd source node =
             []
 
 
-getParametersFromAsPattern : Path -> Location -> Source -> Node Pattern -> Node String -> List Declared
-getParametersFromAsPattern path previousEnd source pattern asName =
+getParametersFromAsPattern : Path -> Location -> Source -> Bool -> Node Pattern -> Node String -> List Declared
+getParametersFromAsPattern path previousEnd source isOnlyArgument pattern asName =
     let
         parametersFromPatterns : List Declared
         parametersFromPatterns =
-            getParametersFromPatterns (ParameterPath.inAlias path) previousEnd source pattern
+            getParametersFromPatterns (ParameterPath.inAlias path) previousEnd isOnlyArgument source pattern
 
         asParameter : Declared
         asParameter =
@@ -666,6 +674,7 @@ getParametersFromAsPattern path previousEnd source pattern asName =
             , rangesToRemove = Nothing
             , toIgnoredFix = [ Fix.removeRange { start = (Node.range pattern).end, end = (Node.range asName).end } ]
             , position = path.index
+            , isOnlyArgument = isOnlyArgument
             , nesting = path.nesting
             , source = source
             , backupWhenFixImpossible = FixWith (always [])
@@ -1106,7 +1115,13 @@ findErrorsAndVariablesNotPartOfScope scope declared ({ reportLater, reportNow, r
             }
 
         else
-            -- If variable was used ONLY as a recursive argument
+        -- If variable was used ONLY as a recursive argument
+        if
+            declared.isOnlyArgument
+        then
+            acc
+
+        else
             recursiveParameterError scope.functionName declared
                 |> accumulate acc
 
@@ -1155,13 +1170,14 @@ findDeclared source previousEnd arguments signature =
     findDeclaredHelp
         source
         previousEnd
+        (functionOnlyHasOneArgument arguments)
         (ParameterPath.fromSignature signature)
         arguments
         []
 
 
-findDeclaredHelp : Source -> Location -> Path -> List (Node Pattern) -> List (List Declared) -> List (List Declared)
-findDeclaredHelp source previousEnd path arguments acc =
+findDeclaredHelp : Source -> Location -> Bool -> Path -> List (Node Pattern) -> List (List Declared) -> List (List Declared)
+findDeclaredHelp source previousEnd isOnlyArgument path arguments acc =
     case arguments of
         [] ->
             List.reverse acc
@@ -1170,9 +1186,20 @@ findDeclaredHelp source previousEnd path arguments acc =
             findDeclaredHelp
                 source
                 (Node.range arg).end
+                isOnlyArgument
                 (ParameterPath.nextArgument path)
                 remainingArguments
-                (getParametersFromPatterns path previousEnd source arg :: acc)
+                (getParametersFromPatterns path previousEnd isOnlyArgument source arg :: acc)
+
+
+functionOnlyHasOneArgument : List (Node Pattern) -> Bool
+functionOnlyHasOneArgument nodes =
+    case nodes of
+        [ _ ] ->
+            True
+
+        _ ->
+            False
 
 
 type ReportTime
