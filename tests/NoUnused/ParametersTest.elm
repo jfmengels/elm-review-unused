@@ -255,6 +255,13 @@ foo =
     List.map (\\_ -> Nothing) list
 """
                     ]
+    , test "should not report used arguments in lambda" <|
+        \() ->
+            """module A exposing (a)
+a = List.any (\\e -> e.details) errors
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
     , test "should not report _ argument in lambda" <|
         \() ->
             """module A exposing (a)
