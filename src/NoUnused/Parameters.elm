@@ -1155,14 +1155,13 @@ findDeclared source previousEnd arguments signature =
     findDeclaredHelp
         source
         previousEnd
-        0
         (ParameterPath.fromSignature signature)
         arguments
         []
 
 
-findDeclaredHelp : Source -> Location -> Int -> Path -> List (Node Pattern) -> List (List Declared) -> List (List Declared)
-findDeclaredHelp source previousEnd index path arguments acc =
+findDeclaredHelp : Source -> Location -> Path -> List (Node Pattern) -> List (List Declared) -> List (List Declared)
+findDeclaredHelp source previousEnd path arguments acc =
     case arguments of
         [] ->
             List.reverse acc
@@ -1171,7 +1170,6 @@ findDeclaredHelp source previousEnd index path arguments acc =
             findDeclaredHelp
                 source
                 (Node.range arg).end
-                (index + 1)
                 (ParameterPath.nextArgument path)
                 remainingArguments
                 (getParametersFromPatterns path previousEnd source arg :: acc)
