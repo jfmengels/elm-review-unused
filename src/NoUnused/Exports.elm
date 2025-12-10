@@ -1686,7 +1686,7 @@ registerLocalValue range name moduleContext =
             moduleContext
 
 
-registerLocalValueWithRealModuleName : String -> String -> ModuleContext -> ModuleContext
+registerLocalValueWithRealModuleName : ModuleNameStr -> String -> ModuleContext -> ModuleContext
 registerLocalValueWithRealModuleName realModuleName name moduleContext =
     case realModuleName of
         "" ->
