@@ -852,7 +852,7 @@ finalEvaluationForProject exceptionExplanation projectContext =
     in
     Dict.foldl
         (\moduleName module_ acc ->
-            if not (filterExposedPackage_ moduleName) then
+            if not (filterExposedPackage_ moduleName) || moduleName == "ReviewConfig" then
                 acc
 
             else if Set.member moduleName projectContext.usedModules then
@@ -894,7 +894,10 @@ errorsForModule :
 errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isExposingAll, isProductionFile, isProductionFileNotToReport, ignoredElementsNotToReport } acc =
     Dict.foldl
         (\name element subAcc ->
-            if isUsedOrException projectContext used moduleName name then
+            if isApplicationException projectContext name then
+                subAcc
+
+            else if Set.member ( moduleName, name ) used then
                 subAcc
 
             else if Set.member ( moduleName, name ) usedInIgnoredModules then
@@ -963,13 +966,6 @@ filterExposedPackage projectContext =
 
         IsPackage exposedModuleNames ->
             \moduleName -> not <| Set.member moduleName exposedModuleNames
-
-
-isUsedOrException : ProjectContext -> Set ( ModuleNameStr, String ) -> ModuleNameStr -> String -> Bool
-isUsedOrException projectContext used moduleName name =
-    Set.member ( moduleName, name ) used
-        || isApplicationException projectContext name
-        || (moduleName == "ReviewConfig")
 
 
 isApplicationException : ProjectContext -> String -> Bool
