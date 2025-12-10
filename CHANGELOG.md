@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+- NoUnused.Exports: Fixed an issue where a custom type did not get reported when one of its constructors was named like another type.
+Example, where type `Unused` was incorrectly considered as used:
+```elm
+type alias T = ()
+type Unused = T
+value : T
+value = ()
+```
+
 ## [1.2.4] - 2025-02-11
 
 Now requires `jfmengels/elm-review` v2.15.0.

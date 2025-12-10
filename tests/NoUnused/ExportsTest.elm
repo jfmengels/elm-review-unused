@@ -469,6 +469,57 @@ type Variant = A String
 """ ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
+        , test "should report an unused custom type even if one of its variants is named the same as another type (top-level declaration)" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import M
+main = x
+x : M.T
+x = M.t
+""", """
+module M exposing (Unused(..), T, t)
+type alias T = ()
+t = ()
+type Unused = T
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "M"
+                          , [ Review.Test.error
+                                { message = "Exposed type `Unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "Unused(..)"
+                                }
+                            ]
+                          )
+                        ]
+        , test "should report an unused custom type even if one of its variants is named the same as another type (let function usage)" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import M
+main =
+    let x : M.T
+        x = M.t
+    in x
+""", """
+module M exposing (Unused(..), T, t)
+type alias T = ()
+t = ()
+type Unused = T
+""" ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "M"
+                          , [ Review.Test.error
+                                { message = "Exposed type `Unused` is never used outside this module."
+                                , details = unusedExposedElementDetails
+                                , under = "Unused(..)"
+                                }
+                            ]
+                          )
+                        ]
         , test "should not report a used exposed custom type (used in type alias)" <|
             \() ->
                 [ """
