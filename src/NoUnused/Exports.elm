@@ -638,8 +638,8 @@ declarationToTopLevelExpose declaration =
                 |> Node.map Exposing.FunctionExpose
                 |> Just
 
-        Declaration.InfixDeclaration infix ->
-            infix.operator
+        Declaration.InfixDeclaration infix_ ->
+            infix_.operator
                 |> Node.map Exposing.InfixExpose
                 |> Just
 
