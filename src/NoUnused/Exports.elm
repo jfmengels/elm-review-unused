@@ -896,7 +896,7 @@ finalEvaluationForProject exceptionExplanation projectContext =
 unusedModuleError : ModuleNameStr -> { a | moduleKey : Rule.ModuleKey, moduleNameLocation : Range } -> Error scope
 unusedModuleError moduleName { moduleKey, moduleNameLocation } =
     Rule.errorForModule moduleKey
-        { message = "Module `" ++ moduleName ++ "` is never used."
+        { message = "Module `" ++ moduleName ++ "` is never used"
         , details = [ "This module is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
         }
         moduleNameLocation
@@ -952,7 +952,7 @@ errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules
 
                     else
                         Rule.errorForModule moduleKey
-                            { message = what element.elementType ++ " `" ++ name ++ "` is never used in production code."
+                            { message = what element.elementType ++ " `" ++ name ++ "` is never used in production code"
                             , details =
                                 "This exposed element is only used in files you have marked as non-production code (e.g. the tests folder), and should therefore be removed along with the places it's used in. This will help reduce the amount of code you will need to maintain."
                                     :: (case exceptionExplanation of
@@ -971,7 +971,7 @@ errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules
 
                 else if isExposingAll then
                     Rule.errorForModuleWithFix moduleKey
-                        { message = what element.elementType ++ " `" ++ name ++ "` is never used in the project."
+                        { message = what element.elementType ++ " `" ++ name ++ "` is never used in the project"
                         , details = [ "This exposed element is never used, neither inside its module nor outside. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
                         }
                         element.range
@@ -980,7 +980,7 @@ errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules
 
                 else
                     Rule.errorForModuleWithFix moduleKey
-                        { message = what element.elementType ++ " `" ++ name ++ "` is never used outside this module."
+                        { message = what element.elementType ++ " `" ++ name ++ "` is never used outside this module"
                         , details = [ "This exposed element is never used. You may want to remove it to keep your project clean, and maybe detect some unused code in your project." ]
                         }
                         element.range
