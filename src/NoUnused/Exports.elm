@@ -98,9 +98,6 @@ elm-review --template jfmengels/elm-review-unused/example-ignore-tests --rules N
 
 -}
 
--- TODO Don't report type or type aliases (still `A(..)` though) if they are
--- used in exposed function arguments/return values.
-
 import Dict exposing (Dict)
 import Elm.Module
 import Elm.Project
