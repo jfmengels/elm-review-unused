@@ -861,7 +861,7 @@ type OtherType = OtherThing | SomeThing ((), List MyType)
         , test "should report the correct range when exports are on multiple lines" <|
             \() ->
                 [ """module A
-             exposing ( Card
+             exposing ( Card(..)
     , Link
     , init
     , toElement
@@ -884,7 +884,7 @@ a = A.Card A.init A.toElement
                                 }
                                 |> Review.Test.atExactly { start = { row = 3, column = 7 }, end = { row = 3, column = 11 } }
                                 |> Review.Test.whenFixed """module A
-             exposing ( Card
+             exposing ( Card(..)
     , init
     , toElement
     )
