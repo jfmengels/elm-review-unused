@@ -35,9 +35,8 @@ all =
         , lamderaTests
         , unusedModuleTests
         , reportUnusedProductionExportsTest
+        , exposingTypeVariantsTests
         , exposingAllTests
-
-        -- TODO Add tests that report exposing the type's variants if they are never used.
         ]
 
 
@@ -601,6 +600,7 @@ type OtherType = Thing MyType
 module Exposed exposing (..)
 import A
 type alias B = A.OtherType
+b = A.Thing A.VariantB
 """ ]
                     |> Review.Test.runOnModulesWithProjectData package rule
                     |> Review.Test.expectNoErrors
@@ -642,6 +642,7 @@ type OtherType = OtherThing | SomeThing ((), List MyType)
 module Exposed exposing (..)
 import A
 type alias B = A.OtherType
+b = A.OtherThing
 """ ]
                     |> Review.Test.runOnModulesWithProjectData package rule
                     |> Review.Test.expectNoErrors
@@ -837,6 +838,7 @@ type OtherType = OtherType MyType
 module Exposed exposing (..)
 import A
 type alias B = A.OtherType
+b = A.OtherType {}
 """ ]
                     |> Review.Test.runOnModulesWithProjectData package rule
                     |> Review.Test.expectNoErrors
@@ -878,6 +880,7 @@ type OtherType = OtherThing | SomeThing ((), List MyType)
 module Exposed exposing (..)
 import A
 type alias B = A.OtherType
+b = A.OtherThing
 """ ]
                     |> Review.Test.runOnModulesWithProjectData package rule
                     |> Review.Test.expectNoErrors
@@ -1609,6 +1612,51 @@ unused = 1
                             ]
                           )
                         ]
+        ]
+
+
+exposingTypeVariantsTests : Test
+exposingTypeVariantsTests =
+    describe "Reporting unused exposing of type variants"
+        [ test "should report and remove the exposing of variants if the variants are only used inside the module" <|
+            \() ->
+                [ """
+module A exposing (Exposed(..), value)
+type Exposed = VariantA | VariantB
+value = VariantA
+"""
+                , """
+module Main exposing (main)
+import A
+main : A.Exposed
+main = A.value
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "A"
+                          , [ Review.Test.error
+                                { message = "The constructors for type `Exposed` are never used outside this module"
+                                , details = [ "You should stop exposing the variants by removing the (..) at this location. You can re-expose them if necessary later." ]
+                                , under = "Exposed(..)"
+                                }
+                                |> Review.Test.whenFixed """
+module A exposing (Exposed, value)
+type Exposed = VariantA | VariantB
+value = VariantA
+"""
+                            ]
+                          )
+                        ]
+        , test "should not report the exposing of the variants of a custom type exposed as part of a package's public API" <|
+            \() ->
+                """
+module Exposed exposing (Exposed(..), value)
+type Exposed = VariantA | VariantB
+value = VariantA
+"""
+                    |> Review.Test.runWithProjectData package rule
+                    |> Review.Test.expectNoErrors
         ]
 
 

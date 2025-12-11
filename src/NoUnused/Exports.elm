@@ -475,6 +475,7 @@ type alias ProjectContext =
     , used : Set ElementIdentifier
     , usedInIgnoredModules : Set ElementIdentifier
     , constructors : Dict ( ModuleNameStr, String ) String
+    , typesImportedWithConstructors : Set ( ModuleNameStr, String )
     }
 
 
@@ -537,6 +538,7 @@ type alias ModuleContext =
     , projectType : ProjectType
     , isExposingAll : Bool
     , constructorNameToTypeName : Dict String String
+    , typesImportedWithConstructors : Set ( ModuleNameStr, String )
     }
 
 
@@ -548,6 +550,7 @@ initialProjectContext =
     , used = Set.empty
     , usedInIgnoredModules = Set.empty
     , constructors = Dict.empty
+    , typesImportedWithConstructors = Set.empty
     }
 
 
@@ -589,6 +592,7 @@ fromProjectToModule =
             , ignoredElementsNotToReport = Set.empty
             , importedModules = Set.empty
             , constructorNameToTypeName = createConstructorNameToTypeNameDict exposingList ast.declarations
+            , typesImportedWithConstructors = Set.empty
             , containsMainFunction = False
             , inTheDeclarationOf = ""
             , projectType = projectContext.projectType
@@ -748,6 +752,7 @@ fromModuleToProject config =
                     )
                     Dict.empty
                     moduleContext.exposed
+            , typesImportedWithConstructors = moduleContext.typesImportedWithConstructors
             }
         )
         |> Rule.withModuleKey
@@ -778,6 +783,7 @@ foldProjectContexts newContext previousContext =
     , used = Set.union newContext.used previousContext.used
     , usedInIgnoredModules = Set.union newContext.usedInIgnoredModules previousContext.usedInIgnoredModules
     , constructors = Dict.union newContext.constructors previousContext.constructors
+    , typesImportedWithConstructors = Set.union newContext.typesImportedWithConstructors previousContext.typesImportedWithConstructors
     }
 
 
@@ -838,14 +844,15 @@ elmJsonVisitor maybeProject projectContext =
 finalEvaluationForProject : Maybe String -> ProjectContext -> List (Error { useErrorForModule : () })
 finalEvaluationForProject exceptionExplanation projectContext =
     let
-        used : Set ElementIdentifier
-        used =
+        ( used, typesWithUsedConstructors ) =
             Set.foldl
-                (\( moduleName, name, realm ) acc ->
+                (\( moduleName, name, realm ) (( used_, typesWithUsedConstructors_ ) as acc) ->
                     if realm == valueRealm then
                         case Dict.get ( moduleName, name ) projectContext.constructors of
                             Just typeName ->
-                                Set.insert ( moduleName, typeName, typeRealm ) acc
+                                ( Set.insert ( moduleName, typeName, typeRealm ) used_
+                                , Set.insert ( moduleName, typeName ) typesWithUsedConstructors_
+                                )
 
                             Nothing ->
                                 acc
@@ -853,7 +860,7 @@ finalEvaluationForProject exceptionExplanation projectContext =
                     else
                         acc
                 )
-                projectContext.used
+                ( projectContext.used, projectContext.typesImportedWithConstructors )
                 projectContext.used
 
         usedInIgnoredModules : Set ElementIdentifier
@@ -884,7 +891,16 @@ finalEvaluationForProject exceptionExplanation projectContext =
                 acc
 
             else if Set.member moduleName projectContext.usedModules then
-                errorsForModule exceptionExplanation projectContext { used = used, usedInIgnoredModules = usedInIgnoredModules } moduleName module_ acc
+                errorsForModule
+                    { exceptionExplanation = exceptionExplanation
+                    , projectContext = projectContext
+                    , used = used
+                    , usedInIgnoredModules = usedInIgnoredModules
+                    , typesWithUsedConstructors = typesWithUsedConstructors
+                    , moduleName = moduleName
+                    }
+                    module_
+                    acc
 
             else
                 unusedModuleError moduleName module_ :: acc
@@ -904,10 +920,13 @@ unusedModuleError moduleName { moduleKey, moduleNameLocation } =
 
 
 errorsForModule :
-    Maybe String
-    -> ProjectContext
-    -> { used : Set ElementIdentifier, usedInIgnoredModules : Set ElementIdentifier }
-    -> ModuleNameStr
+    { exceptionExplanation : Maybe String
+    , projectContext : ProjectContext
+    , used : Set ElementIdentifier
+    , usedInIgnoredModules : Set ElementIdentifier
+    , typesWithUsedConstructors : Set ( ModuleNameStr, String )
+    , moduleName : ModuleNameStr
+    }
     ->
         { a
             | moduleKey : Rule.ModuleKey
@@ -919,7 +938,7 @@ errorsForModule :
         }
     -> List (Error scope)
     -> List (Error scope)
-errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules } moduleName { moduleKey, exposed, isExposingAll, isProductionFile, isProductionFileNotToReport, ignoredElementsNotToReport } acc =
+errorsForModule { exceptionExplanation, projectContext, used, usedInIgnoredModules, typesWithUsedConstructors, moduleName } { moduleKey, exposed, isExposingAll, isProductionFile, isProductionFileNotToReport, ignoredElementsNotToReport } acc =
     Dict.foldl
         (\name element subAcc ->
             if isApplicationException projectContext name then
@@ -944,7 +963,24 @@ errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules
                         ( moduleName, name, isType )
                 in
                 if Set.member key used then
-                    subAcc
+                    if not isExposingAll && isCustomTypeExposingUnusedVariants typesWithUsedConstructors moduleName name element then
+                        Rule.errorForModuleWithFix moduleKey
+                            { message = "The constructors for type `" ++ name ++ "` are never used outside this module"
+                            , details = [ "You should stop exposing the variants by removing the (..) at this location. You can re-expose them if necessary later." ]
+                            }
+                            element.range
+                            [ Fix.removeRange
+                                { start =
+                                    { row = element.range.start.row
+                                    , column = element.range.end.column - 4
+                                    }
+                                , end = element.range.end
+                                }
+                            ]
+                            :: subAcc
+
+                    else
+                        subAcc
 
                 else if Set.member key usedInIgnoredModules then
                     if not isProductionFile || isProductionFileNotToReport || Set.member name ignoredElementsNotToReport then
@@ -989,6 +1025,19 @@ errorsForModule exceptionExplanation projectContext { used, usedInIgnoredModules
         )
         acc
         exposed
+
+
+isCustomTypeExposingUnusedVariants : Set ( ModuleNameStr, String ) -> ModuleNameStr -> String -> ExposedElement -> Bool
+isCustomTypeExposingUnusedVariants typesWithUsedConstructors moduleName name element =
+    case element.elementType of
+        Function ->
+            False
+
+        TypeOrTypeAlias _ ->
+            False
+
+        ExposedType _ ->
+            not (Set.member ( moduleName, name ) typesWithUsedConstructors)
 
 
 what : ExposedElementType -> String
@@ -1133,6 +1182,7 @@ importVisitor (Node _ import_) moduleContext =
     { moduleContext
         | used = collectUsedFromImport moduleName import_.exposingList moduleContext.used
         , importedModules = Set.insert moduleName moduleContext.importedModules
+        , typesImportedWithConstructors = addTypesImportedWithConstructors moduleName import_.exposingList moduleContext.typesImportedWithConstructors
     }
 
 
@@ -1163,6 +1213,29 @@ collectUsedFromImport moduleName exposingList used =
 
         Nothing ->
             used
+
+
+addTypesImportedWithConstructors : ModuleNameStr -> Maybe (Node Exposing) -> Set ( ModuleNameStr, String ) -> Set ( ModuleNameStr, String )
+addTypesImportedWithConstructors moduleName exposingList typesImportedWithConstructors =
+    case Maybe.map Node.value exposingList of
+        Just (Exposing.Explicit list) ->
+            List.foldl
+                (\(Node _ element) acc ->
+                    case element of
+                        Exposing.TypeExpose { name } ->
+                            Set.insert ( moduleName, name ) acc
+
+                        _ ->
+                            acc
+                )
+                typesImportedWithConstructors
+                list
+
+        Just (Exposing.All _) ->
+            typesImportedWithConstructors
+
+        Nothing ->
+            typesImportedWithConstructors
 
 
 collectDocsReferences : Maybe (Node String) -> List ( Int, String )

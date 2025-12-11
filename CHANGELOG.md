@@ -2,13 +2,18 @@
 
 ## [Unreleased]
 
-- NoUnused.Exports: Fixed an issue where a custom type did not get reported when one of its constructors was named like another type.
+- Fixed an issue for [`NoUnused.Exports`] where a custom type did not get reported when one of its constructors was named like another type.
 Example, where type `Unused` was incorrectly considered as used:
 ```elm
 type alias T = ()
 type Unused = T
 value : T
 value = ()
+```
+- [`NoUnused.Exports`] will now report and fix unnecessary exposing of a custom type's variants in a module's `exposing` list.
+```diff
+-module A exposing (Type(..))
++module A exposing (Type)
 ```
 
 ## [1.2.4] - 2025-02-11
