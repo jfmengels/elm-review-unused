@@ -158,7 +158,7 @@ type alias ModuleContext =
 
 type alias DeclaredModule =
     { moduleName : ModuleName
-    , alias : Maybe String
+    , moduleNameInUse : ModuleName
     , typeName : String
     , variableType : DeclaredModuleType
     , under : Range
@@ -193,7 +193,7 @@ type alias ModuleThatExposesEverything =
 
 type DeclaredModuleType
     = ImportedModule
-    | ModuleAlias { originalNameOfTheImport : String, exposesSomething : Bool }
+    | ModuleAlias { alias : String, originalNameOfTheImport : String, exposesSomething : Bool }
 
 
 type alias Scope =
@@ -628,7 +628,7 @@ registerModuleNameOrAlias ((Node range { moduleAlias, moduleName }) as node) con
         Nothing ->
             registerModule
                 { moduleName = Node.value moduleName
-                , alias = Nothing
+                , moduleNameInUse = Node.value moduleName
                 , typeName = "Imported module"
                 , variableType = ImportedModule
                 , under = Node.range moduleName
@@ -641,10 +641,11 @@ registerModuleAlias : Node Import -> Node ModuleName -> ModuleContext -> ModuleC
 registerModuleAlias ((Node range { exposingList, moduleName }) as node) moduleAlias context =
     registerModule
         { moduleName = Node.value moduleName
-        , alias = Just (getModuleName (Node.value moduleAlias))
+        , moduleNameInUse = Node.value moduleAlias
         , variableType =
             ModuleAlias
-                { originalNameOfTheImport = getModuleName <| Node.value moduleName
+                { alias = getModuleName (Node.value moduleAlias)
+                , originalNameOfTheImport = getModuleName <| Node.value moduleName
                 , exposesSomething = exposingList /= Nothing
                 }
         , typeName = "Module alias"
@@ -1355,7 +1356,7 @@ finalEvaluation context =
         moduleNamesInUse : Set String
         moduleNamesInUse =
             context.declaredModules
-                |> List.map (\{ alias, moduleName } -> Maybe.withDefault (getModuleName moduleName) alias)
+                |> List.map (\mod -> getModuleName mod.moduleNameInUse)
                 |> Set.fromList
 
         usedLocally : Set String
@@ -1431,26 +1432,12 @@ finalEvaluation context =
                     let
                         moduleReference : ( ModuleName, ModuleName )
                         moduleReference =
-                            case variableInfo.alias of
-                                Just alias ->
-                                    ( variableInfo.moduleName, [ alias ] )
-
-                                Nothing ->
-                                    ( variableInfo.moduleName, variableInfo.moduleName )
+                            ( variableInfo.moduleName, variableInfo.moduleNameInUse )
                     in
                     not (Set.member moduleReference usedModules)
                 )
                 (\variableInfo ->
                     let
-                        name : String
-                        name =
-                            case variableInfo.alias of
-                                Just alias ->
-                                    alias
-
-                                Nothing ->
-                                    getModuleName variableInfo.moduleName
-
                         fix : List Fix
                         fix =
                             case variableInfo.variableType of
@@ -1465,7 +1452,7 @@ finalEvaluation context =
                                         []
                     in
                     Rule.errorWithFix
-                        { message = variableInfo.typeName ++ " `" ++ name ++ "` is not used"
+                        { message = variableInfo.typeName ++ " `" ++ String.join "." variableInfo.moduleNameInUse ++ "` is not used"
                         , details = details
                         }
                         variableInfo.under
