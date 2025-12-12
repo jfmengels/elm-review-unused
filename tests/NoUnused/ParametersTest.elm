@@ -913,4 +913,27 @@ foo x unused =
                         }
                         |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
                     ]
+    , test "should report unused recursive parameters when assigned to another variable" <|
+        \() ->
+            """module A exposing (..)
+foo x unused =
+    let alsoUnused = unused
+    in
+    if cond then
+        x
+    else
+        foo (x - 1) <| alsoUnused
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Parameter `unused` is only used in recursion"
+                        , details =
+                            [ "This parameter is only used to be passed as an argument to 'foo', but its value is never read or used."
+                            , "You should either use this parameter somewhere, or remove it at the location I pointed at."
+                            ]
+                        , under = "unused"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 7 }, end = { row = 2, column = 13 } }
+                    ]
     ]
