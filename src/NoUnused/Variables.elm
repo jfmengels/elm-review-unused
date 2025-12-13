@@ -402,14 +402,14 @@ importVisitor ((Node importRange import_) as node) context =
         errors : List (Error {})
         errors =
             case import_.moduleAlias of
-                Just moduleAlias ->
-                    if Node.value moduleAlias == moduleName then
+                Just (Node moduleAliasRange moduleAlias) ->
+                    if moduleAlias == moduleName then
                         [ Rule.errorWithFix
-                            { message = "Module `" ++ String.join "." (Node.value moduleAlias) ++ "` is aliased as itself"
+                            { message = "Module `" ++ String.join "." moduleAlias ++ "` is aliased as itself"
                             , details = [ "The alias is the same as the module name, and brings no useful value" ]
                             }
-                            (Node.range moduleAlias)
-                            [ Fix.removeRange <| endOfModuleNameUntilModuleAliasEnd node (Node.range moduleAlias) ]
+                            moduleAliasRange
+                            [ Fix.removeRange <| endOfModuleNameUntilModuleAliasEnd node moduleAliasRange ]
                         ]
 
                     else
