@@ -10,7 +10,7 @@ import Dict exposing (Dict)
 import Elm.Docs
 import Elm.Project
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
-import Elm.Syntax.Exposing as Exposing
+import Elm.Syntax.Exposing as Exposing exposing (TopLevelExpose)
 import Elm.Syntax.Expression as Expression exposing (Expression, Function, FunctionImplementation)
 import Elm.Syntax.Import exposing (Import)
 import Elm.Syntax.Module as Module exposing (Module)
@@ -444,18 +444,7 @@ reportImport ((Node _ import_) as node) context =
             ( [], collectExplicitExposingAll context exposingRange node )
 
         Just (Node exposingRange (Exposing.Explicit list)) ->
-            let
-                customTypesFromModule : Dict String (List String)
-                customTypesFromModule =
-                    context.customTypes
-                        |> Dict.get (Node.value import_.moduleName)
-                        |> Maybe.withDefault Dict.empty
-            in
-            collectExplicitlyExposedElements
-                (handleExposedElements (NonemptyList.head context.scopes).declared customTypesFromModule)
-                exposingRange
-                list
-                ( [], context )
+            collectExplicitImports context node exposingRange list
 
 
 collectExplicitExposingAll : ModuleContext -> Range -> Node Import -> ModuleContext
@@ -481,6 +470,22 @@ collectExplicitExposingAll context exposingRange (Node importRange import_) =
 
     else
         context
+
+
+collectExplicitImports : ModuleContext -> Node Import -> Range -> List (Node TopLevelExpose) -> ( List (Error {}), ModuleContext )
+collectExplicitImports context (Node _ import_) exposingRange list =
+    let
+        customTypesFromModule : Dict String (List String)
+        customTypesFromModule =
+            context.customTypes
+                |> Dict.get (Node.value import_.moduleName)
+                |> Maybe.withDefault Dict.empty
+    in
+    collectExplicitlyExposedElements
+        (handleExposedElements (NonemptyList.head context.scopes).declared customTypesFromModule)
+        exposingRange
+        list
+        ( [], context )
 
 
 handleExposedElements : Dict String VariableInfo -> Dict String (List String) -> ExposedElement -> ( List (Rule.Error {}), ModuleContext ) -> ( List (Rule.Error {}), ModuleContext )
