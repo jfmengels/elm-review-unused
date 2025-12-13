@@ -440,24 +440,22 @@ reportImport ((Node _ import_) as node) context =
         Nothing ->
             ( [], registerModuleNameOrAlias node context )
 
-        Just (Node exposingRange declaredImports) ->
-            case declaredImports of
-                Exposing.All _ ->
-                    ( [], collectExplicitExposingAll context exposingRange node )
+        Just (Node exposingRange (Exposing.All _)) ->
+            ( [], collectExplicitExposingAll context exposingRange node )
 
-                Exposing.Explicit list ->
-                    let
-                        customTypesFromModule : Dict String (List String)
-                        customTypesFromModule =
-                            context.customTypes
-                                |> Dict.get (Node.value import_.moduleName)
-                                |> Maybe.withDefault Dict.empty
-                    in
-                    collectExplicitlyExposedElements
-                        (handleExposedElements (NonemptyList.head context.scopes).declared customTypesFromModule)
-                        exposingRange
-                        list
-                        ( [], context )
+        Just (Node exposingRange (Exposing.Explicit list)) ->
+            let
+                customTypesFromModule : Dict String (List String)
+                customTypesFromModule =
+                    context.customTypes
+                        |> Dict.get (Node.value import_.moduleName)
+                        |> Maybe.withDefault Dict.empty
+            in
+            collectExplicitlyExposedElements
+                (handleExposedElements (NonemptyList.head context.scopes).declared customTypesFromModule)
+                exposingRange
+                list
+                ( [], context )
 
 
 collectExplicitExposingAll : ModuleContext -> Range -> Node Import -> ModuleContext
