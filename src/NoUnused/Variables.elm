@@ -393,16 +393,17 @@ getExposingName node =
 
 
 importVisitor : Node Import -> ModuleContext -> ( List (Error {}), ModuleContext )
-importVisitor ((Node importRange import_) as node) context =
+importVisitor ((Node _ import_) as node) context =
     let
-        moduleName : ModuleName
-        moduleName =
-            Node.value import_.moduleName
-
         errors : List (Error {})
         errors =
             case import_.moduleAlias of
                 Just (Node moduleAliasRange moduleAlias) ->
+                    let
+                        moduleName : ModuleName
+                        moduleName =
+                            Node.value import_.moduleName
+                    in
                     if moduleAlias == moduleName then
                         [ Rule.errorWithFix
                             { message = "Module `" ++ String.join "." moduleAlias ++ "` is aliased as itself"
@@ -428,62 +429,66 @@ importVisitor ((Node importRange import_) as node) context =
                     context
 
         ( exposingErrors, newContext ) =
-            case import_.exposingList of
-                Nothing ->
-                    ( [], registerModuleNameOrAlias node context )
-
-                Just declaredImports ->
-                    let
-                        moduleNameRange : Range
-                        moduleNameRange =
-                            Node.range import_.moduleName
-
-                        exposingRange : Range
-                        exposingRange =
-                            case import_.moduleAlias of
-                                Just (Node aliasRange _) ->
-                                    { start = aliasRange.end, end = (Node.range declaredImports).end }
-
-                                Nothing ->
-                                    { start = moduleNameRange.end, end = (Node.range declaredImports).end }
-                    in
-                    case Node.value declaredImports of
-                        Exposing.All _ ->
-                            if Dict.member moduleName context.customTypes then
-                                ( []
-                                , { contextWithAlias
-                                    | exposingAllModules =
-                                        { name = moduleName
-                                        , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
-                                        , moduleNameRange = moduleNameRange
-                                        , exposingRange = Node.range declaredImports
-                                        , exposingRangeToRemove = exposingRange
-                                        , importRange = importRange
-                                        , wasUsedImplicitly = False
-                                        , wasUsedWithModuleName = False
-                                        }
-                                            :: context.exposingAllModules
-                                  }
-                                )
-
-                            else
-                                ( [], contextWithAlias )
-
-                        Exposing.Explicit list ->
-                            let
-                                customTypesFromModule : Dict String (List String)
-                                customTypesFromModule =
-                                    context.customTypes
-                                        |> Dict.get (Node.value import_.moduleName)
-                                        |> Maybe.withDefault Dict.empty
-                            in
-                            collectExplicitlyExposedElements
-                                (handleExposedElements (NonemptyList.head contextWithAlias.scopes).declared customTypesFromModule)
-                                exposingRange
-                                list
-                                ( [], contextWithAlias )
+            reportImport node contextWithAlias
     in
     ( exposingErrors ++ errors, newContext )
+
+
+reportImport : Node { moduleName : Node ModuleName, moduleAlias : Maybe (Node ModuleName), exposingList : Maybe (Node Exposing.Exposing) } -> ModuleContext -> ( List (Error {}), ModuleContext )
+reportImport ((Node importRange import_) as node) context =
+    case import_.exposingList of
+        Nothing ->
+            ( [], registerModuleNameOrAlias node context )
+
+        Just declaredImports ->
+            let
+                (Node moduleNameRange moduleName) =
+                    import_.moduleName
+
+                exposingRange : Range
+                exposingRange =
+                    case import_.moduleAlias of
+                        Just (Node aliasRange _) ->
+                            { start = aliasRange.end, end = (Node.range declaredImports).end }
+
+                        Nothing ->
+                            { start = moduleNameRange.end, end = (Node.range declaredImports).end }
+            in
+            case Node.value declaredImports of
+                Exposing.All _ ->
+                    if Dict.member moduleName context.customTypes then
+                        ( []
+                        , { context
+                            | exposingAllModules =
+                                { name = moduleName
+                                , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
+                                , moduleNameRange = moduleNameRange
+                                , exposingRange = Node.range declaredImports
+                                , exposingRangeToRemove = exposingRange
+                                , importRange = importRange
+                                , wasUsedImplicitly = False
+                                , wasUsedWithModuleName = False
+                                }
+                                    :: context.exposingAllModules
+                          }
+                        )
+
+                    else
+                        ( [], context )
+
+                Exposing.Explicit list ->
+                    let
+                        customTypesFromModule : Dict String (List String)
+                        customTypesFromModule =
+                            context.customTypes
+                                |> Dict.get (Node.value import_.moduleName)
+                                |> Maybe.withDefault Dict.empty
+                    in
+                    collectExplicitlyExposedElements
+                        (handleExposedElements (NonemptyList.head context.scopes).declared customTypesFromModule)
+                        exposingRange
+                        list
+                        ( [], context )
 
 
 handleExposedElements : Dict String VariableInfo -> Dict String (List String) -> ExposedElement -> ( List (Rule.Error {}), ModuleContext ) -> ( List (Rule.Error {}), ModuleContext )
