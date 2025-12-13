@@ -28,6 +28,7 @@ all =
         , describe "Record updates" recordUpdateTests
         , describe "Function parameters" functionParameterTests
         , describe "Imports" importTests
+        , describe "Prelude imports" preludeImportTests
         , describe "Pattern matching variables" patternMatchingVariablesTests
         , describe "Defined types" typeTests
         , describe "Opaque Types" opaqueTypeTests
@@ -2096,6 +2097,112 @@ type Variants = A"""
             ]
                 |> Review.Test.runOnModules rule
                 |> Review.Test.expectNoErrors
+    ]
+
+
+preludeImportTests : List Test
+preludeImportTests =
+    [ test "should report import to implicitly imported Basics" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Basics
+a = Basics.min"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary import to implicitly imported `Basics`"
+                        , details = [ "This module is already imported by default in all Elm modules, you can therefore safely remove it." ]
+                        , under = "Basics"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 8 }, end = { row = 2, column = 14 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+a = Basics.min"""
+                    ]
+    , test "should report import to implicitly imported Basics (with exposing)" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Basics exposing (min)
+a = min"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary import to implicitly imported `Basics`"
+                        , details = [ "This module is already imported by default in all Elm modules, you can therefore safely remove it." ]
+                        , under = "Basics"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 8 }, end = { row = 2, column = 14 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+a = min"""
+                    ]
+    , test "should report import to implicitly imported Basics (with exposing all)" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Basics exposing (..)
+a = min"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary import to implicitly imported `Basics`"
+                        , details = [ "This module is already imported by default in all Elm modules, you can therefore safely remove it." ]
+                        , under = "Basics"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 8 }, end = { row = 2, column = 14 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+a = min"""
+                    ]
+    , test "should not report import to non-implicitly imported function from implicitly imported module" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Result exposing (map)
+a = map"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectNoErrors
+    , test "should not report Basics import that is aliased" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Basics as CoreBasics
+a = CoreBasics.min"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectNoErrors
+    , test "should not report prelude module import that is aliased" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Result as CoreResult
+a = CoreResult.map"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectNoErrors
+    , test "should report Basics import when it exposes anything even when aliased (exposing all)" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Basics as Alias exposing (..)
+a = ( min, Alias.max )"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary import to elements from `Basics`"
+                        , details = [ "These are already imported by default in all Elm modules, you can therefore safely remove them." ]
+                        , under = "Basics"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Basics as Alias
+a = ( min, Alias.max )"""
+                    ]
+    , test "should report Basics import when it exposes anything even when aliased (exposing explicitly)" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Basics as Alias exposing (min)
+a = ( min, Alias.max )"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary import to elements from `Basics`"
+                        , details = [ "These are already imported by default in all Elm modules, you can therefore safely remove them." ]
+                        , under = "Basics"
+                        }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Basics as Alias
+a = ( min, Alias.max )"""
+                    ]
     ]
 
 

@@ -395,15 +395,14 @@ getExposingName node =
 importVisitor : Node Import -> ModuleContext -> ( List (Error {}), ModuleContext )
 importVisitor ((Node _ import_) as node) context =
     let
+        moduleName : ModuleName
+        moduleName =
+            Node.value import_.moduleName
+
         errors : List (Error {})
         errors =
             case import_.moduleAlias of
                 Just (Node moduleAliasRange moduleAlias) ->
-                    let
-                        moduleName : ModuleName
-                        moduleName =
-                            Node.value import_.moduleName
-                    in
                     if moduleAlias == moduleName then
                         [ Rule.errorWithFix
                             { message = "Module `" ++ String.join "." moduleAlias ++ "` is aliased as itself"
@@ -429,7 +428,11 @@ importVisitor ((Node _ import_) as node) context =
                     context
 
         ( exposingErrors, newContext ) =
-            reportImport node contextWithAlias
+            if moduleName == [ "Basics" ] then
+                ( reportBasicsImport node, contextWithAlias )
+
+            else
+                reportImport node contextWithAlias
     in
     ( exposingErrors ++ errors, newContext )
 
@@ -445,6 +448,37 @@ reportImport ((Node _ import_) as node) context =
 
         Just (Node exposingRange (Exposing.Explicit list)) ->
             collectExplicitImports context node exposingRange list
+
+
+reportBasicsImport : Node Import -> List (Error {})
+reportBasicsImport ((Node _ import_) as node) =
+    case import_.moduleAlias of
+        Nothing ->
+            [ importPreludeModuleError node ]
+
+        Just (Node aliasRange _) ->
+            case Maybe.map Node.range import_.exposingList of
+                Just exposingRange ->
+                    [ Rule.errorWithFix
+                        { message = "Unnecessary import to elements from `Basics`"
+                        , details = [ "These are already imported by default in all Elm modules, you can therefore safely remove them." ]
+                        }
+                        (Node.range import_.moduleName)
+                        [ Fix.removeRange { start = aliasRange.end, end = exposingRange.end } ]
+                    ]
+
+                Nothing ->
+                    []
+
+
+importPreludeModuleError : Node Import -> Error {}
+importPreludeModuleError (Node importRange import_) =
+    Rule.errorWithFix
+        { message = "Unnecessary import to implicitly imported `" ++ String.join "." (Node.value import_.moduleName) ++ "`"
+        , details = [ "This module is already imported by default in all Elm modules, you can therefore safely remove it." ]
+        }
+        (Node.range import_.moduleName)
+        [ Fix.removeRange (untilStartOfNextLine importRange) ]
 
 
 collectExplicitExposingAll : ModuleContext -> Range -> Node Import -> ModuleContext
