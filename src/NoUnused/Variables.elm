@@ -409,7 +409,7 @@ importVisitor ((Node importRange import_) as node) context =
                             , details = [ "The alias is the same as the module name, and brings no useful value" ]
                             }
                             (Node.range moduleAlias)
-                            [ Fix.removeRange <| moduleAliasRange node (Node.range moduleAlias) ]
+                            [ Fix.removeRange <| endOfModuleNameUntilModuleAliasEnd node (Node.range moduleAlias) ]
                         ]
 
                     else
@@ -660,13 +660,13 @@ registerModuleAlias ((Node range { exposingList, moduleName }) as node) moduleAl
                     untilStartOfNextLine range
 
                 Just _ ->
-                    moduleAliasRange node (Node.range moduleAlias)
+                    endOfModuleNameUntilModuleAliasEnd node (Node.range moduleAlias)
         }
         context
 
 
-moduleAliasRange : Node Import -> Range -> Range
-moduleAliasRange (Node _ { moduleName }) range =
+endOfModuleNameUntilModuleAliasEnd : Node Import -> Range -> Range
+endOfModuleNameUntilModuleAliasEnd (Node _ { moduleName }) range =
     { range | start = (Node.range moduleName).end }
 
 
