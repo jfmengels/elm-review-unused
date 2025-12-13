@@ -435,7 +435,7 @@ importVisitor ((Node _ import_) as node) context =
 
 
 reportImport : Node { moduleName : Node ModuleName, moduleAlias : Maybe (Node ModuleName), exposingList : Maybe (Node Exposing.Exposing) } -> ModuleContext -> ( List (Error {}), ModuleContext )
-reportImport ((Node importRange import_) as node) context =
+reportImport ((Node _ import_) as node) context =
     case import_.exposingList of
         Nothing ->
             ( [], registerModuleNameOrAlias node context )
@@ -443,29 +443,7 @@ reportImport ((Node importRange import_) as node) context =
         Just (Node exposingRange declaredImports) ->
             case declaredImports of
                 Exposing.All _ ->
-                    let
-                        (Node moduleNameRange moduleName) =
-                            import_.moduleName
-                    in
-                    if Dict.member moduleName context.customTypes then
-                        ( []
-                        , { context
-                            | exposingAllModules =
-                                { name = moduleName
-                                , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
-                                , moduleNameRange = moduleNameRange
-                                , exposingRange = exposingRange
-                                , exposingRangeToRemove = exposingRange
-                                , importRange = importRange
-                                , wasUsedImplicitly = False
-                                , wasUsedWithModuleName = False
-                                }
-                                    :: context.exposingAllModules
-                          }
-                        )
-
-                    else
-                        ( [], context )
+                    ( [], collectExplicitExposingAll context exposingRange node )
 
                 Exposing.Explicit list ->
                     let
@@ -480,6 +458,31 @@ reportImport ((Node importRange import_) as node) context =
                         exposingRange
                         list
                         ( [], context )
+
+
+collectExplicitExposingAll : ModuleContext -> Range -> Node Import -> ModuleContext
+collectExplicitExposingAll context exposingRange (Node importRange import_) =
+    let
+        (Node moduleNameRange moduleName) =
+            import_.moduleName
+    in
+    if Dict.member moduleName context.customTypes then
+        { context
+            | exposingAllModules =
+                { name = moduleName
+                , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
+                , moduleNameRange = moduleNameRange
+                , exposingRange = exposingRange
+                , exposingRangeToRemove = exposingRange
+                , importRange = importRange
+                , wasUsedImplicitly = False
+                , wasUsedWithModuleName = False
+                }
+                    :: context.exposingAllModules
+        }
+
+    else
+        context
 
 
 handleExposedElements : Dict String VariableInfo -> Dict String (List String) -> ExposedElement -> ( List (Rule.Error {}), ModuleContext ) -> ( List (Rule.Error {}), ModuleContext )
