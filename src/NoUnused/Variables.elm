@@ -440,23 +440,43 @@ importVisitor ((Node _ import_) as node) context =
 
 reportImport : Node { moduleName : Node ModuleName, moduleAlias : Maybe (Node ModuleName), exposingList : Maybe (Node Exposing.Exposing) } -> ModuleContext -> ( List (Error {}), ModuleContext )
 reportImport ((Node _ import_) as node) context =
+    let
+        moduleName : ModuleName
+        moduleName =
+            Node.value import_.moduleName
+
+        preludeModule : Maybe { exposes : List String, alias : Maybe (List String) }
+        preludeModule =
+            Dict.get moduleName ElmPrelude.elmPrelude
+    in
     case import_.exposingList of
         Nothing ->
-            ( [], registerModuleNameOrAlias node context )
+            ( case preludeModule of
+                Nothing ->
+                    []
+
+                Just { alias } ->
+                    let
+                        preludeModuleReference : ModuleName
+                        preludeModuleReference =
+                            Maybe.withDefault moduleName alias
+
+                        importedModuleReference : ModuleName
+                        importedModuleReference =
+                            Maybe.withDefault moduleName (Maybe.map Node.value import_.moduleAlias)
+                    in
+                    if preludeModuleReference == importedModuleReference then
+                        [ importPreludeModuleError node ]
+
+                    else
+                        []
+            , registerModuleNameOrAlias node context
+            )
 
         Just (Node exposingRange (Exposing.All _)) ->
             ( [], collectExplicitExposingAll context exposingRange node )
 
         Just (Node exposingRange (Exposing.Explicit list)) ->
-            let
-                moduleName : ModuleName
-                moduleName =
-                    Node.value import_.moduleName
-
-                preludeModule : Maybe { exposes : List String, alias : Maybe (List String) }
-                preludeModule =
-                    Dict.get moduleName ElmPrelude.elmPrelude
-            in
             collectExplicitImports
                 context
                 node

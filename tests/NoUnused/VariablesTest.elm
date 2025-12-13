@@ -2150,6 +2150,22 @@ a = min"""
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 a = min"""
                     ]
+    , test "should report import to implicitly imported module (when no alias is used)" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Result
+a = Result.map"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary import to implicitly imported `Result`"
+                        , details = [ "This module is already imported by default in all Elm modules, you can therefore safely remove it." ]
+                        , under = "Result"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 8 }, end = { row = 2, column = 14 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+a = Result.map"""
+                    ]
     , test "should report import to implicitly imported prelude type (not exposing constructors)" <|
         \() ->
             """module SomeModule exposing (a)
@@ -2255,6 +2271,22 @@ a = ( min, Alias.max )"""
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 import Basics as Alias
 a = ( min, Alias.max )"""
+                    ]
+    , test "should report prelude import when its module alias is the same as the default one" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Platform.Cmd as Cmd
+a = Cmd.none"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary import to implicitly imported `Platform.Cmd`"
+                        , details = [ "This module is already imported by default in all Elm modules, you can therefore safely remove it." ]
+                        , under = "Platform.Cmd"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 8 }, end = { row = 2, column = 20 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+a = Cmd.none"""
                     ]
     ]
 
