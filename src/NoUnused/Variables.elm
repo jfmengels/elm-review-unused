@@ -492,20 +492,11 @@ handleExposedElements : Dict String VariableInfo -> Dict String (List String) ->
 handleExposedElements declared customTypesFromModule =
     \importedElement ( errors, context ) ->
         let
-            name : String
-            name =
-                case importedElement of
-                    CustomType elementName _ ->
-                        elementName
-
-                    TypeOrValue elementName _ ->
-                        elementName
-
             newErrors : List (Rule.Error {})
             newErrors =
-                case Dict.get name declared of
+                case Dict.get importedElement.name declared of
                     Just variableInfo ->
-                        error variableInfo name :: errors
+                        error variableInfo importedElement.name :: errors
 
                     Nothing ->
                         errors
@@ -514,9 +505,9 @@ handleExposedElements declared customTypesFromModule =
 
 
 registerExposedElements : Dict String (List String) -> ExposedElement -> ModuleContext -> ModuleContext
-registerExposedElements customTypesFromModule importedElement context =
-    case importedElement of
-        CustomType name variableInfo ->
+registerExposedElements customTypesFromModule { name, kind } context =
+    case kind of
+        CustomType variableInfo ->
             case Dict.get name customTypesFromModule of
                 Just constructorNames ->
                     { context
@@ -531,7 +522,7 @@ registerExposedElements customTypesFromModule importedElement context =
                 Nothing ->
                     context
 
-        TypeOrValue name variableInfo ->
+        TypeOrValue variableInfo ->
             registerVariable variableInfo name context
 
 
@@ -578,45 +569,53 @@ topLevelExposeToExposedElement : (Range -> Range) -> Node Exposing.TopLevelExpos
 topLevelExposeToExposedElement rangeToRemove (Node range value) =
     case value of
         Exposing.FunctionExpose name ->
-            TypeOrValue
-                name
-                { typeName = "Imported variable"
-                , under = untilEndOfVariable name range
-                , rangeToRemove = Just (rangeToRemove range)
-                , warning = ""
-                }
+            { name = name
+            , kind =
+                TypeOrValue
+                    { typeName = "Imported variable"
+                    , under = untilEndOfVariable name range
+                    , rangeToRemove = Just (rangeToRemove range)
+                    , warning = ""
+                    }
+            }
                 |> Just
 
         Exposing.InfixExpose name ->
-            TypeOrValue
-                name
-                { typeName = "Imported operator"
-                , under = untilEndOfVariable name range
-                , rangeToRemove = Just (rangeToRemove range)
-                , warning = ""
-                }
+            { name = name
+            , kind =
+                TypeOrValue
+                    { typeName = "Imported operator"
+                    , under = untilEndOfVariable name range
+                    , rangeToRemove = Just (rangeToRemove range)
+                    , warning = ""
+                    }
+            }
                 |> Just
 
         Exposing.TypeOrAliasExpose name ->
-            TypeOrValue
-                name
-                { typeName = "Imported type"
-                , under = untilEndOfVariable name range
-                , rangeToRemove = Just (rangeToRemove range)
-                , warning = ""
-                }
+            { name = name
+            , kind =
+                TypeOrValue
+                    { typeName = "Imported type"
+                    , under = untilEndOfVariable name range
+                    , rangeToRemove = Just (rangeToRemove range)
+                    , warning = ""
+                    }
+            }
                 |> Just
 
         Exposing.TypeExpose { name, open } ->
             case open of
                 Just openRange ->
-                    CustomType
-                        name
-                        { typeName = "Imported type"
-                        , under = range
-                        , rangeToRemove = rangeToRemove range
-                        , openRange = openRange
-                        }
+                    { name = name
+                    , kind =
+                        CustomType
+                            { typeName = "Imported type"
+                            , under = range
+                            , rangeToRemove = rangeToRemove range
+                            , openRange = openRange
+                            }
+                    }
                         |> Just
 
                 Nothing ->
@@ -1541,9 +1540,15 @@ scopeWithPatternsToIgnore patterns =
     }
 
 
-type ExposedElement
-    = CustomType String ImportedCustomType
-    | TypeOrValue String VariableInfo
+type alias ExposedElement =
+    { name : String
+    , kind : ExposedElementKind
+    }
+
+
+type ExposedElementKind
+    = CustomType ImportedCustomType
+    | TypeOrValue VariableInfo
 
 
 untilEndOfVariable : String -> Range -> Range
