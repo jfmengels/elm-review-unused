@@ -395,11 +395,15 @@ getExposingName node =
 importVisitor : Node Import -> ModuleContext -> ( List (Error {}), ModuleContext )
 importVisitor ((Node importRange import_) as node) context =
     let
+        moduleName : ModuleName
+        moduleName =
+            Node.value import_.moduleName
+
         errors : List (Error {})
         errors =
             case import_.moduleAlias of
                 Just moduleAlias ->
-                    if Node.value moduleAlias == Node.value import_.moduleName then
+                    if Node.value moduleAlias == moduleName then
                         [ Rule.errorWithFix
                             { message = "Module `" ++ String.join "." (Node.value moduleAlias) ++ "` is aliased as itself"
                             , details = [ "The alias is the same as the module name, and brings no useful value" ]
@@ -445,11 +449,11 @@ importVisitor ((Node importRange import_) as node) context =
                     in
                     case Node.value declaredImports of
                         Exposing.All _ ->
-                            if Dict.member (Node.value import_.moduleName) context.customTypes then
+                            if Dict.member moduleName context.customTypes then
                                 ( []
                                 , { contextWithAlias
                                     | exposingAllModules =
-                                        { name = Node.value import_.moduleName
+                                        { name = moduleName
                                         , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
                                         , moduleNameRange = moduleNameRange
                                         , exposingRange = Node.range declaredImports
