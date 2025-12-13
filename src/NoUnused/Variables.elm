@@ -440,22 +440,13 @@ reportImport ((Node importRange import_) as node) context =
         Nothing ->
             ( [], registerModuleNameOrAlias node context )
 
-        Just declaredImports ->
-            let
-                (Node moduleNameRange moduleName) =
-                    import_.moduleName
-
-                exposingRange : Range
-                exposingRange =
-                    case import_.moduleAlias of
-                        Just (Node aliasRange _) ->
-                            { start = aliasRange.end, end = (Node.range declaredImports).end }
-
-                        Nothing ->
-                            { start = moduleNameRange.end, end = (Node.range declaredImports).end }
-            in
-            case Node.value declaredImports of
+        Just (Node exposingRange declaredImports) ->
+            case declaredImports of
                 Exposing.All _ ->
+                    let
+                        (Node moduleNameRange moduleName) =
+                            import_.moduleName
+                    in
                     if Dict.member moduleName context.customTypes then
                         ( []
                         , { context
@@ -463,7 +454,7 @@ reportImport ((Node importRange import_) as node) context =
                                 { name = moduleName
                                 , alias = Maybe.map (Node.value >> String.join ".") import_.moduleAlias
                                 , moduleNameRange = moduleNameRange
-                                , exposingRange = Node.range declaredImports
+                                , exposingRange = exposingRange
                                 , exposingRangeToRemove = exposingRange
                                 , importRange = importRange
                                 , wasUsedImplicitly = False
