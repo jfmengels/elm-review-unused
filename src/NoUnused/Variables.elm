@@ -23,6 +23,7 @@ import Elm.Syntax.TypeAlias exposing (TypeAlias)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import List.Extra
 import NoUnused.NonemptyList as NonemptyList exposing (Nonempty)
+import NoUnused.Variables.ElmPrelude as ElmPrelude
 import Review.Fix as Fix exposing (Fix)
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Project.Dependency as Dependency exposing (Dependency)
@@ -447,7 +448,24 @@ reportImport ((Node _ import_) as node) context =
             ( [], collectExplicitExposingAll context exposingRange node )
 
         Just (Node exposingRange (Exposing.Explicit list)) ->
-            collectExplicitImports context node exposingRange list
+            let
+                moduleName : ModuleName
+                moduleName =
+                    Node.value import_.moduleName
+
+                preludeModule : Maybe { exposes : List String, alias : Maybe (List String) }
+                preludeModule =
+                    Dict.get moduleName ElmPrelude.elmPrelude
+            in
+            collectExplicitImports
+                context
+                node
+                exposingRange
+                (preludeModule
+                    |> Maybe.map .exposes
+                    |> Maybe.withDefault []
+                )
+                list
 
 
 reportBasicsImport : Node Import -> List (Error {})
@@ -506,8 +524,8 @@ collectExplicitExposingAll context exposingRange (Node importRange import_) =
         context
 
 
-collectExplicitImports : ModuleContext -> Node Import -> Range -> List (Node TopLevelExpose) -> ( List (Error {}), ModuleContext )
-collectExplicitImports context (Node _ import_) exposingRange list =
+collectExplicitImports : ModuleContext -> Node Import -> Range -> List String -> List (Node TopLevelExpose) -> ( List (Error {}), ModuleContext )
+collectExplicitImports context (Node _ import_) exposingRange exposedFromPrelude list =
     let
         customTypesFromModule : Dict String (List String)
         customTypesFromModule =
@@ -516,26 +534,59 @@ collectExplicitImports context (Node _ import_) exposingRange list =
                 |> Maybe.withDefault Dict.empty
     in
     collectExplicitlyExposedElements
-        (handleExposedElements (NonemptyList.head context.scopes).declared customTypesFromModule)
+        (handleExposedElements (NonemptyList.head context.scopes).declared customTypesFromModule exposedFromPrelude)
         exposingRange
         list
         ( [], context )
 
 
-handleExposedElements : Dict String VariableInfo -> Dict String (List String) -> ExposedElement -> ( List (Rule.Error {}), ModuleContext ) -> ( List (Rule.Error {}), ModuleContext )
-handleExposedElements declared customTypesFromModule =
+handleExposedElements : Dict String VariableInfo -> Dict String (List String) -> List String -> ExposedElement -> ( List (Rule.Error {}), ModuleContext ) -> ( List (Rule.Error {}), ModuleContext )
+handleExposedElements declared customTypesFromModule exposedFromPrelude =
     \importedElement ( errors, context ) ->
         let
             newErrors : List (Rule.Error {})
             newErrors =
-                case Dict.get importedElement.name declared of
-                    Just variableInfo ->
-                        error variableInfo importedElement.name :: errors
+                if List.member importedElement.name exposedFromPrelude then
+                    importPreludeElementError importedElement :: errors
 
-                    Nothing ->
-                        errors
+                else
+                    case Dict.get importedElement.name declared of
+                        Just variableInfo ->
+                            error variableInfo importedElement.name :: errors
+
+                        Nothing ->
+                            errors
         in
         ( newErrors, registerExposedElements customTypesFromModule importedElement context )
+
+
+importPreludeElementError : ExposedElement -> Error {}
+importPreludeElementError importedElement =
+    let
+        { under, rangeToRemove } =
+            case importedElement.kind of
+                CustomType type_ ->
+                    { under = type_.under
+                    , rangeToRemove = Just type_.rangeToRemove
+                    }
+
+                TypeOrValue type_ ->
+                    { under = type_.under
+                    , rangeToRemove = type_.rangeToRemove
+                    }
+    in
+    Rule.errorWithFix
+        { message = "Unnecessary import to implicitly imported `" ++ importedElement.name ++ "`"
+        , details = [ "This element is already imported by default in all Elm modules, you can therefore safely remove it." ]
+        }
+        under
+        (case rangeToRemove of
+            Just range ->
+                [ Fix.removeRange range ]
+
+            Nothing ->
+                []
+        )
 
 
 registerExposedElements : Dict String (List String) -> ExposedElement -> ModuleContext -> ModuleContext

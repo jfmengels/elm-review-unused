@@ -2150,6 +2150,59 @@ a = min"""
                         |> Review.Test.whenFixed """module SomeModule exposing (a)
 a = min"""
                     ]
+    , test "should report import to implicitly imported prelude type (not exposing constructors)" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Result exposing (Result)
+a : Result
+a = Ok"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary import to implicitly imported `Result`"
+                        , details = [ "This element is already imported by default in all Elm modules, you can therefore safely remove it." ]
+                        , under = "Result"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 25 }, end = { row = 2, column = 31 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Result
+a : Result
+a = Ok"""
+                    ]
+    , test "should report import to implicitly imported prelude type (exposing constructors)" <|
+        \() ->
+            """module SomeModule exposing (a)
+import Result exposing (Result(..))
+a = Ok"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary import to implicitly imported `Result`"
+                        , details = [ "This element is already imported by default in all Elm modules, you can therefore safely remove it." ]
+                        , under = "Result(..)"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 25 }, end = { row = 2, column = 35 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import Result
+a = Ok"""
+                    ]
+    , test "should report import to implicitly imported operator" <|
+        \() ->
+            """module SomeModule exposing (a)
+import List exposing ((::))
+a = 1 :: []"""
+                |> Review.Test.runWithProjectData packageProject rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Unnecessary import to implicitly imported `::`"
+                        , details = [ "This element is already imported by default in all Elm modules, you can therefore safely remove it." ]
+                        , under = "(::)"
+                        }
+                        |> Review.Test.atExactly { start = { row = 2, column = 23 }, end = { row = 2, column = 27 } }
+                        |> Review.Test.whenFixed """module SomeModule exposing (a)
+import List
+a = 1 :: []"""
+                    ]
     , test "should not report import to non-implicitly imported function from implicitly imported module" <|
         \() ->
             """module SomeModule exposing (a)

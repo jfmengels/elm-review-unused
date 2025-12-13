@@ -10,11 +10,12 @@ type Unused = T
 value : T
 value = ()
 ```
-- [`NoUnused.Exports`] will now report and fix unnecessary exposing of a custom type's variants in a module's `exposing` list.
+- [`NoUnused.Exports`] now reports (and fixes) unnecessary exposing of a custom type's variants in a module's `exposing` list.
 ```diff
 -module A exposing (Type(..))
 +module A exposing (Type)
 ```
+- [`NoUnused.Variables`] now reports (and fixes) unnecessary imports to functions/types available by default (`Basics`, `List`, etc.)
 
 ## [1.2.4] - 2025-02-11
 
