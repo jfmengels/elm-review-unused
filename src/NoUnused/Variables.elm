@@ -418,6 +418,15 @@ importVisitor ((Node importRange import_) as node) context =
                 Nothing ->
                     []
 
+        contextWithAlias : ModuleContext
+        contextWithAlias =
+            case import_.moduleAlias of
+                Just moduleAlias ->
+                    registerModuleAlias node moduleAlias context
+
+                Nothing ->
+                    context
+
         ( exposingErrors, newContext ) =
             case import_.exposingList of
                 Nothing ->
@@ -428,15 +437,6 @@ importVisitor ((Node importRange import_) as node) context =
                         moduleNameRange : Range
                         moduleNameRange =
                             Node.range import_.moduleName
-
-                        contextWithAlias : ModuleContext
-                        contextWithAlias =
-                            case import_.moduleAlias of
-                                Just moduleAlias ->
-                                    registerModuleAlias node moduleAlias context
-
-                                Nothing ->
-                                    context
 
                         exposingRange : Range
                         exposingRange =
