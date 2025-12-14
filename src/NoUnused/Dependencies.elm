@@ -11,7 +11,7 @@ import Elm.Constraint
 import Elm.Package
 import Elm.Project exposing (Project)
 import Elm.Syntax.Import exposing (Import)
-import Elm.Syntax.Node as Node exposing (Node)
+import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Range exposing (Range)
 import Elm.Version
 import List.Extra
@@ -247,10 +247,8 @@ importVisitor node context =
 
 
 moduleNameForImport : Node Import -> String
-moduleNameForImport node =
-    node
-        |> Node.value
-        |> .moduleName
+moduleNameForImport (Node _ { moduleName }) =
+    moduleName
         |> Node.value
         |> String.join "."
 
