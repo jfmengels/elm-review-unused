@@ -444,16 +444,22 @@ fromApplication dependenciesDict dependencyLocation packageNameStr application =
                 InTestDeps ->
                     application.testDepsDirect
 
+        addDeps : List ( Elm.Package.Name, Elm.Version.Version ) -> Dict String Elm.Version.Version -> Dict String Elm.Version.Version
+        addDeps dep initial =
+            List.foldl
+                (\( name, version ) dict ->
+                    Dict.insert (Elm.Package.toString name) version dict
+                )
+                initial
+                dep
+
         dependencyVersionDict : Dict String Elm.Version.Version
         dependencyVersionDict =
-            [ application.depsDirect
-            , application.depsIndirect
-            , application.testDepsDirect
-            , application.testDepsIndirect
-            ]
-                |> List.concat
-                |> List.map (\( name, version ) -> ( Elm.Package.toString name, version ))
-                |> Dict.fromList
+            Dict.empty
+                |> addDeps application.depsDirect
+                |> addDeps application.depsIndirect
+                |> addDeps application.testDepsDirect
+                |> addDeps application.testDepsIndirect
 
         getDependenciesAndVersion : Elm.Package.Name -> Elm.Project.Deps Elm.Version.Version
         getDependenciesAndVersion name =
