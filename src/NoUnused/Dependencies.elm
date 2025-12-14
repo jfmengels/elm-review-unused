@@ -67,13 +67,17 @@ dependenciesVisitor dependencies projectContext =
     let
         moduleNameToDependency : Dict String String
         moduleNameToDependency =
-            dependencies
-                |> Dict.toList
-                |> List.concatMap
-                    (\( packageName, dependency ) ->
-                        List.map (\{ name } -> ( name, packageName )) (Dependency.modules dependency)
-                    )
-                |> Dict.fromList
+            Dict.foldl
+                (\packageName dependency acc ->
+                    List.foldl
+                        (\{ name } subAcc ->
+                            Dict.insert name packageName subAcc
+                        )
+                        acc
+                        (Dependency.modules dependency)
+                )
+                Dict.empty
+                dependencies
     in
     ( []
     , { projectContext
