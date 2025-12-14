@@ -506,14 +506,18 @@ declarationVisitor : Node Declaration -> ModuleContext -> ModuleContext
 declarationVisitor node context =
     case Node.value node of
         Declaration.CustomTypeDeclaration { name, constructors } ->
-            if (context.isExposed && context.exposesEverything) || isPhantomCustomType context.lookupTable (Node.value name) constructors then
+            let
+                (Node _ typeName) =
+                    name
+            in
+            if (context.isExposed && context.exposesEverything) || isPhantomCustomType context.lookupTable typeName constructors then
                 context
 
             else
                 { context
                     | declaredTypesWithConstructors =
                         Dict.insert
-                            (Node.value name)
+                            typeName
                             (constructorsForCustomType constructors)
                             context.declaredTypesWithConstructors
                 }
