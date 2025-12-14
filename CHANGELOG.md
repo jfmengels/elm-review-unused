@@ -16,6 +16,7 @@ value = ()
 +module A exposing (Type)
 ```
 - [`NoUnused.Variables`] now reports (and fixes) unnecessary imports to functions/types available by default (`Basics`, `List`, etc.)
+- [`NoUnused.Dependencies`] now doesn't report `elm/json` as an unused dependency for applications (as not depending on it yields compiler errors).
 
 ## [1.2.4] - 2025-02-11
 

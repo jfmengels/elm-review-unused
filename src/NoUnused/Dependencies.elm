@@ -198,6 +198,13 @@ elmJsonVisitor maybeProject projectContext =
                 | elmJsonKey = Just elmJsonKey
                 , directProjectDependencies = directProjectDependencies
                 , directTestDependencies = directTestDependencies
+                , usedDependencies =
+                    case project of
+                        Elm.Project.Application _ ->
+                            Set.insert "elm/json" projectContext.usedDependencies
+
+                        Elm.Project.Package _ ->
+                            projectContext.usedDependencies
               }
             )
 
