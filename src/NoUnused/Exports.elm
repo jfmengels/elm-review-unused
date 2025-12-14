@@ -813,7 +813,7 @@ elmJsonVisitor maybeProject projectContext =
             { projectContext
                 | projectType =
                     exposedModuleNames
-                        |> List.foldr
+                        |> List.foldl
                             (\moduleName acc ->
                                 Set.insert (Elm.Module.toString moduleName) acc
                             )
