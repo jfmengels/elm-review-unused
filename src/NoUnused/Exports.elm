@@ -822,16 +822,27 @@ elmJsonVisitor maybeProject projectContext =
             }
 
         Just (Elm.Project.Application { depsDirect }) ->
-            let
-                elmApplicationType : ElmApplicationType
-                elmApplicationType =
-                    if LamderaSupport.isLamderaApplication depsDirect then
-                        LamderaApplication
+            if LamderaSupport.isLamderaApplication depsDirect then
+                let
+                    types : String
+                    types =
+                        "Types"
+                in
+                { projectContext
+                    | projectType = IsApplication LamderaApplication
+                    , used =
+                        Set.fromList
+                            [ ( types, "FrontendModel", typeRealm )
+                            , ( types, "FrontendMsg", typeRealm )
+                            , ( types, "BackendModel", typeRealm )
+                            , ( types, "BackendMsg", typeRealm )
+                            , ( types, "ToFrontend", typeRealm )
+                            , ( types, "ToBackend", typeRealm )
+                            ]
+                }
 
-                    else
-                        ElmApplication
-            in
-            { projectContext | projectType = IsApplication elmApplicationType }
+            else
+                { projectContext | projectType = IsApplication ElmApplication }
 
         Nothing ->
             { projectContext | projectType = IsApplication ElmApplication }

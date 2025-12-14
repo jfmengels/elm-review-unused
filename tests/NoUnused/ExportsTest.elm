@@ -1057,6 +1057,25 @@ app = foo
 """
                     |> Review.Test.runWithProjectData lamderaApplication rule
                     |> Review.Test.expectNoErrors
+        , test "should not special types from module Types" <|
+            \() ->
+                [ """
+module Types exposing (..)
+type alias FrontendModel = {}
+type alias BackendModel = {}
+type FrontendMsg = NoOpFrontendMsg
+type ToBackend = NoOpToBackend
+type BackendMsg = NoOpBackendMsg
+type ToFrontend = NoOpToFrontend
+"""
+                , """
+module Backend exposing (..)
+import Types
+app = Debug.todo "app"
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData lamderaApplication rule
+                    |> Review.Test.expectNoErrors
         ]
 
 
