@@ -542,18 +542,13 @@ constructorsForCustomType constructors =
     List.foldl
         (\( next, constructor ) ( prev, dict ) ->
             let
-                nameNode : Node String
-                nameNode =
+                (Node range constructorName) =
                     (Node.value constructor).name
-
-                constructorName : String
-                constructorName =
-                    Node.value nameNode
 
                 constructorInformation : ConstructorInformation
                 constructorInformation =
                     { name = constructorName
-                    , rangeToReport = Node.range nameNode
+                    , rangeToReport = range
                     , rangeToRemove = findRangeToRemove prev constructor next
                     }
             in
