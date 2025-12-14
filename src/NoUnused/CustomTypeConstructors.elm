@@ -1158,8 +1158,14 @@ errorInformation { wasUsedInLocationThatNeedsItself, wasUsedInComparisons } name
         , ( "I found it used in comparisons, but since it is never created anywhere, all of those can be evaluated to False (for (==), True for (/=)).", wasUsedInComparisons )
         , ( "The only locations where I found it being created require already having one.", wasUsedInLocationThatNeedsItself )
         ]
-            |> List.filter Tuple.second
-            |> List.map Tuple.first
+            |> List.filterMap
+                (\( message, condition ) ->
+                    if condition then
+                        Just message
+
+                    else
+                        Nothing
+                )
     }
 
 
