@@ -118,7 +118,7 @@ initialProjectContext =
     , dependencies = Dict.empty
     , directProjectDependencies = Set.empty
     , directTestDependencies = Set.empty
-    , usedDependencies = Set.empty
+    , usedDependencies = Set.fromList [ "elm/core", "lamdera/core", "lamdera/codecs" ]
     , usedDependenciesFromTest = Set.empty
     , elmJsonKey = Nothing
     }
@@ -276,7 +276,7 @@ finalEvaluationForProject projectContext =
                 depsNotUsedInSrcErrors =
                     Set.diff
                         depsNotUsedInSrc
-                        (Set.union packagesNotToReport depsNotUsedInSrcButUsedInTests)
+                        depsNotUsedInSrcButUsedInTests
                         |> Set.toList
 
                 testDepsNotUsed : List String
@@ -292,11 +292,6 @@ finalEvaluationForProject projectContext =
 
         Nothing ->
             []
-
-
-packagesNotToReport : Set String
-packagesNotToReport =
-    Set.fromList [ "elm/core", "lamdera/core", "lamdera/codecs" ]
 
 
 
