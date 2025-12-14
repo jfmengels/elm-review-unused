@@ -376,7 +376,12 @@ findPackageNameInElmJson packageName elmJson =
                                 }
                             }
             )
-        |> Maybe.withDefault { start = { row = 1, column = 1 }, end = { row = 10000, column = 1 } }
+        |> Maybe.withDefault defaultPackageNamePosition
+
+
+defaultPackageNamePosition : Range
+defaultPackageNamePosition =
+    { start = { row = 1, column = 1 }, end = { row = 10000, column = 1 } }
 
 
 
