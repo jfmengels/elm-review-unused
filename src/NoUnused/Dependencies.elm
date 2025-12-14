@@ -272,26 +272,30 @@ finalEvaluationForProject projectContext =
                 depsNotUsedInSrcButUsedInTests =
                     Set.intersect depsNotUsedInSrc projectContext.usedDependenciesFromTest
 
-                depsNotUsedInSrcErrors : List String
+                depsNotUsedInSrcErrors : Set String
                 depsNotUsedInSrcErrors =
                     Set.diff
                         depsNotUsedInSrc
                         depsNotUsedInSrcButUsedInTests
-                        |> Set.toList
 
-                testDepsNotUsed : List String
+                testDepsNotUsed : Set String
                 testDepsNotUsed =
                     Set.diff
                         projectContext.directTestDependencies
                         (Set.union projectContext.usedDependenciesFromTest projectContext.usedDependencies)
-                        |> Set.toList
             in
-            List.map (unusedProjectDependencyError elmJsonKey projectContext.dependencies) depsNotUsedInSrcErrors
-                ++ List.map (unusedTestDependencyError elmJsonKey projectContext.dependencies) testDepsNotUsed
-                ++ List.map (moveDependencyToTestError elmJsonKey projectContext.dependencies) (Set.toList depsNotUsedInSrcButUsedInTests)
+            []
+                |> add (\packageName -> unusedProjectDependencyError elmJsonKey projectContext.dependencies packageName) depsNotUsedInSrcErrors
+                |> add (\packageName -> unusedTestDependencyError elmJsonKey projectContext.dependencies packageName) testDepsNotUsed
+                |> add (\packageName -> moveDependencyToTestError elmJsonKey projectContext.dependencies packageName) depsNotUsedInSrcButUsedInTests
 
         Nothing ->
             []
+
+
+add : (a -> b) -> Set a -> List b -> List b
+add f set initial =
+    Set.foldl (\item acc -> f item :: acc) initial set
 
 
 
