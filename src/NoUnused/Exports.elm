@@ -1095,7 +1095,7 @@ getRangesToRemove comments canRemoveExposed name index maybePreviousRange range 
         in
         List.filterMap identity
             [ Just exposeRemoval
-            , findMap (findDocsRangeToRemove name) comments
+            , List.Extra.findMap (findDocsRangeToRemove name) comments
             ]
 
     else
@@ -1141,21 +1141,6 @@ findCommentAtEnd name ( row, comment ) =
                     , end = { row = row, column = index + String.length name + 3 }
                     }
                 )
-
-
-findMap : (a -> Maybe b) -> List a -> Maybe b
-findMap mapper list =
-    case list of
-        [] ->
-            Nothing
-
-        first :: rest ->
-            case mapper first of
-                Just value ->
-                    Just value
-
-                Nothing ->
-                    findMap mapper rest
 
 
 untilEndOfVariable : String -> Range -> Range
@@ -1649,7 +1634,7 @@ maybeSetInsert maybeValue set =
 
 findConstructorsForExposedCustomType : String -> List (Node Declaration) -> List String
 findConstructorsForExposedCustomType typeName declarations =
-    findMap
+    List.Extra.findMap
         (\node ->
             case Node.value node of
                 Declaration.CustomTypeDeclaration type_ ->

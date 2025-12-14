@@ -1,4 +1,4 @@
-module List.Extra exposing (dictToListFilterAndMap, dictToListMap, find, indexedFilterMap, insertAllJusts, listFilterThenMapInto)
+module List.Extra exposing (dictToListFilterAndMap, dictToListMap, find, findMap, indexedFilterMap, insertAllJusts, listFilterThenMapInto)
 
 {-| Some utilities.
 -}
@@ -25,6 +25,21 @@ find predicate list =
 
             else
                 find predicate rest
+
+
+findMap : (a -> Maybe b) -> List a -> Maybe b
+findMap mapper list =
+    case list of
+        [] ->
+            Nothing
+
+        first :: rest ->
+            case mapper first of
+                Just value ->
+                    Just value
+
+                Nothing ->
+                    findMap mapper rest
 
 
 indexedFilterMap : (Int -> a -> Maybe b) -> Int -> List a -> List b -> List b
