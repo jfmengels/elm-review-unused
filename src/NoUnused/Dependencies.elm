@@ -359,7 +359,7 @@ findPackageNameInElmJson packageName elmJson =
     elmJson
         |> String.lines
         |> List.indexedMap Tuple.pair
-        |> List.filterMap
+        |> List.Extra.findMap
             (\( row, line ) ->
                 case String.indexes ("\"" ++ packageName ++ "\"") line of
                     [] ->
@@ -377,7 +377,6 @@ findPackageNameInElmJson packageName elmJson =
                                 }
                             }
             )
-        |> List.head
         |> Maybe.withDefault { start = { row = 1, column = 1 }, end = { row = 10000, column = 1 } }
 
 
