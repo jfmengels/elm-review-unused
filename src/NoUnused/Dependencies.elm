@@ -470,7 +470,7 @@ fromApplication dependenciesDict dependencyLocation packageNameStr application =
                 Nothing ->
                     []
     in
-    case List.Extra.find (isPackageWithName packageNameStr) dependencies of
+    case List.Extra.find (\pkg -> isPackageWithName packageNameStr pkg) dependencies of
         Just ( packageName, version ) ->
             Just
                 (ApplicationProject
