@@ -358,9 +358,8 @@ findPackageNameInElmJson : String -> String -> Range
 findPackageNameInElmJson packageName elmJson =
     elmJson
         |> String.lines
-        |> List.indexedMap Tuple.pair
-        |> List.Extra.findMap
-            (\( row, line ) ->
+        |> List.Extra.findMapWithIndex
+            (\row line ->
                 case String.indexes ("\"" ++ packageName ++ "\"") line of
                     [] ->
                         Nothing
