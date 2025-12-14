@@ -605,8 +605,8 @@ isPhantomCustomType lookupTable typeName constructors =
 
 
 isNeverOrItself : ModuleNameLookupTable -> String -> Node TypeAnnotation -> Bool
-isNeverOrItself lookupTable typeName node =
-    case Node.value node of
+isNeverOrItself lookupTable typeName (Node _ typeAnnotation) =
+    case typeAnnotation of
         TypeAnnotation.Typed (Node neverRange ( _, "Never" )) [] ->
             ModuleNameLookupTable.moduleNameAt lookupTable neverRange == Just [ "Basics" ]
 
