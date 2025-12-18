@@ -565,6 +565,46 @@ b = B
                             , under = "Int"
                             }
                         ]
+        , test "should not report a List argument used to branch in pattern matching" <|
+            \() ->
+                """
+module Main exposing (main)
+
+import Html exposing (Html, text)
+
+
+{-| A simple wrapper type with a list argument.
+elm-review flags this as "Argument is never extracted and therefore never used"
+but removing it would break the structural pattern matching below.
+-}
+type Wrapper
+  = Wrapper (List Int)
+
+
+{-| Pattern matches on the LIST STRUCTURE without extracting the value.
+-}
+isEmpty : Wrapper -> Bool
+isEmpty wrapper =
+  case wrapper of
+      Wrapper [] ->
+          True
+
+      Wrapper _ ->
+          False
+
+
+main : Html msg
+main =
+  let
+      val =
+          Wrapper []
+  in
+  case val of
+    Wrapper [] -> "Empty" |> text
+    Wrapper xs -> "Not Empty" |> text
+"""
+                    |> Review.Test.run rule
+                    |> Review.Test.expectNoErrors
         ]
 
 
