@@ -322,7 +322,7 @@ moveDependencyToTestError elmJsonKey dependencies packageName =
             { message = "`" ++ packageName ++ "` should be moved to test-dependencies"
             , details =
                 [ "This package is not used in the source code, but it is used in tests, and should therefore be moved to the test dependencies. To do so, I recommend running the following commands:"
-                , "    elm-json uninstall " ++ packageName ++ "\n" ++ "    elm-json install --test " ++ packageName
+                , "    elm-json uninstall " ++ packageName ++ "\n    elm-json install --test " ++ packageName
                 ]
             , range = findPackageNameInElmJson packageName elmJson
             }
