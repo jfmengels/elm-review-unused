@@ -279,7 +279,7 @@ recordErrors context { fields, recordRange } =
                 in
                 [ Rule.errorWithFix
                     { message = listToMessage first rest
-                    , details = listToDetails first rest
+                    , details = listToDetails rest
                     }
                     errorRange
                     [ fix ]
@@ -588,7 +588,7 @@ errorsForRecordValueList recordRange list context =
             in
             ( [ Rule.errorWithFix
                     { message = listToMessage first rest
-                    , details = listToDetails first rest
+                    , details = listToDetails rest
                     }
                     errorRange
                     [ fix ]
@@ -607,8 +607,8 @@ listToMessage first rest =
             "Values `" ++ String.join "`, `" (first :: middle) ++ "` and `" ++ last ++ "` are not used"
 
 
-listToDetails : String -> List String -> List String
-listToDetails _ rest =
+listToDetails : List String -> List String
+listToDetails rest =
     case rest of
         [] ->
             singularRemoveDetails
