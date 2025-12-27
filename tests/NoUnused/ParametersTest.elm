@@ -602,7 +602,7 @@ foo (Named (Bish bish)) =
                         , under = "bish"
                         }
                     ]
-    , test "should report unused named patterns with multiple segments" <|
+    , test "should not report unused named patterns with multiple segments" <|
         \() ->
             """module A exposing (..)
 foo (Pair _ _) =
