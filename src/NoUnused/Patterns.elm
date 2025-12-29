@@ -206,10 +206,17 @@ report context =
 
                 errors : List (Rule.Error {})
                 errors =
-                    List.concat
-                        [ List.filterMap (recordErrors context) records
-                        , simplifiablePatterns
-                        ]
+                    List.foldl
+                        (\record acc ->
+                            case recordErrors context record of
+                                Just error ->
+                                    error :: acc
+
+                                Nothing ->
+                                    acc
+                        )
+                        simplifiablePatterns
+                        records
                         |> addSingleErrors headScope.used singles
             in
             ( errors
