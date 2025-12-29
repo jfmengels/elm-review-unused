@@ -702,10 +702,10 @@ findAsPatternsErrors patterns acc =
 
 
 findPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
-findPatternForAsPattern patternRange pattern ((Node range name) as nameNode) =
+findPatternForAsPattern fullPatternRange pattern ((Node range name) as nameNode) =
     case Node.value pattern of
         Pattern.ParenthesizedPattern subPattern ->
-            findPatternForAsPattern patternRange subPattern nameNode
+            findPatternForAsPattern fullPatternRange subPattern nameNode
 
         Pattern.AllPattern ->
             SimplifiablePattern
@@ -714,7 +714,7 @@ findPatternForAsPattern patternRange pattern ((Node range name) as nameNode) =
                     , details = removeDetails
                     }
                     (Node.range pattern)
-                    [ Fix.replaceRangeBy patternRange name ]
+                    [ Fix.replaceRangeBy fullPatternRange name ]
                 )
 
         Pattern.VarPattern innerName ->
@@ -741,7 +741,7 @@ findPatternForAsPattern patternRange pattern ((Node range name) as nameNode) =
                 fix =
                     [ pattern
                         |> writePattern
-                        |> Fix.replaceRangeBy patternRange
+                        |> Fix.replaceRangeBy fullPatternRange
                     ]
             in
             SingleValue
