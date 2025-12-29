@@ -189,18 +189,17 @@ report context =
                 { singles, records, simplifiablePatterns } =
                     findDeclaredPatterns headScope
 
-                allDeclared : List String
+                allDeclared : Set String
                 allDeclared =
-                    List.concat
-                        [ List.map .name singles
-                        , List.concatMap (.fields >> List.map Node.value) records
-                        ]
+                    List.foldl
+                        (\{ fields } acc -> addToSet Node.value fields acc)
+                        Set.empty
+                        records
+                        |> addToSet .name singles
 
                 nonUsedVars : Set String
                 nonUsedVars =
-                    allDeclared
-                        |> Set.fromList
-                        |> Set.diff headScope.used
+                    Set.diff headScope.used allDeclared
 
                 errors : List (Rule.Error {})
                 errors =
@@ -238,6 +237,11 @@ report context =
 
         _ ->
             ( [], context )
+
+
+addToSet : (a -> comparable) -> List a -> Set comparable -> Set comparable
+addToSet mapper list initial =
+    List.foldl (\a acc -> Set.insert (mapper a) acc) initial list
 
 
 recordErrors : Context -> { fields : List (Node String), recordRange : Range } -> Maybe (Rule.Error {})
