@@ -84,18 +84,21 @@ type alias Scope =
 
 
 type FoundPattern
-    = SingleValue
-        { name : String
-        , range : Range
-        , message : String
-        , details : List String
-        , fix : List Fix
-        }
+    = SingleValue SingleValueData
     | RecordPattern
         { fields : List (Node String)
         , recordRange : Range
         }
     | SimplifiablePattern (Rule.Error {})
+
+
+type alias SingleValueData =
+    { name : String
+    , range : Range
+    , message : String
+    , details : List String
+    , fix : List Fix
+    }
 
 
 initialContext : Context
