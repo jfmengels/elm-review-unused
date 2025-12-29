@@ -792,8 +792,8 @@ isUnused name context =
 {-| Write a pattern.
 -}
 writePattern : Node Pattern -> String
-writePattern pattern =
-    case Node.value pattern of
+writePattern ((Node _ pattern) as node) =
+    case pattern of
         Pattern.AllPattern ->
             "_"
 
@@ -807,7 +807,7 @@ writePattern pattern =
             "\"" ++ String.replace "\"" "\\\"" s ++ "\""
 
         Pattern.HexPattern _ ->
-            pattern
+            node
                 |> Writer.writePattern
                 |> Writer.write
 
