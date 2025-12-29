@@ -189,24 +189,11 @@ report context =
     case context of
         headScope :: previousScope :: restOfScopes ->
             let
-                { errors, declared } =
+                { errors, used } =
                     findDeclaredPatterns context headScope
-
-                used : Set String
-                used =
-                    Set.foldl
-                        (\name acc ->
-                            if Set.member name declared then
-                                acc
-
-                            else
-                                Set.insert name acc
-                        )
-                        previousScope.used
-                        headScope.used
             in
             ( errors
-            , { declared = previousScope.declared, used = used } :: restOfScopes
+            , { declared = previousScope.declared, used = Set.union used previousScope.used } :: restOfScopes
             )
 
         headScope :: [] ->
@@ -216,9 +203,9 @@ report context =
             ( [], context )
 
 
-addToSet : (a -> comparable) -> List a -> Set comparable -> Set comparable
-addToSet mapper list initial =
-    List.foldl (\a acc -> Set.insert (mapper a) acc) initial list
+removeFromSet : (a -> comparable) -> List a -> Set comparable -> Set comparable
+removeFromSet mapper list initial =
+    List.foldl (\a acc -> Set.remove (mapper a) acc) initial list
 
 
 singleError : SingleValueData -> Rule.Error {}
@@ -279,21 +266,21 @@ findDeclaredPatterns :
     -> Scope
     ->
         { errors : List (Rule.Error {})
-        , declared : Set String
+        , used : Set String
         }
-findDeclaredPatterns context { used, declared } =
+findDeclaredPatterns context scope =
     List.foldl
         (\foundPattern acc ->
             case foundPattern of
                 SingleValue v ->
-                    if Set.member v.name used then
+                    if Set.member v.name acc.used then
                         { errors = acc.errors
-                        , declared = Set.insert v.name acc.declared
+                        , used = Set.remove v.name acc.used
                         }
 
                     else
                         { errors = singleError v :: acc.errors
-                        , declared = Set.insert v.name acc.declared
+                        , used = acc.used
                         }
 
                 RecordPattern v ->
@@ -304,18 +291,18 @@ findDeclaredPatterns context { used, declared } =
 
                             Nothing ->
                                 acc.errors
-                    , declared = addToSet Node.value v.fields acc.declared
+                    , used = removeFromSet Node.value v.fields acc.used
                     }
 
                 SimplifiablePattern simplifiablePatternError ->
                     { errors = simplifiablePatternError :: acc.errors
-                    , declared = acc.declared
+                    , used = acc.used
                     }
         )
         { errors = []
-        , declared = Set.empty
+        , used = scope.used
         }
-        declared
+        scope.declared
 
 
 valueVisitor : Node ( ModuleName, String ) -> Context -> ( List (Rule.Error {}), Context )
