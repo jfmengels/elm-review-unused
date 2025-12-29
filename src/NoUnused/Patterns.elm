@@ -207,29 +207,10 @@ report context =
                 errors : List (Rule.Error {})
                 errors =
                     List.concat
-                        [ singleErrors
-                        , List.filterMap (recordErrors context) records
+                        [ List.filterMap (recordErrors context) records
                         , simplifiablePatterns
                         ]
-
-                singleErrors : List (Rule.Error {})
-                singleErrors =
-                    List.foldl
-                        (\pattern acc ->
-                            if Set.member pattern.name headScope.used then
-                                acc
-
-                            else
-                                Rule.errorWithFix
-                                    { message = pattern.message
-                                    , details = pattern.details
-                                    }
-                                    pattern.range
-                                    pattern.fix
-                                    :: acc
-                        )
-                        []
-                        singles
+                        |> addSingleErrors headScope.used singles
             in
             ( errors
             , Set.foldl
@@ -245,6 +226,26 @@ report context =
 addToSet : (a -> comparable) -> List a -> Set comparable -> Set comparable
 addToSet mapper list initial =
     List.foldl (\a acc -> Set.insert (mapper a) acc) initial list
+
+
+addSingleErrors : Set String -> List SingleValueData -> List (Rule.Error {}) -> List (Rule.Error {})
+addSingleErrors used patterns initial =
+    List.foldl
+        (\pattern acc ->
+            if Set.member pattern.name used then
+                acc
+
+            else
+                Rule.errorWithFix
+                    { message = pattern.message
+                    , details = pattern.details
+                    }
+                    pattern.range
+                    pattern.fix
+                    :: acc
+        )
+        initial
+        patterns
 
 
 recordErrors : Context -> { fields : List (Node String), recordRange : Range } -> Maybe (Rule.Error {})
