@@ -124,14 +124,14 @@ expressionEnterVisitor node context =
     case Node.value node of
         Expression.LetExpression { declarations } ->
             let
-                findPatternsInLetDeclaration : Node Expression.LetDeclaration -> List FoundPattern
-                findPatternsInLetDeclaration letDeclaration =
+                findPatternsInLetDeclaration : Node Expression.LetDeclaration -> List FoundPattern -> List FoundPattern
+                findPatternsInLetDeclaration letDeclaration foundPatterns =
                     case Node.value letDeclaration of
                         Expression.LetFunction _ ->
-                            []
+                            foundPatterns
 
                         Expression.LetDestructuring pattern _ ->
-                            findPatterns Destructuring pattern
+                            findPatterns Destructuring [ pattern ] foundPatterns
 
                 asPatternsErrors : Node Expression.LetDeclaration -> List (Rule.Error {}) -> List (Rule.Error {})
                 asPatternsErrors letDeclaration errors =
@@ -143,7 +143,7 @@ expressionEnterVisitor node context =
                             errors
             in
             ( List.foldl asPatternsErrors [] declarations
-            , { declared = List.concatMap findPatternsInLetDeclaration declarations
+            , { declared = List.foldl findPatternsInLetDeclaration [] declarations
               , used = Set.empty
               }
                 :: context
@@ -169,7 +169,7 @@ expressionExitVisitor node context =
 caseBranchEnterVisitor : a -> ( Node Pattern, Node Expression ) -> Context -> ( List nothing, Context )
 caseBranchEnterVisitor _ ( pattern, _ ) context =
     ( []
-    , { declared = findPatterns Matching pattern
+    , { declared = findPatterns Matching [ pattern ] []
       , used = Set.empty
       }
         :: context
@@ -315,13 +315,8 @@ valueVisitor (Node _ ( moduleName, value )) context =
 --- ON ENTER
 
 
-findPatterns : PatternUse -> Node Pattern -> List FoundPattern
-findPatterns use pattern =
-    findPatternsHelp use [ pattern ] []
-
-
-findPatternsHelp : PatternUse -> List (Node Pattern) -> List FoundPattern -> List FoundPattern
-findPatternsHelp use patterns acc =
+findPatterns : PatternUse -> List (Node Pattern) -> List FoundPattern -> List FoundPattern
+findPatterns use patterns acc =
     case patterns of
         [] ->
             acc
@@ -340,7 +335,7 @@ findPatternsHelp use patterns acc =
                                 , fix = [ Fix.replaceRangeBy range "_" ]
                                 }
                     in
-                    findPatternsHelp use rest (foundPattern :: acc)
+                    findPatterns use rest (foundPattern :: acc)
 
                 Pattern.TuplePattern [ Node _ Pattern.AllPattern, Node _ Pattern.AllPattern ] ->
                     let
@@ -355,7 +350,7 @@ findPatternsHelp use patterns acc =
                                     [ Fix.replaceRangeBy range "_" ]
                                 )
                     in
-                    findPatternsHelp use rest (foundPattern :: acc)
+                    findPatterns use rest (foundPattern :: acc)
 
                 Pattern.TuplePattern [ Node _ Pattern.AllPattern, Node _ Pattern.AllPattern, Node _ Pattern.AllPattern ] ->
                     let
@@ -370,10 +365,10 @@ findPatternsHelp use patterns acc =
                                     [ Fix.replaceRangeBy range "_" ]
                                 )
                     in
-                    findPatternsHelp use rest (foundPattern :: acc)
+                    findPatterns use rest (foundPattern :: acc)
 
                 Pattern.TuplePattern subPatterns ->
-                    findPatternsHelp use (subPatterns ++ rest) acc
+                    findPatterns use (subPatterns ++ rest) acc
 
                 Pattern.RecordPattern fields ->
                     let
@@ -384,13 +379,13 @@ findPatternsHelp use patterns acc =
                                 , recordRange = range
                                 }
                     in
-                    findPatternsHelp use rest (foundPattern :: acc)
+                    findPatterns use rest (foundPattern :: acc)
 
                 Pattern.UnConsPattern first second ->
-                    findPatternsHelp use (first :: second :: rest) acc
+                    findPatterns use (first :: second :: rest) acc
 
                 Pattern.ListPattern subPatterns ->
-                    findPatternsHelp use (subPatterns ++ rest) acc
+                    findPatterns use (subPatterns ++ rest) acc
 
                 Pattern.NamedPattern _ subPatterns ->
                     if use == Destructuring && List.all isAllPattern subPatterns then
@@ -406,19 +401,19 @@ findPatternsHelp use patterns acc =
                                         [ Fix.replaceRangeBy range "_" ]
                                     )
                         in
-                        findPatternsHelp use rest (foundPattern :: acc)
+                        findPatterns use rest (foundPattern :: acc)
 
                     else
-                        findPatternsHelp use (subPatterns ++ rest) acc
+                        findPatterns use (subPatterns ++ rest) acc
 
                 Pattern.AsPattern inner name ->
-                    findPatternsHelp use (inner :: rest) (findPatternForAsPattern range inner name :: acc)
+                    findPatterns use (inner :: rest) (findPatternForAsPattern range inner name :: acc)
 
                 Pattern.ParenthesizedPattern inner ->
-                    findPatternsHelp use (inner :: rest) acc
+                    findPatterns use (inner :: rest) acc
 
                 _ ->
-                    findPatternsHelp use rest acc
+                    findPatterns use rest acc
 
 
 
