@@ -189,7 +189,7 @@ report context =
     case context of
         headScope :: restOfScopes ->
             let
-                { singles, records, errors, declared } =
+                { records, errors, declared } =
                     findDeclaredPatterns headScope
 
                 errors_ : List (Rule.Error {})
@@ -205,7 +205,6 @@ report context =
                         )
                         errors
                         records
-                        |> addSingleErrors headScope.used singles
             in
             ( errors_
             , Set.foldl
@@ -227,11 +226,6 @@ report context =
 addToSet : (a -> comparable) -> List a -> Set comparable -> Set comparable
 addToSet mapper list initial =
     List.foldl (\a acc -> Set.insert (mapper a) acc) initial list
-
-
-addSingleErrors : Set String -> List SingleValueData -> List (Rule.Error {}) -> List (Rule.Error {})
-addSingleErrors used patterns initial =
-    List.foldl (\pattern set -> addSingleError used pattern set) initial patterns
 
 
 addSingleError : Set String -> SingleValueData -> List (Rule.Error {}) -> List (Rule.Error {})
@@ -295,42 +289,37 @@ recordErrors context { fields, recordRange } =
 findDeclaredPatterns :
     Scope
     ->
-        { singles : List { name : String, range : Range, message : String, details : List String, fix : List Fix }
-        , records : List { fields : List (Node String), recordRange : Range }
+        { records : List { fields : List (Node String), recordRange : Range }
         , errors : List (Rule.Error {})
         , declared : Set String
         }
-findDeclaredPatterns scope =
+findDeclaredPatterns { used, declared } =
     List.foldl
         (\foundPattern acc ->
             case foundPattern of
                 SingleValue v ->
-                    { singles = v :: acc.singles
-                    , records = acc.records
-                    , errors = acc.errors
+                    { records = acc.records
+                    , errors = addSingleError used v acc.errors
                     , declared = Set.insert v.name acc.declared
                     }
 
                 RecordPattern v ->
-                    { singles = acc.singles
-                    , records = v :: acc.records
+                    { records = v :: acc.records
                     , errors = acc.errors
                     , declared = addToSet Node.value v.fields acc.declared
                     }
 
                 SimplifiablePattern simplifiablePatternError ->
-                    { singles = acc.singles
-                    , records = acc.records
+                    { records = acc.records
                     , errors = simplifiablePatternError :: acc.errors
                     , declared = acc.declared
                     }
         )
-        { singles = []
-        , records = []
+        { records = []
         , errors = []
         , declared = Set.empty
         }
-        scope.declared
+        declared
 
 
 valueVisitor : Node ( ModuleName, String ) -> Context -> ( List (Rule.Error {}), Context )
