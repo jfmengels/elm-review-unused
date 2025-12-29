@@ -189,16 +189,8 @@ report context =
     case context of
         headScope :: restOfScopes ->
             let
-                { singles, records, simplifiablePatterns } =
+                { singles, records, simplifiablePatterns, declared } =
                     findDeclaredPatterns headScope
-
-                allDeclared : Set String
-                allDeclared =
-                    List.foldl
-                        (\{ fields } acc -> addToSet Node.value fields acc)
-                        Set.empty
-                        records
-                        |> addToSet .name singles
 
                 errors : List (Rule.Error {})
                 errors =
@@ -218,7 +210,7 @@ report context =
             ( errors
             , Set.foldl
                 (\name acc ->
-                    if Set.member name allDeclared then
+                    if Set.member name declared then
                         acc
 
                     else
@@ -306,21 +298,38 @@ findDeclaredPatterns :
         { singles : List { name : String, range : Range, message : String, details : List String, fix : List Fix }
         , records : List { fields : List (Node String), recordRange : Range }
         , simplifiablePatterns : List (Rule.Error {})
+        , declared : Set String
         }
 findDeclaredPatterns scope =
     List.foldl
         (\foundPattern acc ->
             case foundPattern of
                 SingleValue v ->
-                    { singles = v :: acc.singles, records = acc.records, simplifiablePatterns = acc.simplifiablePatterns }
+                    { singles = v :: acc.singles
+                    , records = acc.records
+                    , simplifiablePatterns = acc.simplifiablePatterns
+                    , declared = Set.insert v.name acc.declared
+                    }
 
                 RecordPattern v ->
-                    { singles = acc.singles, records = v :: acc.records, simplifiablePatterns = acc.simplifiablePatterns }
+                    { singles = acc.singles
+                    , records = v :: acc.records
+                    , simplifiablePatterns = acc.simplifiablePatterns
+                    , declared = addToSet Node.value v.fields acc.declared
+                    }
 
                 SimplifiablePattern simplifiablePatternError ->
-                    { singles = acc.singles, records = acc.records, simplifiablePatterns = simplifiablePatternError :: acc.simplifiablePatterns }
+                    { singles = acc.singles
+                    , records = acc.records
+                    , simplifiablePatterns = simplifiablePatternError :: acc.simplifiablePatterns
+                    , declared = acc.declared
+                    }
         )
-        { singles = [], records = [], simplifiablePatterns = [] }
+        { singles = []
+        , records = []
+        , simplifiablePatterns = []
+        , declared = Set.empty
+        }
         scope.declared
 
 
