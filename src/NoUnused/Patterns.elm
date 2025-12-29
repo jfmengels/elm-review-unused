@@ -231,22 +231,22 @@ addToSet mapper list initial =
 
 addSingleErrors : Set String -> List SingleValueData -> List (Rule.Error {}) -> List (Rule.Error {})
 addSingleErrors used patterns initial =
-    List.foldl
-        (\pattern acc ->
-            if Set.member pattern.name used then
-                acc
+    List.foldl (\pattern set -> addSingleError used pattern set) initial patterns
 
-            else
-                Rule.errorWithFix
-                    { message = pattern.message
-                    , details = pattern.details
-                    }
-                    pattern.range
-                    pattern.fix
-                    :: acc
-        )
-        initial
-        patterns
+
+addSingleError : Set String -> SingleValueData -> List (Rule.Error {}) -> List (Rule.Error {})
+addSingleError used pattern set =
+    if Set.member pattern.name used then
+        set
+
+    else
+        Rule.errorWithFix
+            { message = pattern.message
+            , details = pattern.details
+            }
+            pattern.range
+            pattern.fix
+            :: set
 
 
 recordErrors : Context -> { fields : List (Node String), recordRange : Range } -> Maybe (Rule.Error {})
