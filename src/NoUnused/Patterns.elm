@@ -221,19 +221,14 @@ addToSet mapper list initial =
     List.foldl (\a acc -> Set.insert (mapper a) acc) initial list
 
 
-addSingleError : Set String -> SingleValueData -> List (Rule.Error {}) -> List (Rule.Error {})
-addSingleError used pattern set =
-    if Set.member pattern.name used then
-        set
-
-    else
-        Rule.errorWithFix
-            { message = pattern.message
-            , details = pattern.details
-            }
-            pattern.range
-            pattern.fix
-            :: set
+singleError : SingleValueData -> Rule.Error {}
+singleError pattern =
+    Rule.errorWithFix
+        { message = pattern.message
+        , details = pattern.details
+        }
+        pattern.range
+        pattern.fix
 
 
 recordErrors : Context -> { fields : List (Node String), recordRange : Range } -> Maybe (Rule.Error {})
@@ -291,9 +286,15 @@ findDeclaredPatterns context { used, declared } =
         (\foundPattern acc ->
             case foundPattern of
                 SingleValue v ->
-                    { errors = addSingleError used v acc.errors
-                    , declared = Set.insert v.name acc.declared
-                    }
+                    if Set.member v.name used then
+                        { errors = acc.errors
+                        , declared = Set.insert v.name acc.declared
+                        }
+
+                    else
+                        { errors = singleError v :: acc.errors
+                        , declared = Set.insert v.name acc.declared
+                        }
 
                 RecordPattern v ->
                     { errors =
