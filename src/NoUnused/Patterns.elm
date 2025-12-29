@@ -255,16 +255,8 @@ recordErrors context { fields, recordRange } =
             [] ->
                 []
 
-            firstNode :: restNodes ->
+            (Node _ first) :: restNodes ->
                 let
-                    first : String
-                    first =
-                        Node.value firstNode
-
-                    rest : List String
-                    rest =
-                        List.map Node.value restNodes
-
                     ( errorRange, fix ) =
                         case used of
                             [] ->
@@ -278,8 +270,8 @@ recordErrors context { fields, recordRange } =
                                 )
                 in
                 [ Rule.errorWithFix
-                    { message = listToMessage first rest
-                    , details = listToDetails rest
+                    { message = listToMessage first restNodes
+                    , details = listToDetails restNodes
                     }
                     errorRange
                     [ fix ]
@@ -564,16 +556,8 @@ errorsForRecordValueList recordRange list context =
         [] ->
             ( [], context )
 
-        firstNode :: restNodes ->
+        (Node _ first) :: rest ->
             let
-                first : String
-                first =
-                    Node.value firstNode
-
-                rest : List String
-                rest =
-                    List.map Node.value restNodes
-
                 ( errorRange, fix ) =
                     case used of
                         [] ->
@@ -597,17 +581,17 @@ errorsForRecordValueList recordRange list context =
             )
 
 
-listToMessage : String -> List String -> String
+listToMessage : String -> List (Node String) -> String
 listToMessage first rest =
     case List.reverse rest of
         [] ->
             "Value `" ++ first ++ "` is not used"
 
-        last :: middle ->
-            "Values `" ++ String.join "`, `" (first :: middle) ++ "` and `" ++ last ++ "` are not used"
+        (Node _ last) :: middle ->
+            "Values `" ++ String.join "`, `" (first :: List.map Node.value middle) ++ "` and `" ++ last ++ "` are not used"
 
 
-listToDetails : List String -> List String
+listToDetails : List a -> List String
 listToDetails rest =
     case rest of
         [] ->
