@@ -247,7 +247,7 @@ recordErrors context { fields, recordRange } =
 
                             _ ->
                                 ( Range.combine (List.map Node.range unused)
-                                , Node.empty (Pattern.RecordPattern used)
+                                , Pattern.RecordPattern used
                                     |> writePattern
                                     |> Fix.replaceRangeBy recordRange
                                 )
@@ -415,7 +415,7 @@ findPatterns use patterns acc =
                     findPatterns use (subPatterns ++ rest) acc
 
                 Pattern.NamedPattern _ subPatterns ->
-                    if use == Destructuring && List.all isAllPattern subPatterns then
+                    if use == Destructuring && List.all (\(Node _ p) -> isAllPattern p) subPatterns then
                         let
                             foundPattern : FoundPattern
                             foundPattern =
@@ -523,7 +523,7 @@ errorsForPattern use (Node range pattern) context =
             errorsForPatternList use patterns context
 
         Pattern.NamedPattern _ patterns ->
-            if use == Destructuring && List.all isAllPattern patterns then
+            if use == Destructuring && List.all (\(Node _ p) -> isAllPattern p) patterns then
                 errorsForUselessNamePattern range context
 
             else
@@ -586,7 +586,7 @@ errorsForRecordValueList recordRange list context =
 
                         _ ->
                             ( Range.combine (List.map Node.range unused)
-                            , Node.empty (Pattern.RecordPattern used)
+                            , Pattern.RecordPattern used
                                 |> writePattern
                                 |> Fix.replaceRangeBy recordRange
                             )
@@ -623,7 +623,7 @@ listToDetails rest =
 
 
 errorsForAsPattern : Range -> Node Pattern -> Node String -> Context -> ( List (Rule.Error {}), Context )
-errorsForAsPattern patternRange inner (Node range name) context =
+errorsForAsPattern patternRange (Node innerRange inner) (Node range name) context =
     if isUnused name context then
         let
             fix : List Fix
@@ -648,7 +648,7 @@ errorsForAsPattern patternRange inner (Node range name) context =
                 { message = "Pattern `_` is not needed"
                 , details = removeDetails
                 }
-                (Node.range inner)
+                innerRange
                 [ Fix.replaceRangeBy patternRange name ]
           ]
         , useValue name context
@@ -702,8 +702,8 @@ findAsPatternsErrors patterns acc =
 
 
 findPatternForAsPattern : Range -> Node Pattern -> Node String -> FoundPattern
-findPatternForAsPattern fullPatternRange pattern ((Node range name) as nameNode) =
-    case Node.value pattern of
+findPatternForAsPattern fullPatternRange (Node patternRange pattern) ((Node range name) as nameNode) =
+    case pattern of
         Pattern.ParenthesizedPattern subPattern ->
             findPatternForAsPattern fullPatternRange subPattern nameNode
 
@@ -713,7 +713,7 @@ findPatternForAsPattern fullPatternRange pattern ((Node range name) as nameNode)
                     { message = "Pattern `_` is not needed"
                     , details = removeDetails
                     }
-                    (Node.range pattern)
+                    patternRange
                     [ Fix.replaceRangeBy fullPatternRange name ]
                 )
 
@@ -753,8 +753,8 @@ findPatternForAsPattern fullPatternRange pattern ((Node range name) as nameNode)
                 }
 
 
-isAllPattern : Node Pattern -> Bool
-isAllPattern (Node _ pattern) =
+isAllPattern : Pattern -> Bool
+isAllPattern pattern =
     case pattern of
         Pattern.AllPattern ->
             True
@@ -812,8 +812,8 @@ isUnused name context =
 
 {-| Write a pattern.
 -}
-writePattern : Node Pattern -> String
-writePattern (Node _ pattern) =
+writePattern : Pattern -> String
+writePattern pattern =
     case pattern of
         Pattern.AllPattern ->
             "_"
@@ -837,16 +837,16 @@ writePattern (Node _ pattern) =
             String.fromFloat f
 
         Pattern.TuplePattern inner ->
-            "( " ++ String.join ", " (List.map writePattern inner) ++ " )"
+            "( " ++ String.join ", " (List.map (\(Node _ p) -> writePattern p) inner) ++ " )"
 
         Pattern.RecordPattern inner ->
             "{ " ++ String.join ", " (List.map Node.value inner) ++ " }"
 
-        Pattern.UnConsPattern left right ->
+        Pattern.UnConsPattern (Node _ left) (Node _ right) ->
             writePattern left ++ " :: " ++ writePattern right
 
         Pattern.ListPattern inner ->
-            "[ " ++ String.join ", " (List.map writePattern inner) ++ " ]"
+            "[ " ++ String.join ", " (List.map (\(Node _ p) -> writePattern p) inner) ++ " ]"
 
         Pattern.VarPattern var ->
             var
@@ -861,12 +861,12 @@ writePattern (Node _ pattern) =
                     else
                         String.join "." qnr.moduleName ++ "." ++ qnr.name
             in
-            List.foldl (\p acc -> acc ++ " " ++ writePattern p) reference others
+            List.foldl (\(Node _ p) acc -> acc ++ " " ++ writePattern p) reference others
 
-        Pattern.AsPattern innerPattern asName ->
+        Pattern.AsPattern (Node _ innerPattern) asName ->
             writePattern innerPattern ++ " as " ++ Node.value asName
 
-        Pattern.ParenthesizedPattern innerPattern ->
+        Pattern.ParenthesizedPattern (Node _ innerPattern) ->
             "(" ++ writePattern innerPattern ++ ")"
 
 
