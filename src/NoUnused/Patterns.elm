@@ -212,16 +212,22 @@ report context =
 
                 singleErrors : List (Rule.Error {})
                 singleErrors =
-                    List.filter (\{ name } -> not <| Set.member name headScope.used) singles
-                        |> List.map
-                            (\pattern ->
+                    List.foldl
+                        (\pattern acc ->
+                            if Set.member pattern.name headScope.used then
+                                acc
+
+                            else
                                 Rule.errorWithFix
                                     { message = pattern.message
                                     , details = pattern.details
                                     }
                                     pattern.range
                                     pattern.fix
-                            )
+                                    :: acc
+                        )
+                        []
+                        singles
             in
             ( errors
             , Set.foldl
