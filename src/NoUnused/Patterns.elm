@@ -133,16 +133,16 @@ expressionEnterVisitor node context =
                         Expression.LetDestructuring pattern _ ->
                             findPatterns Destructuring pattern
 
-                asPatternsErrors : Node Expression.LetDeclaration -> List (Rule.Error {})
-                asPatternsErrors letDeclaration =
+                asPatternsErrors : Node Expression.LetDeclaration -> List (Rule.Error {}) -> List (Rule.Error {})
+                asPatternsErrors letDeclaration errors =
                     case Node.value letDeclaration of
                         Expression.LetFunction { declaration } ->
-                            findAsPatternsErrors (Node.value declaration).arguments []
+                            findAsPatternsErrors (Node.value declaration).arguments errors
 
                         Expression.LetDestructuring _ _ ->
-                            []
+                            errors
             in
-            ( List.concatMap asPatternsErrors declarations
+            ( List.foldl asPatternsErrors [] declarations
             , { declared = List.concatMap findPatternsInLetDeclaration declarations
               , used = Set.empty
               }
