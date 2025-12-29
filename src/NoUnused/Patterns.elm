@@ -197,7 +197,7 @@ report context =
             )
 
         headScope :: [] ->
-            ( (findDeclaredPatterns context headScope).errors, [] )
+            ( findDeclaredPatternsForRootScope context headScope, [] )
 
         _ ->
             ( [], context )
@@ -261,13 +261,7 @@ recordErrors context { fields, recordRange } =
                     |> Just
 
 
-findDeclaredPatterns :
-    Context
-    -> Scope
-    ->
-        { errors : List (Rule.Error {})
-        , used : Set String
-        }
+findDeclaredPatterns : Context -> Scope -> { errors : List (Rule.Error {}), used : Set String }
 findDeclaredPatterns context scope =
     List.foldl
         (\foundPattern acc ->
@@ -302,6 +296,35 @@ findDeclaredPatterns context scope =
         { errors = []
         , used = scope.used
         }
+        scope.declared
+
+
+{-| Just like `findDeclaredPatterns` but faster when we don't care about the used patterns.
+-}
+findDeclaredPatternsForRootScope : Context -> Scope -> List (Rule.Error {})
+findDeclaredPatternsForRootScope context scope =
+    List.foldl
+        (\foundPattern errors ->
+            case foundPattern of
+                SingleValue v ->
+                    if Set.member v.name scope.used then
+                        errors
+
+                    else
+                        singleError v :: errors
+
+                RecordPattern v ->
+                    case recordErrors context v of
+                        Just error ->
+                            error :: errors
+
+                        Nothing ->
+                            errors
+
+                SimplifiablePattern simplifiablePatternError ->
+                    simplifiablePatternError :: errors
+        )
+        []
         scope.declared
 
 
