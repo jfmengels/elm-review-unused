@@ -12,7 +12,6 @@ import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range as Range exposing (Range)
-import Elm.Writer as Writer
 import NoUnused.Patterns.NameVisitor as NameVisitor
 import Review.Fix as Fix exposing (Fix)
 import Review.Rule as Rule exposing (Rule)
@@ -792,7 +791,7 @@ isUnused name context =
 {-| Write a pattern.
 -}
 writePattern : Node Pattern -> String
-writePattern ((Node _ pattern) as node) =
+writePattern (Node _ pattern) =
     case pattern of
         Pattern.AllPattern ->
             "_"
@@ -806,10 +805,8 @@ writePattern ((Node _ pattern) as node) =
         Pattern.StringPattern s ->
             "\"" ++ String.replace "\"" "\\\"" s ++ "\""
 
-        Pattern.HexPattern _ ->
-            node
-                |> Writer.writePattern
-                |> Writer.write
+        Pattern.HexPattern hex ->
+            "0x" ++ hexToString hex
 
         Pattern.IntPattern i ->
             String.fromInt i
@@ -843,3 +840,90 @@ writePattern ((Node _ pattern) as node) =
 
         Pattern.ParenthesizedPattern innerPattern ->
             "(" ++ writePattern innerPattern ++ ")"
+
+
+{-| Convert a decimal integer to a hexdecimal string such as `"abc94f"`.
+
+    Hex.toString 165 == "a5"
+
+-}
+hexToString : Int -> String
+hexToString num =
+    String.fromList <|
+        if num < 0 then
+            '-' :: unsafePositiveToDigits [] (negate num)
+
+        else
+            unsafePositiveToDigits [] num
+
+
+{-| ONLY EVER CALL THIS WITH POSITIVE INTEGERS!
+-}
+unsafePositiveToDigits : List Char -> Int -> List Char
+unsafePositiveToDigits digits num =
+    if num < 16 then
+        unsafeToDigit num :: digits
+
+    else
+        unsafePositiveToDigits (unsafeToDigit (modBy 16 num) :: digits) (num // 16)
+
+
+{-| ONLY EVER CALL THIS WITH INTEGERS BETWEEN 0 and 15!
+-}
+unsafeToDigit : Int -> Char
+unsafeToDigit num =
+    case num of
+        0 ->
+            '0'
+
+        1 ->
+            '1'
+
+        2 ->
+            '2'
+
+        3 ->
+            '3'
+
+        4 ->
+            '4'
+
+        5 ->
+            '5'
+
+        6 ->
+            '6'
+
+        7 ->
+            '7'
+
+        8 ->
+            '8'
+
+        9 ->
+            '9'
+
+        10 ->
+            'a'
+
+        11 ->
+            'b'
+
+        12 ->
+            'c'
+
+        13 ->
+            'd'
+
+        14 ->
+            'e'
+
+        15 ->
+            'f'
+
+        _ ->
+            -- if this ever gets called with a number over 15, it will never
+            -- terminate! If that happens, debug further by uncommenting this:
+            --
+            -- Debug.todo ("Tried to convert " ++ toString num ++ " to hexadecimal.")
+            unsafeToDigit num
