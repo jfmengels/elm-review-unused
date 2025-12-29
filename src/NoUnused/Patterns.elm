@@ -187,23 +187,30 @@ caseBranchExitVisitor _ _ context =
 report : Context -> ( List (Rule.Error {}), Context )
 report context =
     case context of
-        headScope :: restOfScopes ->
+        headScope :: previousScope :: restOfScopes ->
             let
                 { errors, declared } =
                     findDeclaredPatterns context headScope
+
+                used : Set String
+                used =
+                    Set.foldl
+                        (\name acc ->
+                            if Set.member name declared then
+                                acc
+
+                            else
+                                Set.insert name acc
+                        )
+                        previousScope.used
+                        headScope.used
             in
             ( errors
-            , Set.foldl
-                (\name acc ->
-                    if Set.member name declared then
-                        acc
-
-                    else
-                        useValue name acc
-                )
-                restOfScopes
-                headScope.used
+            , { declared = previousScope.declared, used = used } :: restOfScopes
             )
+
+        headScope :: [] ->
+            ( (findDeclaredPatterns context headScope).errors, [] )
 
         _ ->
             ( [], context )
