@@ -830,10 +830,16 @@ writePattern (Node _ pattern) =
             var
 
         Pattern.NamedPattern qnr others ->
-            String.join " "
-                (String.join "." (qnr.moduleName ++ [ qnr.name ])
-                    :: List.map writePattern others
-                )
+            let
+                reference : String
+                reference =
+                    if List.isEmpty qnr.moduleName then
+                        qnr.name
+
+                    else
+                        String.join "." qnr.moduleName ++ "." ++ qnr.name
+            in
+            List.foldl (\p acc -> acc ++ " " ++ writePattern p) reference others
 
         Pattern.AsPattern innerPattern asName ->
             writePattern innerPattern ++ " as " ++ Node.value asName
