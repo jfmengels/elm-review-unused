@@ -11,7 +11,6 @@ when inside the directory containing this file.
 
 -}
 
-import CognitiveComplexity
 import Docs.NoMissing exposing (exposedModules, onlyExposed)
 import Docs.ReviewAtDocs
 import Docs.ReviewLinksAndSections
@@ -62,7 +61,5 @@ config =
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
     , Simplify.rule Simplify.defaults
-    , -- TODO Reduce to 10
-      CognitiveComplexity.rule 29
     ]
         |> List.map (Rule.ignoreErrorsForFiles [ "src/NoUnused/Patterns/NameVisitor.elm" ])
