@@ -189,24 +189,10 @@ report context =
     case context of
         headScope :: restOfScopes ->
             let
-                { records, errors, declared } =
-                    findDeclaredPatterns headScope
-
-                errors_ : List (Rule.Error {})
-                errors_ =
-                    List.foldl
-                        (\record acc ->
-                            case recordErrors context record of
-                                Just error ->
-                                    error :: acc
-
-                                Nothing ->
-                                    acc
-                        )
-                        errors
-                        records
+                { errors, declared } =
+                    findDeclaredPatterns context headScope
             in
-            ( errors_
+            ( errors
             , Set.foldl
                 (\name acc ->
                     if Set.member name declared then
@@ -287,36 +273,38 @@ recordErrors context { fields, recordRange } =
 
 
 findDeclaredPatterns :
-    Scope
+    Context
+    -> Scope
     ->
-        { records : List { fields : List (Node String), recordRange : Range }
-        , errors : List (Rule.Error {})
+        { errors : List (Rule.Error {})
         , declared : Set String
         }
-findDeclaredPatterns { used, declared } =
+findDeclaredPatterns context { used, declared } =
     List.foldl
         (\foundPattern acc ->
             case foundPattern of
                 SingleValue v ->
-                    { records = acc.records
-                    , errors = addSingleError used v acc.errors
+                    { errors = addSingleError used v acc.errors
                     , declared = Set.insert v.name acc.declared
                     }
 
                 RecordPattern v ->
-                    { records = v :: acc.records
-                    , errors = acc.errors
+                    { errors =
+                        case recordErrors context v of
+                            Just error ->
+                                error :: acc.errors
+
+                            Nothing ->
+                                acc.errors
                     , declared = addToSet Node.value v.fields acc.declared
                     }
 
                 SimplifiablePattern simplifiablePatternError ->
-                    { records = acc.records
-                    , errors = simplifiablePatternError :: acc.errors
+                    { errors = simplifiablePatternError :: acc.errors
                     , declared = acc.declared
                     }
         )
-        { records = []
-        , errors = []
+        { errors = []
         , declared = Set.empty
         }
         declared
