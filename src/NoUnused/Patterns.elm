@@ -206,7 +206,7 @@ report context =
                 errors =
                     List.concat
                         [ singleErrors
-                        , List.concatMap (recordErrors context) records
+                        , List.filterMap (recordErrors context) records
                         , simplifiablePatterns
                         ]
 
@@ -240,16 +240,16 @@ report context =
             ( [], context )
 
 
-recordErrors : Context -> { fields : List (Node String), recordRange : Range } -> List (Rule.Error {})
+recordErrors : Context -> { fields : List (Node String), recordRange : Range } -> Maybe (Rule.Error {})
 recordErrors context { fields, recordRange } =
     if List.isEmpty fields then
-        [ Rule.errorWithFix
+        Rule.errorWithFix
             { message = "Record pattern is not needed"
             , details = [ "This pattern is redundant and should be replaced with '_'." ]
             }
             recordRange
             [ Fix.replaceRangeBy recordRange "_" ]
-        ]
+            |> Just
 
     else
         let
@@ -258,7 +258,7 @@ recordErrors context { fields, recordRange } =
         in
         case unused of
             [] ->
-                []
+                Nothing
 
             (Node _ first) :: restNodes ->
                 let
@@ -274,13 +274,13 @@ recordErrors context { fields, recordRange } =
                                     |> Fix.replaceRangeBy recordRange
                                 )
                 in
-                [ Rule.errorWithFix
+                Rule.errorWithFix
                     { message = listToMessage first restNodes
                     , details = listToDetails restNodes
                     }
                     errorRange
                     [ fix ]
-                ]
+                    |> Just
 
 
 findDeclaredPatterns :
