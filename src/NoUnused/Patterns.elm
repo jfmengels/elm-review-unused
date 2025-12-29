@@ -200,10 +200,6 @@ report context =
                         records
                         |> addToSet .name singles
 
-                nonUsedVars : Set String
-                nonUsedVars =
-                    Set.diff headScope.used allDeclared
-
                 errors : List (Rule.Error {})
                 errors =
                     List.foldl
@@ -221,9 +217,15 @@ report context =
             in
             ( errors
             , Set.foldl
-                useValue
+                (\name acc ->
+                    if Set.member name allDeclared then
+                        acc
+
+                    else
+                        useValue name acc
+                )
                 restOfScopes
-                nonUsedVars
+                headScope.used
             )
 
         _ ->
