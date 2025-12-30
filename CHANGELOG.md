@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.2.5] - 2025-12-30
+
 - [`NoUnused.Parameters`] provides automatic fixes for removing unused arguments (`foo unused used = ...` -> ) including
 in its call locations (`foo 1 2` -> `foo 2`). This also works for unused record fields or tuple values.
 - [`NoUnused.Parameters`] provides automatic fixes for removing unused aliases (`foo ({x} as unused)`).
@@ -106,7 +108,8 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
-[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.4...HEAD
+[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.5...HEAD
+[1.2.5]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.5
 [1.2.4]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.4
 [1.2.3]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.3
 [1.2.2]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.2
