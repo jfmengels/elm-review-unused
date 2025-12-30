@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- [`NoUnused.Parameters`] provides automatic fixes for removing unused arguments (`foo unused used = ...` -> ) including
+in its call locations (`foo 1 2` -> `foo 2`). This also works for unused record fields or tuple values.
+- [`NoUnused.Parameters`] provides automatic fixes for removing unused aliases (`foo ({x} as unused)`).
 - Fixed an issue for [`NoUnused.Exports`] where a custom type did not get reported when one of its constructors was named like another type.
 Example, where type `Unused` was incorrectly considered as used:
 ```elm
@@ -18,7 +21,6 @@ value = ()
 - [`NoUnused.Variables`] now reports (and fixes) unnecessary imports to functions/types available by default (`Basics`, `List`, etc.)
 - [`NoUnused.Dependencies`] now doesn't report `elm/json` as an unused dependency for applications (as not depending on it yields compiler errors).
 - [`NoUnused.CustomTypeConstructor`] now gives a hint on how to not have phantom errors reported.
-- [`NoUnused.Parameters`] provides automatic fixes for removing unnecessary aliases (`foo ({x} as unused)`).
 
 ## [1.2.4] - 2025-02-11
 
