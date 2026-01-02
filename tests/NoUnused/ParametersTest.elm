@@ -6,7 +6,9 @@ import NoUnused.Parameters exposing (rule)
 import Review.Project as Project exposing (Project)
 import Review.Rule as Rule
 import Review.Test
+import Review.Test.Dependencies
 import Test exposing (Test, describe, test)
+import TestProject
 
 
 details : List String
@@ -185,6 +187,107 @@ fn a b =
     in x
 """
                 |> Review.Test.run rule
+                |> Review.Test.expectNoErrors
+    , test "should not report parameters that shadow imported functions from local modules" <|
+        \() ->
+            [ """module Html exposing (text, label)
+text str = str
+label = ()
+"""
+            , """module A exposing (..)
+import Html exposing (..)
+viewItem label =
+    text label
+"""
+            ]
+                |> Review.Test.runOnModules rule
+                |> Review.Test.expectNoErrors
+    , test "should not report parameters that shadow imported functions from package dependencies" <|
+        \() ->
+            """module A exposing (..)
+import Html exposing (..)
+viewItem label =
+    text label
+"""
+                |> Review.Test.runWithProjectData
+                    (Review.Test.Dependencies.projectWithElmCore
+                        |> Project.addDependency Review.Test.Dependencies.elmHtml
+                    )
+                    rule
+                |> Review.Test.expectNoErrors
+    , test "should not report parameters that shadow imported functions when function has multiple parameters" <|
+        \() ->
+            """module A exposing (..)
+import Html exposing (..)
+viewAnsweredItem label value =
+    if String.isEmpty value then
+        text ""
+    else
+        text label
+"""
+                |> Review.Test.runWithProjectData
+                    (Review.Test.Dependencies.projectWithElmCore
+                        |> Project.addDependency Review.Test.Dependencies.elmHtml
+                    )
+                    rule
+                |> Review.Test.expectNoErrors
+    , test "should not report parameters that shadow imported functions in let bindings" <|
+        \() ->
+            """module A exposing (..)
+import Html exposing (..)
+view =
+    let
+        viewAnsweredItem label value =
+            if String.isEmpty value then
+                text ""
+            else
+                text label
+    in
+    viewAnsweredItem "Hello" "World"
+"""
+                |> Review.Test.runWithProjectData
+                    (Review.Test.Dependencies.projectWithElmCore
+                        |> Project.addDependency Review.Test.Dependencies.elmHtml
+                    )
+                    rule
+                |> Review.Test.expectNoErrors
+    , test "should not report parameters that shadow imported functions in complex let bindings with div" <|
+        \() ->
+            [ """module A exposing (..)
+import Html exposing (..)
+import Html.Attributes as Attr exposing (class, type_)
+import Html.Events exposing (..)
+view =
+    let
+        workspaceNameValue =
+            "test"
+
+        viewAnsweredItem label value =
+            if String.isEmpty value then
+                text ""
+            else
+                div [ class "text-sm" ]
+                    [ text label
+                    , text " "
+                    , span [ class "font-medium" ] [ text value ]
+                    ]
+
+        mobileRecapItems =
+            [ viewAnsweredItem "Label" workspaceNameValue
+            ]
+    in
+    div [] mobileRecapItems
+"""
+            , """module B exposing (..)
+import Html exposing (..)
+otherView = label [] [ text "test" ]
+"""
+            ]
+                |> Review.Test.runOnModulesWithProjectData
+                    (Review.Test.Dependencies.projectWithElmCore
+                        |> Project.addDependency Review.Test.Dependencies.elmHtml
+                    )
+                    rule
                 |> Review.Test.expectNoErrors
     , test "should remove nested function calls" <|
         \() ->

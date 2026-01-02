@@ -1,4 +1,4 @@
-module TestProject exposing (application, lamderaApplication, package)
+module TestProject exposing (application, applicationWithHtml, lamderaApplication, package)
 
 import Elm.Package
 import Elm.Project
@@ -11,6 +11,12 @@ application : Project
 application =
     Project.new
         |> Project.addElmJson applicationElmJson
+
+
+applicationWithHtml : Project
+applicationWithHtml =
+    Project.new
+        |> Project.addElmJson applicationWithHtmlElmJson
 
 
 lamderaApplication : Project
@@ -44,6 +50,42 @@ applicationElmJson =
             { elm = Elm.Version.one
             , dirs = []
             , depsDirect = [ ( unsafePackageName "elm/core", Elm.Version.one ) ]
+            , depsIndirect = []
+            , testDepsDirect = []
+            , testDepsIndirect = []
+            }
+    }
+
+
+applicationWithHtmlElmJson : { path : String, raw : String, project : Elm.Project.Project }
+applicationWithHtmlElmJson =
+    { path = "elm.json"
+    , raw = """{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "elm/core": "1.0.0",
+            "elm/html": "1.0.0"
+        },
+        "indirect": {}
+    },
+    "test-dependencies": {
+        "direct": {},
+        "indirect": {}
+    }
+}"""
+    , project =
+        Elm.Project.Application
+            { elm = Elm.Version.one
+            , dirs = []
+            , depsDirect =
+                [ ( unsafePackageName "elm/core", Elm.Version.one )
+                , ( unsafePackageName "elm/html", Elm.Version.one )
+                ]
             , depsIndirect = []
             , testDepsDirect = []
             , testDepsIndirect = []
