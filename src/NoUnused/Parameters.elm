@@ -546,8 +546,8 @@ applyFixesAcrossModules arg callSitesPerFile fixesSoFar =
 collectExposedElements : List (Node Exposing.TopLevelExpose) -> Set String
 collectExposedElements exposed =
     List.foldl
-        (\exp set ->
-            case Node.value exp of
+        (\(Node _ exp) set ->
+            case exp of
                 Exposing.FunctionExpose name ->
                     Set.insert name set
 
@@ -563,21 +563,20 @@ collectExposedElements exposed =
 
 
 declarationEnterVisitor : Node Declaration -> ModuleContext -> ModuleContext
-declarationEnterVisitor node context =
-    case Node.value node of
+declarationEnterVisitor (Node _ node) context =
+    case node of
         Declaration.FunctionDeclaration f ->
             let
                 declaration : Expression.FunctionImplementation
                 declaration =
                     Node.value f.declaration
 
+                (Node functionNameRange functionName) =
+                    declaration.name
+
                 declared : List (List Declared)
                 declared =
-                    findDeclared NamedFunction (Node.range declaration.name).end declaration.arguments f.signature
-
-                functionName : FunctionName
-                functionName =
-                    Node.value declaration.name
+                    findDeclared NamedFunction functionNameRange.end declaration.arguments f.signature
             in
             { exposedModules = context.exposedModules
             , lookupTable = context.lookupTable
@@ -604,8 +603,8 @@ declarationEnterVisitor node context =
 
 
 declarationExitVisitor : Node Declaration -> ModuleContext -> ( List (Rule.Error {}), ModuleContext )
-declarationExitVisitor node context =
-    case Node.value node of
+declarationExitVisitor (Node _ node) context =
+    case node of
         Declaration.FunctionDeclaration _ ->
             report context
 
@@ -789,7 +788,7 @@ getParametersFromRecordPattern path source fields previousEnd acc =
 
 
 getParametersFromAsPattern : Path -> Location -> Source -> Node Pattern -> Node String -> List Declared
-getParametersFromAsPattern path previousEnd source pattern (Node asRange asName) =
+getParametersFromAsPattern path previousEnd source ((Node patternRange _) as pattern) (Node asRange asName) =
     let
         parametersFromPatterns : List Declared
         parametersFromPatterns =
@@ -801,7 +800,7 @@ getParametersFromAsPattern path previousEnd source pattern (Node asRange asName)
             , range = asRange
             , kind = Alias
             , tryToRemoveArg = False
-            , toIgnoredFix = [ Fix.removeRange { start = (Node.range pattern).end, end = asRange.end } ]
+            , toIgnoredFix = [ Fix.removeRange { start = patternRange.end, end = asRange.end } ]
             , path = path
             , source = source
             , backupWhenFixImpossible = ReportButDontFix
@@ -828,21 +827,21 @@ isPatternWildCard (Node _ node) =
 
 
 expressionEnterVisitor : Node Expression -> ModuleContext -> ModuleContext
-expressionEnterVisitor node context =
-    case Node.value node of
+expressionEnterVisitor (Node range node) context =
+    case node of
         Expression.FunctionOrValue _ name ->
             context
-                |> markValueAsUsed (Node.range node) name
-                |> registerFunctionCallReference name (Node.range node) []
+                |> markValueAsUsed range name
+                |> registerFunctionCallReference name range []
 
-        Expression.RecordUpdateExpression name _ ->
-            markValueAsUsed (Node.range name) (Node.value name) context
+        Expression.RecordUpdateExpression (Node nameRange name) _ ->
+            markValueAsUsed nameRange name context
 
         Expression.LambdaExpression { args } ->
             let
                 start : Location
                 start =
-                    (Node.range node).start
+                    range.start
             in
             { context
                 | scopes =
@@ -893,8 +892,8 @@ expressionExitVisitor (Node _ node) context =
 
 
 letDeclarationEnterVisitor : Node Expression.LetDeclaration -> ModuleContext -> ModuleContext
-letDeclarationEnterVisitor letDeclaration context =
-    case Node.value letDeclaration of
+letDeclarationEnterVisitor (Node _ letDeclaration) context =
+    case letDeclaration of
         Expression.LetFunction function ->
             let
                 declaration : Expression.FunctionImplementation
@@ -906,13 +905,12 @@ letDeclarationEnterVisitor letDeclaration context =
 
             else
                 let
-                    functionName : FunctionName
-                    functionName =
-                        Node.value declaration.name
+                    (Node functionNameRange functionName) =
+                        declaration.name
 
                     declared : List (List Declared)
                     declared =
-                        findDeclared NamedFunction (Node.range declaration.name).end declaration.arguments function.signature
+                        findDeclared NamedFunction functionNameRange.end declaration.arguments function.signature
 
                     newScope : Scope
                     newScope =
@@ -934,8 +932,8 @@ letDeclarationEnterVisitor letDeclaration context =
 
 
 letDeclarationExitVisitor : a -> Node Expression.LetDeclaration -> ModuleContext -> ( List (Rule.Error {}), ModuleContext )
-letDeclarationExitVisitor _ letDeclaration context =
-    case Node.value letDeclaration of
+letDeclarationExitVisitor _ (Node _ letDeclaration) context =
+    case letDeclaration of
         Expression.LetFunction function ->
             let
                 declaration : Expression.FunctionImplementation
@@ -1213,9 +1211,12 @@ prettyRemovalRange range position callSite =
     let
         previousEnd : Location
         previousEnd =
-            Array.get (position - 1) callSite.arguments
-                |> Maybe.map (Node.range >> .end)
-                |> Maybe.withDefault callSite.fnNameEnd
+            case Array.get (position - 1) callSite.arguments of
+                Just (Node { end } _) ->
+                    end
+
+                Nothing ->
+                    callSite.fnNameEnd
     in
     -- If the call was made with |>, then the constructed range will be negative.
     -- Therefore in that case, simply remove `range` which corresponds to `arg |> `
@@ -1316,10 +1317,10 @@ findDeclaredHelp source previousEnd path arguments acc =
         [] ->
             List.reverse acc
 
-        arg :: remainingArguments ->
+        ((Node { end } _) as arg) :: remainingArguments ->
             findDeclaredHelp
                 source
-                (Node.range arg).end
+                end
                 (ParameterPath.nextArgument path)
                 remainingArguments
                 (getParametersFromPatterns path previousEnd source arg :: acc)
