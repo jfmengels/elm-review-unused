@@ -1268,7 +1268,7 @@ findErrorsAndVariablesNotPartOfScope scope declared ({ reportLater, reportNow, r
         }
 
     else
-        errorsForValue scope.functionName declared
+        reportParameter (errorsDetails declared) scope.functionName declared
             |> accumulate acc
 
 
@@ -1331,32 +1331,23 @@ type ReportTime
     | ReportLater ArgumentToReport
 
 
-errorsForValue : FunctionName -> Declared -> ReportTime
-errorsForValue functionName ({ name, kind } as arg) =
+errorsDetails : Declared -> { message : String, details : List String }
+errorsDetails { name, kind } =
     case kind of
         Parameter ->
-            reportParameter
-                { message = "Parameter `" ++ name ++ "` is not used"
-                , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
-                }
-                functionName
-                arg
+            { message = "Parameter `" ++ name ++ "` is not used"
+            , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+            }
 
         Alias ->
-            reportParameter
-                { message = "Pattern alias `" ++ name ++ "` is not used"
-                , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
-                }
-                functionName
-                arg
+            { message = "Pattern alias `" ++ name ++ "` is not used"
+            , details = [ "You should either use this parameter somewhere, or remove it at the location I pointed at." ]
+            }
 
         TupleWithoutVariables ->
-            reportParameter
-                { message = "Tuple pattern is not needed"
-                , details = [ "You should remove this pattern." ]
-                }
-                functionName
-                arg
+            { message = "Tuple pattern is not needed"
+            , details = [ "You should remove this pattern." ]
+            }
 
 
 reportParameter : { message : String, details : List String } -> FunctionName -> Declared -> ReportTime
