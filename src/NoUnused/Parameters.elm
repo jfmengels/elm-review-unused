@@ -830,13 +830,13 @@ isPatternWildCard (Node _ node) =
 expressionEnterVisitor : Node Expression -> ModuleContext -> ModuleContext
 expressionEnterVisitor node context =
     case Node.value node of
-        Expression.FunctionOrValue _ name ->
+        Expression.FunctionOrValue moduleName name ->
             context
-                |> markValueAsUsed (Node.range node) name
+                |> markValueAsUsed (Node.range node) moduleName name
                 |> registerFunctionCallReference name (Node.range node) []
 
         Expression.RecordUpdateExpression name _ ->
-            markValueAsUsed (Node.range name) (Node.value name) context
+            markValueAsUsed (Node.range name) [] (Node.value name) context
 
         Expression.LambdaExpression { args } ->
             let
@@ -1045,27 +1045,41 @@ ignoreLocationsForRecursiveArguments fnArgs nodes index acc =
             ignoreLocationsForRecursiveArguments fnArgs rest (index + 1) newAcc
 
 
-markValueAsUsed : Range -> String -> ModuleContext -> ModuleContext
-markValueAsUsed range name context =
+markValueAsUsed : Range -> ModuleName -> String -> ModuleContext -> ModuleContext
+markValueAsUsed range moduleName name context =
     if isVariableOrFunctionName name then
-        case ModuleNameLookupTable.moduleNameAt context.lookupTable range of
-            Just [] ->
-                { context
-                    | scopes =
-                        NonemptyList.mapHead
-                            (\scope ->
-                                -- TODO Avoid changing context if name is not a parameter
-                                if shouldBeIgnored range name context then
-                                    { scope | usedRecursively = Set.insert name scope.usedRecursively }
+        let
+            currentScope : Scope
+            currentScope =
+                NonemptyList.head context.scopes
 
-                                else
-                                    { scope | used = Set.insert name scope.used }
-                            )
-                            context.scopes
-                }
+            -- Only consider it a local parameter reference if there's no module qualifier
+            -- (i.e., `label` not `Html.label` or `Bar.one`)
+            isDeclaredParameterWithoutModuleQualifier : Bool
+            isDeclaredParameterWithoutModuleQualifier =
+                moduleName == [] && List.any (\declared -> declared.name == name) currentScope.declared
+        in
+        -- If the name is a declared parameter in the current scope with no module qualifier,
+        -- or if the lookup table confirms it's a local variable, mark it as used.
+        -- This handles cases where the lookup table might incorrectly resolve a shadowed
+        -- parameter to an imported name.
+        if isDeclaredParameterWithoutModuleQualifier || ModuleNameLookupTable.moduleNameAt context.lookupTable range == Just [] then
+            { context
+                | scopes =
+                    NonemptyList.mapHead
+                        (\scope ->
+                            -- TODO Avoid changing context if name is not a parameter
+                            if shouldBeIgnored range name context then
+                                { scope | usedRecursively = Set.insert name scope.usedRecursively }
 
-            _ ->
-                context
+                            else
+                                { scope | used = Set.insert name scope.used }
+                        )
+                        context.scopes
+            }
+
+        else
+            context
 
     else
         context
