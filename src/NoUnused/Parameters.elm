@@ -223,6 +223,7 @@ type alias ModuleContext =
 type alias Scope =
     { functionName : FunctionName
     , declared : List Declared
+    , functionsDeclaredInSubScope : Set String
     , used : Set String
     , usedRecursively : Set String
     , toReport : List ArgumentToReport
@@ -290,6 +291,7 @@ fromProjectToModule =
                 NonemptyList.fromElement
                     { functionName = "root"
                     , declared = []
+                    , functionsDeclaredInSubScope = Set.empty
                     , used = Set.empty
                     , usedRecursively = Set.empty
                     , toReport = []
@@ -423,7 +425,10 @@ fromModuleToProject =
                             )
                             { errors = []
                             , toReport = []
-                            , functionCallsWithArguments = Dict.map (\_ callSites -> [ { key = moduleKey, isFileFixable = isFileFixable, callSites = callSites } ]) moduleContext.functionCallsWithArgumentsForOtherModules
+                            , functionCallsWithArguments =
+                                Dict.map
+                                    (\_ callSites -> [ { key = moduleKey, isFileFixable = isFileFixable, callSites = callSites } ])
+                                    moduleContext.functionCallsWithArgumentsForOtherModules
                             }
                             (NonemptyList.head moduleContext.scopes).toReport
                 in
@@ -576,7 +581,7 @@ declarationEnterVisitor (Node _ node) context =
 
                 declared : List (List Declared)
                 declared =
-                    findDeclared NamedFunction functionNameRange.end declaration.arguments f.signature
+                    findDeclared functionName NamedFunction functionNameRange.end declaration.arguments f.signature
             in
             { exposedModules = context.exposedModules
             , lookupTable = context.lookupTable
@@ -584,6 +589,7 @@ declarationEnterVisitor (Node _ node) context =
                 NonemptyList.cons
                     { functionName = functionName
                     , declared = List.concat declared
+                    , functionsDeclaredInSubScope = Set.empty
                     , used = Set.empty
                     , usedRecursively = Set.empty
                     , toReport = []
@@ -847,7 +853,8 @@ expressionEnterVisitor (Node range node) context =
                 | scopes =
                     NonemptyList.cons
                         { functionName = "dummy lambda"
-                        , declared = findDeclared Lambda { row = start.row, column = start.column + 1 } args Nothing |> List.concat
+                        , declared = findDeclared "dummy lambda" Lambda { row = start.row, column = start.column + 1 } args Nothing |> List.concat
+                        , functionsDeclaredInSubScope = Set.empty
                         , used = Set.empty
                         , usedRecursively = Set.empty
                         , toReport = []
@@ -910,12 +917,13 @@ letDeclarationEnterVisitor (Node _ letDeclaration) context =
 
                     declared : List (List Declared)
                     declared =
-                        findDeclared NamedFunction functionNameRange.end declaration.arguments function.signature
+                        findDeclared functionName NamedFunction functionNameRange.end declaration.arguments function.signature
 
                     newScope : Scope
                     newScope =
                         { functionName = functionName
                         , declared = List.concat declared
+                        , functionsDeclaredInSubScope = Set.empty
                         , used = Set.empty
                         , usedRecursively = Set.empty
                         , toReport = []
@@ -1095,13 +1103,14 @@ isRangeIncluded inner outer =
         && (Range.compareLocations inner.end outer.end /= GT)
 
 
-markAllAsUsed : Set String -> List ArgumentToReport -> Nonempty Scope -> Nonempty Scope
-markAllAsUsed names toReport scopes =
+markAllAsUsed : Scope -> Set String -> List ArgumentToReport -> Nonempty Scope -> Nonempty Scope
+markAllAsUsed subScope names toReport scopes =
     NonemptyList.mapHead
         (\scope ->
             { scope
                 | used = Set.union names scope.used
                 , toReport = toReport ++ scope.toReport
+                , functionsDeclaredInSubScope = List.foldl (\arg set -> Set.insert arg.path.functionName set) scope.functionsDeclaredInSubScope subScope.declared
             }
         )
         scopes
@@ -1118,32 +1127,29 @@ report context =
                 (findErrorsAndVariablesNotPartOfScope headScope)
                 { reportLater = [], reportNow = [], remainingUsed = headScope.used }
                 headScope.declared
-
-        ( errors, newContext ) =
-            reportErrors headScope context reportNow
     in
-    ( errors
-    , { newContext
-        | scopes = markAllAsUsed remainingUsed reportLater scopes
+    ( reportErrors context.functionCallsWithArguments headScope.toReport reportNow
+    , { context
+        | scopes = markAllAsUsed headScope remainingUsed reportLater scopes
+        , functionCallsWithArguments = Set.foldl Dict.remove context.functionCallsWithArguments headScope.functionsDeclaredInSubScope
         , recursiveFunctions = Dict.remove headScope.functionName context.recursiveFunctions
       }
     )
 
 
-reportErrors : Scope -> ModuleContext -> List (Rule.Error {}) -> ( List (Rule.Error {}), ModuleContext )
-reportErrors scope context initialErrors =
-    let
-        ( errors, newFunctionCallsWithArguments ) =
-            List.foldl
-                (\arg ( errorAcc, functionCallsWithArguments ) ->
-                    ( List.Extra.maybeCons (reportError context.functionCallsWithArguments arg) errorAcc
-                    , Dict.remove arg.functionName functionCallsWithArguments
-                    )
-                )
-                ( initialErrors, context.functionCallsWithArguments )
-                scope.toReport
-    in
-    ( errors, { context | functionCallsWithArguments = newFunctionCallsWithArguments } )
+reportErrors : Dict FunctionName (List CallSite) -> List ArgumentToReport -> List (Rule.Error {}) -> List (Rule.Error {})
+reportErrors functionCallsWithArguments toReport initialErrors =
+    List.foldl
+        (\arg errorAcc ->
+            case reportError functionCallsWithArguments arg of
+                Just error ->
+                    error :: errorAcc
+
+                Nothing ->
+                    errorAcc
+        )
+        initialErrors
+        toReport
 
 
 reportError : Dict FunctionName (List CallSite) -> ArgumentToReport -> Maybe (Rule.Error {})
@@ -1301,12 +1307,12 @@ insertInDictList key value dict =
             Dict.insert key (value :: previous) dict
 
 
-findDeclared : Source -> Location -> List (Node Pattern) -> Maybe (Node Signature) -> List (List Declared)
-findDeclared source previousEnd arguments signature =
+findDeclared : String -> Source -> Location -> List (Node Pattern) -> Maybe (Node Signature) -> List (List Declared)
+findDeclared functionName source previousEnd arguments signature =
     findDeclaredHelp
         source
         previousEnd
-        (ParameterPath.new previousEnd arguments signature)
+        (ParameterPath.new functionName previousEnd arguments signature)
         arguments
         []
 

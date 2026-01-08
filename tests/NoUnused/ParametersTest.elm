@@ -532,6 +532,69 @@ bar =
     in fn
 """
                     ]
+    , test "should not remove arguments from other functions" <|
+        \() ->
+            """module A exposing (a)
+a = 1
+
+update key alter =
+    let
+        alteredNode used =
+            case alter used of
+                Just v ->
+                    leaf key v
+
+                Nothing ->
+                    empty
+    in
+    case dict of
+        Empty () ->
+            alteredNode Nothing
+
+remove dict =
+    let
+        alteredNode unused =
+            empty
+    in
+    case dict of
+        Empty () ->
+            alteredNode Nothing
+"""
+                |> Review.Test.run rule
+                |> Review.Test.expectErrors
+                    [ Review.Test.error
+                        { message = "Parameter `unused` is not used"
+                        , details = details
+                        , under = "unused"
+                        }
+                        |> Review.Test.atExactly { start = { row = 20, column = 21 }, end = { row = 20, column = 27 } }
+                        |> Review.Test.whenFixed """module A exposing (a)
+a = 1
+
+update key alter =
+    let
+        alteredNode used =
+            case alter used of
+                Just v ->
+                    leaf key v
+
+                Nothing ->
+                    empty
+    in
+    case dict of
+        Empty () ->
+            alteredNode Nothing
+
+remove dict =
+    let
+        alteredNode =
+            empty
+    in
+    case dict of
+        Empty () ->
+            alteredNode
+"""
+                    ]
     ]
 
 

@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Fixed an issue with [`NoUnused.Parameters`] where the automatic fix would 
+  incorrectly remove arguments of functions of the same name in other let expressions.  
+
 ## [1.2.5] - 2025-12-30
 
 - [`NoUnused.Parameters`] provides automatic fixes for removing unused arguments (`foo unused used = ...` -> ) including

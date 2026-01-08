@@ -21,7 +21,8 @@ import List.Extra
 
 
 type alias Path =
-    { index : Int
+    { functionName : String
+    , index : Int
     , nesting : List Nesting
     , isUnderAlias : Bool
     , nameLocation : Location
@@ -38,9 +39,10 @@ type Nesting
     | AliasPattern
 
 
-new : Location -> List (Node Pattern) -> Maybe (Node Signature) -> Path
-new nameLocation arguments signature =
-    { index = 0
+new : String -> Location -> List (Node Pattern) -> Maybe (Node Signature) -> Path
+new functionName nameLocation arguments signature =
+    { functionName = functionName
+    , index = 0
     , nesting = []
     , isUnderAlias = False
     , nameLocation = nameLocation
@@ -58,7 +60,8 @@ new nameLocation arguments signature =
 
 nextArgument : Path -> Path
 nextArgument path =
-    { index = path.index + 1
+    { functionName = path.functionName
+    , index = path.index + 1
     , nesting = []
     , isUnderAlias = False
     , nameLocation = path.nameLocation
@@ -84,7 +87,8 @@ argumentInTypeAnnotation index (Node _ type_) =
 
 inRecord : String -> Path -> Path
 inRecord fieldName path =
-    { index = path.index
+    { functionName = path.functionName
+    , index = path.index
     , nesting = RecordField fieldName :: path.nesting
     , isUnderAlias = path.isUnderAlias
     , nameLocation = path.nameLocation
@@ -132,7 +136,8 @@ findTupleInTypeAnnotation index fullArgRange previousRange list =
 
 inTuple : Int -> Path -> Path
 inTuple index path =
-    { index = path.index
+    { functionName = path.functionName
+    , index = path.index
     , nesting = TupleField index :: path.nesting
     , isUnderAlias = path.isUnderAlias
     , nameLocation = path.nameLocation
@@ -144,7 +149,8 @@ inTuple index path =
 
 inNamedPattern : Path -> Path
 inNamedPattern path =
-    { index = path.index
+    { functionName = path.functionName
+    , index = path.index
     , nesting = NamedPattern :: path.nesting
     , isUnderAlias = path.isUnderAlias
     , nameLocation = path.nameLocation
@@ -156,7 +162,8 @@ inNamedPattern path =
 
 inAlias : Path -> Path
 inAlias path =
-    { index = path.index
+    { functionName = path.functionName
+    , index = path.index
     , nesting = AliasPattern :: path.nesting
     , isUnderAlias = True
     , nameLocation = path.nameLocation
