@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.2.6] - 2026-01-08
+
 - Fixed an issue with [`NoUnused.Parameters`] where the automatic fix would 
   incorrectly remove arguments of functions of the same name in other let expressions.  
 
@@ -111,7 +113,8 @@ configuration.
 
 Help would be appreciated to fill the blanks!
 
-[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.5...HEAD
+[Unreleased]: https://github.com/jfmengels/elm-review-unused/compare/v1.2.6...HEAD
+[1.2.6]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.6
 [1.2.5]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.5
 [1.2.4]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.4
 [1.2.3]: https://github.com/jfmengels/elm-review-unused/releases/tag/1.2.3
