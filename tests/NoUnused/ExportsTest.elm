@@ -26,7 +26,7 @@ unusedModuleDetails =
 
 all : Test
 all =
-    describe "NoUnusedExports"
+    describe "NoUnused.Exports"
         [ functionsAndValuesTests
         , typesTests
         , typeAliasesTests
@@ -1057,7 +1057,7 @@ app = foo
 """
                     |> Review.Test.runWithProjectData lamderaApplication rule
                     |> Review.Test.expectNoErrors
-        , test "should not special types from module Types" <|
+        , test "should not report special types from module Types" <|
             \() ->
                 [ """
 module Types exposing (..)
