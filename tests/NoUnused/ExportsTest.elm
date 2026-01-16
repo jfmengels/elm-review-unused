@@ -1859,15 +1859,16 @@ used = ()
                             ]
                           )
                         ]
-        , test "reports an unused type alias" <|
+        , test "reports an unused type alias (exposing all)" <|
             \() ->
                 [ """
 module Main exposing (main)
 import Reported
-main = ()
+main = Reported.value
 """
                 , """
 module Reported exposing (..)
+value = 1
 type alias Unused = ()
 """
                 ]
@@ -1879,6 +1880,40 @@ type alias Unused = ()
                                 , details = unusedExposedElementWhenExposingAllDetails
                                 , under = "Unused"
                                 }
+                                |> Review.Test.whenFixed """
+module Reported exposing (..)
+value = 1
+"""
+                            ]
+                          )
+                        ]
+        , test "reports and removes an unused type alias" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import Reported
+main = Reported.value
+"""
+                , """
+module Reported exposing (Unused, value)
+value = 1
+type alias Unused = ()
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed type or type alias `Unused` is never used outside this module"
+                                , details = unusedExposedElementDetails
+                                , under = "Unused"
+                                }
+                                |> Review.Test.atExactly { start = { row = 2, column = 27 }, end = { row = 2, column = 33 } }
+                                |> Review.Test.whenFixed """
+module Reported exposing (value)
+value = 1
+type alias Unused = ()
+"""
                             ]
                           )
                         ]
@@ -1910,10 +1945,11 @@ type UnusedT = UnusedC
                 [ """
 module Main exposing (main)
 import Reported
-main = ()
+main = Reported.value
 """
                 , """
 port module Reported exposing (..)
+value = 1
 port unused : ()
 """
                 ]
@@ -1925,6 +1961,10 @@ port unused : ()
                                 , details = unusedExposedElementWhenExposingAllDetails
                                 , under = "unused"
                                 }
+                                |> Review.Test.whenFixed """
+port module Reported exposing (..)
+value = 1
+"""
                             ]
                           )
                         ]
