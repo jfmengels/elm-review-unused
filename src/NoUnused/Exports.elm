@@ -1449,10 +1449,10 @@ collectExposedElementsForAllHelp docsReferences canRemoveExposed maybePreviousRa
 
 
 declarationVisitor : Config -> Node Declaration -> ModuleContext -> ModuleContext
-declarationVisitor config node moduleContext =
+declarationVisitor config (Node _ declaration) moduleContext =
     let
         ( allUsedTypes, comesFromCustomTypeWithHiddenConstructors ) =
-            typesUsedInDeclaration moduleContext node
+            typesUsedInDeclaration moduleContext declaration
 
         elementsNotToReport : Set ( String, Realm )
         elementsNotToReport =
@@ -1462,7 +1462,7 @@ declarationVisitor config node moduleContext =
              else
                 List.foldl (\( _, name, realm ) acc -> Set.insert ( name, realm ) acc) moduleContext.elementsNotToReport allUsedTypes
             )
-                |> maybeSetInsert (testFunctionName moduleContext node)
+                |> maybeSetInsert (testFunctionName moduleContext declaration)
 
         exposed : Dict String ExposedElement
         exposed =
@@ -1479,7 +1479,7 @@ declarationVisitor config node moduleContext =
 
         ignoredElementsNotToReport : Set String
         ignoredElementsNotToReport =
-            case isException config node of
+            case isException config declaration of
                 Just name ->
                     Set.insert name moduleContext.ignoredElementsNotToReport
 
@@ -1492,9 +1492,9 @@ declarationVisitor config node moduleContext =
 
         inTheDeclarationOf : String
         inTheDeclarationOf =
-            case Node.value node of
-                Declaration.FunctionDeclaration { declaration } ->
-                    Node.value (Node.value declaration).name
+            case declaration of
+                Declaration.FunctionDeclaration function ->
+                    Node.value (Node.value function.declaration).name
 
                 _ ->
                     moduleContext.inTheDeclarationOf
@@ -1507,12 +1507,12 @@ declarationVisitor config node moduleContext =
         , inTheDeclarationOf = inTheDeclarationOf
         , containsMainFunction =
             moduleContext.containsMainFunction
-                || doesModuleContainMainFunction moduleContext.projectType node
+                || doesModuleContainMainFunction moduleContext.projectType declaration
     }
 
 
-isException : Config -> Node Declaration -> Maybe String
-isException config (Node _ declaration) =
+isException : Config -> Declaration -> Maybe String
+isException config declaration =
     if config.exceptionByName == Nothing && List.isEmpty config.exceptionTags then
         Nothing
 
@@ -1587,14 +1587,14 @@ getDeclarationDocumentation node =
             Nothing
 
 
-doesModuleContainMainFunction : ProjectType -> Node Declaration -> Bool
+doesModuleContainMainFunction : ProjectType -> Declaration -> Bool
 doesModuleContainMainFunction projectType declaration =
     case projectType of
         IsPackage _ ->
             False
 
         IsApplication elmApplicationType ->
-            case Node.value declaration of
+            case declaration of
                 Declaration.FunctionDeclaration function ->
                     isMainFunction elmApplicationType (function.declaration |> Node.value |> .name |> Node.value)
 
@@ -1642,9 +1642,9 @@ findConstructorsForExposedCustomType typeName declarations =
         |> Maybe.withDefault []
 
 
-testFunctionName : ModuleContext -> Node Declaration -> Maybe ( String, Realm )
-testFunctionName moduleContext node =
-    case Node.value node of
+testFunctionName : ModuleContext -> Declaration -> Maybe ( String, Realm )
+testFunctionName moduleContext declaration =
+    case declaration of
         Declaration.FunctionDeclaration function ->
             case Maybe.map (\(Node _ value) -> Node.value value.typeAnnotation) function.signature of
                 Just (TypeAnnotation.Typed (Node typeNodeRange ( _, "Test" )) _) ->
@@ -1667,9 +1667,9 @@ testFunctionName moduleContext node =
             Nothing
 
 
-typesUsedInDeclaration : ModuleContext -> Node Declaration -> ( List ElementIdentifier, Bool )
+typesUsedInDeclaration : ModuleContext -> Declaration -> ( List ElementIdentifier, Bool )
 typesUsedInDeclaration moduleContext declaration =
-    case Node.value declaration of
+    case declaration of
         Declaration.FunctionDeclaration function ->
             ( case function.signature of
                 Just signature ->
