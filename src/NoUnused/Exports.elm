@@ -1647,11 +1647,8 @@ testFunctionName moduleContext node =
     case Node.value node of
         Declaration.FunctionDeclaration function ->
             case Maybe.map (\(Node _ value) -> Node.value value.typeAnnotation) function.signature of
-                Just (TypeAnnotation.Typed typeNode _) ->
-                    if
-                        (Tuple.second (Node.value typeNode) == "Test")
-                            && (ModuleNameLookupTable.moduleNameFor moduleContext.lookupTable typeNode == Just [ "Test" ])
-                    then
+                Just (TypeAnnotation.Typed (Node typeNodeRange ( _, "Test" )) _) ->
+                    if ModuleNameLookupTable.moduleNameAt moduleContext.lookupTable typeNodeRange == Just [ "Test" ] then
                         ( function.declaration
                             |> Node.value
                             |> .name
