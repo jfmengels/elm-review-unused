@@ -1512,12 +1512,12 @@ declarationVisitor config node moduleContext =
 
 
 isException : Config -> Node Declaration -> Maybe String
-isException config node =
+isException config (Node _ declaration) =
     if config.exceptionByName == Nothing && List.isEmpty config.exceptionTags then
         Nothing
 
     else
-        case getDeclarationName node of
+        case declarationName declaration of
             Just name ->
                 case config.exceptionByName of
                     Just exceptionByName ->
@@ -1525,16 +1525,16 @@ isException config node =
                             Just name
 
                         else
-                            isExceptionByAnnotation config name node
+                            isExceptionByAnnotation config name declaration
 
                     Nothing ->
-                        isExceptionByAnnotation config name node
+                        isExceptionByAnnotation config name declaration
 
             Nothing ->
                 Nothing
 
 
-isExceptionByAnnotation : Config -> b -> Node Declaration -> Maybe b
+isExceptionByAnnotation : Config -> b -> Declaration -> Maybe b
 isExceptionByAnnotation config name node =
     if List.isEmpty config.exceptionTags then
         Nothing
@@ -1552,14 +1552,9 @@ isExceptionByAnnotation config name node =
                 Nothing
 
 
-getDeclarationName : Node Declaration -> Maybe String
-getDeclarationName =
-    Node.value >> declarationName
-
-
-getDeclarationDocumentation : Node Declaration -> Maybe String
+getDeclarationDocumentation : Declaration -> Maybe String
 getDeclarationDocumentation node =
-    case Node.value node of
+    case node of
         Declaration.FunctionDeclaration { documentation } ->
             case documentation of
                 Just doc ->
