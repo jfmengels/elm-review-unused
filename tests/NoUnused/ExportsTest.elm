@@ -1957,7 +1957,7 @@ port unused : ()
                     |> Review.Test.expectErrorsForModules
                         [ ( "Reported"
                           , [ Review.Test.error
-                                { message = "Exposed function or value `unused` is never used in the project"
+                                { message = "Exposed port `unused` is never used in the project"
                                 , details = unusedExposedElementWhenExposingAllDetails
                                 , under = "unused"
                                 }

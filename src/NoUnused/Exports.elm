@@ -498,6 +498,7 @@ type ElmApplicationType
 
 type ExposedElementType
     = Function
+    | Port
     | TypeOrTypeAlias Bool
     | ExposedType (List String)
 
@@ -947,6 +948,9 @@ errorsForModule { exceptionExplanation, projectContext, used, usedInIgnoredModul
                             Function ->
                                 valueRealm
 
+                            Port ->
+                                valueRealm
+
                             TypeOrTypeAlias _ ->
                                 typeRealm
 
@@ -1028,6 +1032,9 @@ isCustomTypeExposingUnusedVariants typesWithUsedConstructors moduleName name ele
         Function ->
             False
 
+        Port ->
+            False
+
         TypeOrTypeAlias _ ->
             False
 
@@ -1040,6 +1047,9 @@ what elementType =
     case elementType of
         Function ->
             "Exposed function or value"
+
+        Port ->
+            "Exposed port"
 
         TypeOrTypeAlias _ ->
             "Exposed type or type alias"
@@ -1405,7 +1415,7 @@ collectExposedElementsForAllHelp docsReferences canRemoveExposed maybePreviousRa
                             Dict.insert (Node.value name)
                                 { range = Node.range name
                                 , rangesToRemove = getRangesToRemove docsReferences canRemoveExposed (Node.value name) index maybePreviousRange range nextRange
-                                , elementType = Function
+                                , elementType = Port
                                 }
                                 acc
 
