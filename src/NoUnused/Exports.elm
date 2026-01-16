@@ -634,54 +634,38 @@ createConstructorNameToTypeNameDict exposingList declarations =
             Dict.empty
 
 
-declarationToTopLevelExpose : Declaration -> Maybe (Node TopLevelExpose)
-declarationToTopLevelExpose declaration =
+declarationName : Declaration -> Maybe String
+declarationName declaration =
     case declaration of
         Declaration.FunctionDeclaration function ->
             function.declaration
                 |> Node.value
                 |> .name
-                |> Node.map Exposing.FunctionExpose
+                |> Node.value
                 |> Just
 
         Declaration.AliasDeclaration typeAlias ->
             typeAlias.name
-                |> Node.map Exposing.TypeOrAliasExpose
+                |> Node.value
                 |> Just
 
         Declaration.CustomTypeDeclaration type_ ->
             type_.name
-                |> Node.map (\name -> Exposing.TypeExpose { name = name, open = Nothing })
+                |> Node.value
                 |> Just
 
         Declaration.PortDeclaration signature ->
             signature.name
-                |> Node.map Exposing.FunctionExpose
+                |> Node.value
                 |> Just
 
         Declaration.InfixDeclaration infix_ ->
             infix_.operator
-                |> Node.map Exposing.InfixExpose
+                |> Node.value
                 |> Just
 
         Declaration.Destructuring _ _ ->
             Nothing
-
-
-topLevelExposeName : TopLevelExpose -> String
-topLevelExposeName topLevelExpose =
-    case topLevelExpose of
-        Exposing.InfixExpose name ->
-            name
-
-        Exposing.FunctionExpose name ->
-            name
-
-        Exposing.TypeOrAliasExpose name ->
-            name
-
-        Exposing.TypeExpose { name } ->
-            name
 
 
 fromModuleToProject : Config -> Rule.ContextCreator ModuleContext ProjectContext
@@ -1661,11 +1645,6 @@ findConstructorsForExposedCustomType typeName declarations =
         )
         declarations
         |> Maybe.withDefault []
-
-
-declarationName : Declaration -> Maybe String
-declarationName =
-    declarationToTopLevelExpose >> Maybe.map (Node.value >> topLevelExposeName)
 
 
 testFunctionName : ModuleContext -> Node Declaration -> Maybe ( String, Realm )
