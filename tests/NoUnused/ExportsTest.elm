@@ -490,6 +490,12 @@ type Unused = T
                                 , details = unusedExposedElementDetails
                                 , under = "Unused(..)"
                                 }
+                                |> Review.Test.whenFixed """
+module M exposing (T, t)
+type alias T = ()
+t = ()
+type Unused = T
+"""
                             ]
                           )
                         ]
@@ -516,6 +522,12 @@ type Unused = T
                                 , details = unusedExposedElementDetails
                                 , under = "Unused(..)"
                                 }
+                                |> Review.Test.whenFixed """
+module M exposing (T, t)
+type alias T = ()
+t = ()
+type Unused = T
+"""
                             ]
                           )
                         ]
@@ -691,6 +703,62 @@ type1 = Type1
 """ ]
                     |> Review.Test.runOnModulesWithProjectData application rule
                     |> Review.Test.expectNoErrors
+        , test "should report and autofix the exposing of an unused custom type with exposed constructors" <|
+            \() ->
+                [ """module Main exposing (main)
+import B exposing (..)
+value = used
+main = value
+"""
+                , """module B exposing (used, MyType(..))
+used = 1
+type MyType
+    = MyValue
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "B"
+                          , [ Review.Test.error
+                                { message = "Exposed type `MyType` is never used outside this module"
+                                , details = unusedExposedElementDetails
+                                , under = "MyType(..)"
+                                }
+                                |> Review.Test.whenFixed """module B exposing (used)
+used = 1
+type MyType
+    = MyValue
+"""
+                            ]
+                          )
+                        ]
+        , test "should report and autofix the exposing of an unused custom type with exposed constructors (exposing all)" <|
+            \() ->
+                [ """module Main exposing (main)
+import B exposing (..)
+value = used
+main = value
+"""
+                , """module B exposing (..)
+used = 1
+type MyType
+    = MyValue
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "B"
+                          , [ Review.Test.error
+                                { message = "Exposed type `MyType` is never used in the project"
+                                , details = unusedExposedElementWhenExposingAllDetails
+                                , under = "MyType"
+                                }
+                                |> Review.Test.whenFixed """module B exposing (..)
+used = 1
+"""
+                            ]
+                          )
+                        ]
         ]
 
 

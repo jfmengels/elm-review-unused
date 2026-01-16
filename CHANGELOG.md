@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- [`NoUnused.Exports`] now automatically removes the exposing of custom type constructors with exposed types.
+
 ## [1.2.6] - 2026-01-08
 
 - Fixed an issue with [`NoUnused.Parameters`] where the automatic fix would 

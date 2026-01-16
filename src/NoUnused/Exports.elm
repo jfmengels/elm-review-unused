@@ -1357,7 +1357,7 @@ collectExposedElementsHelp docsReferences declarations declaredNames typesThatCa
                             if Set.member name declaredNames then
                                 Dict.insert name
                                     { range = untilEndOfVariable name range
-                                    , rangesToRemove = []
+                                    , rangesToRemove = getRangesToRemove docsReferences canRemoveExposed name index maybePreviousRange range nextRange
                                     , elementType = ExposedType (findConstructorsForExposedCustomType name declarations)
                                     }
                                     acc
@@ -1444,7 +1444,7 @@ collectExposedElementsForAllHelp docsReferences canRemoveExposed maybePreviousRa
                         Declaration.CustomTypeDeclaration { name, constructors } ->
                             Dict.insert (Node.value name)
                                 { range = Node.range name
-                                , rangesToRemove = []
+                                , rangesToRemove = getRangesToRemove docsReferences canRemoveExposed (Node.value name) index maybePreviousRange range nextRange
                                 , elementType = ExposedType (List.map (\c -> c |> Node.value |> .name |> Node.value) constructors)
                                 }
                                 acc
