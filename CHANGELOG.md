@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - [`NoUnused.Exports`] now automatically removes the exposing of custom type constructors with exposed types.
+- [`NoUnused.Exports`] now removes the `port` keyword in the module definition when removing the last `port` declaration.
 
 ## [1.2.6] - 2026-01-08
 

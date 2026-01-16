@@ -1940,7 +1940,7 @@ type UnusedT = UnusedC
                             ]
                           )
                         ]
-        , test "reports an unused port" <|
+        , test "reports an unused port and remove the port keyword if it's the only one" <|
             \() ->
                 [ """
 module Main exposing (main)
@@ -1962,8 +1962,36 @@ port unused : ()
                                 , under = "unused"
                                 }
                                 |> Review.Test.whenFixed """
-port module Reported exposing (..)
+module Reported exposing (..)
 value = 1
+"""
+                            ]
+                          )
+                        ]
+        , test "reports an unused port and keep the port keyword if there are multiples" <|
+            \() ->
+                [ """
+module Main exposing (main)
+import Reported
+main = Reported.used
+"""
+                , """
+port module Reported exposing (..)
+port used : ()
+port unused : ()
+"""
+                ]
+                    |> Review.Test.runOnModulesWithProjectData application rule
+                    |> Review.Test.expectErrorsForModules
+                        [ ( "Reported"
+                          , [ Review.Test.error
+                                { message = "Exposed port `unused` is never used in the project"
+                                , details = unusedExposedElementWhenExposingAllDetails
+                                , under = "unused"
+                                }
+                                |> Review.Test.whenFixed """
+port module Reported exposing (..)
+port used : ()
 """
                             ]
                           )

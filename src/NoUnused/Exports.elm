@@ -109,7 +109,7 @@ import Elm.Syntax.Module as Module
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range as Range exposing (Range)
+import Elm.Syntax.Range as Range exposing (Location, Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import List.Extra
 import NoUnused.LamderaSupport as LamderaSupport
@@ -581,7 +581,21 @@ fromProjectToModule =
                 exposed =
                     case exposingList of
                         Exposing.All _ ->
-                            collectExposedElementsForAll docsReferences ast.declarations
+                            let
+                                portKeywordLocation : Maybe Location
+                                portKeywordLocation =
+                                    case ast.moduleDefinition of
+                                        Node { start } (Module.PortModule _) ->
+                                            if hasMultiplePorts ast.declarations 0 then
+                                                Nothing
+
+                                            else
+                                                Just start
+
+                                        _ ->
+                                            Nothing
+                            in
+                            collectExposedElementsForAll portKeywordLocation docsReferences ast.declarations
 
                         Exposing.Explicit explicitlyExposed ->
                             collectExposedElements docsReferences explicitlyExposed ast.declarations
@@ -667,6 +681,23 @@ declarationName declaration =
 
         Declaration.Destructuring _ _ ->
             Nothing
+
+
+hasMultiplePorts : List (Node Declaration) -> Int -> Bool
+hasMultiplePorts declarations count =
+    case declarations of
+        (Node _ (Declaration.PortDeclaration _)) :: rest ->
+            if count == 1 then
+                True
+
+            else
+                hasMultiplePorts rest (count + 1)
+
+        _ :: rest ->
+            hasMultiplePorts rest count
+
+        [] ->
+            False
 
 
 fromModuleToProject : Config -> Rule.ContextCreator ModuleContext ProjectContext
@@ -1374,13 +1405,13 @@ collectExposedElementsHelp docsReferences declarations declaredNames typesThatCa
                 newAcc
 
 
-collectExposedElementsForAll : List ( Int, String ) -> List (Node Declaration) -> Dict String ExposedElement
-collectExposedElementsForAll docsReferences declarations =
-    collectExposedElementsForAllHelp docsReferences (List.length declarations /= 1) Nothing 0 declarations Dict.empty
+collectExposedElementsForAll : Maybe Location -> List ( Int, String ) -> List (Node Declaration) -> Dict String ExposedElement
+collectExposedElementsForAll portKeywordLocation docsReferences declarations =
+    collectExposedElementsForAllHelp docsReferences (List.length declarations /= 1) portKeywordLocation Nothing 0 declarations Dict.empty
 
 
-collectExposedElementsForAllHelp : List ( Int, String ) -> Bool -> Maybe Range -> Int -> List (Node Declaration) -> Dict String ExposedElement -> Dict String ExposedElement
-collectExposedElementsForAllHelp docsReferences canRemoveExposed maybePreviousRange index declarations acc =
+collectExposedElementsForAllHelp : List ( Int, String ) -> Bool -> Maybe Location -> Maybe Range -> Int -> List (Node Declaration) -> Dict String ExposedElement -> Dict String ExposedElement
+collectExposedElementsForAllHelp docsReferences canRemoveExposed portKeywordLocation maybePreviousRange index declarations acc =
     case declarations of
         [] ->
             acc
@@ -1414,7 +1445,16 @@ collectExposedElementsForAllHelp docsReferences canRemoveExposed maybePreviousRa
                         Declaration.PortDeclaration { name } ->
                             Dict.insert (Node.value name)
                                 { range = Node.range name
-                                , rangesToRemove = getRangesToRemove docsReferences canRemoveExposed (Node.value name) index maybePreviousRange range nextRange
+                                , rangesToRemove =
+                                    getRangesToRemove docsReferences canRemoveExposed (Node.value name) index maybePreviousRange range nextRange
+                                        |> (\ranges ->
+                                                case portKeywordLocation of
+                                                    Just start ->
+                                                        { start = start, end = { row = start.row, column = start.column + 5 } } :: ranges
+
+                                                    Nothing ->
+                                                        ranges
+                                           )
                                 , elementType = Port
                                 }
                                 acc
@@ -1452,6 +1492,7 @@ collectExposedElementsForAllHelp docsReferences canRemoveExposed maybePreviousRa
             collectExposedElementsForAllHelp
                 docsReferences
                 canRemoveExposed
+                portKeywordLocation
                 (Just range)
                 (index + 1)
                 rest
