@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Fixed a bug where [`NoUnused.Dependency`] would remove indirect dependencies that should remain.
 - [`NoUnused.Exports`] now automatically removes the exposing of custom type constructors with exposed types.
 - [`NoUnused.Exports`] now removes the `port` keyword in the module definition when removing the last `port` declaration.
 

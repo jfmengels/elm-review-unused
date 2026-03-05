@@ -229,6 +229,35 @@ packageWithFoo =
         (dummyModules "Foo")
 
 
+applicationElmJsonWithSeveralIndirectTestDeps : String
+applicationElmJsonWithSeveralIndirectTestDeps =
+    """
+{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "author/package-with-foo": "1.0.0",
+            "author/wibble": "1.0.0",
+            "elm/core": "1.0.0",
+            "elm/json": "1.0.0"
+        },
+        "indirect": {
+            "author/package-with-bar": "1.0.0",
+            "author/wobble": "1.0.0",
+            "author/weeble": "1.0.0"
+        }
+    },
+    "test-dependencies": {
+        "direct": {},
+        "indirect": {}
+    }
+}"""
+
+
 packageWithOtherFoo : Dependency
 packageWithOtherFoo =
     let
@@ -255,6 +284,92 @@ packageWithOtherFoo =
         "author/package-with-other-foo"
         elmJson.project
         (dummyModules "Foo")
+
+
+packageWibble : Dependency
+packageWibble =
+    let
+        elmJson : { path : String, raw : String, project : Elm.Project.Project }
+        elmJson =
+            createElmJson """
+  {
+      "type": "package",
+      "name": "author/wibble",
+      "summary": "Summary",
+      "license": "BSD-3-Clause",
+      "version": "1.0.0",
+      "exposed-modules": [
+          "Wibble"
+      ],
+      "elm-version": "0.19.0 <= v < 0.20.0",
+      "dependencies": {
+          "elm/core": "1.0.0 <= v < 2.0.0",
+          "author/wobble": "1.0.0 <= v < 2.0.0"
+      },
+      "test-dependencies": {}
+  }"""
+    in
+    Dependency.create
+        "author/wibble"
+        elmJson.project
+        (dummyModules "Wibble")
+
+
+packageWobble : Dependency
+packageWobble =
+    let
+        elmJson : { path : String, raw : String, project : Elm.Project.Project }
+        elmJson =
+            createElmJson """
+  {
+      "type": "package",
+      "name": "author/wobble",
+      "summary": "Summary",
+      "license": "BSD-3-Clause",
+      "version": "1.0.0",
+      "exposed-modules": [
+          "Wobble"
+      ],
+      "elm-version": "0.19.0 <= v < 0.20.0",
+      "dependencies": {
+          "elm/core": "1.0.0 <= v < 2.0.0",
+          "author/weeble": "1.0.0 <= v < 2.0.0"
+      },
+      "test-dependencies": {}
+  }"""
+    in
+    Dependency.create
+        "author/wobble"
+        elmJson.project
+        (dummyModules "Wobble")
+
+
+packageWeeble : Dependency
+packageWeeble =
+    let
+        elmJson : { path : String, raw : String, project : Elm.Project.Project }
+        elmJson =
+            createElmJson """
+  {
+      "type": "package",
+      "name": "author/weeble",
+      "summary": "Summary",
+      "license": "BSD-3-Clause",
+      "version": "1.0.0",
+      "exposed-modules": [
+          "Weeble"
+      ],
+      "elm-version": "0.19.0 <= v < 0.20.0",
+      "dependencies": {
+          "elm/core": "1.0.0 <= v < 2.0.0"
+      },
+      "test-dependencies": {}
+  }"""
+    in
+    Dependency.create
+        "author/package-weeble"
+        elmJson.project
+        (dummyModules "Weeble")
 
 
 packageWithFooDependingOnBar : Dependency
@@ -942,6 +1057,55 @@ a = 1
         "indirect": {
             "author/package-with-bar": "1.0.0"
         }
+    }
+}
+"""
+                        ]
+        , test "should not remove indirect dependencies unrelated to the removed dependency" <|
+            \() ->
+                """
+module A exposing (a)
+import Wibble
+a = 1
+"""
+                    |> String.replace "\u{000D}" ""
+                    |> Review.Test.runWithProjectData
+                        (createProject Nothing applicationElmJsonWithSeveralIndirectTestDeps
+                            |> Project.addDependency packageWithFooDependingOnBar
+                            |> Project.addDependency packageWibble
+                            |> Project.addDependency packageWobble
+                            |> Project.addDependency packageWeeble
+                        )
+                        rule
+                    |> Review.Test.expectErrorsForElmJson
+                        [ Review.Test.error
+                            { message = "Unused dependency `author/package-with-foo`"
+                            , details =
+                                [ "To remove it, I recommend running the following command:"
+                                , "    elm-json uninstall author/package-with-foo"
+                                ]
+                            , under = "author/package-with-foo"
+                            }
+                            |> Review.Test.whenFixed """{
+    "type": "application",
+    "source-directories": [
+        "src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "author/wibble": "1.0.0",
+            "elm/core": "1.0.0",
+            "elm/json": "1.0.0"
+        },
+        "indirect": {
+            "author/weeble": "1.0.0",
+            "author/wobble": "1.0.0"
+        }
+    },
+    "test-dependencies": {
+        "direct": {},
+        "indirect": {}
     }
 }
 """

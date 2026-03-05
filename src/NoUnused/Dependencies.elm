@@ -44,7 +44,7 @@ rule : Rule
 rule =
     Rule.newProjectRuleSchema "NoUnused.Dependencies" initialProjectContext
         |> Rule.withElmJsonProjectVisitor elmJsonVisitor
-        |> Rule.withDirectDependenciesProjectVisitor dependenciesVisitor
+        |> Rule.withDependenciesProjectVisitor dependenciesVisitor
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
             { fromProjectToModule = fromProjectToModule
@@ -77,7 +77,13 @@ dependenciesVisitor dependencies projectContext =
                         (Dependency.modules dependency)
                 )
                 Dict.empty
-                dependencies
+                (Dict.filter
+                    (\packageName _ ->
+                        Set.member packageName projectContext.directProjectDependencies
+                            || Set.member packageName projectContext.directTestDependencies
+                    )
+                    dependencies
+                )
     in
     ( []
     , { projectContext
