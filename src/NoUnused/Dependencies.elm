@@ -536,7 +536,7 @@ listIndirectDependencies getDependenciesAndVersion baseDependencies =
 
 listIndirectDependenciesHelp : (Elm.Package.Name -> Elm.Project.Deps Elm.Version.Version) -> Elm.Project.Deps Elm.Version.Version -> List Elm.Package.Name -> Elm.Project.Deps Elm.Version.Version -> Elm.Project.Deps Elm.Version.Version
 listIndirectDependenciesHelp getDependenciesAndVersion dependenciesToLookAt visited indirectDependencies =
-    case List.filter (\( name, _ ) -> not (List.member name visited)) dependenciesToLookAt of
+    case findWithRest (\( name, _ ) -> not (List.member name visited)) dependenciesToLookAt of
         [] ->
             indirectDependencies
 
@@ -546,6 +546,20 @@ listIndirectDependenciesHelp getDependenciesAndVersion dependenciesToLookAt visi
                 (getDependenciesAndVersion name ++ restOfDependenciesToLookAt)
                 (name :: visited)
                 (( name, version ) :: indirectDependencies)
+
+
+findWithRest : (a -> Bool) -> List a -> List a
+findWithRest predicate list =
+    case list of
+        [] ->
+            list
+
+        first :: rest ->
+            if predicate first then
+                list
+
+            else
+                findWithRest predicate rest
 
 
 packageDependencies : Dict String Elm.Version.Version -> DependencyList -> List ( Elm.Package.Name, Elm.Version.Version )
