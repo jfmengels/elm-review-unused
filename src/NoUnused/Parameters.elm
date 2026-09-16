@@ -340,8 +340,13 @@ fromModuleToProject =
                   , functionCallsWithArguments =
                         List.foldl
                             (\arg functionCallsWithArguments ->
+                                let
+                                    isModuleExposed : Bool
+                                    isModuleExposed =
+                                        Set.member moduleName moduleContext.exposedModules
+                                in
                                 if isExposed arg.functionName then
-                                    if Set.member moduleName moduleContext.exposedModules then
+                                    if isModuleExposed then
                                         functionCallsWithArguments
 
                                     else
