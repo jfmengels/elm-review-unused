@@ -254,8 +254,8 @@ getNonPublicConstructors moduleContext =
                     exposedCustomTypes : Set TypeNameS
                     exposedCustomTypes =
                         List.foldl
-                            (\exposed acc ->
-                                case Node.value exposed of
+                            (\(Node _ exposed) acc ->
+                                case exposed of
                                     Exposing.TypeExpose { name, open } ->
                                         case open of
                                             Just _ ->
@@ -316,13 +316,13 @@ foldProjectContexts newContext previousContext =
 
 
 moduleDefinitionVisitor : Node Module -> ModuleContext -> ModuleContext
-moduleDefinitionVisitor node moduleContext =
-    { moduleContext | exposed = Module.exposingList (Node.value node) }
+moduleDefinitionVisitor (Node _ node) moduleContext =
+    { moduleContext | exposed = Module.exposingList node }
 
 
 isNotNever : ModuleNameLookupTable -> Node TypeAnnotation -> Bool
-isNotNever lookupTable node =
-    case Node.value node of
+isNotNever lookupTable (Node _ node) =
+    case node of
         TypeAnnotation.Typed (Node neverRange ( _, "Never" )) [] ->
             ModuleNameLookupTable.moduleNameAt lookupTable neverRange /= Just [ "Basics" ]
 
@@ -335,8 +335,8 @@ isNotNever lookupTable node =
 
 
 declarationVisitor : Node Declaration -> ModuleContext -> ModuleContext
-declarationVisitor node context =
-    case Node.value node of
+declarationVisitor (Node _ node) context =
+    case node of
         Declaration.FunctionDeclaration function ->
             { context
                 | usedArguments =
@@ -391,8 +391,8 @@ collectUsedPatternsFromFunctionDeclaration context { declaration } =
 
 
 expressionVisitor : Node Expression -> ModuleContext -> ModuleContext
-expressionVisitor node context =
-    case Node.value node of
+expressionVisitor (Node _ node) context =
+    case node of
         Expression.CaseExpression { cases } ->
             let
                 usedArguments : List ( ( ModuleName, String ), Set Int )
@@ -406,8 +406,8 @@ expressionVisitor node context =
                 usedArguments : List ( ( ModuleName, String ), Set Int )
                 usedArguments =
                     List.concatMap
-                        (\declaration ->
-                            case Node.value declaration of
+                        (\(Node _ declaration) ->
+                            case declaration of
                                 Expression.LetDestructuring pattern _ ->
                                     collectUsedCustomTypeArgs context.lookupTable [ pattern ]
 
@@ -450,11 +450,11 @@ findCustomTypes lookupTable nodes acc =
         [] ->
             acc
 
-        node :: restOfNodes ->
-            case Node.value node of
+        (Node range node) :: restOfNodes ->
+            case node of
                 Expression.FunctionOrValue rawModuleName functionName ->
                     if String.Extra.isCapitalized functionName then
-                        case ModuleNameLookupTable.moduleNameFor lookupTable node of
+                        case ModuleNameLookupTable.moduleNameAt lookupTable range of
                             Just moduleName ->
                                 findCustomTypes lookupTable restOfNodes (Set.insert ( moduleName, functionName ) acc)
 
@@ -571,8 +571,8 @@ computeUsedPositions index arguments acc =
 
 
 isWildcard : Node Pattern -> Bool
-isWildcard node =
-    case Node.value node of
+isWildcard (Node _ node) =
+    case node of
         Pattern.AllPattern ->
             True
 
