@@ -93,14 +93,15 @@ rule =
 
 type alias ProjectContext =
     { exposedModules : Set ModuleName
-    , customTypeArgs :
-        Dict
-            ModuleName
-            { moduleKey : Rule.ModuleKey
-            , args : Dict String (List Range)
-            }
-    , usedArguments : Dict ( ModuleName, String ) (Set Int)
-    , customTypesNotToReport : Set ( ModuleName, String )
+    , constructorsPerModule : Dict ModuleName ModuleConstructors
+    , usedArguments : Dict ( ModuleName, ConstructorName ) (Set Int)
+    , customTypesNotToReport : Set ( ModuleName, TypeNameS )
+    }
+
+
+type alias ModuleConstructors =
+    { moduleKey : Rule.ModuleKey
+    , constructors : Dict ConstructorName (List Range)
     }
 
 
@@ -108,10 +109,22 @@ type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
     , isModuleExposed : Bool
     , exposed : Exposing
-    , customTypeArgs : List ( String, Dict String (List Range) )
-    , usedArguments : Dict ( ModuleName, String ) (Set Int)
-    , customTypesNotToReport : Set ( ModuleName, String )
+    , customTypeArgs : List ( TypeName, Dict ConstructorName (List Range) )
+    , usedArguments : Dict ( ModuleName, ConstructorName ) (Set Int)
+    , customTypesNotToReport : Set ( ModuleName, TypeNameS )
     }
+
+
+type TypeName
+    = TypeName TypeNameS
+
+
+type alias TypeNameS =
+    String
+
+
+type alias ConstructorName =
+    String
 
 
 moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
@@ -151,7 +164,7 @@ elmJsonVisitor maybeProject projectContext =
 initialProjectContext : ProjectContext
 initialProjectContext =
     { exposedModules = Set.empty
-    , customTypeArgs = Dict.empty
+    , constructorsPerModule = Dict.empty
     , usedArguments = Dict.empty
     , customTypesNotToReport = Set.empty
     }
@@ -178,11 +191,11 @@ fromModuleToProject =
     Rule.initContextCreator
         (\moduleKey moduleName moduleContext ->
             { exposedModules = Set.empty
-            , customTypeArgs =
+            , constructorsPerModule =
                 Dict.singleton
                     moduleName
                     { moduleKey = moduleKey
-                    , args = getNonExposedCustomTypes moduleContext
+                    , constructors = getNonPublicConstructors moduleContext
                     }
             , usedArguments = replaceLocalModuleNameForDict moduleName moduleContext.usedArguments
             , customTypesNotToReport = replaceLocalModuleNameForSet moduleName moduleContext.customTypesNotToReport
@@ -226,8 +239,11 @@ replaceLocalModuleNameForDict moduleName dict =
         dict
 
 
-getNonExposedCustomTypes : ModuleContext -> Dict String (List Range)
-getNonExposedCustomTypes moduleContext =
+{-| Get all custom types from the module whose constructors are not part of the public API of the package.
+If the module is private or the project is an application, then all open custom types are collected.
+-}
+getNonPublicConstructors : ModuleContext -> Dict ConstructorName (List Range)
+getNonPublicConstructors moduleContext =
     if moduleContext.isModuleExposed then
         case moduleContext.exposed of
             Exposing.All _ ->
@@ -235,7 +251,7 @@ getNonExposedCustomTypes moduleContext =
 
             Exposing.Explicit list ->
                 let
-                    exposedCustomTypes : Set String
+                    exposedCustomTypes : Set TypeNameS
                     exposedCustomTypes =
                         List.foldl
                             (\exposed acc ->
@@ -255,7 +271,7 @@ getNonExposedCustomTypes moduleContext =
                             list
                 in
                 List.foldl
-                    (\( typeName, args ) acc ->
+                    (\( TypeName typeName, args ) acc ->
                         if Set.member typeName exposedCustomTypes then
                             acc
 
@@ -275,10 +291,10 @@ getNonExposedCustomTypes moduleContext =
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
     { exposedModules = previousContext.exposedModules
-    , customTypeArgs =
+    , constructorsPerModule =
         Dict.union
-            newContext.customTypeArgs
-            previousContext.customTypeArgs
+            newContext.constructorsPerModule
+            previousContext.constructorsPerModule
     , usedArguments =
         Dict.foldl
             (\key newSet acc ->
@@ -335,20 +351,20 @@ declarationVisitor node context =
 
             else
                 let
-                    customTypeConstructors : Dict String (List Range)
+                    customTypeConstructors : Dict ConstructorName (List Range)
                     customTypeConstructors =
                         List.foldl
-                            (\(Node _ { name, arguments }) acc ->
+                            (\(Node _ constructor) acc ->
                                 Dict.insert
-                                    (Node.value name)
-                                    (createArguments context.lookupTable arguments)
+                                    (Node.value constructor.name)
+                                    (createArguments context.lookupTable constructor.arguments)
                                     acc
                             )
                             Dict.empty
                             typeDeclaration.constructors
                 in
                 { context
-                    | customTypeArgs = ( Node.value typeDeclaration.name, customTypeConstructors ) :: context.customTypeArgs
+                    | customTypeArgs = ( TypeName (Node.value typeDeclaration.name), customTypeConstructors ) :: context.customTypeArgs
                 }
 
         _ ->
@@ -369,7 +385,7 @@ createArguments lookupTable arguments =
         arguments
 
 
-collectUsedPatternsFromFunctionDeclaration : ModuleContext -> Expression.Function -> List ( ( ModuleName, String ), Set Int )
+collectUsedPatternsFromFunctionDeclaration : ModuleContext -> Expression.Function -> List ( ( ModuleName, ConstructorName ), Set Int )
 collectUsedPatternsFromFunctionDeclaration context { declaration } =
     collectUsedCustomTypeArgs context.lookupTable (Node.value declaration).arguments
 
@@ -442,13 +458,13 @@ expressionVisitor node context =
             context
 
 
-findCustomTypes : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleName, String )
+findCustomTypes : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleName, TypeNameS )
 findCustomTypes lookupTable nodes =
     findCustomTypesHelp lookupTable nodes []
         |> Set.fromList
 
 
-findCustomTypesHelp : ModuleNameLookupTable -> List (Node Expression) -> List ( ModuleName, String ) -> List ( ModuleName, String )
+findCustomTypesHelp : ModuleNameLookupTable -> List (Node Expression) -> List ( ModuleName, String ) -> List ( ModuleName, TypeNameS )
 findCustomTypesHelp lookupTable nodes acc =
     case nodes of
         [] ->
@@ -593,15 +609,15 @@ isWildcard node =
 
 finalEvaluation : ProjectContext -> List (Error { useErrorForModule : () })
 finalEvaluation context =
-    Dict.foldl (finalEvaluationForSingleModule context) [] context.customTypeArgs
+    Dict.foldl (finalEvaluationForSingleModule context) [] context.constructorsPerModule
 
 
-finalEvaluationForSingleModule : ProjectContext -> ModuleName -> { moduleKey : Rule.ModuleKey, args : Dict String (List Range) } -> List (Error { useErrorForModule : () }) -> List (Error { useErrorForModule : () })
-finalEvaluationForSingleModule context moduleName { moduleKey, args } previousErrors =
+finalEvaluationForSingleModule : ProjectContext -> ModuleName -> ModuleConstructors -> List (Error { useErrorForModule : () }) -> List (Error { useErrorForModule : () })
+finalEvaluationForSingleModule context moduleName { moduleKey, constructors } previousErrors =
     Dict.foldl
         (\name ranges acc ->
             let
-                constructor : ( ModuleName, String )
+                constructor : ( ModuleName, ConstructorName )
                 constructor =
                     ( moduleName, name )
             in
@@ -612,10 +628,10 @@ finalEvaluationForSingleModule context moduleName { moduleKey, args } previousEr
                 errorsForUnusedArguments context.usedArguments moduleKey constructor ranges acc
         )
         previousErrors
-        args
+        constructors
 
 
-errorsForUnusedArguments : Dict ( ModuleName, String ) (Set Int) -> Rule.ModuleKey -> ( ModuleName, String ) -> List Range -> List (Error anywhere) -> List (Error anywhere)
+errorsForUnusedArguments : Dict ( ModuleName, String ) (Set Int) -> Rule.ModuleKey -> ( ModuleName, ConstructorName ) -> List Range -> List (Error anywhere) -> List (Error anywhere)
 errorsForUnusedArguments usedArguments moduleKey constructor ranges acc =
     case Dict.get constructor usedArguments of
         Just usedArgumentPositions ->
