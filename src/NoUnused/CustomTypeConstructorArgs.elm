@@ -346,26 +346,22 @@ declarationVisitor node context =
             }
 
         Declaration.CustomTypeDeclaration typeDeclaration ->
-            if List.isEmpty typeDeclaration.constructors then
-                context
-
-            else
-                let
-                    customTypeConstructors : Dict ConstructorName (List Range)
-                    customTypeConstructors =
-                        List.foldl
-                            (\(Node _ constructor) acc ->
-                                Dict.insert
-                                    (Node.value constructor.name)
-                                    (createArguments context.lookupTable constructor.arguments)
-                                    acc
-                            )
-                            Dict.empty
-                            typeDeclaration.constructors
-                in
-                { context
-                    | customTypeArgs = ( TypeName (Node.value typeDeclaration.name), customTypeConstructors ) :: context.customTypeArgs
-                }
+            let
+                customTypeConstructors : Dict ConstructorName (List Range)
+                customTypeConstructors =
+                    List.foldl
+                        (\(Node _ constructor) acc ->
+                            Dict.insert
+                                (Node.value constructor.name)
+                                (createArguments context.lookupTable constructor.arguments)
+                                acc
+                        )
+                        Dict.empty
+                        typeDeclaration.constructors
+            in
+            { context
+                | customTypeArgs = ( TypeName (Node.value typeDeclaration.name), customTypeConstructors ) :: context.customTypeArgs
+            }
 
         _ ->
             context
