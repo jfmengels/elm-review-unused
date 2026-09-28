@@ -123,8 +123,8 @@ moduleVisitor schema =
 
 
 elmJsonVisitor : Maybe { a | project : Elm.Project.Project } -> ProjectContext -> ( List nothing, ProjectContext )
-elmJsonVisitor maybeEProject projectContext =
-    case Maybe.map .project maybeEProject of
+elmJsonVisitor maybeProject projectContext =
+    case Maybe.map .project maybeProject of
         Just (Elm.Project.Package package) ->
             let
                 exposedModules : List Elm.Module.Name
