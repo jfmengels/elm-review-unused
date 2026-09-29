@@ -456,11 +456,10 @@ expressionVisitor node context =
 
 findCustomTypes : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleName, TypeNameS )
 findCustomTypes lookupTable nodes =
-    findCustomTypesHelp lookupTable nodes []
-        |> Set.fromList
+    findCustomTypesHelp lookupTable nodes Set.empty
 
 
-findCustomTypesHelp : ModuleNameLookupTable -> List (Node Expression) -> List ( ModuleName, String ) -> List ( ModuleName, TypeNameS )
+findCustomTypesHelp : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleName, String ) -> Set ( ModuleName, TypeNameS )
 findCustomTypesHelp lookupTable nodes acc =
     case nodes of
         [] ->
@@ -472,10 +471,10 @@ findCustomTypesHelp lookupTable nodes acc =
                     if String.Extra.isCapitalized functionName then
                         case ModuleNameLookupTable.moduleNameFor lookupTable node of
                             Just moduleName ->
-                                findCustomTypesHelp lookupTable restOfNodes (( moduleName, functionName ) :: acc)
+                                findCustomTypesHelp lookupTable restOfNodes (Set.insert ( moduleName, functionName ) acc)
 
                             Nothing ->
-                                findCustomTypesHelp lookupTable restOfNodes (( rawModuleName, functionName ) :: acc)
+                                findCustomTypesHelp lookupTable restOfNodes (Set.insert ( rawModuleName, functionName ) acc)
 
                     else
                         findCustomTypesHelp lookupTable restOfNodes acc
