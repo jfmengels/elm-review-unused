@@ -20,6 +20,7 @@ import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Review.Fix as Fix
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
+import Review.Project.Dependency as Dependency exposing (Dependency)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
 import String.Extra
@@ -81,6 +82,7 @@ rule : Rule
 rule =
     Rule.newProjectRuleSchema "NoUnused.CustomTypeConstructorArgs" initialProjectContext
         |> Rule.withElmJsonProjectVisitor elmJsonVisitor
+        |> Rule.withDependenciesProjectVisitor dependenciesVisitor
         |> Rule.withModuleVisitor moduleVisitor
         |> Rule.withModuleContextUsingContextCreator
             { fromProjectToModule = fromProjectToModule
@@ -93,6 +95,7 @@ rule =
 
 type alias ProjectContext =
     { exposedModules : Set ModuleName
+    , dependencyModules : Set ModuleName
     , constructorsPerModule : Dict ModuleName ModuleConstructors
     , usedArguments : Dict ( ModuleName, ConstructorName ) (Set Int)
     , customTypesNotToReport : Set ( ModuleName, TypeNameS )
@@ -109,6 +112,7 @@ type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
     , isModuleExposed : Bool
     , exposed : Exposing
+    , dependencyModules : Set ModuleName
     , customTypeArgs : List ( TypeName, Dict ConstructorName { nameRange : Range, args : List Range } )
     , usedArguments : Dict ( ModuleName, ConstructorName ) (Set Int)
     , customTypesNotToReport : Set ( ModuleName, TypeNameS )
@@ -161,9 +165,27 @@ elmJsonVisitor maybeProject projectContext =
             ( [], projectContext )
 
 
+dependenciesVisitor : Dict String Dependency -> ProjectContext -> ( List nothing, ProjectContext )
+dependenciesVisitor dependencies projectContext =
+    let
+        dependencyModules : Set ModuleName
+        dependencyModules =
+            Dict.foldl
+                (\_ dep set ->
+                    List.foldl (\{ name } set_ -> Set.insert (String.split "." name) set_)
+                        set
+                        (Dependency.modules dep)
+                )
+                Set.empty
+                dependencies
+    in
+    ( [], { projectContext | dependencyModules = dependencyModules } )
+
+
 initialProjectContext : ProjectContext
 initialProjectContext =
     { exposedModules = Set.empty
+    , dependencyModules = Set.empty
     , constructorsPerModule = Dict.empty
     , usedArguments = Dict.empty
     , customTypesNotToReport = Set.empty
@@ -176,6 +198,7 @@ fromProjectToModule =
         (\lookupTable moduleName projectContext ->
             { lookupTable = lookupTable
             , isModuleExposed = Set.member moduleName projectContext.exposedModules
+            , dependencyModules = projectContext.dependencyModules
             , exposed = Exposing.Explicit []
             , customTypeArgs = []
             , usedArguments = Dict.empty
@@ -191,6 +214,7 @@ fromModuleToProject =
     Rule.initContextCreator
         (\moduleKey moduleName moduleContext ->
             { exposedModules = Set.empty
+            , dependencyModules = Set.empty
             , constructorsPerModule =
                 Dict.singleton
                     moduleName
@@ -291,6 +315,7 @@ getNonPublicConstructors moduleContext =
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
 foldProjectContexts newContext previousContext =
     { exposedModules = previousContext.exposedModules
+    , dependencyModules = previousContext.dependencyModules
     , constructorsPerModule =
         Dict.union
             newContext.constructorsPerModule
@@ -430,14 +455,14 @@ expressionVisitor (Node _ node) context =
 
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
-                { context | customTypesNotToReport = findCustomTypes context.lookupTable [ left, right ] context.customTypesNotToReport }
+                { context | customTypesNotToReport = findCustomTypes context [ left, right ] context.customTypesNotToReport }
 
             else
                 context
 
         Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: restOfArgs) ->
             if operator == "==" || operator == "/=" then
-                { context | customTypesNotToReport = findCustomTypes context.lookupTable restOfArgs context.customTypesNotToReport }
+                { context | customTypesNotToReport = findCustomTypes context restOfArgs context.customTypesNotToReport }
 
             else
                 context
@@ -446,8 +471,8 @@ expressionVisitor (Node _ node) context =
             context
 
 
-findCustomTypes : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleName, TypeNameS ) -> Set ( ModuleName, TypeNameS )
-findCustomTypes lookupTable nodes acc =
+findCustomTypes : ModuleContext -> List (Node Expression) -> Set ( ModuleName, TypeNameS ) -> Set ( ModuleName, TypeNameS )
+findCustomTypes context nodes acc =
     case nodes of
         [] ->
             acc
@@ -456,40 +481,45 @@ findCustomTypes lookupTable nodes acc =
             case node of
                 Expression.FunctionOrValue rawModuleName functionName ->
                     if String.Extra.isCapitalized functionName then
-                        case ModuleNameLookupTable.moduleNameAt lookupTable range of
-                            Just moduleName ->
-                                findCustomTypes lookupTable restOfNodes (Set.insert ( moduleName, functionName ) acc)
+                        let
+                            moduleName : ModuleName
+                            moduleName =
+                                ModuleNameLookupTable.moduleNameAt context.lookupTable range
+                                    |> Maybe.withDefault rawModuleName
+                        in
+                        if Set.member moduleName context.dependencyModules then
+                            findCustomTypes context restOfNodes acc
 
-                            Nothing ->
-                                findCustomTypes lookupTable restOfNodes (Set.insert ( rawModuleName, functionName ) acc)
+                        else
+                            findCustomTypes context restOfNodes (Set.insert ( moduleName, functionName ) acc)
 
                     else
-                        findCustomTypes lookupTable restOfNodes acc
+                        findCustomTypes context restOfNodes acc
 
                 Expression.TupledExpression expressions ->
-                    findCustomTypes lookupTable (expressions ++ restOfNodes) acc
+                    findCustomTypes context (expressions ++ restOfNodes) acc
 
                 Expression.ParenthesizedExpression expression ->
-                    findCustomTypes lookupTable (expression :: restOfNodes) acc
+                    findCustomTypes context (expression :: restOfNodes) acc
 
                 Expression.Application (((Node _ (Expression.FunctionOrValue _ functionName)) as first) :: expressions) ->
                     if String.Extra.isCapitalized functionName then
-                        findCustomTypes lookupTable (first :: (expressions ++ restOfNodes)) acc
+                        findCustomTypes context (first :: (expressions ++ restOfNodes)) acc
 
                     else
-                        findCustomTypes lookupTable restOfNodes acc
+                        findCustomTypes context restOfNodes acc
 
                 Expression.OperatorApplication _ _ left right ->
-                    findCustomTypes lookupTable (left :: right :: restOfNodes) acc
+                    findCustomTypes context (left :: right :: restOfNodes) acc
 
                 Expression.Negation expression ->
-                    findCustomTypes lookupTable (expression :: restOfNodes) acc
+                    findCustomTypes context (expression :: restOfNodes) acc
 
                 Expression.ListExpr expressions ->
-                    findCustomTypes lookupTable (expressions ++ restOfNodes) acc
+                    findCustomTypes context (expressions ++ restOfNodes) acc
 
                 _ ->
-                    findCustomTypes lookupTable restOfNodes acc
+                    findCustomTypes context restOfNodes acc
 
 
 registerUsedPatterns : List ( ( ModuleName, String ), Set Int ) -> Dict ( ModuleName, String ) (Set Int) -> Dict ( ModuleName, String ) (Set Int)
