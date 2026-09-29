@@ -18,7 +18,6 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
-import List.Extra
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -607,30 +606,44 @@ finalEvaluationForSingleModule context moduleName { moduleKey, constructors } pr
                 acc
 
             else
-                errorsForUnusedArguments context.usedArguments moduleKey constructor args acc
+                let
+                    usedArgumentPositions : Set Int
+                    usedArgumentPositions =
+                        Dict.get constructor context.usedArguments |> Maybe.withDefault Set.empty
+                in
+                errorsForUnusedArguments
+                    moduleKey
+                    usedArgumentPositions
+                    0
+                    args
+                    acc
         )
         previousErrors
         constructors
 
 
-errorsForUnusedArguments : Dict ( ModuleName, String ) (Set Int) -> Rule.ModuleKey -> ( ModuleName, ConstructorName ) -> List Range -> List (Error anywhere) -> List (Error anywhere)
-errorsForUnusedArguments usedArguments moduleKey constructor ranges acc =
-    case Dict.get constructor usedArguments of
-        Just usedArgumentPositions ->
-            List.Extra.indexedFilterMap
-                (\index range ->
+errorsForUnusedArguments : Rule.ModuleKey -> Set Int -> Int -> List Range -> List (Error anywhere) -> List (Error anywhere)
+errorsForUnusedArguments moduleKey usedArgumentPositions index argRanges acc =
+    case argRanges of
+        [] ->
+            acc
+
+        range :: rest ->
+            let
+                newAcc : List (Error anywhere)
+                newAcc =
                     if Set.member index usedArgumentPositions then
-                        Nothing
+                        acc
 
                     else
-                        Just (error moduleKey range)
-                )
-                0
-                ranges
-                acc
-
-        Nothing ->
-            List.map (error moduleKey) ranges ++ acc
+                        error moduleKey range :: acc
+            in
+            errorsForUnusedArguments
+                moduleKey
+                usedArgumentPositions
+                (index + 1)
+                rest
+                newAcc
 
 
 error : Rule.ModuleKey -> Range -> Error anywhere
