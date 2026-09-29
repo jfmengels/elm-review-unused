@@ -101,7 +101,7 @@ type alias ProjectContext =
 
 type alias ModuleConstructors =
     { moduleKey : Rule.ModuleKey
-    , constructors : Dict ConstructorName (List Range)
+    , constructors : Dict ConstructorName { nameRange : Range, args : List Range }
     }
 
 
@@ -109,7 +109,7 @@ type alias ModuleContext =
     { lookupTable : ModuleNameLookupTable
     , isModuleExposed : Bool
     , exposed : Exposing
-    , customTypeArgs : List ( TypeName, Dict ConstructorName (List Range) )
+    , customTypeArgs : List ( TypeName, Dict ConstructorName { nameRange : Range, args : List Range } )
     , usedArguments : Dict ( ModuleName, ConstructorName ) (Set Int)
     , customTypesNotToReport : Set ( ModuleName, TypeNameS )
     }
@@ -242,7 +242,7 @@ replaceLocalModuleNameForDict moduleName dict =
 {-| Get all custom types from the module whose constructors are not part of the public API of the package.
 If the module is private or the project is an application, then all open custom types are collected.
 -}
-getNonPublicConstructors : ModuleContext -> Dict ConstructorName (List Range)
+getNonPublicConstructors : ModuleContext -> Dict ConstructorName { nameRange : Range, args : List Range }
 getNonPublicConstructors moduleContext =
     if moduleContext.isModuleExposed then
         case moduleContext.exposed of
@@ -347,13 +347,15 @@ declarationVisitor (Node _ node) context =
 
         Declaration.CustomTypeDeclaration typeDeclaration ->
             let
-                customTypeConstructors : Dict ConstructorName (List Range)
+                customTypeConstructors : Dict ConstructorName { nameRange : Range, args : List Range }
                 customTypeConstructors =
                     List.foldl
                         (\(Node _ constructor) acc ->
                             Dict.insert
                                 (Node.value constructor.name)
-                                (createArguments context.lookupTable constructor.arguments)
+                                { nameRange = Node.range constructor.name
+                                , args = createArguments context.lookupTable constructor.arguments
+                                }
                                 acc
                         )
                         Dict.empty
@@ -595,17 +597,17 @@ finalEvaluation context =
 finalEvaluationForSingleModule : ProjectContext -> ModuleName -> ModuleConstructors -> List (Error { useErrorForModule : () }) -> List (Error { useErrorForModule : () })
 finalEvaluationForSingleModule context moduleName { moduleKey, constructors } previousErrors =
     Dict.foldl
-        (\name ranges acc ->
+        (\constructorName { nameRange, args } acc ->
             let
                 constructor : ( ModuleName, ConstructorName )
                 constructor =
-                    ( moduleName, name )
+                    ( moduleName, constructorName )
             in
             if Set.member constructor context.customTypesNotToReport then
                 acc
 
             else
-                errorsForUnusedArguments context.usedArguments moduleKey constructor ranges acc
+                errorsForUnusedArguments context.usedArguments moduleKey constructor args acc
         )
         previousErrors
         constructors
