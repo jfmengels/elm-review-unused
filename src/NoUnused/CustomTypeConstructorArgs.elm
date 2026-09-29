@@ -18,6 +18,7 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import Review.Fix as Fix
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Rule as Rule exposing (Error, Rule)
 import Set exposing (Set)
@@ -614,6 +615,7 @@ finalEvaluationForSingleModule context moduleName { moduleKey, constructors } pr
                 errorsForUnusedArguments
                     moduleKey
                     usedArgumentPositions
+                    nameRange
                     0
                     args
                     acc
@@ -622,8 +624,8 @@ finalEvaluationForSingleModule context moduleName { moduleKey, constructors } pr
         constructors
 
 
-errorsForUnusedArguments : Rule.ModuleKey -> Set Int -> Int -> List Range -> List (Error anywhere) -> List (Error anywhere)
-errorsForUnusedArguments moduleKey usedArgumentPositions index argRanges acc =
+errorsForUnusedArguments : Rule.ModuleKey -> Set Int -> Range -> Int -> List Range -> List (Error anywhere) -> List (Error anywhere)
+errorsForUnusedArguments moduleKey usedArgumentPositions previousRange index argRanges acc =
     case argRanges of
         [] ->
             acc
@@ -636,18 +638,28 @@ errorsForUnusedArguments moduleKey usedArgumentPositions index argRanges acc =
                         acc
 
                     else
-                        error moduleKey range :: acc
+                        let
+                            fixes : List Rule.FixV2
+                            fixes =
+                                [ Rule.editModule
+                                    moduleKey
+                                    [ Fix.removeRange { start = previousRange.end, end = range.end }
+                                    ]
+                                ]
+                        in
+                        error moduleKey range fixes :: acc
             in
             errorsForUnusedArguments
                 moduleKey
                 usedArgumentPositions
+                range
                 (index + 1)
                 rest
                 newAcc
 
 
-error : Rule.ModuleKey -> Range -> Error anywhere
-error moduleKey range =
+error : Rule.ModuleKey -> Range -> List Rule.FixV2 -> Error anywhere
+error moduleKey range fixes =
     Rule.errorForModule moduleKey
         { message = "Argument is never extracted and therefore never used."
         , details =
@@ -655,3 +667,4 @@ error moduleKey range =
             ]
         }
         range
+        |> Rule.withFixesV2 fixes

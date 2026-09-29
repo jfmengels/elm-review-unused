@@ -42,6 +42,16 @@ something =
                             , details = details
                             , under = "B_Data"
                             }
+                            |> Review.Test.whenFixed """module A exposing (..)
+type CustomType
+  = B
+
+b = B ()
+
+something =
+  case foo of
+    B _ -> ()
+"""
                         ]
         , test "should report an error when custom type constructor argument is never used, even in parens" <|
             \() ->
@@ -62,6 +72,16 @@ something =
                             , details = details
                             , under = "B_Data"
                             }
+                            |> Review.Test.whenFixed """module A exposing (..)
+type CustomType
+  = B
+
+b = B ()
+
+something =
+  case foo of
+    B (_) -> ()
+"""
                         ]
         , test "should not report an error if custom type constructor argument is used" <|
             \() ->
@@ -96,6 +116,16 @@ something =
                             , details = details
                             , under = "SomeData"
                             }
+                            |> Review.Test.whenFixed """module A exposing (..)
+type CustomType
+  = Constructor SomeOtherData
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor _ value -> value
+"""
                         ]
         , test "should not report an error for used arguments in nested patterns (tuple)" <|
             \() ->
@@ -272,6 +302,16 @@ something =
                             , details = details
                             , under = "SomeData"
                             }
+                            |> Review.Test.whenFixed """module NotExposed exposing (..)
+type CustomType
+  = Constructor
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor _ -> 1
+"""
                         ]
         , test "should report errors for non-exposed modules in a package (exposing explicitly)" <|
             \() ->
@@ -292,6 +332,16 @@ something =
                             , details = details
                             , under = "SomeData"
                             }
+                            |> Review.Test.whenFixed """module NotExposed exposing (CustomType(..))
+type CustomType
+  = Constructor
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor _ -> 1
+"""
                         ]
         , test "should not report errors for exposed modules that expose everything" <|
             \() ->
@@ -340,6 +390,16 @@ something =
                             , details = details
                             , under = "SomeData"
                             }
+                            |> Review.Test.whenFixed """module Exposed exposing (b)
+type CustomType
+  = Constructor
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor _ -> 1
+"""
                         ]
         , test "should report errors if the type is exposed but not its constructors" <|
             \() ->
@@ -360,6 +420,16 @@ something =
                             , details = details
                             , under = "SomeData"
                             }
+                            |> Review.Test.whenFixed """module Exposed exposing (CustomType)
+type CustomType
+  = Constructor
+
+b = Constructor ()
+
+something =
+  case foo of
+    Constructor _ -> 1
+"""
                         ]
         , test "should not report args if they are used in a different module" <|
             \() ->
@@ -423,6 +493,12 @@ type CustomType
                             , details = details
                             , under = "SomeData"
                             }
+                            |> Review.Test.whenFixed """
+module Main exposing (a)
+a = 1
+type CustomType
+  = B Never
+"""
                         ]
         , test "should not report args for type constructors used in an equality expression (==)" <|
             \() ->
@@ -469,6 +545,12 @@ b = B
                             , details = details
                             , under = "Int"
                             }
+                            |> Review.Test.whenFixed """
+module MyModule exposing (a, b)
+type Foo = Unused | B
+a = Unused <| b
+b = B
+"""
                         ]
         , test "should report args for type constructors starting with a non-ASCII letter used in non-equality operator expressions" <|
             \() ->
@@ -485,6 +567,12 @@ b = Ö_B
                             , details = details
                             , under = "Int"
                             }
+                            |> Review.Test.whenFixed """
+module MyModule exposing (a, b)
+type Foo = Ö_Unused | Ö_B
+a = Ö_Unused <| b
+b = Ö_B
+"""
                         ]
         , test "should not report args for type constructors used as arguments to a prefixed equality operator (==)" <|
             \() ->
@@ -564,6 +652,13 @@ b = B
                             , details = details
                             , under = "Int"
                             }
+                            |> Review.Test.whenFixed """
+
+module MyModule exposing (a, b)
+type Foo = Unused | B
+a = foo (Unused 0) == b
+b = B
+"""
                         ]
         ]
 
