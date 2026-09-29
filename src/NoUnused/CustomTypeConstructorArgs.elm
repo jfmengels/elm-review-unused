@@ -629,18 +629,18 @@ finalEvaluationForSingleModule context moduleName { moduleKey, constructors } pr
     Dict.foldl
         (\constructorName { nameRange, args } acc ->
             let
-                constructor : ( ModuleName, ConstructorName )
-                constructor =
+                key : ( ModuleName, ConstructorName )
+                key =
                     ( moduleName, constructorName )
             in
-            if Set.member constructor context.customTypesNotToReport then
+            if Set.member key context.customTypesNotToReport then
                 acc
 
             else
                 let
                     usedArgumentPositions : Set Int
                     usedArgumentPositions =
-                        Dict.get constructor context.usedArguments |> Maybe.withDefault Set.empty
+                        Dict.get key context.usedArguments |> Maybe.withDefault Set.empty
                 in
                 errorsForUnusedArguments
                     moduleKey
