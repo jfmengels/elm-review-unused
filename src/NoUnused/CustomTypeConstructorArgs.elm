@@ -16,7 +16,7 @@ import Elm.Syntax.Module as Module exposing (Module)
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
-import Elm.Syntax.Range exposing (Range)
+import Elm.Syntax.Range exposing (Location, Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import Review.Fix as Fix
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
@@ -98,6 +98,13 @@ type alias ProjectContext =
     , dependencyModules : Set ModuleName
     , constructorsPerModule : Dict ModuleName ModuleConstructors
     , usedArguments : Dict ( ModuleName, ConstructorName ) (Set Int)
+    , unusedArgumentsInPatterns :
+        Dict
+            ( Int, ModuleName, ConstructorName )
+            {- `Just [ ... ]` is the list of unused arguments.
+               `Just Nothing` means we have found at least one location where it's used, and we don't want to report it.
+            -}
+            (Maybe (List { moduleKey : Rule.ModuleKey, args : List Range }))
     , customTypesNotToReport : Set ( ModuleName, TypeNameS )
     }
 
@@ -115,6 +122,13 @@ type alias ModuleContext =
     , dependencyModules : Set ModuleName
     , customTypeArgs : List ( TypeName, Dict ConstructorName { nameRange : Range, args : List Range } )
     , usedArguments : Dict ( ModuleName, ConstructorName ) (Set Int)
+    , unusedArgumentsInPatterns :
+        Dict
+            ( Int, ModuleName, ConstructorName )
+            {- `Just [ ... ]` is the list of unused arguments.
+               `Just Nothing` means we have found at least one location where it's used, and we don't want to report it.
+            -}
+            (Maybe (List Range))
     , customTypesNotToReport : Set ( ModuleName, TypeNameS )
     }
 
@@ -188,6 +202,7 @@ initialProjectContext =
     , dependencyModules = Set.empty
     , constructorsPerModule = Dict.empty
     , usedArguments = Dict.empty
+    , unusedArgumentsInPatterns = Dict.empty
     , customTypesNotToReport = Set.empty
     }
 
@@ -202,6 +217,7 @@ fromProjectToModule =
             , exposed = Exposing.Explicit []
             , customTypeArgs = []
             , usedArguments = Dict.empty
+            , unusedArgumentsInPatterns = Dict.empty
             , customTypesNotToReport = Set.empty
             }
         )
@@ -222,6 +238,7 @@ fromModuleToProject =
                     , constructors = getNonPublicConstructors moduleContext
                     }
             , usedArguments = replaceLocalModuleNameForDict moduleName moduleContext.usedArguments
+            , unusedArgumentsInPatterns = Dict.map (\_ args -> Maybe.map (\args_ -> [ { moduleKey = moduleKey, args = args_ } ]) args) moduleContext.unusedArgumentsInPatterns
             , customTypesNotToReport = replaceLocalModuleNameForSet moduleName moduleContext.customTypesNotToReport
             }
         )
@@ -332,6 +349,21 @@ foldProjectContexts newContext previousContext =
             )
             previousContext.usedArguments
             newContext.usedArguments
+    , unusedArgumentsInPatterns =
+        Dict.foldl
+            (\key value dict ->
+                case Dict.get key dict of
+                    Just Nothing ->
+                        dict
+
+                    Just (Just list) ->
+                        Dict.insert key (Maybe.map (\v -> v ++ list) value) dict
+
+                    Nothing ->
+                        Dict.insert key value dict
+            )
+            newContext.unusedArgumentsInPatterns
+            previousContext.unusedArgumentsInPatterns
     , customTypesNotToReport = Set.union newContext.customTypesNotToReport previousContext.customTypesNotToReport
     }
 
@@ -426,7 +458,10 @@ expressionVisitor (Node _ node) context =
                 usedArguments =
                     collectUsedCustomTypeArgs context.lookupTable (List.map Tuple.first cases)
             in
-            { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments }
+            { context
+                | usedArguments = registerUsedPatterns usedArguments context.usedArguments
+                , unusedArgumentsInPatterns = collectCustomTypeArgsInPatterns context (List.map Tuple.first cases) context.unusedArgumentsInPatterns
+            }
 
         Expression.LetExpression { declarations } ->
             let
@@ -600,6 +635,112 @@ computeUsedPositions index arguments acc =
                         Set.insert index acc
             in
             computeUsedPositions (index + 1) restOfArgs newAcc
+
+
+collectCustomTypeArgsInPatterns :
+    ModuleContext
+    -> List (Node Pattern)
+    -> Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+    -> Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+collectCustomTypeArgsInPatterns context nodes acc =
+    case nodes of
+        [] ->
+            acc
+
+        (Node range pattern) :: restOfNodes ->
+            case pattern of
+                Pattern.NamedPattern ref args ->
+                    let
+                        newAcc : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+                        newAcc =
+                            case ModuleNameLookupTable.fullModuleNameAt context.lookupTable range of
+                                Just moduleName ->
+                                    if Set.member moduleName context.dependencyModules then
+                                        acc
+
+                                    else
+                                        let
+                                            endPositionOfName : Location
+                                            endPositionOfName =
+                                                { row = range.end.row
+                                                , column = range.start.column + String.length (String.join "." (ref.name :: ref.moduleName))
+                                                }
+                                        in
+                                        getUnusedConstructorFields moduleName ref.name 0 args endPositionOfName acc
+
+                                Nothing ->
+                                    acc
+                    in
+                    collectCustomTypeArgsInPatterns context (args ++ restOfNodes) newAcc
+
+                Pattern.TuplePattern patterns ->
+                    collectCustomTypeArgsInPatterns context (patterns ++ restOfNodes) acc
+
+                Pattern.ListPattern patterns ->
+                    collectCustomTypeArgsInPatterns context (patterns ++ restOfNodes) acc
+
+                Pattern.UnConsPattern left right ->
+                    collectCustomTypeArgsInPatterns context (left :: right :: restOfNodes) acc
+
+                Pattern.ParenthesizedPattern subPattern ->
+                    collectCustomTypeArgsInPatterns context (subPattern :: restOfNodes) acc
+
+                Pattern.AsPattern subPattern _ ->
+                    collectCustomTypeArgsInPatterns context (subPattern :: restOfNodes) acc
+
+                _ ->
+                    collectCustomTypeArgsInPatterns context restOfNodes acc
+
+
+getUnusedConstructorFields : ModuleName -> ConstructorName -> Int -> List (Node Pattern) -> Location -> Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range)) -> Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+getUnusedConstructorFields moduleName constructorName index arguments previousEnd acc =
+    case arguments of
+        [] ->
+            acc
+
+        arg :: restOfArgs ->
+            let
+                key : ( Int, ModuleName, ConstructorName )
+                key =
+                    ( index, moduleName, constructorName )
+
+                newAcc : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+                newAcc =
+                    case Dict.get key acc of
+                        Just Nothing ->
+                            -- We have previously found pattern matches for this constructor field
+                            -- and some of them were *not* unused. We will continue to not report this field.
+                            acc
+
+                        Just (Just list) ->
+                            addWildcardPosition key previousEnd arg list acc
+
+                        Nothing ->
+                            addWildcardPosition key previousEnd arg [] acc
+            in
+            getUnusedConstructorFields
+                moduleName
+                constructorName
+                (index + 1)
+                restOfArgs
+                (Node.range arg).end
+                newAcc
+
+
+addWildcardPosition :
+    ( Int, ModuleName, ConstructorName )
+    -> Location
+    -> Node Pattern
+    -> List Range
+    -> Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+    -> Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+addWildcardPosition key previousEnd arg list acc =
+    if isWildcard arg then
+        Dict.insert key (Just ({ start = previousEnd, end = (Node.range arg).end } :: list)) acc
+
+    else
+        -- This constructor field is *not* unused, we therefore insert `Nothing` to disable the rule reporting it.
+        Dict.insert key Nothing acc
 
 
 isWildcard : Node Pattern -> Bool
