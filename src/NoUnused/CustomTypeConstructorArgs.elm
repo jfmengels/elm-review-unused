@@ -428,24 +428,14 @@ expressionVisitor node context =
 
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
-                let
-                    customTypesNotToReport : Set ( ModuleName, String )
-                    customTypesNotToReport =
-                        findCustomTypes context.lookupTable [ left, right ]
-                in
-                { context | customTypesNotToReport = Set.union customTypesNotToReport context.customTypesNotToReport }
+                { context | customTypesNotToReport = findCustomTypes context.lookupTable [ left, right ] context.customTypesNotToReport }
 
             else
                 context
 
         Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: restOfArgs) ->
             if operator == "==" || operator == "/=" then
-                let
-                    customTypesNotToReport : Set ( ModuleName, String )
-                    customTypesNotToReport =
-                        findCustomTypes context.lookupTable restOfArgs
-                in
-                { context | customTypesNotToReport = Set.union customTypesNotToReport context.customTypesNotToReport }
+                { context | customTypesNotToReport = findCustomTypes context.lookupTable restOfArgs context.customTypesNotToReport }
 
             else
                 context
@@ -454,13 +444,8 @@ expressionVisitor node context =
             context
 
 
-findCustomTypes : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleName, TypeNameS )
-findCustomTypes lookupTable nodes =
-    findCustomTypesHelp lookupTable nodes Set.empty
-
-
-findCustomTypesHelp : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleName, String ) -> Set ( ModuleName, TypeNameS )
-findCustomTypesHelp lookupTable nodes acc =
+findCustomTypes : ModuleNameLookupTable -> List (Node Expression) -> Set ( ModuleName, TypeNameS ) -> Set ( ModuleName, TypeNameS )
+findCustomTypes lookupTable nodes acc =
     case nodes of
         [] ->
             acc
@@ -471,38 +456,38 @@ findCustomTypesHelp lookupTable nodes acc =
                     if String.Extra.isCapitalized functionName then
                         case ModuleNameLookupTable.moduleNameFor lookupTable node of
                             Just moduleName ->
-                                findCustomTypesHelp lookupTable restOfNodes (Set.insert ( moduleName, functionName ) acc)
+                                findCustomTypes lookupTable restOfNodes (Set.insert ( moduleName, functionName ) acc)
 
                             Nothing ->
-                                findCustomTypesHelp lookupTable restOfNodes (Set.insert ( rawModuleName, functionName ) acc)
+                                findCustomTypes lookupTable restOfNodes (Set.insert ( rawModuleName, functionName ) acc)
 
                     else
-                        findCustomTypesHelp lookupTable restOfNodes acc
+                        findCustomTypes lookupTable restOfNodes acc
 
                 Expression.TupledExpression expressions ->
-                    findCustomTypesHelp lookupTable (expressions ++ restOfNodes) acc
+                    findCustomTypes lookupTable (expressions ++ restOfNodes) acc
 
                 Expression.ParenthesizedExpression expression ->
-                    findCustomTypesHelp lookupTable (expression :: restOfNodes) acc
+                    findCustomTypes lookupTable (expression :: restOfNodes) acc
 
                 Expression.Application (((Node _ (Expression.FunctionOrValue _ functionName)) as first) :: expressions) ->
                     if String.Extra.isCapitalized functionName then
-                        findCustomTypesHelp lookupTable (first :: (expressions ++ restOfNodes)) acc
+                        findCustomTypes lookupTable (first :: (expressions ++ restOfNodes)) acc
 
                     else
-                        findCustomTypesHelp lookupTable restOfNodes acc
+                        findCustomTypes lookupTable restOfNodes acc
 
                 Expression.OperatorApplication _ _ left right ->
-                    findCustomTypesHelp lookupTable (left :: right :: restOfNodes) acc
+                    findCustomTypes lookupTable (left :: right :: restOfNodes) acc
 
                 Expression.Negation expression ->
-                    findCustomTypesHelp lookupTable (expression :: restOfNodes) acc
+                    findCustomTypes lookupTable (expression :: restOfNodes) acc
 
                 Expression.ListExpr expressions ->
-                    findCustomTypesHelp lookupTable (expressions ++ restOfNodes) acc
+                    findCustomTypes lookupTable (expressions ++ restOfNodes) acc
 
                 _ ->
-                    findCustomTypesHelp lookupTable restOfNodes acc
+                    findCustomTypes lookupTable restOfNodes acc
 
 
 registerUsedPatterns : List ( ( ModuleName, String ), Set Int ) -> Dict ( ModuleName, String ) (Set Int) -> Dict ( ModuleName, String ) (Set Int)
