@@ -6,6 +6,7 @@ module NoUnused.CustomTypeConstructorArgs exposing (rule)
 
 -}
 
+import Array exposing (Array)
 import Dict exposing (Dict)
 import Elm.Module
 import Elm.Project
@@ -128,6 +129,16 @@ type alias ModuleContext =
             -}
             (Maybe (List Range))
     , customTypesNotToReport : Set ( ModuleName, TypeNameS )
+
+    -- Function calls
+    , functionCallsWithArguments : Dict ( ModuleName, ConstructorName ) (List CallSite)
+    , locationsToIgnoreFunctionCalls : List Location
+    }
+
+
+type alias CallSite =
+    { fnNameEnd : Location
+    , arguments : Array (Node Expression)
     }
 
 
@@ -215,6 +226,8 @@ fromProjectToModule =
             , customTypeArgs = []
             , unusedArgumentsInPatterns = Dict.empty
             , customTypesNotToReport = Set.empty
+            , functionCallsWithArguments = Dict.empty
+            , locationsToIgnoreFunctionCalls = []
             }
         )
         |> Rule.withModuleNameLookupTable
@@ -349,7 +362,10 @@ declarationVisitor (Node _ node) context =
                 unusedArgumentsInPatterns =
                     collectCustomTypeArgsInPatterns context (Node.value function.declaration).arguments context.unusedArgumentsInPatterns
             in
-            { context | unusedArgumentsInPatterns = unusedArgumentsInPatterns }
+            { context
+                | unusedArgumentsInPatterns = unusedArgumentsInPatterns
+                , locationsToIgnoreFunctionCalls = []
+            }
 
         Declaration.CustomTypeDeclaration typeDeclaration ->
             let
@@ -394,8 +410,42 @@ createArguments lookupTable arguments =
 
 
 expressionVisitor : Node Expression -> ModuleContext -> ModuleContext
-expressionVisitor (Node _ node) context =
+expressionVisitor (Node range node) context =
     case node of
+        Expression.FunctionOrValue _ name ->
+            registerFunctionCallReference name range [] context
+
+        Expression.Application ((Node fnRange (Expression.FunctionOrValue _ fnName)) :: arguments) ->
+            registerFunctionCallReference fnName fnRange arguments context
+
+        Expression.OperatorApplication "|>" _ (Node { start } lastArg) (Node applicationRange (Expression.Application ((Node fnRange (Expression.FunctionOrValue _ fnName)) :: arguments))) ->
+            registerFunctionCallReference
+                fnName
+                fnRange
+                (arguments ++ [ Node { start = start, end = applicationRange.start } lastArg ])
+                context
+
+        Expression.OperatorApplication "|>" _ (Node { start } lastArg) (Node fnRange (Expression.FunctionOrValue _ fnName)) ->
+            registerFunctionCallReference
+                fnName
+                fnRange
+                [ Node { start = start, end = fnRange.start } lastArg ]
+                context
+
+        Expression.OperatorApplication "<|" _ (Node applicationRange (Expression.Application ((Node fnRange (Expression.FunctionOrValue _ fnName)) :: arguments))) (Node { end } lastArg) ->
+            registerFunctionCallReference
+                fnName
+                fnRange
+                (arguments ++ [ Node { start = applicationRange.end, end = end } lastArg ])
+                context
+
+        Expression.OperatorApplication "<|" _ (Node fnRange (Expression.FunctionOrValue _ fnName)) (Node { end } lastArg) ->
+            registerFunctionCallReference
+                fnName
+                fnRange
+                [ Node { start = fnRange.end, end = end } lastArg ]
+                context
+
         Expression.CaseExpression { cases } ->
             let
                 unusedArgumentsInPatterns : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
@@ -621,6 +671,35 @@ isWildcard (Node _ node) =
             False
 
 
+registerFunctionCallReference : ConstructorName -> Range -> List (Node Expression) -> ModuleContext -> ModuleContext
+registerFunctionCallReference fnName fnRange arguments context =
+    if String.Extra.isCapitalized fnName && not (List.member fnRange.start context.locationsToIgnoreFunctionCalls) then
+        case ModuleNameLookupTable.fullModuleNameAt context.lookupTable fnRange of
+            Just moduleName ->
+                if Set.member moduleName context.dependencyModules then
+                    context
+
+                else
+                    let
+                        functionCallsWithArguments : Dict ( ModuleName, ConstructorName ) (List CallSite)
+                        functionCallsWithArguments =
+                            insertInDictList
+                                ( moduleName, fnName )
+                                { fnNameEnd = fnRange.end, arguments = Array.fromList arguments }
+                                context.functionCallsWithArguments
+                    in
+                    { context
+                        | functionCallsWithArguments = functionCallsWithArguments
+                        , locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls
+                    }
+
+            Nothing ->
+                context
+
+    else
+        context
+
+
 
 -- FINAL EVALUATION
 
@@ -725,3 +804,14 @@ error moduleKey previousRange range patterns =
         }
         range
         |> Rule.withFixesV2 fixes
+
+
+insertInDictList : comparable -> value -> Dict comparable (List value) -> Dict comparable (List value)
+insertInDictList key value dict =
+    let
+        previous : List value
+        previous =
+            Dict.get key dict
+                |> Maybe.withDefault []
+    in
+    Dict.insert key (value :: previous) dict
