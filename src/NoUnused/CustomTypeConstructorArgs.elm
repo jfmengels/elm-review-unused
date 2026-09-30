@@ -234,25 +234,11 @@ fromModuleToProject =
                     , constructors = getNonPublicConstructors moduleContext
                     }
             , unusedArgumentsInPatterns = Dict.map (\_ args -> Maybe.map (\args_ -> [ { moduleKey = moduleKey, args = args_ } ]) args) moduleContext.unusedArgumentsInPatterns
-            , customTypesNotToReport = replaceLocalModuleNameForSet moduleName moduleContext.customTypesNotToReport
+            , customTypesNotToReport = moduleContext.customTypesNotToReport
             }
         )
         |> Rule.withModuleKey
         |> Rule.withModuleName
-
-
-replaceLocalModuleNameForSet : ModuleName -> Set ( ModuleName, comparable ) -> Set ( ModuleName, comparable )
-replaceLocalModuleNameForSet moduleName set =
-    Set.map
-        (\(( moduleNameForType, name ) as untouched) ->
-            case moduleNameForType of
-                [] ->
-                    ( moduleName, name )
-
-                _ ->
-                    untouched
-        )
-        set
 
 
 {-| Get all custom types from the module whose constructors are not part of the public API of the package.
@@ -464,7 +450,7 @@ findCustomTypes context nodes acc =
                         let
                             moduleName : ModuleName
                             moduleName =
-                                ModuleNameLookupTable.moduleNameAt context.lookupTable range
+                                ModuleNameLookupTable.fullModuleNameAt context.lookupTable range
                                     |> Maybe.withDefault rawModuleName
                         in
                         if Set.member moduleName context.dependencyModules then
