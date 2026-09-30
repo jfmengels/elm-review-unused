@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Improved the error message for [`NoUnused.CustomTypeConstructorArgs`].
 - [`NoUnused.Parameters`] now automatically removes the argument from call sites when it's alone and passed through a pipe operator.
 - [`NoUnused.Exports`] now automatically removes the exposing of custom type constructors with exposed types.
 - [`NoUnused.Exports`] now removes the `port` keyword in the module definition when removing the last `port` declaration.
@@ -36,13 +37,13 @@ value = ()
 ## [1.2.4] - 2025-02-11
 
 Now requires `jfmengels/elm-review` v2.15.0.
-`NoUnused.CustomTypeConstructors` provides automatic fixes even if the unused constructor is referenced in other files.
+[`NoUnused.CustomTypeConstructors`] provides automatic fixes even if the unused constructor is referenced in other files.
 
-`NoUnused.Exports` now provides an automatic fix to remove unused modules when using `elm-review --fix --allow-remove-files`.
+[`NoUnused.Exports`] now provides an automatic fix to remove unused modules when using `elm-review --fix --allow-remove-files`.
 
 ## [1.2.3] - 2024-04-10
 
-`NoUnused.Variables` now finds unused imported functions when they have been shadowed by let destructuring variables. Thanks [@matzko](https://github.com/matzko).
+[`NoUnused.Variables`] now finds unused imported functions when they have been shadowed by let destructuring variables. Thanks [@matzko](https://github.com/matzko).
 
 ## [1.2.2] - 2024-04-02
 
@@ -94,14 +95,14 @@ This version merges the [`NoUnused.Modules`] into the [`NoUnused.Exports`] rule.
 
 A common issue when running `elm-review --fix` (or `--fix-all`) was when you had the two rules enabled and encountered an unused module.
 
-While in fix mode, `NoUnused.Exports` would remove every export one at a time, which would likely be followed by
+While in fix mode, [`NoUnused.Exports`] would remove every export one at a time, which would likely be followed by
 [`NoUnused.Variables`] removing the previously exported element. This would go on until the module is as empty as it can
-be. At this point, you would finally be able to see `NoUnused.Modules`'s error indicating that the module is unused.
+be. At this point, you would finally be able to see [`NoUnused.Modules`]'s error indicating that the module is unused.
 
 Whether you want to remove the module or use it somewhere in response to this message, this is a lot of unnecessary work
 for you and/or the tool, making `--fix-all` painfully long.
 
-By having the `NoUnused.Exports` do the work of both rules, and not reporting any unused exports when the entire module
+By having the [`NoUnused.Exports`] do the work of both rules, and not reporting any unused exports when the entire module
 is unused, this situation should not happen anymore, or not as exacerbated.
 
 [`NoUnused.Modules`] is therefore now deprecated and should not be used anymore. It is removed from the `example`

@@ -9,14 +9,9 @@ import Review.Test.Dependencies
 import Test exposing (Test, describe, test)
 
 
-message : String
-message =
-    "Argument is never extracted and therefore never used."
-
-
 details : List String
 details =
-    [ "This argument is never used. You should either use it somewhere, or remove it at the location I pointed at."
+    [ "This field is never extracted and therefore never used. You should either use it somewhere, or remove it at the location I pointed at."
     ]
 
 
@@ -38,7 +33,7 @@ something =
                     |> Review.Test.run rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
-                            { message = message
+                            { message = "The 1st field of B is never used"
                             , details = details
                             , under = "B_Data"
                             }
@@ -68,7 +63,7 @@ something =
                     |> Review.Test.run rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
-                            { message = message
+                            { message = "The 1st field of B is never used"
                             , details = details
                             , under = "B_Data"
                             }
@@ -112,7 +107,7 @@ something =
                     |> Review.Test.run rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
-                            { message = message
+                            { message = "The 1st field of Constructor is never used"
                             , details = details
                             , under = "SomeData"
                             }
@@ -298,7 +293,7 @@ something =
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
-                            { message = message
+                            { message = "The 1st field of Constructor is never used"
                             , details = details
                             , under = "SomeData"
                             }
@@ -328,7 +323,7 @@ something =
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
-                            { message = message
+                            { message = "The 1st field of Constructor is never used"
                             , details = details
                             , under = "SomeData"
                             }
@@ -386,7 +381,7 @@ something =
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
-                            { message = message
+                            { message = "The 1st field of Constructor is never used"
                             , details = details
                             , under = "SomeData"
                             }
@@ -416,7 +411,7 @@ something =
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
-                            { message = message
+                            { message = "The 1st field of Constructor is never used"
                             , details = details
                             , under = "SomeData"
                             }
@@ -489,7 +484,7 @@ type CustomType
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
-                            { message = message
+                            { message = "The 1st field of B is never used"
                             , details = details
                             , under = "SomeData"
                             }
@@ -541,7 +536,7 @@ b = B
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
-                            { message = message
+                            { message = "The 1st field of Unused is never used"
                             , details = details
                             , under = "Int"
                             }
@@ -563,7 +558,7 @@ b = Ö_B
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
-                            { message = message
+                            { message = "The 1st field of Ö_Unused is never used"
                             , details = details
                             , under = "Int"
                             }
@@ -648,7 +643,7 @@ b = B
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectErrors
                         [ Review.Test.error
-                            { message = message
+                            { message = "The 1st field of Unused is never used"
                             , details = details
                             , under = "Int"
                             }

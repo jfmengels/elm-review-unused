@@ -785,10 +785,10 @@ errorsForUnusedArguments unusedArgumentsInPatterns moduleKeyForTargetFile module
                             acc
 
                         Just (Just list) ->
-                            error moduleKeyForTargetFile previousRange range list :: acc
+                            error moduleKeyForTargetFile constructorName index previousRange range list :: acc
 
                         Nothing ->
-                            error moduleKeyForTargetFile previousRange range [] :: acc
+                            error moduleKeyForTargetFile constructorName index previousRange range [] :: acc
             in
             errorsForUnusedArguments
                 unusedArgumentsInPatterns
@@ -803,11 +803,13 @@ errorsForUnusedArguments unusedArgumentsInPatterns moduleKeyForTargetFile module
 
 error :
     Rule.ModuleKey
+    -> String
+    -> Int
     -> Range
     -> Range
     -> List { moduleKey : Rule.ModuleKey, args : List Range }
     -> Error scope
-error moduleKey previousRange range patterns =
+error moduleKey constructorName index previousRange range patterns =
     let
         fixes : List Rule.FixV2
         fixes =
@@ -822,13 +824,34 @@ error moduleKey previousRange range patterns =
                     patterns
     in
     Rule.errorForModule moduleKey
-        { message = "Argument is never extracted and therefore never used."
+        { message = "The " ++ toOrdinal (index + 1) ++ " field of " ++ constructorName ++ " is never used"
         , details =
-            [ "This argument is never used. You should either use it somewhere, or remove it at the location I pointed at."
+            [ "This field is never extracted and therefore never used. You should either use it somewhere, or remove it at the location I pointed at."
             ]
         }
         range
         |> Rule.withFixesV2 fixes
+
+
+toOrdinal : Int -> String
+toOrdinal n =
+    let
+        lastDigit : Int
+        lastDigit =
+            Basics.modBy 10 n
+
+        suffix : String
+        suffix =
+            if lastDigit == 1 then
+                "st"
+
+            else if lastDigit == 2 then
+                "nd"
+
+            else
+                "th"
+    in
+    String.fromInt n ++ suffix ++ ""
 
 
 insertInDictList : comparable -> value -> Dict comparable (List value) -> Dict comparable (List value)
