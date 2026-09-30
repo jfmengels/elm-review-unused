@@ -103,15 +103,15 @@ type alias ProjectContext =
     , constructorsPerModule : Dict ModuleName ModuleConstructors
     , unusedArgumentsInPatterns :
         Dict
-            ( Int, ModuleName, ConstructorName )
+            ( Int, ConstructorName, ModuleName )
             {- `Just [ ... ]` is the list of unused arguments.
                `Just Nothing` means we have found at least one location where it's used, and we don't want to report it.
             -}
             (Maybe (List { moduleKey : Rule.ModuleKey, args : List Range }))
-    , customTypesNotToReport : Set ( ModuleName, TypeNameS )
+    , customTypesNotToReport : Set ( TypeNameS, ModuleName )
     , functionCallsWithArguments :
         Dict
-            ( ModuleName, ConstructorName )
+            ( ConstructorName, ModuleName )
             (List { moduleKey : Rule.ModuleKey, callSites : List CallSite })
     }
 
@@ -130,15 +130,15 @@ type alias ModuleContext =
     , customTypeArgs : List ( TypeName, Dict ConstructorName { nameRange : Range, args : List Range } )
     , unusedArgumentsInPatterns :
         Dict
-            ( Int, ModuleName, ConstructorName )
+            ( Int, ConstructorName, ModuleName )
             {- `Just [ ... ]` is the list of unused arguments.
                `Just Nothing` means we have found at least one location where it's used, and we don't want to report it.
             -}
             (Maybe (List Range))
-    , customTypesNotToReport : Set ( ModuleName, TypeNameS )
+    , customTypesNotToReport : Set ( TypeNameS, ModuleName )
 
     -- Function calls
-    , functionCallsWithArguments : Dict ( ModuleName, ConstructorName ) (List CallSite)
+    , functionCallsWithArguments : Dict ( ConstructorName, ModuleName ) (List CallSite)
     , locationsToIgnoreFunctionCalls : List Location
     }
 
@@ -341,9 +341,9 @@ foldProjectContexts newContext previousContext =
 
 
 mergeFunctionCallsWithArguments :
-    Dict ( ModuleName, ConstructorName ) (List { moduleKey : Rule.ModuleKey, callSites : List CallSite })
-    -> Dict ( ModuleName, ConstructorName ) (List { moduleKey : Rule.ModuleKey, callSites : List CallSite })
-    -> Dict ( ModuleName, ConstructorName ) (List { moduleKey : Rule.ModuleKey, callSites : List CallSite })
+    Dict ( ConstructorName, ModuleName ) (List { moduleKey : Rule.ModuleKey, callSites : List CallSite })
+    -> Dict ( ConstructorName, ModuleName ) (List { moduleKey : Rule.ModuleKey, callSites : List CallSite })
+    -> Dict ( ConstructorName, ModuleName ) (List { moduleKey : Rule.ModuleKey, callSites : List CallSite })
 mergeFunctionCallsWithArguments new previous =
     Dict.foldl
         (\key newDict acc ->
@@ -386,7 +386,7 @@ declarationVisitor (Node _ node) context =
     case node of
         Declaration.FunctionDeclaration function ->
             let
-                unusedArgumentsInPatterns : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+                unusedArgumentsInPatterns : Dict ( Int, ConstructorName, ModuleName ) (Maybe (List Range))
                 unusedArgumentsInPatterns =
                     collectCustomTypeArgsInPatterns context (Node.value function.declaration).arguments context.unusedArgumentsInPatterns
             in
@@ -476,7 +476,7 @@ expressionVisitor (Node range node) context =
 
         Expression.CaseExpression { cases } ->
             let
-                unusedArgumentsInPatterns : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+                unusedArgumentsInPatterns : Dict ( Int, ConstructorName, ModuleName ) (Maybe (List Range))
                 unusedArgumentsInPatterns =
                     collectCustomTypeArgsInPatterns
                         context
@@ -487,7 +487,7 @@ expressionVisitor (Node range node) context =
 
         Expression.LetExpression { declarations } ->
             let
-                unusedArgumentsInPatterns : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+                unusedArgumentsInPatterns : Dict ( Int, ConstructorName, ModuleName ) (Maybe (List Range))
                 unusedArgumentsInPatterns =
                     List.foldl
                         (\(Node _ declaration) acc ->
@@ -505,7 +505,7 @@ expressionVisitor (Node range node) context =
 
         Expression.LambdaExpression { args } ->
             let
-                unusedArgumentsInPatterns : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+                unusedArgumentsInPatterns : Dict ( Int, ConstructorName, ModuleName ) (Maybe (List Range))
                 unusedArgumentsInPatterns =
                     collectCustomTypeArgsInPatterns context args context.unusedArgumentsInPatterns
             in
@@ -529,7 +529,7 @@ expressionVisitor (Node range node) context =
             context
 
 
-findCustomTypes : ModuleContext -> List (Node Expression) -> Set ( ModuleName, String ) -> Set ( ModuleName, String )
+findCustomTypes : ModuleContext -> List (Node Expression) -> Set ( String, ModuleName ) -> Set ( String, ModuleName )
 findCustomTypes context nodes acc =
     case nodes of
         [] ->
@@ -549,7 +549,7 @@ findCustomTypes context nodes acc =
                             findCustomTypes context restOfNodes acc
 
                         else
-                            findCustomTypes context restOfNodes (Set.insert ( moduleName, functionName ) acc)
+                            findCustomTypes context restOfNodes (Set.insert ( functionName, moduleName ) acc)
 
                     else
                         findCustomTypes context restOfNodes acc
@@ -583,8 +583,8 @@ findCustomTypes context nodes acc =
 collectCustomTypeArgsInPatterns :
     ModuleContext
     -> List (Node Pattern)
-    -> Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
-    -> Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+    -> Dict ( Int, ConstructorName, ModuleName ) (Maybe (List Range))
+    -> Dict ( Int, ConstructorName, ModuleName ) (Maybe (List Range))
 collectCustomTypeArgsInPatterns context nodes acc =
     case nodes of
         [] ->
@@ -594,7 +594,7 @@ collectCustomTypeArgsInPatterns context nodes acc =
             case pattern of
                 Pattern.NamedPattern ref args ->
                     let
-                        newAcc : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+                        newAcc : Dict ( Int, ConstructorName, ModuleName ) (Maybe (List Range))
                         newAcc =
                             case ModuleNameLookupTable.fullModuleNameAt context.lookupTable range of
                                 Just moduleName ->
@@ -635,7 +635,7 @@ collectCustomTypeArgsInPatterns context nodes acc =
                     collectCustomTypeArgsInPatterns context restOfNodes acc
 
 
-getUnusedConstructorFields : ModuleName -> ConstructorName -> Int -> List (Node Pattern) -> Location -> Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range)) -> Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+getUnusedConstructorFields : ModuleName -> ConstructorName -> Int -> List (Node Pattern) -> Location -> Dict ( Int, ConstructorName, ModuleName ) (Maybe (List Range)) -> Dict ( Int, ConstructorName, ModuleName ) (Maybe (List Range))
 getUnusedConstructorFields moduleName constructorName index arguments previousEnd acc =
     case arguments of
         [] ->
@@ -643,11 +643,11 @@ getUnusedConstructorFields moduleName constructorName index arguments previousEn
 
         arg :: restOfArgs ->
             let
-                key : ( Int, ModuleName, ConstructorName )
+                key : ( Int, ConstructorName, ModuleName )
                 key =
-                    ( index, moduleName, constructorName )
+                    ( index, constructorName, moduleName )
 
-                newAcc : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+                newAcc : Dict ( Int, ConstructorName, ModuleName ) (Maybe (List Range))
                 newAcc =
                     case Dict.get key acc of
                         Just Nothing ->
@@ -671,12 +671,12 @@ getUnusedConstructorFields moduleName constructorName index arguments previousEn
 
 
 addWildcardPosition :
-    ( Int, ModuleName, ConstructorName )
+    ( Int, ConstructorName, ModuleName )
     -> Location
     -> Node Pattern
     -> List Range
-    -> Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
-    -> Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+    -> Dict ( Int, ConstructorName, ModuleName ) (Maybe (List Range))
+    -> Dict ( Int, ConstructorName, ModuleName ) (Maybe (List Range))
 addWildcardPosition key previousEnd arg list acc =
     if isWildcard arg then
         Dict.insert key (Just ({ start = previousEnd, end = (Node.range arg).end } :: list)) acc
@@ -709,10 +709,10 @@ registerFunctionCallReference fnName fnRange arguments context =
 
                 else
                     let
-                        functionCallsWithArguments : Dict ( ModuleName, ConstructorName ) (List CallSite)
+                        functionCallsWithArguments : Dict ( ConstructorName, ModuleName ) (List CallSite)
                         functionCallsWithArguments =
                             insertInDictList
-                                ( moduleName, fnName )
+                                ( fnName, moduleName )
                                 { fnNameEnd = fnRange.end, arguments = Array.fromList arguments }
                                 context.functionCallsWithArguments
                     in
@@ -742,9 +742,9 @@ finalEvaluationForSingleModule context moduleName { moduleKey, constructors } pr
     Dict.foldl
         (\constructorName { nameRange, args } acc ->
             let
-                key : ( ModuleName, ConstructorName )
+                key : ( ConstructorName, ModuleName )
                 key =
-                    ( moduleName, constructorName )
+                    ( constructorName, moduleName )
             in
             if Set.member key context.customTypesNotToReport then
                 acc
@@ -786,7 +786,7 @@ errorsForUnusedArguments context moduleKey moduleName constructorName index prev
                     let
                         callSitesPerFile : List { moduleKey : Rule.ModuleKey, callSites : List CallSite }
                         callSitesPerFile =
-                            Dict.get ( moduleName, constructorName ) context.functionCallsWithArguments
+                            Dict.get ( constructorName, moduleName ) context.functionCallsWithArguments
                                 |> Maybe.withDefault []
                     in
                     error
@@ -800,7 +800,7 @@ errorsForUnusedArguments context moduleKey moduleName constructorName index prev
 
                 newAcc : List (Error anywhere)
                 newAcc =
-                    case Dict.get ( index, moduleName, constructorName ) context.unusedArgumentsInPatterns of
+                    case Dict.get ( index, constructorName, moduleName ) context.unusedArgumentsInPatterns of
                         Just Nothing ->
                             acc
 
