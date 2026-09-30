@@ -106,6 +106,10 @@ type alias ProjectContext =
             -}
             (Maybe (List { moduleKey : Rule.ModuleKey, args : List Range }))
     , customTypesNotToReport : Set ( ModuleName, TypeNameS )
+    , functionCallsWithArguments :
+        Dict
+            ( ModuleName, ConstructorName )
+            (List { moduleKey : Rule.ModuleKey, callSites : List CallSite })
     }
 
 
@@ -212,6 +216,7 @@ initialProjectContext =
     , constructorsPerModule = Dict.empty
     , unusedArgumentsInPatterns = Dict.empty
     , customTypesNotToReport = Set.empty
+    , functionCallsWithArguments = Dict.empty
     }
 
 
@@ -248,6 +253,7 @@ fromModuleToProject =
                     }
             , unusedArgumentsInPatterns = Dict.map (\_ args -> Maybe.map (\args_ -> [ { moduleKey = moduleKey, args = args_ } ]) args) moduleContext.unusedArgumentsInPatterns
             , customTypesNotToReport = moduleContext.customTypesNotToReport
+            , functionCallsWithArguments = Dict.map (\_ callSites -> [ { moduleKey = moduleKey, callSites = callSites } ]) moduleContext.functionCallsWithArguments
             }
         )
         |> Rule.withModuleKey
@@ -327,7 +333,26 @@ foldProjectContexts newContext previousContext =
             newContext.unusedArgumentsInPatterns
             previousContext.unusedArgumentsInPatterns
     , customTypesNotToReport = Set.union newContext.customTypesNotToReport previousContext.customTypesNotToReport
+    , functionCallsWithArguments = mergeFunctionCallsWithArguments previousContext.functionCallsWithArguments newContext.functionCallsWithArguments
     }
+
+
+mergeFunctionCallsWithArguments :
+    Dict ( ModuleName, ConstructorName ) (List { moduleKey : Rule.ModuleKey, callSites : List CallSite })
+    -> Dict ( ModuleName, ConstructorName ) (List { moduleKey : Rule.ModuleKey, callSites : List CallSite })
+    -> Dict ( ModuleName, ConstructorName ) (List { moduleKey : Rule.ModuleKey, callSites : List CallSite })
+mergeFunctionCallsWithArguments new previous =
+    Dict.foldl
+        (\key newDict acc ->
+            case Dict.get key acc of
+                Just previousList ->
+                    Dict.insert key (newDict ++ previousList) acc
+
+                Nothing ->
+                    Dict.insert key newDict acc
+        )
+        previous
+        new
 
 
 
