@@ -351,17 +351,10 @@ fromModuleToProject =
                                 else
                                     case Dict.get arg.functionName moduleContext.functionCallsWithArguments of
                                         Just callSites ->
-                                            let
-                                                key : ( ModuleName, FunctionName )
-                                                key =
-                                                    ( moduleName, arg.functionName )
-                                            in
-                                            case Dict.get key functionCallsWithArguments of
-                                                Just previous ->
-                                                    Dict.insert key ({ key = moduleKey, isFileFixable = isFileFixable, callSites = callSites } :: previous) functionCallsWithArguments
-
-                                                Nothing ->
-                                                    Dict.insert key [ { key = moduleKey, isFileFixable = isFileFixable, callSites = callSites } ] functionCallsWithArguments
+                                            insertInDictList
+                                                ( moduleName, arg.functionName )
+                                                { key = moduleKey, isFileFixable = isFileFixable, callSites = callSites }
+                                                functionCallsWithArguments
 
                                         Nothing ->
                                             functionCallsWithArguments
@@ -402,17 +395,10 @@ fromModuleToProject =
                                         , functionCallsWithArguments =
                                             case Dict.get arg.functionName moduleContext.functionCallsWithArguments of
                                                 Just callSites ->
-                                                    let
-                                                        key : ( ModuleName, FunctionName )
-                                                        key =
-                                                            ( moduleName, arg.functionName )
-                                                    in
-                                                    case Dict.get key acc.functionCallsWithArguments of
-                                                        Just previous ->
-                                                            Dict.insert key ({ key = moduleKey, isFileFixable = isFileFixable, callSites = callSites } :: previous) acc.functionCallsWithArguments
-
-                                                        Nothing ->
-                                                            Dict.insert key [ { key = moduleKey, isFileFixable = isFileFixable, callSites = callSites } ] acc.functionCallsWithArguments
+                                                    insertInDictList
+                                                        ( moduleName, arg.functionName )
+                                                        { key = moduleKey, isFileFixable = isFileFixable, callSites = callSites }
+                                                        acc.functionCallsWithArguments
 
                                                 Nothing ->
                                                     acc.functionCallsWithArguments
@@ -1006,12 +992,10 @@ registerExternalFunctionReference moduleName fnName fnRange arguments context =
         let
             functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List CallSite)
             functionCallsWithArgumentsForOtherModules =
-                case Dict.get key context.functionCallsWithArgumentsForOtherModules of
-                    Just previous ->
-                        Dict.insert key ({ fnNameEnd = fnRange.end, arguments = Array.fromList arguments } :: previous) context.functionCallsWithArgumentsForOtherModules
-
-                    Nothing ->
-                        Dict.insert key [ { fnNameEnd = fnRange.end, arguments = Array.fromList arguments } ] context.functionCallsWithArgumentsForOtherModules
+                insertInDictList
+                    key
+                    { fnNameEnd = fnRange.end, arguments = Array.fromList arguments }
+                    context.functionCallsWithArgumentsForOtherModules
         in
         { context | functionCallsWithArgumentsForOtherModules = functionCallsWithArgumentsForOtherModules }
 
@@ -1021,15 +1005,15 @@ registerExternalFunctionReference moduleName fnName fnRange arguments context =
 
 registerLocalFunctionReference : FunctionName -> Location -> Array (Node Expression) -> ModuleContext -> ModuleContext
 registerLocalFunctionReference fnName fnNameEnd arguments context =
-    { context
-        | functionCallsWithArguments =
-            case Dict.get fnName context.functionCallsWithArguments of
-                Just previous ->
-                    Dict.insert fnName ({ fnNameEnd = fnNameEnd, arguments = arguments } :: previous) context.functionCallsWithArguments
-
-                Nothing ->
-                    Dict.insert fnName [ { fnNameEnd = fnNameEnd, arguments = arguments } ] context.functionCallsWithArguments
-    }
+    let
+        functionCallsWithArguments : Dict FunctionName (List { fnNameEnd : Location, arguments : Array (Node Expression) })
+        functionCallsWithArguments =
+            insertInDictList
+                fnName
+                { fnNameEnd = fnNameEnd, arguments = arguments }
+                context.functionCallsWithArguments
+    in
+    { context | functionCallsWithArguments = functionCallsWithArguments }
 
 
 ignoreLocationsForRecursiveArguments : FunctionArgs -> List (Node Expression) -> Int -> LocationsToIgnore -> LocationsToIgnore
@@ -1300,12 +1284,13 @@ accumulate { reportLater, reportNow, remainingUsed } reportTime =
 
 insertInDictList : comparable -> value -> Dict comparable (List value) -> Dict comparable (List value)
 insertInDictList key value dict =
-    case Dict.get key dict of
-        Nothing ->
-            Dict.insert key [ value ] dict
-
-        Just previous ->
-            Dict.insert key (value :: previous) dict
+    let
+        previous : List value
+        previous =
+            Dict.get key dict
+                |> Maybe.withDefault []
+    in
+    Dict.insert key (value :: previous) dict
 
 
 findDeclared : String -> Source -> Location -> List (Node Pattern) -> Maybe (Node Signature) -> List (List Declared)
