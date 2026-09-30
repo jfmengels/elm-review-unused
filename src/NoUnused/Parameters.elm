@@ -950,22 +950,21 @@ registerFunctionCallReference fnName fnRange arguments context =
     if isVariableOrFunctionName fnName && not (List.member fnRange.start context.locationsToIgnoreFunctionCalls) then
         case ModuleNameLookupTable.moduleNameAt context.lookupTable fnRange of
             Just [] ->
-                case Dict.get fnName context.recursiveFunctions of
-                    Just fnArgs ->
-                        let
-                            locationsToIgnore : LocationsToIgnore
-                            locationsToIgnore =
+                let
+                    locationsToIgnoreForRecursiveArguments : LocationsToIgnore
+                    locationsToIgnoreForRecursiveArguments =
+                        case Dict.get fnName context.recursiveFunctions of
+                            Just fnArgs ->
                                 ignoreLocationsForRecursiveArguments fnArgs arguments 0 context.locationsToIgnoreForRecursiveArguments
-                        in
-                        { context
-                            | locationsToIgnoreForRecursiveArguments = locationsToIgnore
-                            , locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls
-                        }
-                            |> registerLocalFunctionReference fnName fnRange.end (Array.fromList arguments)
 
-                    Nothing ->
-                        { context | locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls }
-                            |> registerLocalFunctionReference fnName fnRange.end (Array.fromList arguments)
+                            Nothing ->
+                                context.locationsToIgnoreForRecursiveArguments
+                in
+                { context
+                    | locationsToIgnoreForRecursiveArguments = locationsToIgnoreForRecursiveArguments
+                    , locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls
+                }
+                    |> registerLocalFunctionReference fnName fnRange.end (Array.fromList arguments)
 
             Just moduleName ->
                 registerExternalFunctionReference moduleName
