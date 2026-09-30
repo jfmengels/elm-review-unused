@@ -860,11 +860,25 @@ expressionEnterVisitor (Node range node) context =
                 (arguments ++ [ Node { start = start, end = applicationRange.start } lastArg ])
                 context
 
+        Expression.OperatorApplication "|>" _ (Node { start } lastArg) (Node fnRange (Expression.FunctionOrValue _ fnName)) ->
+            registerFunctionCallReference
+                fnName
+                fnRange
+                [ Node { start = start, end = fnRange.start } lastArg ]
+                context
+
         Expression.OperatorApplication "<|" _ (Node applicationRange (Expression.Application ((Node fnRange (Expression.FunctionOrValue _ fnName)) :: arguments))) (Node { end } lastArg) ->
             registerFunctionCallReference
                 fnName
                 fnRange
                 (arguments ++ [ Node { start = applicationRange.end, end = end } lastArg ])
+                context
+
+        Expression.OperatorApplication "<|" _ (Node fnRange (Expression.FunctionOrValue _ fnName)) (Node { end } lastArg) ->
+            registerFunctionCallReference
+                fnName
+                fnRange
+                [ Node { start = fnRange.end, end = end } lastArg ]
                 context
 
         _ ->

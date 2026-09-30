@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- [`NoUnused.Parameters`] now automatically removes the argument from call sites when it's alone and passed through a pipe operator.
 - [`NoUnused.Exports`] now automatically removes the exposing of custom type constructors with exposed types.
 - [`NoUnused.Exports`] now removes the `port` keyword in the module definition when removing the last `port` declaration.
 
