@@ -97,7 +97,6 @@ type alias ProjectContext =
     { exposedModules : Set ModuleName
     , dependencyModules : Set ModuleName
     , constructorsPerModule : Dict ModuleName ModuleConstructors
-    , usedArguments : Dict ( ModuleName, ConstructorName ) (Set Int)
     , unusedArgumentsInPatterns :
         Dict
             ( Int, ModuleName, ConstructorName )
@@ -121,7 +120,6 @@ type alias ModuleContext =
     , exposed : Exposing
     , dependencyModules : Set ModuleName
     , customTypeArgs : List ( TypeName, Dict ConstructorName { nameRange : Range, args : List Range } )
-    , usedArguments : Dict ( ModuleName, ConstructorName ) (Set Int)
     , unusedArgumentsInPatterns :
         Dict
             ( Int, ModuleName, ConstructorName )
@@ -201,7 +199,6 @@ initialProjectContext =
     { exposedModules = Set.empty
     , dependencyModules = Set.empty
     , constructorsPerModule = Dict.empty
-    , usedArguments = Dict.empty
     , unusedArgumentsInPatterns = Dict.empty
     , customTypesNotToReport = Set.empty
     }
@@ -216,7 +213,6 @@ fromProjectToModule =
             , dependencyModules = projectContext.dependencyModules
             , exposed = Exposing.Explicit []
             , customTypeArgs = []
-            , usedArguments = Dict.empty
             , unusedArgumentsInPatterns = Dict.empty
             , customTypesNotToReport = Set.empty
             }
@@ -237,7 +233,6 @@ fromModuleToProject =
                     { moduleKey = moduleKey
                     , constructors = getNonPublicConstructors moduleContext
                     }
-            , usedArguments = replaceLocalModuleNameForDict moduleName moduleContext.usedArguments
             , unusedArgumentsInPatterns = Dict.map (\_ args -> Maybe.map (\args_ -> [ { moduleKey = moduleKey, args = args_ } ]) args) moduleContext.unusedArgumentsInPatterns
             , customTypesNotToReport = replaceLocalModuleNameForSet moduleName moduleContext.customTypesNotToReport
             }
@@ -258,26 +253,6 @@ replaceLocalModuleNameForSet moduleName set =
                     untouched
         )
         set
-
-
-replaceLocalModuleNameForDict : ModuleName -> Dict ( ModuleName, comparable ) b -> Dict ( ModuleName, comparable ) b
-replaceLocalModuleNameForDict moduleName dict =
-    Dict.foldl
-        (\(( moduleNameForType, name ) as key) value acc ->
-            let
-                newKey : ( ModuleName, comparable )
-                newKey =
-                    case moduleNameForType of
-                        [] ->
-                            ( moduleName, name )
-
-                        _ ->
-                            key
-            in
-            Dict.insert newKey value acc
-        )
-        Dict.empty
-        dict
 
 
 {-| Get all custom types from the module whose constructors are not part of the public API of the package.
@@ -337,18 +312,6 @@ foldProjectContexts newContext previousContext =
         Dict.union
             newContext.constructorsPerModule
             previousContext.constructorsPerModule
-    , usedArguments =
-        Dict.foldl
-            (\key newSet acc ->
-                case Dict.get key acc of
-                    Just existingSet ->
-                        Dict.insert key (Set.union newSet existingSet) acc
-
-                    Nothing ->
-                        Dict.insert key newSet acc
-            )
-            previousContext.usedArguments
-            newContext.usedArguments
     , unusedArgumentsInPatterns =
         Dict.foldl
             (\key value dict ->
@@ -396,11 +359,7 @@ declarationVisitor (Node _ node) context =
     case node of
         Declaration.FunctionDeclaration function ->
             { context
-                | usedArguments =
-                    registerUsedPatterns
-                        (collectUsedPatternsFromFunctionDeclaration context function)
-                        context.usedArguments
-                , unusedArgumentsInPatterns = collectCustomTypeArgsInPatterns context (Node.value function.declaration).arguments context.unusedArgumentsInPatterns
+                | unusedArgumentsInPatterns = collectCustomTypeArgsInPatterns context (Node.value function.declaration).arguments context.unusedArgumentsInPatterns
             }
 
         Declaration.CustomTypeDeclaration typeDeclaration ->
@@ -441,11 +400,6 @@ createArguments lookupTable arguments =
         arguments
 
 
-collectUsedPatternsFromFunctionDeclaration : ModuleContext -> Expression.Function -> List ( ( ModuleName, ConstructorName ), Set Int )
-collectUsedPatternsFromFunctionDeclaration context { declaration } =
-    collectUsedCustomTypeArgs context.lookupTable (Node.value declaration).arguments
-
-
 
 -- EXPRESSION VISITOR
 
@@ -454,34 +408,13 @@ expressionVisitor : Node Expression -> ModuleContext -> ModuleContext
 expressionVisitor (Node _ node) context =
     case node of
         Expression.CaseExpression { cases } ->
-            let
-                usedArguments : List ( ( ModuleName, String ), Set Int )
-                usedArguments =
-                    collectUsedCustomTypeArgs context.lookupTable (List.map Tuple.first cases)
-            in
             { context
-                | usedArguments = registerUsedPatterns usedArguments context.usedArguments
-                , unusedArgumentsInPatterns = collectCustomTypeArgsInPatterns context (List.map Tuple.first cases) context.unusedArgumentsInPatterns
+                | unusedArgumentsInPatterns = collectCustomTypeArgsInPatterns context (List.map Tuple.first cases) context.unusedArgumentsInPatterns
             }
 
         Expression.LetExpression { declarations } ->
-            let
-                usedArguments : List ( ( ModuleName, String ), Set Int )
-                usedArguments =
-                    List.concatMap
-                        (\(Node _ declaration) ->
-                            case declaration of
-                                Expression.LetDestructuring pattern _ ->
-                                    collectUsedCustomTypeArgs context.lookupTable [ pattern ]
-
-                                Expression.LetFunction function ->
-                                    collectUsedPatternsFromFunctionDeclaration context function
-                        )
-                        declarations
-            in
             { context
-                | usedArguments = registerUsedPatterns usedArguments context.usedArguments
-                , unusedArgumentsInPatterns =
+                | unusedArgumentsInPatterns =
                     List.foldl
                         (\(Node _ declaration) acc ->
                             case declaration of
@@ -497,11 +430,7 @@ expressionVisitor (Node _ node) context =
 
         Expression.LambdaExpression { args } ->
             { context
-                | usedArguments =
-                    registerUsedPatterns
-                        (collectUsedCustomTypeArgs context.lookupTable args)
-                        context.usedArguments
-                , unusedArgumentsInPatterns = collectCustomTypeArgsInPatterns context args context.unusedArgumentsInPatterns
+                | unusedArgumentsInPatterns = collectCustomTypeArgsInPatterns context args context.unusedArgumentsInPatterns
             }
 
         Expression.OperatorApplication operator _ left right ->
@@ -522,7 +451,7 @@ expressionVisitor (Node _ node) context =
             context
 
 
-findCustomTypes : ModuleContext -> List (Node Expression) -> Set ( ModuleName, TypeNameS ) -> Set ( ModuleName, TypeNameS )
+findCustomTypes : ModuleContext -> List (Node Expression) -> Set ( ModuleName, String ) -> Set ( ModuleName, String )
 findCustomTypes context nodes acc =
     case nodes of
         [] ->
@@ -571,86 +500,6 @@ findCustomTypes context nodes acc =
 
                 _ ->
                     findCustomTypes context restOfNodes acc
-
-
-registerUsedPatterns : List ( ( ModuleName, String ), Set Int ) -> Dict ( ModuleName, String ) (Set Int) -> Dict ( ModuleName, String ) (Set Int)
-registerUsedPatterns newUsedArguments previouslyUsedArguments =
-    List.foldl
-        (\( key, usedPositions ) acc ->
-            let
-                previouslyUsedPositions : Set Int
-                previouslyUsedPositions =
-                    Dict.get key acc
-                        |> Maybe.withDefault Set.empty
-            in
-            Dict.insert key (Set.union previouslyUsedPositions usedPositions) acc
-        )
-        previouslyUsedArguments
-        newUsedArguments
-
-
-collectUsedCustomTypeArgs : ModuleNameLookupTable -> List (Node Pattern) -> List ( ( ModuleName, String ), Set Int )
-collectUsedCustomTypeArgs lookupTable nodes =
-    collectUsedCustomTypeArgsHelp lookupTable nodes []
-
-
-collectUsedCustomTypeArgsHelp : ModuleNameLookupTable -> List (Node Pattern) -> List ( ( ModuleName, String ), Set Int ) -> List ( ( ModuleName, String ), Set Int )
-collectUsedCustomTypeArgsHelp lookupTable nodes acc =
-    case nodes of
-        [] ->
-            acc
-
-        (Node range pattern) :: restOfNodes ->
-            case pattern of
-                Pattern.NamedPattern { name } args ->
-                    let
-                        newAcc : List ( ( ModuleName, String ), Set Int )
-                        newAcc =
-                            case ModuleNameLookupTable.moduleNameAt lookupTable range of
-                                Just moduleName ->
-                                    ( ( moduleName, name ), computeUsedPositions 0 args Set.empty ) :: acc
-
-                                Nothing ->
-                                    acc
-                    in
-                    collectUsedCustomTypeArgsHelp lookupTable (args ++ restOfNodes) newAcc
-
-                Pattern.TuplePattern patterns ->
-                    collectUsedCustomTypeArgsHelp lookupTable (patterns ++ restOfNodes) acc
-
-                Pattern.ListPattern patterns ->
-                    collectUsedCustomTypeArgsHelp lookupTable (patterns ++ restOfNodes) acc
-
-                Pattern.UnConsPattern left right ->
-                    collectUsedCustomTypeArgsHelp lookupTable (left :: right :: restOfNodes) acc
-
-                Pattern.ParenthesizedPattern subPattern ->
-                    collectUsedCustomTypeArgsHelp lookupTable (subPattern :: restOfNodes) acc
-
-                Pattern.AsPattern subPattern _ ->
-                    collectUsedCustomTypeArgsHelp lookupTable (subPattern :: restOfNodes) acc
-
-                _ ->
-                    collectUsedCustomTypeArgsHelp lookupTable restOfNodes acc
-
-
-computeUsedPositions : Int -> List (Node Pattern) -> Set Int -> Set Int
-computeUsedPositions index arguments acc =
-    case arguments of
-        [] ->
-            acc
-
-        arg :: restOfArgs ->
-            let
-                newAcc : Set Int
-                newAcc =
-                    if isWildcard arg then
-                        acc
-
-                    else
-                        Set.insert index acc
-            in
-            computeUsedPositions (index + 1) restOfArgs newAcc
 
 
 collectCustomTypeArgsInPatterns :
