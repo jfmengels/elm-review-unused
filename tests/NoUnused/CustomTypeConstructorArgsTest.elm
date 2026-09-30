@@ -96,9 +96,9 @@ something =
             \() ->
                 """module A exposing (..)
 type CustomType
-  = Constructor SomeData SomeOtherData
+  = Constructor Int ()
 
-b = Constructor ()
+b = Constructor 0 ()
 
 something =
   case foo of
@@ -109,13 +109,13 @@ something =
                         [ Review.Test.error
                             { message = "The 1st field of Constructor is never used"
                             , details = details
-                            , under = "SomeData"
+                            , under = "Int"
                             }
                             |> Review.Test.whenFixed """module A exposing (..)
 type CustomType
-  = Constructor SomeOtherData
+  = Constructor ()
 
-b = Constructor ()
+b = Constructor 0 ()
 
 something =
   case foo of
@@ -127,12 +127,14 @@ something =
                 """module A exposing (..)
 type CustomType
   = Constructor SomeData
+type SomeData = SomeData
 
-b = Constructor ()
+b = Constructor SomeData
 
 something =
   case foo of
     (_, Constructor value) -> value
+    _ -> SomeData
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
@@ -141,12 +143,14 @@ something =
                 """module A exposing (..)
 type CustomType
   = Constructor SomeData
+type SomeData = SomeData
 
-b = Constructor ()
+b = Constructor SomeData
 
 something =
   case foo of
     [Constructor value] -> value
+    _ -> SomeData
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
@@ -155,12 +159,15 @@ something =
                 """module A exposing (..)
 type CustomType
   = Constructor A B
+type A = A
+type B = B
 
-b = Constructor ()
+b = Constructor A B
 
 something =
   case foo of
-    Constructor a _ :: [Constructor _ b] -> value
+    Constructor a _ :: [Constructor _ b] -> b
+    _ -> B
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
@@ -169,12 +176,14 @@ something =
                 """module A exposing (..)
 type CustomType
   = Constructor A B
+type A = A
+type B = B
 
-b = Constructor ()
+b = Constructor A B
 
 something =
   case foo of
-    ( Constructor a b ) -> value
+    ( Constructor a b ) -> a
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
@@ -183,12 +192,14 @@ something =
                 """module A exposing (..)
 type CustomType
   = Constructor A B
+type A = A
+type B = B
 
-b = Constructor ()
+b = Constructor A B
 
 something =
   case foo of
-    Constructor _ (Constructor a _ ) -> value
+    Constructor _ (Constructor a _ ) -> a
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
@@ -197,12 +208,13 @@ something =
                 """module A exposing (..)
 type CustomType
   = Constructor A
+type A = A
 
-b = Constructor ()
+b = Constructor A
 
 something =
   case foo of
-    (Constructor a ) as thing -> value
+    (Constructor a ) as thing -> a
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
@@ -211,8 +223,9 @@ something =
                 """module A exposing (..)
 type CustomType
   = Constructor A
+type A = A
 
-b = Constructor ()
+b = Constructor A
 
 something (Constructor a) =
   a
@@ -224,14 +237,15 @@ something (Constructor a) =
                 """module A exposing (..)
 type CustomType
   = Constructor A
+type A = A
 
-b = Constructor ()
+b = Constructor A
 
 something =
   let
     foo (Constructor a) = 1
   in
-  a
+  foo (Constructor A)
 """
                     |> Review.Test.run rule
                     |> Review.Test.expectNoErrors
@@ -240,8 +254,9 @@ something =
                 """module A exposing (..)
 type CustomType
   = Constructor A
+type A = A
 
-b = Constructor ()
+b = Constructor A
 
 something =
   \\(Constructor a) -> 1
@@ -253,8 +268,9 @@ something =
                 """module A exposing (..)
 type CustomType
   = Constructor A
+type A = A
 
-b = Constructor ()
+b = Constructor A
 
 something =
   let
@@ -268,7 +284,7 @@ something =
             \() ->
                 [ """module A exposing (..)
 type CustomType
-  = Constructor A
+  = Constructor ()
 """, """module B exposing (..)
 import A
 
@@ -283,38 +299,9 @@ something =
                 """module NotExposed exposing (..)
 type CustomType
   = Constructor SomeData
+type SomeData = SomeData
 
-b = Constructor ()
-
-something =
-  case foo of
-    Constructor -> 1
-"""
-                    |> Review.Test.runWithProjectData packageProject rule
-                    |> Review.Test.expectErrors
-                        [ Review.Test.error
-                            { message = "The 1st field of Constructor is never used"
-                            , details = details
-                            , under = "SomeData"
-                            }
-                            |> Review.Test.whenFixed """module NotExposed exposing (..)
-type CustomType
-  = Constructor
-
-b = Constructor ()
-
-something =
-  case foo of
-    Constructor -> 1
-"""
-                        ]
-        , test "should report errors for non-exposed modules in a package (exposing explicitly)" <|
-            \() ->
-                """module NotExposed exposing (CustomType(..))
-type CustomType
-  = Constructor SomeData
-
-b = Constructor ()
+b = Constructor SomeData
 
 something =
   case foo of
@@ -327,9 +314,44 @@ something =
                             , details = details
                             , under = "SomeData"
                             }
+                            |> Review.Test.atExactly { start = { row = 3, column = 17 }, end = { row = 3, column = 25 } }
+                            |> Review.Test.whenFixed """module NotExposed exposing (..)
+type CustomType
+  = Constructor
+type SomeData = SomeData
+
+b = Constructor SomeData
+
+something =
+  case foo of
+    Constructor -> 1
+"""
+                        ]
+        , test "should report errors for non-exposed modules in a package (exposing explicitly)" <|
+            \() ->
+                """module NotExposed exposing (CustomType(..))
+type CustomType
+  = Constructor SomeData
+type SomeData = SomeData
+
+b = Constructor SomeData
+
+something =
+  case foo of
+    Constructor _ -> 1
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "The 1st field of Constructor is never used"
+                            , details = details
+                            , under = "SomeData"
+                            }
+                            |> Review.Test.atExactly { start = { row = 3, column = 17 }, end = { row = 3, column = 25 } }
                             |> Review.Test.whenFixed """module NotExposed exposing (CustomType(..))
 type CustomType
   = Constructor
+type SomeData = SomeData
 
 b = Constructor ()
 
@@ -342,7 +364,7 @@ something =
             \() ->
                 """module Exposed exposing (..)
 type CustomType
-  = Constructor SomeData
+  = Constructor ()
 
 b = Constructor ()
 
@@ -356,7 +378,7 @@ something =
             \() ->
                 """module Exposed exposing (CustomType(..))
 type CustomType
-  = Constructor SomeData
+  = Constructor ()
 
 b = Constructor ()
 
@@ -370,7 +392,7 @@ something =
             \() ->
                 """module Exposed exposing (b)
 type CustomType
-  = Constructor SomeData
+  = Constructor ()
 
 b = Constructor ()
 
@@ -383,8 +405,9 @@ something =
                         [ Review.Test.error
                             { message = "The 1st field of Constructor is never used"
                             , details = details
-                            , under = "SomeData"
+                            , under = "()"
                             }
+                            |> Review.Test.atExactly { start = { row = 3, column = 17 }, end = { row = 3, column = 19 } }
                             |> Review.Test.whenFixed """module Exposed exposing (b)
 type CustomType
   = Constructor
@@ -401,12 +424,13 @@ something =
                 """module Exposed exposing (CustomType)
 type CustomType
   = Constructor SomeData
+type alias SomeData = ()
 
 b = Constructor ()
 
 something =
   case foo of
-    Constructor -> 1
+    Constructor _ -> 1
 """
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectErrors
@@ -415,9 +439,11 @@ something =
                             , details = details
                             , under = "SomeData"
                             }
+                            |> Review.Test.atExactly { start = { row = 3, column = 17 }, end = { row = 3, column = 25 } }
                             |> Review.Test.whenFixed """module Exposed exposing (CustomType)
 type CustomType
   = Constructor
+type alias SomeData = ()
 
 b = Constructor ()
 
