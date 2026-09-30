@@ -344,9 +344,12 @@ declarationVisitor : Node Declaration -> ModuleContext -> ModuleContext
 declarationVisitor (Node _ node) context =
     case node of
         Declaration.FunctionDeclaration function ->
-            { context
-                | unusedArgumentsInPatterns = collectCustomTypeArgsInPatterns context (Node.value function.declaration).arguments context.unusedArgumentsInPatterns
-            }
+            let
+                unusedArgumentsInPatterns : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+                unusedArgumentsInPatterns =
+                    collectCustomTypeArgsInPatterns context (Node.value function.declaration).arguments context.unusedArgumentsInPatterns
+            in
+            { context | unusedArgumentsInPatterns = unusedArgumentsInPatterns }
 
         Declaration.CustomTypeDeclaration typeDeclaration ->
             let
@@ -394,13 +397,20 @@ expressionVisitor : Node Expression -> ModuleContext -> ModuleContext
 expressionVisitor (Node _ node) context =
     case node of
         Expression.CaseExpression { cases } ->
-            { context
-                | unusedArgumentsInPatterns = collectCustomTypeArgsInPatterns context (List.map Tuple.first cases) context.unusedArgumentsInPatterns
-            }
+            let
+                unusedArgumentsInPatterns : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+                unusedArgumentsInPatterns =
+                    collectCustomTypeArgsInPatterns
+                        context
+                        (List.map Tuple.first cases)
+                        context.unusedArgumentsInPatterns
+            in
+            { context | unusedArgumentsInPatterns = unusedArgumentsInPatterns }
 
         Expression.LetExpression { declarations } ->
-            { context
-                | unusedArgumentsInPatterns =
+            let
+                unusedArgumentsInPatterns : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+                unusedArgumentsInPatterns =
                     List.foldl
                         (\(Node _ declaration) acc ->
                             case declaration of
@@ -412,12 +422,16 @@ expressionVisitor (Node _ node) context =
                         )
                         context.unusedArgumentsInPatterns
                         declarations
-            }
+            in
+            { context | unusedArgumentsInPatterns = unusedArgumentsInPatterns }
 
         Expression.LambdaExpression { args } ->
-            { context
-                | unusedArgumentsInPatterns = collectCustomTypeArgsInPatterns context args context.unusedArgumentsInPatterns
-            }
+            let
+                unusedArgumentsInPatterns : Dict ( Int, ModuleName, ConstructorName ) (Maybe (List Range))
+                unusedArgumentsInPatterns =
+                    collectCustomTypeArgsInPatterns context args context.unusedArgumentsInPatterns
+            in
+            { context | unusedArgumentsInPatterns = unusedArgumentsInPatterns }
 
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
