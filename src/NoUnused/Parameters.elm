@@ -959,12 +959,19 @@ registerFunctionCallReference fnName fnRange arguments context =
 
                             Nothing ->
                                 context.locationsToIgnoreForRecursiveArguments
+
+                    functionCallsWithArguments : Dict FunctionName (List CallSite)
+                    functionCallsWithArguments =
+                        insertInDictList
+                            fnName
+                            { fnNameEnd = fnRange.end, arguments = Array.fromList arguments }
+                            context.functionCallsWithArguments
                 in
                 { context
                     | locationsToIgnoreForRecursiveArguments = locationsToIgnoreForRecursiveArguments
                     , locationsToIgnoreFunctionCalls = fnRange.start :: context.locationsToIgnoreFunctionCalls
+                    , functionCallsWithArguments = functionCallsWithArguments
                 }
-                    |> registerLocalFunctionReference fnName fnRange.end (Array.fromList arguments)
 
             Just moduleName ->
                 registerExternalFunctionReference moduleName
@@ -1000,19 +1007,6 @@ registerExternalFunctionReference moduleName fnName fnRange arguments context =
 
     else
         context
-
-
-registerLocalFunctionReference : FunctionName -> Location -> Array (Node Expression) -> ModuleContext -> ModuleContext
-registerLocalFunctionReference fnName fnNameEnd arguments context =
-    let
-        functionCallsWithArguments : Dict FunctionName (List { fnNameEnd : Location, arguments : Array (Node Expression) })
-        functionCallsWithArguments =
-            insertInDictList
-                fnName
-                { fnNameEnd = fnNameEnd, arguments = arguments }
-                context.functionCallsWithArguments
-    in
-    { context | functionCallsWithArguments = functionCallsWithArguments }
 
 
 ignoreLocationsForRecursiveArguments : FunctionArgs -> List (Node Expression) -> Int -> LocationsToIgnore -> LocationsToIgnore
