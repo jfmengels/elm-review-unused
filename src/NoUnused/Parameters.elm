@@ -284,8 +284,8 @@ type Source
 fromProjectToModule : Rule.ContextCreator ProjectContext ModuleContext
 fromProjectToModule =
     Rule.initContextCreator
-        (\lookupTable projectContent ->
-            { exposedModules = projectContent.exposedModules
+        (\lookupTable projectContext ->
+            { exposedModules = projectContext.exposedModules
             , lookupTable = lookupTable
             , scopes =
                 NonemptyList.fromElement
@@ -308,7 +308,7 @@ fromProjectToModule =
                         List.foldl (\{ functionName } setAcc -> Set.insert ( moduleName, functionName ) setAcc) set args
                     )
                     Set.empty
-                    projectContent.toReport
+                    projectContext.toReport
             }
         )
         |> Rule.withModuleNameLookupTable
