@@ -367,14 +367,19 @@ moduleDefinitionVisitor (Node _ node) moduleContext =
     { moduleContext | exposed = Module.exposingList node }
 
 
-isNotNever : ModuleNameLookupTable -> Node TypeAnnotation -> Bool
-isNotNever lookupTable (Node _ node) =
+isNever : ModuleNameLookupTable -> Node TypeAnnotation -> Bool
+isNever lookupTable (Node _ node) =
     case node of
         TypeAnnotation.Typed (Node neverRange ( _, "Never" )) [] ->
-            ModuleNameLookupTable.moduleNameAt lookupTable neverRange /= Just [ "Basics" ]
+            case ModuleNameLookupTable.moduleNameAt lookupTable neverRange of
+                Just [ "Basics" ] ->
+                    True
+
+                _ ->
+                    False
 
         _ ->
-            True
+            False
 
 
 
@@ -423,11 +428,11 @@ createArguments : ModuleNameLookupTable -> List (Node TypeAnnotation) -> List Ra
 createArguments lookupTable arguments =
     List.foldr
         (\argument acc ->
-            if isNotNever lookupTable argument then
-                Node.range argument :: acc
+            if isNever lookupTable argument then
+                acc
 
             else
-                acc
+                Node.range argument :: acc
         )
         []
         arguments
