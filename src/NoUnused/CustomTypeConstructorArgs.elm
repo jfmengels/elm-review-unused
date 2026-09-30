@@ -400,6 +400,7 @@ declarationVisitor (Node _ node) context =
                     registerUsedPatterns
                         (collectUsedPatternsFromFunctionDeclaration context function)
                         context.usedArguments
+                , unusedArgumentsInPatterns = collectCustomTypeArgsInPatterns context (Node.value function.declaration).arguments context.unusedArgumentsInPatterns
             }
 
         Declaration.CustomTypeDeclaration typeDeclaration ->
@@ -478,7 +479,21 @@ expressionVisitor (Node _ node) context =
                         )
                         declarations
             in
-            { context | usedArguments = registerUsedPatterns usedArguments context.usedArguments }
+            { context
+                | usedArguments = registerUsedPatterns usedArguments context.usedArguments
+                , unusedArgumentsInPatterns =
+                    List.foldl
+                        (\(Node _ declaration) acc ->
+                            case declaration of
+                                Expression.LetDestructuring pattern _ ->
+                                    collectCustomTypeArgsInPatterns context [ pattern ] acc
+
+                                Expression.LetFunction function ->
+                                    collectCustomTypeArgsInPatterns context (Node.value function.declaration).arguments acc
+                        )
+                        context.unusedArgumentsInPatterns
+                        declarations
+            }
 
         Expression.LambdaExpression { args } ->
             { context
@@ -486,6 +501,7 @@ expressionVisitor (Node _ node) context =
                     registerUsedPatterns
                         (collectUsedCustomTypeArgs context.lookupTable args)
                         context.usedArguments
+                , unusedArgumentsInPatterns = collectCustomTypeArgsInPatterns context args context.unusedArgumentsInPatterns
             }
 
         Expression.OperatorApplication operator _ left right ->
@@ -778,16 +794,13 @@ finalEvaluationForSingleModule context moduleName { moduleKey, constructors } pr
                 acc
 
             else
-                let
-                    usedArgumentPositions : Set Int
-                    usedArgumentPositions =
-                        Dict.get key context.usedArguments |> Maybe.withDefault Set.empty
-                in
                 errorsForUnusedArguments
+                    context.unusedArgumentsInPatterns
                     moduleKey
-                    usedArgumentPositions
-                    nameRange
+                    moduleName
+                    constructorName
                     0
+                    nameRange
                     args
                     acc
         )
@@ -795,8 +808,17 @@ finalEvaluationForSingleModule context moduleName { moduleKey, constructors } pr
         constructors
 
 
-errorsForUnusedArguments : Rule.ModuleKey -> Set Int -> Range -> Int -> List Range -> List (Error anywhere) -> List (Error anywhere)
-errorsForUnusedArguments moduleKey usedArgumentPositions previousRange index argRanges acc =
+errorsForUnusedArguments :
+    Dict ( Int, ModuleName, ConstructorName ) (Maybe (List { moduleKey : Rule.ModuleKey, args : List Range }))
+    -> Rule.ModuleKey
+    -> ModuleName
+    -> ConstructorName
+    -> Int
+    -> Range
+    -> List Range
+    -> List (Error anywhere)
+    -> List (Error anywhere)
+errorsForUnusedArguments unusedArgumentsInPatterns moduleKeyForTargetFile moduleName constructorName index previousRange argRanges acc =
     case argRanges of
         [] ->
             acc
@@ -805,32 +827,47 @@ errorsForUnusedArguments moduleKey usedArgumentPositions previousRange index arg
             let
                 newAcc : List (Error anywhere)
                 newAcc =
-                    if Set.member index usedArgumentPositions then
-                        acc
+                    case Dict.get ( index, moduleName, constructorName ) unusedArgumentsInPatterns of
+                        Just Nothing ->
+                            acc
 
-                    else
-                        let
-                            fixes : List Rule.FixV2
-                            fixes =
-                                [ Rule.editModule
-                                    moduleKey
-                                    [ Fix.removeRange { start = previousRange.end, end = range.end }
-                                    ]
-                                ]
-                        in
-                        error moduleKey range fixes :: acc
+                        Just (Just list) ->
+                            error moduleKeyForTargetFile previousRange range list :: acc
+
+                        Nothing ->
+                            error moduleKeyForTargetFile previousRange range [] :: acc
             in
             errorsForUnusedArguments
-                moduleKey
-                usedArgumentPositions
-                range
+                unusedArgumentsInPatterns
+                moduleKeyForTargetFile
+                moduleName
+                constructorName
                 (index + 1)
+                range
                 rest
                 newAcc
 
 
-error : Rule.ModuleKey -> Range -> List Rule.FixV2 -> Error anywhere
-error moduleKey range fixes =
+error :
+    Rule.ModuleKey
+    -> Range
+    -> Range
+    -> List { moduleKey : Rule.ModuleKey, args : List Range }
+    -> Error scope
+error moduleKey previousRange range patterns =
+    let
+        fixes : List Rule.FixV2
+        fixes =
+            Rule.editModule
+                moduleKey
+                [ Fix.removeRange { start = previousRange.end, end = range.end }
+                ]
+                :: List.map
+                    (\pattern ->
+                        Rule.editModule pattern.moduleKey (List.map Fix.removeRange pattern.args)
+                    )
+                    patterns
+    in
     Rule.errorForModule moduleKey
         { message = "Argument is never extracted and therefore never used."
         , details =

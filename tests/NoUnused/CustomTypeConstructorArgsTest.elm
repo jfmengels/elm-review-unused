@@ -50,7 +50,7 @@ b = B ()
 
 something =
   case foo of
-    B _ -> ()
+    B -> ()
 """
                         ]
         , test "should report an error when custom type constructor argument is never used, even in parens" <|
@@ -80,7 +80,7 @@ b = B ()
 
 something =
   case foo of
-    B (_) -> ()
+    B -> ()
 """
                         ]
         , test "should not report an error if custom type constructor argument is used" <|
@@ -124,7 +124,7 @@ b = Constructor ()
 
 something =
   case foo of
-    Constructor _ value -> value
+    Constructor value -> value
 """
                         ]
         , test "should not report an error for used arguments in nested patterns (tuple)" <|
@@ -293,7 +293,7 @@ b = Constructor ()
 
 something =
   case foo of
-    Constructor _ -> 1
+    Constructor -> 1
 """
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectErrors
@@ -310,7 +310,7 @@ b = Constructor ()
 
 something =
   case foo of
-    Constructor _ -> 1
+    Constructor -> 1
 """
                         ]
         , test "should report errors for non-exposed modules in a package (exposing explicitly)" <|
@@ -340,7 +340,7 @@ b = Constructor ()
 
 something =
   case foo of
-    Constructor _ -> 1
+    Constructor -> 1
 """
                         ]
         , test "should not report errors for exposed modules that expose everything" <|
@@ -353,7 +353,7 @@ b = Constructor ()
 
 something =
   case foo of
-    Constructor _ -> 1
+    Constructor -> 1
 """
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectNoErrors
@@ -398,7 +398,7 @@ b = Constructor ()
 
 something =
   case foo of
-    Constructor _ -> 1
+    Constructor -> 1
 """
                         ]
         , test "should report errors if the type is exposed but not its constructors" <|
@@ -411,7 +411,7 @@ b = Constructor ()
 
 something =
   case foo of
-    Constructor _ -> 1
+    Constructor -> 1
 """
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectErrors
@@ -428,7 +428,7 @@ b = Constructor ()
 
 something =
   case foo of
-    Constructor _ -> 1
+    Constructor -> 1
 """
                         ]
         , test "should not report args if they are used in a different module" <|
