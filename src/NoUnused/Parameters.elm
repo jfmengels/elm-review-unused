@@ -211,7 +211,7 @@ type alias ModuleContext =
     { exposedModules : Set ModuleName
     , lookupTable : ModuleNameLookupTable
     , scopes : Nonempty Scope
-    , recursiveFunctions : Dict String FunctionArgs
+    , recursiveFunctions : Dict FunctionName FunctionArgs
     , locationsToIgnoreForRecursiveArguments : LocationsToIgnore
     , functionCallsWithArguments : Dict FunctionName (List CallSite)
     , functionCallsWithArgumentsForOtherModules : Dict ( ModuleName, FunctionName ) (List CallSite)
@@ -225,7 +225,7 @@ type alias Scope =
     , declared : List Declared
     , functionsDeclaredInSubScope : Set String
     , used : Set String
-    , usedRecursively : Set String
+    , usedRecursively : Set FunctionName
     , toReport : List ArgumentToReport
     , locationsToIgnoreForFunctionCalls : List Location
     }
