@@ -19,6 +19,7 @@ import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.Pattern as Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Location, Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
+import NoUnused.Parameters.ParameterPath as ParameterPath
 import Review.Fix as Fix
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
 import Review.Project.Dependency as Dependency exposing (Dependency)
@@ -28,6 +29,8 @@ import String.Extra
 
 
 {-| Reports arguments of custom type constructors that are never used.
+
+🔧 Running with `--fix` will automatically remove most of the reported errors.
 
     config =
         [ NoUnused.CustomTypeConstructorArgs.rule
@@ -748,7 +751,7 @@ finalEvaluationForSingleModule context moduleName { moduleKey, constructors } pr
 
             else
                 errorsForUnusedArguments
-                    context.unusedArgumentsInPatterns
+                    context
                     moduleKey
                     moduleName
                     constructorName
@@ -762,7 +765,7 @@ finalEvaluationForSingleModule context moduleName { moduleKey, constructors } pr
 
 
 errorsForUnusedArguments :
-    Dict ( Int, ModuleName, ConstructorName ) (Maybe (List { moduleKey : Rule.ModuleKey, args : List Range }))
+    ProjectContext
     -> Rule.ModuleKey
     -> ModuleName
     -> ConstructorName
@@ -771,28 +774,45 @@ errorsForUnusedArguments :
     -> List Range
     -> List (Error anywhere)
     -> List (Error anywhere)
-errorsForUnusedArguments unusedArgumentsInPatterns moduleKeyForTargetFile moduleName constructorName index previousRange argRanges acc =
+errorsForUnusedArguments context moduleKey moduleName constructorName index previousRange argRanges acc =
     case argRanges of
         [] ->
             acc
 
         range :: rest ->
             let
+                createError : List { moduleKey : Rule.ModuleKey, args : List Range } -> Error scope
+                createError unusedArgumentsInPattern =
+                    let
+                        callSitesPerFile : List { moduleKey : Rule.ModuleKey, callSites : List CallSite }
+                        callSitesPerFile =
+                            Dict.get ( moduleName, constructorName ) context.functionCallsWithArguments
+                                |> Maybe.withDefault []
+                    in
+                    error
+                        moduleKey
+                        constructorName
+                        index
+                        previousRange
+                        range
+                        callSitesPerFile
+                        unusedArgumentsInPattern
+
                 newAcc : List (Error anywhere)
                 newAcc =
-                    case Dict.get ( index, moduleName, constructorName ) unusedArgumentsInPatterns of
+                    case Dict.get ( index, moduleName, constructorName ) context.unusedArgumentsInPatterns of
                         Just Nothing ->
                             acc
 
-                        Just (Just list) ->
-                            error moduleKeyForTargetFile constructorName index previousRange range list :: acc
+                        Just (Just unusedArgumentsInPattern) ->
+                            createError unusedArgumentsInPattern :: acc
 
                         Nothing ->
-                            error moduleKeyForTargetFile constructorName index previousRange range [] :: acc
+                            createError [] :: acc
             in
             errorsForUnusedArguments
-                unusedArgumentsInPatterns
-                moduleKeyForTargetFile
+                context
+                moduleKey
                 moduleName
                 constructorName
                 (index + 1)
@@ -807,21 +827,28 @@ error :
     -> Int
     -> Range
     -> Range
+    -> List { moduleKey : Rule.ModuleKey, callSites : List CallSite }
     -> List { moduleKey : Rule.ModuleKey, args : List Range }
     -> Error scope
-error moduleKey constructorName index previousRange range patterns =
+error moduleKey constructorName index previousRange range callSitesPerFile patterns =
     let
         fixes : List Rule.FixV2
         fixes =
-            Rule.editModule
-                moduleKey
-                [ Fix.removeRange { start = previousRange.end, end = range.end }
-                ]
-                :: List.map
-                    (\pattern ->
-                        Rule.editModule pattern.moduleKey (List.map Fix.removeRange pattern.args)
-                    )
-                    patterns
+            case applyFixesAcrossModules index callSitesPerFile [] of
+                Just callSiteFixes ->
+                    Rule.editModule
+                        moduleKey
+                        [ Fix.removeRange { start = previousRange.end, end = range.end }
+                        ]
+                        :: List.map
+                            (\pattern ->
+                                Rule.editModule pattern.moduleKey (List.map Fix.removeRange pattern.args)
+                            )
+                            patterns
+                        ++ callSiteFixes
+
+                Nothing ->
+                    []
     in
     Rule.errorForModule moduleKey
         { message = "The " ++ toOrdinal (index + 1) ++ " field of " ++ constructorName ++ " is never used"
@@ -831,6 +858,78 @@ error moduleKey constructorName index previousRange range patterns =
         }
         range
         |> Rule.withFixesV2 fixes
+
+
+applyFixesAcrossModules :
+    Int
+    -> List { moduleKey : Rule.ModuleKey, callSites : List CallSite }
+    -> List Rule.FixV2
+    -> Maybe (List Rule.FixV2)
+applyFixesAcrossModules index callSitesPerFile fixesSoFar =
+    case callSitesPerFile of
+        [] ->
+            Just fixesSoFar
+
+        { moduleKey, callSites } :: rest ->
+            case addArgumentToRemove index [] callSites [] of
+                Nothing ->
+                    Nothing
+
+                Just rangesToRemove ->
+                    applyFixesAcrossModules
+                        index
+                        rest
+                        (Rule.editModule moduleKey (List.map Fix.removeRange rangesToRemove) :: fixesSoFar)
+
+
+addArgumentToRemove : Int -> List ParameterPath.Nesting -> List CallSite -> List Range -> Maybe (List Range)
+addArgumentToRemove position nesting callSites acc =
+    case callSites of
+        [] ->
+            Just acc
+
+        callSite :: rest ->
+            case Array.get position callSite.arguments of
+                Just ((Node range _) as node) ->
+                    case ParameterPath.fixCall (prettyRemovalRange range position callSite) node nesting acc of
+                        Just edits ->
+                            addArgumentToRemove position nesting rest edits
+
+                        Nothing ->
+                            Nothing
+
+                Nothing ->
+                    -- If an argument at that location could not be found, then we can't autofix the issue.
+                    Nothing
+
+
+prettyRemovalRange : Range -> Int -> CallSite -> Range
+prettyRemovalRange range position callSite =
+    let
+        previousEnd : Location
+        previousEnd =
+            case Array.get (position - 1) callSite.arguments of
+                Just (Node { end } _) ->
+                    end
+
+                Nothing ->
+                    callSite.fnNameEnd
+    in
+    -- If the call was made with |>, then the constructed range will be negative.
+    -- Therefore in that case, simply remove `range` which corresponds to `arg |> `
+    case compare previousEnd.row range.end.row of
+        LT ->
+            { start = previousEnd, end = range.end }
+
+        EQ ->
+            if previousEnd.column <= range.end.column then
+                { start = previousEnd, end = range.end }
+
+            else
+                range
+
+        GT ->
+            range
 
 
 toOrdinal : Int -> String

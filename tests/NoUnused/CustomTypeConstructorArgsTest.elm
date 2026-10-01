@@ -41,7 +41,7 @@ something =
 type CustomType
   = B
 
-b = B ()
+b = B
 
 something =
   case foo of
@@ -71,7 +71,7 @@ something =
 type CustomType
   = B
 
-b = B ()
+b = B
 
 something =
   case foo of
@@ -115,7 +115,7 @@ something =
 type CustomType
   = Constructor ()
 
-b = Constructor 0 ()
+b = Constructor ()
 
 something =
   case foo of
@@ -320,7 +320,7 @@ type CustomType
   = Constructor
 type SomeData = SomeData
 
-b = Constructor SomeData
+b = Constructor
 
 something =
   case foo of
@@ -353,7 +353,7 @@ type CustomType
   = Constructor
 type SomeData = SomeData
 
-b = Constructor ()
+b = Constructor
 
 something =
   case foo of
@@ -412,7 +412,7 @@ something =
 type CustomType
   = Constructor
 
-b = Constructor ()
+b = Constructor
 
 something =
   case foo of
@@ -445,7 +445,7 @@ type CustomType
   = Constructor
 type alias SomeData = ()
 
-b = Constructor ()
+b = Constructor
 
 something =
   case foo of
@@ -551,6 +551,87 @@ b = B
 """
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectNoErrors
+        , test "should remove field in calls using (|>)" <|
+            \() ->
+                """
+module MyModule exposing (a)
+type Foo = Unused Int
+a = 0 |> Unused
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "The 1st field of Unused is never used"
+                            , details = details
+                            , under = "Int"
+                            }
+                            |> Review.Test.whenFixed """
+module MyModule exposing (a)
+type Foo = Unused
+a = Unused
+"""
+                        ]
+        , test "should remove field in calls using (|>) (multiline)" <|
+            \() ->
+                """
+module MyModule exposing (a)
+type Foo = Unused Int
+a = 0
+        |> Unused
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "The 1st field of Unused is never used"
+                            , details = details
+                            , under = "Int"
+                            }
+                            |> Review.Test.whenFixed """
+module MyModule exposing (a)
+type Foo = Unused
+a = Unused
+"""
+                        ]
+        , test "should remove field in calls using (<|)" <|
+            \() ->
+                """
+module MyModule exposing (a)
+type Foo = Unused Int
+a = Unused <| 0
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "The 1st field of Unused is never used"
+                            , details = details
+                            , under = "Int"
+                            }
+                            |> Review.Test.whenFixed """
+module MyModule exposing (a)
+type Foo = Unused
+a = Unused
+"""
+                        ]
+        , test "should remove field in calls using (<|) (multiline)" <|
+            \() ->
+                """
+module MyModule exposing (a)
+type Foo = Unused Int
+a = Unused <| 0
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "The 1st field of Unused is never used"
+                            , details = details
+                            , under = "Int"
+                            }
+                            |> Review.Test.whenFixed """
+module MyModule exposing (a)
+type Foo = Unused
+a = Unused
+"""
+                        ]
         , test "should report args for type constructors used in non-equality operator expressions" <|
             \() ->
                 """
@@ -569,7 +650,7 @@ b = B
                             |> Review.Test.whenFixed """
 module MyModule exposing (a, b)
 type Foo = Unused | B
-a = Unused <| b
+a = Unused
 b = B
 """
                         ]
@@ -591,7 +672,7 @@ b = Ö_B
                             |> Review.Test.whenFixed """
 module MyModule exposing (a, b)
 type Foo = Ö_Unused | Ö_B
-a = Ö_Unused <| b
+a = Ö_Unused
 b = Ö_B
 """
                         ]
@@ -677,7 +758,7 @@ b = B
 
 module MyModule exposing (a, b)
 type Foo = Unused | B
-a = foo (Unused 0) == b
+a = foo (Unused) == b
 b = B
 """
                         ]

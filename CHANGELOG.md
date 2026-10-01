@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- [`NoUnused.CustomTypeConstructorArgs`] now provides an automatic fix.
 - Improved the error message for [`NoUnused.CustomTypeConstructorArgs`].
 - [`NoUnused.Parameters`] now automatically removes the argument from call sites when it's alone and passed through a pipe operator.
 - [`NoUnused.Exports`] now automatically removes the exposing of custom type constructors with exposed types.
