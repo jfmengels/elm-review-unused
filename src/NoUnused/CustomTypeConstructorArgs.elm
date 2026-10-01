@@ -273,26 +273,11 @@ getNonPublicConstructors moduleContext =
             Exposing.All _ ->
                 Dict.empty
 
-            Exposing.Explicit list ->
+            Exposing.Explicit exposed ->
                 let
                     exposedCustomTypes : Set TypeNameS
                     exposedCustomTypes =
-                        List.foldl
-                            (\(Node _ exposed) acc ->
-                                case exposed of
-                                    Exposing.TypeExpose { name, open } ->
-                                        case open of
-                                            Just _ ->
-                                                Set.insert name acc
-
-                                            Nothing ->
-                                                acc
-
-                                    _ ->
-                                        acc
-                            )
-                            Set.empty
-                            list
+                        collectExposedTypes exposed
                 in
                 List.foldl
                     (\( TypeName typeName, args ) acc ->
@@ -310,6 +295,26 @@ getNonPublicConstructors moduleContext =
             (\( _, args ) acc -> Dict.union args acc)
             Dict.empty
             moduleContext.customTypeArgs
+
+
+collectExposedTypes : List (Node Exposing.TopLevelExpose) -> Set String
+collectExposedTypes exposed =
+    List.foldl
+        (\(Node _ exp) set ->
+            case exp of
+                Exposing.TypeExpose { name, open } ->
+                    case open of
+                        Just _ ->
+                            Set.insert name set
+
+                        Nothing ->
+                            set
+
+                _ ->
+                    set
+        )
+        Set.empty
+        exposed
 
 
 foldProjectContexts : ProjectContext -> ProjectContext -> ProjectContext
