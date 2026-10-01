@@ -531,6 +531,28 @@ b = B
 """
                     |> Review.Test.runWithProjectData packageProject rule
                     |> Review.Test.expectNoErrors
+        , test "should report args for type constructors that are siblings of ones referenced in an equality expression (==)" <|
+            \() ->
+                """
+module MyModule exposing (a, b)
+type Foo = Unused Int | B
+a = B == b
+b = B
+"""
+                    |> Review.Test.runWithProjectData packageProject rule
+                    |> Review.Test.expectErrors
+                        [ Review.Test.error
+                            { message = "The 1st field of Unused is never used"
+                            , details = details
+                            , under = "Int"
+                            }
+                            |> Review.Test.whenFixed """
+module MyModule exposing (a, b)
+type Foo = Unused | B
+a = B == b
+b = B
+"""
+                        ]
         , test "should not report args for type constructors starting with a non-ASCII letter used in an equality expression (==)" <|
             \() ->
                 """

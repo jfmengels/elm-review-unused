@@ -108,7 +108,7 @@ type alias ProjectContext =
                `Just Nothing` means we have found at least one location where it's used, and we don't want to report it.
             -}
             (Maybe (List { moduleKey : Rule.ModuleKey, args : List Range }))
-    , customTypesNotToReport : Set ( TypeNameS, ModuleName )
+    , constructorsNotToReport : Set ( ConstructorName, ModuleName )
     , functionCallsWithArguments :
         Dict
             ( ConstructorName, ModuleName )
@@ -135,7 +135,7 @@ type alias ModuleContext =
                `Just Nothing` means we have found at least one location where it's used, and we don't want to report it.
             -}
             (Maybe (List Range))
-    , customTypesNotToReport : Set ( TypeNameS, ModuleName )
+    , constructorsNotToReport : Set ( ConstructorName, ModuleName )
 
     -- Function calls
     , functionCallsWithArguments : Dict ( ConstructorName, ModuleName ) (List CallSite)
@@ -218,7 +218,7 @@ initialProjectContext =
     , dependencyModules = Set.empty
     , constructorsPerModule = Dict.empty
     , unusedArgumentsInPatterns = Dict.empty
-    , customTypesNotToReport = Set.empty
+    , constructorsNotToReport = Set.empty
     , functionCallsWithArguments = Dict.empty
     }
 
@@ -233,7 +233,7 @@ fromProjectToModule =
             , exposed = Exposing.Explicit []
             , customTypeArgs = []
             , unusedArgumentsInPatterns = Dict.empty
-            , customTypesNotToReport = Set.empty
+            , constructorsNotToReport = Set.empty
             , functionCallsWithArguments = Dict.empty
             , locationsToIgnoreFunctionCalls = []
             }
@@ -255,7 +255,7 @@ fromModuleToProject =
                     , constructors = getNonPublicConstructors moduleContext
                     }
             , unusedArgumentsInPatterns = Dict.map (\_ args -> Maybe.map (\args_ -> [ { moduleKey = moduleKey, args = args_ } ]) args) moduleContext.unusedArgumentsInPatterns
-            , customTypesNotToReport = moduleContext.customTypesNotToReport
+            , constructorsNotToReport = moduleContext.constructorsNotToReport
             , functionCallsWithArguments = Dict.map (\_ callSites -> [ { moduleKey = moduleKey, callSites = callSites } ]) moduleContext.functionCallsWithArguments
             }
         )
@@ -335,7 +335,7 @@ foldProjectContexts newContext previousContext =
             )
             newContext.unusedArgumentsInPatterns
             previousContext.unusedArgumentsInPatterns
-    , customTypesNotToReport = Set.union newContext.customTypesNotToReport previousContext.customTypesNotToReport
+    , constructorsNotToReport = Set.union newContext.constructorsNotToReport previousContext.constructorsNotToReport
     , functionCallsWithArguments = mergeFunctionCallsWithArguments previousContext.functionCallsWithArguments newContext.functionCallsWithArguments
     }
 
@@ -518,14 +518,14 @@ expressionVisitor (Node range node) context =
 
         Expression.OperatorApplication operator _ left right ->
             if operator == "==" || operator == "/=" then
-                { context | customTypesNotToReport = findCustomTypes context [ left, right ] context.customTypesNotToReport }
+                { context | constructorsNotToReport = findCustomTypeConstructors context [ left, right ] context.constructorsNotToReport }
 
             else
                 context
 
         Expression.Application ((Node _ (Expression.PrefixOperator operator)) :: restOfArgs) ->
             if operator == "==" || operator == "/=" then
-                { context | customTypesNotToReport = findCustomTypes context restOfArgs context.customTypesNotToReport }
+                { context | constructorsNotToReport = findCustomTypeConstructors context restOfArgs context.constructorsNotToReport }
 
             else
                 context
@@ -534,8 +534,8 @@ expressionVisitor (Node range node) context =
             context
 
 
-findCustomTypes : ModuleContext -> List (Node Expression) -> Set ( String, ModuleName ) -> Set ( String, ModuleName )
-findCustomTypes context nodes acc =
+findCustomTypeConstructors : ModuleContext -> List (Node Expression) -> Set ( String, ModuleName ) -> Set ( String, ModuleName )
+findCustomTypeConstructors context nodes acc =
     case nodes of
         [] ->
             acc
@@ -551,38 +551,38 @@ findCustomTypes context nodes acc =
                                     |> Maybe.withDefault rawModuleName
                         in
                         if Set.member moduleName context.dependencyModules then
-                            findCustomTypes context restOfNodes acc
+                            findCustomTypeConstructors context restOfNodes acc
 
                         else
-                            findCustomTypes context restOfNodes (Set.insert ( functionName, moduleName ) acc)
+                            findCustomTypeConstructors context restOfNodes (Set.insert ( functionName, moduleName ) acc)
 
                     else
-                        findCustomTypes context restOfNodes acc
+                        findCustomTypeConstructors context restOfNodes acc
 
                 Expression.TupledExpression expressions ->
-                    findCustomTypes context (expressions ++ restOfNodes) acc
+                    findCustomTypeConstructors context (expressions ++ restOfNodes) acc
 
                 Expression.ParenthesizedExpression expression ->
-                    findCustomTypes context (expression :: restOfNodes) acc
+                    findCustomTypeConstructors context (expression :: restOfNodes) acc
 
                 Expression.Application (((Node _ (Expression.FunctionOrValue _ functionName)) as first) :: expressions) ->
                     if String.Extra.isCapitalized functionName then
-                        findCustomTypes context (first :: (expressions ++ restOfNodes)) acc
+                        findCustomTypeConstructors context (first :: (expressions ++ restOfNodes)) acc
 
                     else
-                        findCustomTypes context restOfNodes acc
+                        findCustomTypeConstructors context restOfNodes acc
 
                 Expression.OperatorApplication _ _ left right ->
-                    findCustomTypes context (left :: right :: restOfNodes) acc
+                    findCustomTypeConstructors context (left :: right :: restOfNodes) acc
 
                 Expression.Negation expression ->
-                    findCustomTypes context (expression :: restOfNodes) acc
+                    findCustomTypeConstructors context (expression :: restOfNodes) acc
 
                 Expression.ListExpr expressions ->
-                    findCustomTypes context (expressions ++ restOfNodes) acc
+                    findCustomTypeConstructors context (expressions ++ restOfNodes) acc
 
                 _ ->
-                    findCustomTypes context restOfNodes acc
+                    findCustomTypeConstructors context restOfNodes acc
 
 
 collectCustomTypeArgsInPatterns :
@@ -751,7 +751,7 @@ finalEvaluationForSingleModule context moduleName { moduleKey, constructors } pr
                 key =
                     ( constructorName, moduleName )
             in
-            if Set.member key context.customTypesNotToReport then
+            if Set.member key context.constructorsNotToReport then
                 acc
 
             else
